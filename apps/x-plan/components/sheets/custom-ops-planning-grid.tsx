@@ -413,7 +413,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         const isCurrentCell = activeColKey === column.key
 
         const cellClassName = cn(
-          'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+          'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
           colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
           isNumericCell && 'text-right',
           isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
@@ -486,11 +486,6 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
 
         const formattedValue = getCellFormattedValue(row, column, stageMode)
         const showPlaceholder = isDateCell && !formattedValue
-        const displayContent = showPlaceholder ? (
-          <span className="px-3 text-xs italic text-muted-foreground">Click to select date</span>
-        ) : (
-          formattedValue
-        )
 
         return (
           <TableCell
@@ -498,6 +493,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             id={cellDomId(row.id, column.key)}
             className={cellClassName}
             style={{ width: column.width, minWidth: column.width }}
+            title={showPlaceholder ? undefined : formattedValue}
             onClick={(event) => {
               event.stopPropagation()
               onSelectCell(row.id, column.key)
@@ -508,8 +504,14 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
               onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
             }}
           >
-            <div className={cn('flex h-9 items-center px-3', isNumericCell && 'justify-end')}>
-              {displayContent}
+            <div className={cn('flex h-9 min-w-0 items-center px-3', isNumericCell && 'justify-end')}>
+              {showPlaceholder ? (
+                <span className="px-3 text-xs italic text-muted-foreground">Click to select date</span>
+              ) : (
+                <span className={cn('block min-w-0 truncate', isNumericCell && 'tabular-nums')}>
+                  {formattedValue}
+                </span>
+              )}
             </div>
           </TableCell>
         )
@@ -961,42 +963,23 @@ export function CustomOpsPlanningGrid({
     if (e.key === 'Enter') {
       e.preventDefault()
       commitEdit()
-      // Move to next row, same column
-      if (editingCell) {
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        if (currentRowIndex < rows.length - 1) {
-          moveToCell(currentRowIndex + 1, currentColIndex)
-        }
-      }
+      moveSelection(1, 0)
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'Escape') {
       e.preventDefault()
       cancelEditing()
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'Tab') {
       e.preventDefault()
       commitEdit()
-      // Move to next/prev editable cell
-      if (editingCell) {
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-        const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
-
-        if (nextColIndex !== -1) {
-          moveToCell(currentRowIndex, nextColIndex)
-        } else if (!e.shiftKey && currentRowIndex < rows.length - 1) {
-          // Move to first editable column of next row
-          const firstEditableColIndex = findNextEditableColumn(-1, 1)
-          if (firstEditableColIndex !== -1) {
-            moveToCell(currentRowIndex + 1, firstEditableColIndex)
-          }
-        } else if (e.shiftKey && currentRowIndex > 0) {
-          // Move to last editable column of previous row
-          const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
-          if (lastEditableColIndex !== -1) {
-            moveToCell(currentRowIndex - 1, lastEditableColIndex)
-          }
-        }
-      }
+      moveSelectionTab(e.shiftKey ? -1 : 1)
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       commitEdit()

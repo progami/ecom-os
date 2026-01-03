@@ -63,6 +63,7 @@ import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/
 import type { PlanningCalendar } from '@/lib/planning'
 import { weekLabelForWeekNumber, type PlanningWeekConfig } from '@/lib/calculations/planning-week'
 import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import { weekStartsOnForRegion, type StrategyRegion } from '@/lib/strategy-region'
 
 const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
@@ -158,6 +159,7 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
     productId: order.productId,
     quantity: Number(order.quantity ?? 0),
     poDate: serializeDate(order.poDate),
+    poWeekNumber: order.poWeekNumber ?? null,
     productionWeeks: order.productionWeeks ?? null,
     sourceWeeks: order.sourceWeeks ?? null,
     oceanWeeks: order.oceanWeeks ?? null,
@@ -173,14 +175,19 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
     pay3Date: serializeDate(order.pay3Date),
     productionStart: serializeDate(order.productionStart),
     productionComplete: serializeDate(order.productionComplete),
+    productionCompleteWeekNumber: order.productionCompleteWeekNumber ?? null,
     sourceDeparture: serializeDate(order.sourceDeparture),
+    sourceDepartureWeekNumber: order.sourceDepartureWeekNumber ?? null,
     transportReference: order.transportReference ?? null,
     createdAt: serializeDate(order.createdAt),
     shipName: order.shipName ?? null,
     containerNumber: order.containerNumber ?? null,
     portEta: serializeDate(order.portEta),
+    portEtaWeekNumber: order.portEtaWeekNumber ?? null,
     inboundEta: serializeDate(order.inboundEta),
+    inboundEtaWeekNumber: order.inboundEtaWeekNumber ?? null,
     availableDate: serializeDate(order.availableDate),
+    availableWeekNumber: order.availableWeekNumber ?? null,
     totalLeadDays: order.totalLeadDays ?? null,
     status: order.status,
     notes: order.notes ?? null,
@@ -193,7 +200,9 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
         category: payment.category ?? null,
         label: payment.label ?? null,
         dueDate: serializeDate(payment.dueDate),
+        dueWeekNumber: payment.dueWeekNumber ?? null,
         dueDateDefault: serializeDate(payment.dueDateDefault ?? null),
+        dueWeekNumberDefault: payment.dueWeekNumberDefault ?? null,
         dueDateSource: payment.dueDateSource,
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
@@ -590,7 +599,7 @@ async function getProductSetupView(strategyId: string) {
   }
 }
 
-async function loadOperationsContext(strategyId: string) {
+async function loadOperationsContext(strategyId: string, calendar?: PlanningCalendar['calendar']) {
   const prismaAny = prisma as unknown as Record<string, unknown>
   const productDelegate = prismaAny.product as { findMany: (args?: unknown) => Promise<Product[]> } | undefined
   const leadStageDelegate = prismaAny.leadStageTemplate as {
@@ -697,6 +706,7 @@ async function loadOperationsContext(strategyId: string) {
     leadProfiles,
     parameters,
     paymentsDelegate,
+    calendar,
   })
 
   const purchaseOrderInputs = didSeedInvoices
@@ -721,6 +731,7 @@ async function ensureDefaultSupplierInvoices({
   leadProfiles,
   parameters,
   paymentsDelegate,
+  calendar,
 }: {
   purchaseOrders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[]; batchTableRows: BatchTableRow[] }>
   purchaseOrderInputs: PurchaseOrderInput[]
@@ -728,6 +739,7 @@ async function ensureDefaultSupplierInvoices({
   leadProfiles: Map<string, LeadTimeProfile>
   parameters: BusinessParameterMap
   paymentsDelegate?: typeof prisma.purchaseOrderPayment
+  calendar?: PlanningCalendar['calendar']
 }): Promise<boolean> {
   if (!paymentsDelegate) {
     console.warn('[x-plan] purchase order payments delegate unavailable; skipping invoice seeding')
@@ -741,7 +753,7 @@ async function ensureDefaultSupplierInvoices({
     if (!input) continue
     const profile = getLeadTimeProfile(input.productId, leadProfiles)
     if (!profile) continue
-    const derived = computePurchaseOrderDerived(input, productIndex, profile, parameters)
+    const derived = computePurchaseOrderDerived(input, productIndex, profile, parameters, { calendar })
     if (!derived.plannedPayments.length) continue
 
     const existingByIndex = new Map<number, PurchaseOrderPayment>()
@@ -761,6 +773,10 @@ async function ensureDefaultSupplierInvoices({
       const dueDateDefault =
         planned.plannedDefaultDate ?? planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
       const dueDate = dueDateDefault
+      const dueWeekNumberDefault =
+        planned.plannedDefaultWeekNumber ??
+        (calendar ? weekNumberForDate(dueDateDefault, calendar) : null)
+      const dueWeekNumber = dueWeekNumberDefault
 
       const percentageDecimal = percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null
       const amountExpectedDecimal = new Prisma.Decimal(Math.max(amountValue, 0).toFixed(2))
@@ -787,10 +803,12 @@ async function ensureDefaultSupplierInvoices({
           category: planned.category,
           label: planned.label,
           dueDateDefault,
+          dueWeekNumberDefault,
         }
 
         if (existingDueDateSource === 'SYSTEM') {
           updatePayload.dueDate = dueDate
+          updatePayload.dueWeekNumber = dueWeekNumber
           updatePayload.dueDateSource = 'SYSTEM'
         }
 
@@ -811,7 +829,9 @@ async function ensureDefaultSupplierInvoices({
               purchaseOrderId: record.id,
               paymentIndex: planned.paymentIndex,
               dueDate,
+              dueWeekNumber,
               dueDateDefault,
+              dueWeekNumberDefault,
               dueDateSource: 'SYSTEM',
               percentage: percentageDecimal,
               amountExpected: amountExpectedDecimal,
@@ -845,7 +865,8 @@ async function ensureDefaultSupplierInvoices({
 
 type PaymentDueDateSource = 'SYSTEM' | 'USER'
 
-const PAYMENT_METADATA_MISSING_REGEX = /Unknown argument `(?:category|label|amountExpected|amountPaid)`/
+const PAYMENT_METADATA_MISSING_REGEX =
+  /Unknown argument `(?:category|label|amountExpected|amountPaid|dueWeekNumber|dueWeekNumberDefault)`/
 
 function isMissingPaymentMetadataError(error: unknown): error is { message: string } {
   if (typeof error !== 'object' || error === null) return false
@@ -857,7 +878,9 @@ type SeedPaymentInput = {
   purchaseOrderId: string
   paymentIndex: number
   dueDate: Date
+  dueWeekNumber?: number | null
   dueDateDefault: Date
+  dueWeekNumberDefault?: number | null
   dueDateSource: PaymentDueDateSource
   percentage: Prisma.Decimal | null
   amountExpected: Prisma.Decimal
@@ -869,7 +892,9 @@ type SeedPaymentInput = {
 type UpdatePaymentInput = {
   paymentIndex?: number
   dueDate?: Date
+  dueWeekNumber?: number | null
   dueDateDefault?: Date
+  dueWeekNumberDefault?: number | null
   dueDateSource?: PaymentDueDateSource
   percentage?: Prisma.Decimal | null
   amountExpected?: Prisma.Decimal | null
@@ -893,7 +918,9 @@ async function createPurchaseOrderPayment(
     return await paymentsDelegate.create({ data })
   } catch (error) {
     if (isMissingPaymentMetadataError(error)) {
-      const { amountExpected, dueDateDefault, ...fallback } = data
+      const { amountExpected, dueDateDefault, dueWeekNumber, dueWeekNumberDefault, ...fallback } = data
+      void dueWeekNumber
+      void dueWeekNumberDefault
       console.warn(
         '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
       )
@@ -936,7 +963,9 @@ async function updatePurchaseOrderPayment(
     })
   } catch (error) {
     if (isMissingPaymentMetadataError(error)) {
-      const { amountExpected, dueDateDefault, ...fallback } = data
+      const { amountExpected, dueDateDefault, dueWeekNumber, dueWeekNumberDefault, ...fallback } = data
+      void dueWeekNumber
+      void dueWeekNumberDefault
       console.warn(
         '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
       )
@@ -958,7 +987,7 @@ async function updatePurchaseOrderPayment(
   }
 }
 
-function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>) {
+function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>, calendar?: PlanningCalendar['calendar']) {
   return context.purchaseOrderInputs
     .map((order) => {
       if (!context.productIndex.has(order.productId)) return null
@@ -971,7 +1000,7 @@ function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>
             .join(', ') + (order.batchTableRows.length > 3 ? '…' : '')
         : context.productNameById.get(order.productId) ?? ''
       return {
-        derived: computePurchaseOrderDerived(order, context.productIndex, profile, context.parameters),
+        derived: computePurchaseOrderDerived(order, context.productIndex, profile, context.parameters, { calendar }),
         input: order,
         productName: productNames,
       }
@@ -991,7 +1020,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
   } | undefined
 
   const [operations, profitOverrideRows, cashOverrideRows] = await Promise.all([
-    loadOperationsContext(strategyId),
+    loadOperationsContext(strategyId, planning.calendar),
     safeFindMany<ProfitAndLossWeek[]>(
       profitDelegate,
       { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
@@ -1006,7 +1035,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     ),
   ])
 
-  const derivedOrders = deriveOrders(operations)
+  const derivedOrders = deriveOrders(operations, planning.calendar)
   const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived), {
     productIds: operations.productInputs.map((product) => product.id),
     calendar: planning.calendar,
@@ -1027,7 +1056,8 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     profit.weekly,
     derivedOrders.map((item) => item.derived),
     operations.parameters,
-    cashOverrides
+    cashOverrides,
+    { calendar: planning.calendar },
   )
   return { operations, derivedOrders, salesPlan, profit, cash }
 }
@@ -1043,10 +1073,10 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
   calculator: OpsPlanningCalculatorPayload
   timelineMonths: { start: string; end: string; label: string }[]
 }> {
-  const context = await loadOperationsContext(strategyId)
+  const context = await loadOperationsContext(strategyId, planning?.calendar)
   const { rawPurchaseOrders } = context
 
-  const derivedOrders = deriveOrders(context)
+  const derivedOrders = deriveOrders(context, planning?.calendar)
 
   const visibleOrders = derivedOrders
   const visibleOrderIds = new Set(visibleOrders.map((item) => item.derived.id))
@@ -1149,7 +1179,8 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
       const dueDateDefaultIso = toIsoDate(payment.dueDateDefault ?? payment.dueDate ?? null)
       let weekNumber = ''
       if (planning) {
-        const planningWeekNumber = weekNumberForDate(payment.dueDate ?? null, planning.calendar)
+        const planningWeekNumber =
+          payment.dueWeekNumber ?? weekNumberForDate(payment.dueDate ?? null, planning.calendar)
         if (planningWeekNumber != null) {
           weekNumber = weekLabelForWeekNumber(planningWeekNumber, planning.yearSegments)
         }
@@ -1754,10 +1785,15 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   // Resolve strategyId from URL or get default
   const strategyId = await resolveStrategyId(parsedSearch.strategy)
 
-  const [workbookStatus, planningCalendar] = await Promise.all([
-    getWorkbookStatus(),
-    loadPlanningCalendar(),
-  ])
+  const prismaAnyLocal = prisma as unknown as Record<string, any>
+  const strategyRegionRow = await prismaAnyLocal.strategy?.findUnique?.({
+    where: { id: strategyId },
+    select: { region: true },
+  })
+  const strategyRegion: StrategyRegion = strategyRegionRow?.region === 'UK' ? 'UK' : 'US'
+  const weekStartsOn = weekStartsOnForRegion(strategyRegion)
+
+  const [workbookStatus, planningCalendar] = await Promise.all([getWorkbookStatus(), loadPlanningCalendar(weekStartsOn)])
   const sheetStatus = workbookStatus.sheets.find((item) => item.slug === config.slug)
   const activeYear = resolveActiveYear(parsedSearch.year, planningCalendar.yearSegments)
   const activeSegment = findYearSegment(activeYear, planningCalendar.yearSegments)
@@ -1769,6 +1805,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       ? {
           anchorWeekNumber,
           anchorWeekDateIso,
+          weekStartsOn,
           minWeekNumber: planningCalendar.calendar.minWeekNumber,
           maxWeekNumber: planningCalendar.calendar.maxWeekNumber,
           yearSegments: planningCalendar.yearSegments,
@@ -1805,6 +1842,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         name: string
         description: string | null
         status: string
+        region: 'US' | 'UK'
         isDefault: boolean
         createdAt: string
         updatedAt: string
@@ -1820,6 +1858,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         name: s.name,
         description: s.description,
         status: s.status,
+        region: s.region === 'UK' ? 'UK' : 'US',
         isDefault: s.id === canonicalDefaultId,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),

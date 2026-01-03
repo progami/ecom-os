@@ -572,7 +572,7 @@ describe('calendar continuity', () => {
     ]
 
     const calendar = buildWeekCalendar(anchoredWeeks)
-    expect(calendar.calendarStart?.toISOString()).toBe('2025-10-20T00:00:00.000Z')
+    expect(calendar.calendarStart?.toISOString()).toBe('2025-10-19T00:00:00.000Z')
     expect(calendar.anchorWeekNumber).toBe(42)
 
     const filledWeek40 = getCalendarDateForWeek(40, calendar)

@@ -1,9 +1,10 @@
 'use client'
 
-import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -169,60 +170,67 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
     }
   }
 
+  const primaryActionClass =
+    'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10'
+
   return (
-    <div className={clsx('overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#041324]', className)}>
-      <Table className="w-full table-fixed">
-        <TableHeader>
-          <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/5">
-            <TableHead className="w-28 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              SKU
+    <section className={cn('space-y-2', className)}>
+      <div className="flex justify-end">
+        {!isAdding ? (
+          <button type="button" onClick={() => setIsAdding(true)} className={primaryActionClass}>
+            <span className="inline-flex items-center gap-1.5">
+              <Plus className="h-4 w-4" />
+              Add product
+            </span>
+          </button>
+        ) : null}
+      </div>
+
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <div className="overflow-auto">
+          <Table className="w-full table-fixed border-collapse">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                  SKU
+                </TableHead>
+            <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+              Name
             </TableHead>
-            <TableHead className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Product Name
-            </TableHead>
-            <TableHead className="w-28 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              {!isAdding && (
-                <button
-                  type="button"
-                  onClick={() => setIsAdding(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add
-                </button>
-              )}
+            <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+              Actions
             </TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody className="divide-y divide-slate-100 dark:divide-white/5">
+        <TableBody>
           {isAdding && (
-            <TableRow className="bg-cyan-50/50 hover:bg-cyan-50/50 dark:bg-cyan-900/10 dark:hover:bg-cyan-900/10">
-              <TableCell className="px-3 py-2">
-                <input
+            <TableRow className="bg-cyan-50/70 hover:bg-cyan-50/70 dark:bg-cyan-900/20 dark:hover:bg-cyan-900/20">
+              <TableCell className="border-r px-3 py-2">
+                <Input
                   value={creatingSku}
                   onChange={(event) => setCreatingSku(event.target.value)}
                   placeholder="SKU"
                   autoFocus
-                  className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
+                  className="h-8"
                 />
               </TableCell>
-              <TableCell className="px-3 py-2">
-                <input
+              <TableCell className="border-r px-3 py-2">
+                <Input
                   value={creatingName}
                   onChange={(event) => setCreatingName(event.target.value)}
-                  placeholder="Product name"
+                  placeholder="Name"
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') handleCreateProduct()
+                    if (event.key === 'Enter') void handleCreateProduct()
                     if (event.key === 'Escape') handleCancelCreate()
                   }}
-                  className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
+                  className="h-8"
                 />
               </TableCell>
               <TableCell className="px-3 py-2">
                 <div className="flex justify-end gap-0.5">
                   <button
                     type="button"
-                    onClick={handleCreateProduct}
+                    onClick={() => void handleCreateProduct()}
                     disabled={isCreating}
                     className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                   >
@@ -232,7 +240,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                     type="button"
                     onClick={handleCancelCreate}
                     disabled={isCreating}
-                    className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                    className="rounded p-1.5 text-muted-foreground transition hover:bg-muted"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -242,10 +250,8 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
           )}
           {rows.length === 0 && !isAdding ? (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={3} className="px-3 py-8 text-center">
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+              <TableCell colSpan={3} className="p-8 text-center text-sm text-muted-foreground">
                   No products yet. Click &ldquo;Add&rdquo; to get started.
-                </p>
               </TableCell>
             </TableRow>
           ) : (
@@ -255,31 +261,31 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
               const isDeleting = deletingId === row.id
 
               return (
-                <TableRow key={row.id} className="bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5">
-                  <TableCell className="px-3 py-2">
+                <TableRow key={row.id} className="hover:bg-muted/50">
+                  <TableCell className="border-r px-3 py-2">
                     {isEditing ? (
-                      <input
+                      <Input
                         value={editDraftSku}
                         onChange={(event) => setEditDraftSku(event.target.value)}
-                        className="w-full rounded border border-cyan-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                        className="h-8"
                       />
                     ) : (
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{row.sku}</span>
+                      <span className="text-sm font-medium">{row.sku}</span>
                     )}
                   </TableCell>
-                  <TableCell className="px-3 py-2">
+                  <TableCell className="border-r px-3 py-2">
                     {isEditing ? (
-                      <input
+                      <Input
                         value={editDraftName}
                         onChange={(event) => setEditDraftName(event.target.value)}
                         onKeyDown={(event) => {
-                          if (event.key === 'Enter') handleSaveEdit(row)
+                          if (event.key === 'Enter') void handleSaveEdit(row)
                           if (event.key === 'Escape') handleCancelEdit()
                         }}
-                        className="w-full rounded border border-cyan-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                        className="h-8"
                       />
                     ) : (
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{row.name}</span>
+                      <span className="text-sm text-muted-foreground">{row.name}</span>
                     )}
                   </TableCell>
                   <TableCell className="px-3 py-2">
@@ -288,7 +294,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                         <>
                           <button
                             type="button"
-                            onClick={() => handleSaveEdit(row)}
+                            onClick={() => void handleSaveEdit(row)}
                             disabled={isSaving}
                             className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                           >
@@ -297,7 +303,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                           <button
                             type="button"
                             onClick={handleCancelEdit}
-                            className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                            className="rounded p-1.5 text-muted-foreground transition hover:bg-muted"
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -307,7 +313,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                           <button
                             type="button"
                             onClick={() => handleStartEdit(row)}
-                            className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                            className="rounded p-1.5 text-muted-foreground transition hover:bg-muted"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
@@ -328,7 +334,9 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
             })
           )}
         </TableBody>
-      </Table>
-    </div>
+          </Table>
+        </div>
+      </div>
+    </section>
   )
 }

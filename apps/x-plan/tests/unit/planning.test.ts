@@ -5,26 +5,39 @@ import { ensurePlanningCalendarCoverage } from '@/lib/planning'
 
 describe('planning calendar coverage', () => {
   it('generates default weeks when no sales data exists', () => {
-    const weeks = ensurePlanningCalendarCoverage([])
-    expect(weeks).toHaveLength(261)
+    const weeksUk = ensurePlanningCalendarCoverage([], 1)
+    expect(weeksUk).toHaveLength(261)
 
-    const calendar = buildWeekCalendar(weeks)
-    const segments = buildYearSegments(calendar)
+    const calendarUk = buildWeekCalendar(weeksUk, 1)
+    const segmentsUk = buildYearSegments(calendarUk)
 
-    expect(segments.map((segment) => segment.year)).toEqual([2023, 2024, 2025, 2026, 2027])
-    expect(segments[0]?.weekCount).toBe(52)
-    expect(segments[1]?.weekCount).toBe(53)
-    expect(segments[2]?.weekCount).toBe(52)
-    expect(segments[3]?.weekCount).toBe(52)
-    expect(segments[4]?.weekCount).toBe(52)
+    expect(segmentsUk.map((segment) => segment.year)).toEqual([2023, 2024, 2025, 2026, 2027])
+    expect(segmentsUk.map((segment) => segment.weekCount)).toEqual([52, 53, 52, 52, 52])
 
-    const first2023WeekDate = getCalendarDateForWeek(-104, calendar)
-    const firstWeekDate = getCalendarDateForWeek(1, calendar)
-    const lastWeekDate = getCalendarDateForWeek(156, calendar)
+    const first2023WeekDateUk = getCalendarDateForWeek(-104, calendarUk)
+    const firstWeekDateUk = getCalendarDateForWeek(1, calendarUk)
+    const lastWeekDateUk = getCalendarDateForWeek(156, calendarUk)
 
-    expect(first2023WeekDate?.toISOString()).toBe('2023-01-02T00:00:00.000Z')
-    expect(firstWeekDate?.toISOString()).toBe('2025-01-06T00:00:00.000Z')
-    expect(lastWeekDate?.toISOString()).toBe('2027-12-27T00:00:00.000Z')
+    expect(first2023WeekDateUk?.toISOString()).toBe('2023-01-02T00:00:00.000Z')
+    expect(firstWeekDateUk?.toISOString()).toBe('2025-01-06T00:00:00.000Z')
+    expect(lastWeekDateUk?.toISOString()).toBe('2027-12-27T00:00:00.000Z')
+
+    const weeksUs = ensurePlanningCalendarCoverage([], 0)
+    expect(weeksUs).toHaveLength(261)
+
+    const calendarUs = buildWeekCalendar(weeksUs, 0)
+    const segmentsUs = buildYearSegments(calendarUs)
+
+    expect(segmentsUs.map((segment) => segment.year)).toEqual([2023, 2024, 2025, 2026, 2027])
+    expect(segmentsUs.map((segment) => segment.weekCount)).toEqual([53, 52, 52, 52, 52])
+
+    const first2023WeekDateUs = getCalendarDateForWeek(-104, calendarUs)
+    const firstWeekDateUs = getCalendarDateForWeek(1, calendarUs)
+    const lastWeekDateUs = getCalendarDateForWeek(156, calendarUs)
+
+    expect(first2023WeekDateUs?.toISOString()).toBe('2023-01-01T00:00:00.000Z')
+    expect(firstWeekDateUs?.toISOString()).toBe('2025-01-05T00:00:00.000Z')
+    expect(lastWeekDateUs?.toISOString()).toBe('2027-12-26T00:00:00.000Z')
   })
 
   it('fills missing weeks and dates without overwriting populated rows', () => {
@@ -42,8 +55,8 @@ describe('planning calendar coverage', () => {
       },
     ]
 
-    const weeks = ensurePlanningCalendarCoverage(partialWeeks)
-    const calendar = buildWeekCalendar(weeks)
+    const weeks = ensurePlanningCalendarCoverage(partialWeeks, 1)
+    const calendar = buildWeekCalendar(weeks, 1)
 
     const segment2027 = buildYearSegments(calendar).find((segment) => segment.year === 2027)
     expect(segment2027?.endWeekNumber).toBe(156)

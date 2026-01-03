@@ -4,11 +4,15 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { loadPlanningCalendar } from '@/lib/planning'
+import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar'
+import { weekStartsOnForRegion } from '@/lib/strategy-region'
 
 const allowedFields = [
   'productId',
   'orderCode',
   'poDate',
+  'poWeekNumber',
   'quantity',
   'productionWeeks',
   'sourceWeeks',
@@ -25,13 +29,18 @@ const allowedFields = [
   'pay3Amount',
   'productionStart',
   'productionComplete',
+  'productionCompleteWeekNumber',
   'sourceDeparture',
+  'sourceDepartureWeekNumber',
   'transportReference',
   'shipName',
   'containerNumber',
   'portEta',
+  'portEtaWeekNumber',
   'inboundEta',
+  'inboundEtaWeekNumber',
   'availableDate',
+  'availableWeekNumber',
   'status',
   'notes',
   'overrideSellingPrice',
@@ -68,6 +77,15 @@ const decimalFields: Record<string, true> = {
   overrideStoragePerMonth: true,
 }
 
+const weekNumberFields: Record<string, true> = {
+  poWeekNumber: true,
+  productionCompleteWeekNumber: true,
+  sourceDepartureWeekNumber: true,
+  portEtaWeekNumber: true,
+  inboundEtaWeekNumber: true,
+  availableWeekNumber: true,
+}
+
 const dateFields: Record<string, true> = {
   poDate: true,
   pay1Date: true,
@@ -80,6 +98,19 @@ const dateFields: Record<string, true> = {
   inboundEta: true,
   availableDate: true,
 }
+
+const DATE_TO_WEEK_FIELD: Record<string, string> = {
+  poDate: 'poWeekNumber',
+  productionComplete: 'productionCompleteWeekNumber',
+  sourceDeparture: 'sourceDepartureWeekNumber',
+  portEta: 'portEtaWeekNumber',
+  inboundEta: 'inboundEtaWeekNumber',
+  availableDate: 'availableWeekNumber',
+}
+
+const WEEK_TO_DATE_FIELD: Record<string, string> = Object.fromEntries(
+  Object.entries(DATE_TO_WEEK_FIELD).map(([dateField, weekField]) => [weekField, dateField]),
+)
 
 const updateSchema = z.object({
   updates: z.array(
@@ -118,8 +149,13 @@ function parseDate(value: string | null | undefined) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  const date = new Date(trimmed)
-  return Number.isNaN(date.getTime()) ? null : date
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const parsed = new Date(`${trimmed}T00:00:00.000Z`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return null
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
 }
 
 type StageDefaultsMap = Record<string, number>
@@ -186,6 +222,27 @@ export const PUT = withXPlanAuth(async (request: Request) => {
   }
 
   try {
+    const orderMeta = await prisma.purchaseOrder.findMany({
+      where: { id: { in: parsed.data.updates.map(({ id }) => id) } },
+      select: { id: true, strategy: { select: { region: true } } },
+    })
+
+    const weekStartsOnByOrder = new Map<string, 0 | 1>()
+    const weekStartsOnSet = new Set<0 | 1>()
+    for (const row of orderMeta) {
+      const weekStartsOn = weekStartsOnForRegion(row.strategy?.region === 'UK' ? 'UK' : 'US')
+      weekStartsOnByOrder.set(row.id, weekStartsOn)
+      weekStartsOnSet.add(weekStartsOn)
+    }
+
+    const calendarsByStart = new Map<0 | 1, Awaited<ReturnType<typeof loadPlanningCalendar>>['calendar']>()
+    await Promise.all(
+      Array.from(weekStartsOnSet).map(async (weekStartsOn) => {
+        const planning = await loadPlanningCalendar(weekStartsOn)
+        calendarsByStart.set(weekStartsOn, planning.calendar)
+      }),
+    )
+
     // Pre-validate orderCode uniqueness before attempting batch update
     const orderCodeUpdates = parsed.data.updates
       .filter(({ values }) => values.orderCode && values.orderCode.trim() !== '')
@@ -232,6 +289,8 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     await prisma.$transaction(
       parsed.data.updates.map(({ id, values }) => {
         const data: Record<string, unknown> = {}
+        const weekStartsOn = weekStartsOnByOrder.get(id) ?? 0
+        const calendar = calendarsByStart.get(weekStartsOn)
         for (const field of allowedFields) {
           if (!(field in values)) continue
           const incoming = values[field]
@@ -240,11 +299,25 @@ export const PUT = withXPlanAuth(async (request: Request) => {
               continue
             }
             data[field] = null
+            if (field in DATE_TO_WEEK_FIELD) {
+              data[DATE_TO_WEEK_FIELD[field]] = null
+            }
+            if (field in WEEK_TO_DATE_FIELD) {
+              data[WEEK_TO_DATE_FIELD[field]] = null
+            }
             continue
           }
 
           if (field === 'quantity') {
             data[field] = parseNumber(incoming) ?? null
+          } else if (weekNumberFields[field]) {
+            const parsedWeek = parseNumber(incoming)
+            const weekNumber = parsedWeek == null ? null : Math.round(parsedWeek)
+            data[field] = weekNumber
+            const dateField = WEEK_TO_DATE_FIELD[field]
+            if (calendar && dateField && weekNumber != null) {
+              data[dateField] = getCalendarDateForWeek(weekNumber, calendar)
+            }
           } else if (percentFields[field]) {
             const parsedNumber = parseNumber(incoming)
             if (parsedNumber === null) {
@@ -255,7 +328,25 @@ export const PUT = withXPlanAuth(async (request: Request) => {
           } else if (decimalFields[field]) {
             data[field] = parseNumber(incoming)
           } else if (dateFields[field]) {
-            data[field] = parseDate(incoming)
+            const parsedDate = parseDate(incoming)
+            if (!parsedDate) {
+              data[field] = null
+              if (field in DATE_TO_WEEK_FIELD) {
+                data[DATE_TO_WEEK_FIELD[field]] = null
+              }
+              continue
+            }
+
+            if (calendar && field in DATE_TO_WEEK_FIELD) {
+              const weekNumber = weekNumberForDate(parsedDate, calendar)
+              if (weekNumber != null) {
+                data[DATE_TO_WEEK_FIELD[field]] = weekNumber
+                data[field] = getCalendarDateForWeek(weekNumber, calendar)
+                continue
+              }
+            }
+
+            data[field] = parsedDate
           } else if (field === 'status') {
             data[field] = incoming as string
           } else if (field === 'productId') {
@@ -350,13 +441,25 @@ export const POST = withXPlanAuth(async (request: Request) => {
   })
   const stageDefaults = buildStageDefaultsMap(stageDefaultsRows)
 
+  const strategyRow = await (prisma as unknown as Record<string, any>).strategy?.findUnique?.({
+    where: { id: strategyId },
+    select: { region: true },
+  })
+  const weekStartsOn = weekStartsOnForRegion(strategyRow?.region === 'UK' ? 'UK' : 'US')
+  const planning = await loadPlanningCalendar(weekStartsOn)
+  const parsedPoDate = poDate ? parseDate(poDate) : null
+  const poWeekNumber = parsedPoDate ? weekNumberForDate(parsedPoDate, planning.calendar) : null
+  const normalizedPoDate =
+    poWeekNumber != null ? getCalendarDateForWeek(poWeekNumber, planning.calendar) : parsedPoDate
+
   const safeQuantity = quantity ?? 0
   const data = {
     strategyId,
     productId,
     orderCode: orderCodeResult.orderCode,
     quantity: safeQuantity,
-    poDate: poDate ? parseDate(poDate) : null,
+    poDate: normalizedPoDate,
+    poWeekNumber,
     productionWeeks: new Prisma.Decimal(
       resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.production)
     ),

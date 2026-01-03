@@ -111,6 +111,7 @@ export function mapPurchaseOrders(
       productId: primaryBatch?.productId ?? order.productId,
       quantity: batches.length > 0 ? totalBatchQuantity : coerceNumber(order.quantity),
       poDate: order.poDate ?? null,
+      poWeekNumber: order.poWeekNumber ?? null,
       productionWeeks: normalizePositiveDecimal(order.productionWeeks),
       sourceWeeks: normalizePositiveDecimal(order.sourceWeeks),
       oceanWeeks: normalizePositiveDecimal(order.oceanWeeks),
@@ -126,7 +127,9 @@ export function mapPurchaseOrders(
       pay3Date: order.pay3Date ?? null,
       productionStart: order.productionStart ?? null,
       productionComplete: order.productionComplete ?? null,
+      productionCompleteWeekNumber: order.productionCompleteWeekNumber ?? null,
       sourceDeparture: order.sourceDeparture ?? null,
+      sourceDepartureWeekNumber: order.sourceDepartureWeekNumber ?? null,
       transportReference:
         typeof order.transportReference === 'string'
           ? order.transportReference
@@ -137,8 +140,11 @@ export function mapPurchaseOrders(
       shipName: order.shipName ?? null,
       containerNumber: order.containerNumber ?? null,
       portEta: order.portEta ?? null,
+      portEtaWeekNumber: order.portEtaWeekNumber ?? null,
       inboundEta: order.inboundEta ?? null,
+      inboundEtaWeekNumber: order.inboundEtaWeekNumber ?? null,
       availableDate: order.availableDate ?? null,
+      availableWeekNumber: order.availableWeekNumber ?? null,
       totalLeadDays: order.totalLeadDays ?? null,
       status: (typeof order.status === 'string' ? order.status : 'PLANNED') as PurchaseOrderStatus,
       statusIcon: typeof order.statusIcon === 'string' ? order.statusIcon : null,
@@ -160,7 +166,9 @@ export function mapPurchaseOrders(
             category: payment.category ?? null,
             label: payment.label ?? null,
             dueDate: payment.dueDate ?? null,
+            dueWeekNumber: payment.dueWeekNumber ?? null,
             dueDateDefault: payment.dueDateDefault ?? null,
+            dueWeekNumberDefault: payment.dueWeekNumberDefault ?? null,
             dueDateSource: payment.dueDateSource ?? 'SYSTEM',
           }))
         : [],

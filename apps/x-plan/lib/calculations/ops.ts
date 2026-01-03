@@ -1,5 +1,5 @@
-import { addDays, differenceInCalendarDays } from 'date-fns'
 import { coerceNumber, coercePercent, parseNumber, parsePercent, roundWeeks } from '@/lib/utils/numbers'
+import { getCalendarDateForWeek, weekNumberForDate, type WeekCalendar } from './calendar'
 import {
   BusinessParameterMap,
   LeadTimeProfile,
@@ -8,6 +8,11 @@ import {
   PurchaseOrderStatus,
 } from './types'
 import { ProductCostSummary } from './product'
+import {
+  planningWeekDateForWeekNumber,
+  planningWeekNumberForDate,
+  type PlanningWeekConfig,
+} from './planning-week'
 
 export type PaymentCategory = 'MANUFACTURING' | 'FREIGHT' | 'TARIFF' | 'OTHER'
 
@@ -17,10 +22,13 @@ export interface PaymentPlanItem {
   label: string
   plannedPercent: number
   plannedAmount: number
+  plannedWeekNumber: number | null
+  plannedDefaultWeekNumber: number | null
   plannedDate: Date | null
   plannedDefaultDate: Date | null
   actualPercent?: number | null
   actualAmount?: number | null
+  actualWeekNumber?: number | null
   actualDate?: Date | null
 }
 
@@ -52,6 +60,13 @@ export interface PurchaseOrderDerived {
   containerNumber?: string | null
   createdAt?: Date | null
   stageProfile: LeadTimeProfile
+  poWeekNumber: number | null
+  productionStartWeekNumber: number | null
+  productionCompleteWeekNumber: number | null
+  sourceDepartureWeekNumber: number | null
+  portEtaWeekNumber: number | null
+  inboundEtaWeekNumber: number | null
+  availableWeekNumber: number | null
   productionStart: Date | null
   productionComplete: Date | null
   sourceDeparture: Date | null
@@ -158,55 +173,138 @@ function findPayment(
   return payments.find((payment) => normalizePaymentIndex(payment.paymentIndex) === index)
 }
 
-function inferProductionStart(order: PurchaseOrderInput): Date | null {
-  if (order.poDate) return order.poDate
-  if (order.productionStart) return order.productionStart
+type WeekMapping = {
+  calendar?: WeekCalendar | null
+  planningWeekConfig?: PlanningWeekConfig | null
+}
+
+function normalizeWeekNumber(value: number | null | undefined): number | null {
+  if (value == null) return null
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return null
+  return Math.round(numeric)
+}
+
+function resolveWeekNumber(date: Date | null | undefined, mapping: WeekMapping): number | null {
+  if (!date) return null
+  if (mapping.calendar) return weekNumberForDate(date, mapping.calendar)
+  if (mapping.planningWeekConfig) return planningWeekNumberForDate(date, mapping.planningWeekConfig)
   return null
 }
 
-function addStageDuration(start: Date, weeks: number): Date {
-  const days = Math.max(0, Math.round(weeks * 7))
+function resolveWeekDate(weekNumber: number | null | undefined, mapping: WeekMapping): Date | null {
+  if (weekNumber == null) return null
+  if (mapping.calendar) return getCalendarDateForWeek(weekNumber, mapping.calendar)
+  if (mapping.planningWeekConfig) return planningWeekDateForWeekNumber(weekNumber, mapping.planningWeekConfig)
+  return null
+}
+
+function stageOffsetWeeks(weeks: number): number {
+  const numeric = Number(weeks)
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0
+  return Math.floor(numeric)
+}
+
+function addStageDurationDate(start: Date, weeks: number): Date {
+  const days = Math.max(0, Math.round(Number(weeks) * 7))
   if (days === 0) return start
-  return addDays(start, days)
+  return new Date(start.getTime() + days * 24 * 60 * 60 * 1000)
 }
 
 function buildStageSchedule(
   order: PurchaseOrderInput,
   stageProfile: LeadTimeProfile,
-  createdAt: Date
+  createdAt: Date,
+  mapping: WeekMapping,
 ) {
   const productionWeeks = resolveStageWeeks(order.productionWeeks, stageProfile.productionWeeks)
   const sourceWeeks = resolveStageWeeks(order.sourceWeeks, stageProfile.sourceWeeks)
   const oceanWeeks = resolveStageWeeks(order.oceanWeeks, stageProfile.oceanWeeks)
   const finalWeeks = resolveStageWeeks(order.finalWeeks, stageProfile.finalWeeks)
 
-  const productionStart = inferProductionStart(order) ?? createdAt
-  const productionComplete =
-    order.productionComplete ??
-    (productionStart ? addStageDuration(productionStart, productionWeeks) : null)
+  const poWeekNumber = normalizeWeekNumber(order.poWeekNumber) ?? resolveWeekNumber(order.poDate ?? null, mapping)
+  const productionStartWeekNumber =
+    poWeekNumber ?? resolveWeekNumber(order.productionStart ?? order.poDate ?? createdAt, mapping)
 
-  const sourceBase = productionComplete ?? productionStart
-  const sourceDeparture =
-    order.sourceDeparture ??
-    (sourceBase ? addStageDuration(sourceBase, sourceWeeks) : null)
+  const productionCompleteWeekNumber =
+    normalizeWeekNumber(order.productionCompleteWeekNumber) ??
+    resolveWeekNumber(order.productionComplete ?? null, mapping) ??
+    (productionStartWeekNumber != null
+      ? productionStartWeekNumber + stageOffsetWeeks(productionWeeks)
+      : null)
 
-  const oceanBase = sourceDeparture ?? sourceBase
-  const portEta =
-    order.portEta ??
-    (oceanBase ? addStageDuration(oceanBase, oceanWeeks) : null)
+  const sourceBaseWeekNumber = productionCompleteWeekNumber ?? productionStartWeekNumber
+  const sourceDepartureWeekNumber =
+    normalizeWeekNumber(order.sourceDepartureWeekNumber) ??
+    resolveWeekNumber(order.sourceDeparture ?? null, mapping) ??
+    (sourceBaseWeekNumber != null ? sourceBaseWeekNumber + stageOffsetWeeks(sourceWeeks) : null)
 
-  const inboundEta = order.inboundEta ?? portEta
+  const oceanBaseWeekNumber = sourceDepartureWeekNumber ?? sourceBaseWeekNumber
+  const portEtaWeekNumber =
+    normalizeWeekNumber(order.portEtaWeekNumber) ??
+    resolveWeekNumber(order.portEta ?? null, mapping) ??
+    (oceanBaseWeekNumber != null ? oceanBaseWeekNumber + stageOffsetWeeks(oceanWeeks) : null)
 
-  const finalBase = portEta ?? inboundEta ?? oceanBase
-  const availableDate =
-    order.availableDate ??
-    (finalBase ? addStageDuration(finalBase, finalWeeks) : null)
+  const inboundEtaWeekNumber =
+    normalizeWeekNumber(order.inboundEtaWeekNumber) ??
+    resolveWeekNumber(order.inboundEta ?? null, mapping) ??
+    portEtaWeekNumber
+
+  const finalBaseWeekNumber = portEtaWeekNumber ?? inboundEtaWeekNumber ?? oceanBaseWeekNumber
+  const availableWeekNumber =
+    normalizeWeekNumber(order.availableWeekNumber) ??
+    resolveWeekNumber(order.availableDate ?? null, mapping) ??
+    (finalBaseWeekNumber != null ? finalBaseWeekNumber + stageOffsetWeeks(finalWeeks) : null)
+
+  let productionStart = resolveWeekDate(productionStartWeekNumber, mapping)
+  let productionComplete = resolveWeekDate(productionCompleteWeekNumber, mapping)
+  let sourceDeparture = resolveWeekDate(sourceDepartureWeekNumber, mapping)
+  let portEta = resolveWeekDate(portEtaWeekNumber, mapping)
+  let inboundEta = resolveWeekDate(inboundEtaWeekNumber, mapping)
+  let availableDate = resolveWeekDate(availableWeekNumber, mapping)
+
+  if (!mapping.calendar && !mapping.planningWeekConfig) {
+    const productionStartFallback = order.poDate ?? order.productionStart ?? createdAt
+    const productionCompleteFallback =
+      order.productionComplete ??
+      (productionStartFallback ? addStageDurationDate(productionStartFallback, productionWeeks) : null)
+
+    const sourceBaseFallback = productionCompleteFallback ?? productionStartFallback
+    const sourceDepartureFallback =
+      order.sourceDeparture ??
+      (sourceBaseFallback ? addStageDurationDate(sourceBaseFallback, sourceWeeks) : null)
+
+    const oceanBaseFallback = sourceDepartureFallback ?? sourceBaseFallback
+    const portEtaFallback =
+      order.portEta ?? (oceanBaseFallback ? addStageDurationDate(oceanBaseFallback, oceanWeeks) : null)
+
+    const inboundEtaFallback = order.inboundEta ?? portEtaFallback
+
+    const finalBaseFallback = portEtaFallback ?? inboundEtaFallback ?? oceanBaseFallback
+    const availableFallback =
+      order.availableDate ??
+      (finalBaseFallback ? addStageDurationDate(finalBaseFallback, finalWeeks) : null)
+
+    productionStart = productionStartFallback ?? null
+    productionComplete = productionCompleteFallback ?? null
+    sourceDeparture = sourceDepartureFallback ?? null
+    portEta = portEtaFallback ?? null
+    inboundEta = inboundEtaFallback ?? null
+    availableDate = availableFallback ?? null
+  }
 
   return {
     productionWeeks,
     sourceWeeks,
     oceanWeeks,
     finalWeeks,
+    poWeekNumber,
+    productionStartWeekNumber,
+    productionCompleteWeekNumber,
+    sourceDepartureWeekNumber,
+    portEtaWeekNumber,
+    inboundEtaWeekNumber,
+    availableWeekNumber,
     productionStart,
     productionComplete,
     sourceDeparture,
@@ -216,39 +314,19 @@ function buildStageSchedule(
   }
 }
 
-function computeWeeksUntil(date: Date | null): number | null {
-  if (!date) return null
-  const diffDays = differenceInCalendarDays(date, new Date())
-  if (!Number.isFinite(diffDays)) return null
-  return Math.max(Math.ceil(diffDays / 7), 0)
-}
-
-function plannedPaymentDate(
-  index: 1 | 2 | 3,
-  baseDates: { productionStart: Date | null; productionComplete: Date | null; inboundEta: Date | null },
-  stageProfile: LeadTimeProfile
-): Date | null {
-  // Payment 1: at PO/production start date (50%)
-  // Payment 2: at production end date (30%)
-  // Payment 3: at arrival/inbound ETA (20%)
-  if (index === 1) {
-    return baseDates.productionStart
-  }
-  if (index === 2) {
-    if (baseDates.productionComplete) return baseDates.productionComplete
-    if (baseDates.productionStart) return addStageDuration(baseDates.productionStart, stageProfile.productionWeeks)
-    return null
-  }
-  // index === 3
-  if (baseDates.inboundEta) return baseDates.inboundEta
-  return null
+function computeWeeksUntilWeek(targetWeekNumber: number | null, mapping: WeekMapping): number | null {
+  if (targetWeekNumber == null) return null
+  const currentWeek = resolveWeekNumber(new Date(), mapping)
+  if (currentWeek == null) return null
+  return Math.max(targetWeekNumber - currentWeek, 0)
 }
 
 export function computePurchaseOrderDerived(
   order: PurchaseOrderInput,
   productIndex: Map<string, ProductCostSummary>,
   stageProfile: LeadTimeProfile,
-  params: BusinessParameterMap
+  params: BusinessParameterMap,
+  options: WeekMapping = {},
 ): PurchaseOrderDerived {
   const batches = Array.isArray(order.batchTableRows) && order.batchTableRows.length > 0
     ? order.batchTableRows
@@ -372,7 +450,7 @@ export function computePurchaseOrderDerived(
   const advertisingCost = divisor > 0 ? totalAdvertisingCost / divisor : 0
   const landedUnitCost = divisor > 0 ? totalLandedCost / divisor : 0
   const createdAt = order.createdAt ?? new Date()
-  const schedule = buildStageSchedule(order, stageProfile, createdAt)
+  const schedule = buildStageSchedule(order, stageProfile, createdAt, options)
 
   const resolvedProfile: LeadTimeProfile = {
     productionWeeks: schedule.productionWeeks,
@@ -382,6 +460,13 @@ export function computePurchaseOrderDerived(
   }
 
   const {
+    poWeekNumber,
+    productionStartWeekNumber,
+    productionCompleteWeekNumber,
+    sourceDepartureWeekNumber,
+    portEtaWeekNumber,
+    inboundEtaWeekNumber,
+    availableWeekNumber,
     productionStart,
     productionComplete,
     sourceDeparture,
@@ -393,7 +478,7 @@ export function computePurchaseOrderDerived(
   const totalLeadDays = Math.round(
     (schedule.productionWeeks + schedule.sourceWeeks + schedule.oceanWeeks + schedule.finalWeeks) * 7
   )
-  const weeksUntilArrival = computeWeeksUntil(availableDate)
+  const weeksUntilArrival = computeWeeksUntilWeek(availableWeekNumber ?? null, options)
 
   const poValue = landedUnitCost * quantity
 
@@ -404,11 +489,10 @@ export function computePurchaseOrderDerived(
   const tariffTotal = totalTariffCost > 0 ? totalTariffCost : tariffCost * quantity
   const supplierCostTotal = manufacturingTotal + freightTotal + tariffTotal
   const supplierDenominator = supplierCostTotal > 0 ? supplierCostTotal : Math.max(poValue, 0)
-
-  const depositDate = order.poDate ?? productionStart ?? createdAt
-  const productionDate = productionComplete ?? (depositDate ? addStageDuration(depositDate, schedule.productionWeeks) : depositDate)
-  const freightDate = sourceDeparture ?? (productionDate ? addStageDuration(productionDate, schedule.sourceWeeks) : productionDate)
-  const portDate = portEta ?? (freightDate ? addStageDuration(freightDate, schedule.oceanWeeks) : freightDate)
+  const depositWeekNumber = poWeekNumber ?? productionStartWeekNumber
+  const productionDueWeekNumber = productionCompleteWeekNumber ?? depositWeekNumber
+  const portDueWeekNumber =
+    portEtaWeekNumber ?? inboundEtaWeekNumber ?? availableWeekNumber ?? productionDueWeekNumber ?? depositWeekNumber
 
   const manufacturingFractions = normalizeSupplierPaymentSplit(
     params.supplierPaymentSplit,
@@ -423,7 +507,7 @@ export function computePurchaseOrderDerived(
     label: string
     baseAmount: number
     defaultPercent: number
-    defaultDate: Date | null
+    defaultWeekNumber: number | null
     percentField?: (typeof PAY_PERCENT_FIELDS)[number]
     amountField?: (typeof PAY_AMOUNT_FIELDS)[number]
     dateField?: (typeof PAY_DATE_FIELDS)[number]
@@ -434,7 +518,7 @@ export function computePurchaseOrderDerived(
       label: manufacturingLabels[0],
       baseAmount: manufacturingAmounts[0] ?? 0,
       defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[0] ?? 0) / supplierDenominator : 0,
-      defaultDate: depositDate ?? createdAt,
+      defaultWeekNumber: depositWeekNumber,
       percentField: PAY_PERCENT_FIELDS[0],
       amountField: PAY_AMOUNT_FIELDS[0],
       dateField: PAY_DATE_FIELDS[0],
@@ -445,7 +529,7 @@ export function computePurchaseOrderDerived(
       label: manufacturingLabels[1],
       baseAmount: manufacturingAmounts[1] ?? 0,
       defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[1] ?? 0) / supplierDenominator : 0,
-      defaultDate: productionDate ?? depositDate ?? createdAt,
+      defaultWeekNumber: productionDueWeekNumber,
       percentField: PAY_PERCENT_FIELDS[1],
       amountField: PAY_AMOUNT_FIELDS[1],
       dateField: PAY_DATE_FIELDS[1],
@@ -456,7 +540,7 @@ export function computePurchaseOrderDerived(
       label: 'Freight (100%)',
       baseAmount: freightTotal,
       defaultPercent: supplierDenominator > 0 ? freightTotal / supplierDenominator : 0,
-      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
+      defaultWeekNumber: portDueWeekNumber,
     },
     {
       index: 4,
@@ -464,7 +548,7 @@ export function computePurchaseOrderDerived(
       label: manufacturingLabels[2],
       baseAmount: manufacturingAmounts[2] ?? 0,
       defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[2] ?? 0) / supplierDenominator : 0,
-      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
+      defaultWeekNumber: portDueWeekNumber,
       percentField: PAY_PERCENT_FIELDS[2],
       amountField: PAY_AMOUNT_FIELDS[2],
       dateField: PAY_DATE_FIELDS[2],
@@ -475,12 +559,13 @@ export function computePurchaseOrderDerived(
       label: 'Tariff (100%)',
       baseAmount: tariffTotal,
       defaultPercent: supplierDenominator > 0 ? tariffTotal / supplierDenominator : 0,
-      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
+      defaultWeekNumber: portDueWeekNumber,
     },
   ]
 
   for (const definition of paymentDefinitions) {
-    const { index, category, label, baseAmount, defaultPercent, defaultDate, percentField, amountField, dateField } = definition
+    const { index, category, label, baseAmount, defaultPercent, defaultWeekNumber, percentField, amountField, dateField } =
+      definition
 
     const percentOverride = percentField ? normalizePercentValue(order[percentField]) : null
     const amountOverride = amountField ? optionalNumber(order[amountField]) : null
@@ -493,8 +578,11 @@ export function computePurchaseOrderDerived(
       normalizePercentValue(actualPayment?.percentage) ??
       (paidAmount != null && supplierDenominator > 0 ? paidAmount / supplierDenominator : null)
     const dueDateSource = actualPayment?.dueDateSource ?? 'SYSTEM'
-    const overrideDate =
-      dueDateSource === 'USER' && actualPayment?.dueDate ? actualPayment.dueDate : null
+    const overrideWeekNumber =
+      dueDateSource === 'USER'
+        ? normalizeWeekNumber(actualPayment?.dueWeekNumber) ??
+          resolveWeekNumber(actualPayment?.dueDate ?? null, options)
+        : null
 
     let plannedAmount = baseAmount
     if (amountOverride != null) {
@@ -511,9 +599,10 @@ export function computePurchaseOrderDerived(
       return defaultPercent
     })()
 
-    const plannedDefaultDate = dateOverride ?? defaultDate ?? createdAt
-    const plannedDate = overrideDate ?? plannedDefaultDate
-    const actualDate = overrideDate
+    const plannedDefaultWeekNumber = resolveWeekNumber(dateOverride, options) ?? defaultWeekNumber ?? null
+    const plannedWeekNumber = overrideWeekNumber ?? plannedDefaultWeekNumber
+    const plannedDefaultDate = resolveWeekDate(plannedDefaultWeekNumber, options)
+    const plannedDate = resolveWeekDate(plannedWeekNumber, options) ?? plannedDefaultDate
 
     if (plannedAmount <= 0 && paidAmount == null) {
       continue
@@ -525,11 +614,14 @@ export function computePurchaseOrderDerived(
       label,
       plannedPercent,
       plannedAmount,
+      plannedWeekNumber,
+      plannedDefaultWeekNumber,
       plannedDate,
       plannedDefaultDate,
       actualAmount: paidAmount,
       actualPercent,
-      actualDate: actualDate ?? plannedDate,
+      actualWeekNumber: plannedWeekNumber,
+      actualDate: plannedDate,
     })
   }
 
@@ -553,6 +645,13 @@ export function computePurchaseOrderDerived(
     containerNumber: order.containerNumber ?? order.transportReference ?? null,
     createdAt,
     stageProfile: resolvedProfile,
+    poWeekNumber: poWeekNumber ?? null,
+    productionStartWeekNumber: productionStartWeekNumber ?? null,
+    productionCompleteWeekNumber: productionCompleteWeekNumber ?? null,
+    sourceDepartureWeekNumber: sourceDepartureWeekNumber ?? null,
+    portEtaWeekNumber: portEtaWeekNumber ?? null,
+    inboundEtaWeekNumber: inboundEtaWeekNumber ?? null,
+    availableWeekNumber: availableWeekNumber ?? null,
     productionStart,
     productionComplete,
     sourceDeparture,

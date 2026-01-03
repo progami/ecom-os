@@ -23,7 +23,6 @@ import {
   type PaymentSummary,
 } from '@/components/sheets/custom-purchase-payments-grid'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
-import { getISOWeek } from 'date-fns'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   buildProductCostIndex,
@@ -65,6 +64,7 @@ export type PurchaseOrderSerialized = {
   productId: string
   quantity: number
   poDate?: string | null
+  poWeekNumber?: number | null
   productionWeeks?: number | null
   sourceWeeks?: number | null
   oceanWeeks?: number | null
@@ -80,13 +80,18 @@ export type PurchaseOrderSerialized = {
   pay3Date?: string | null
   productionStart?: string | null
   productionComplete?: string | null
+  productionCompleteWeekNumber?: number | null
   sourceDeparture?: string | null
+  sourceDepartureWeekNumber?: number | null
   transportReference?: string | null
   shipName?: string | null
   containerNumber?: string | null
   portEta?: string | null
+  portEtaWeekNumber?: number | null
   inboundEta?: string | null
+  inboundEtaWeekNumber?: number | null
   availableDate?: string | null
+  availableWeekNumber?: number | null
   totalLeadDays?: number | null
   status: PurchaseOrderStatus
   notes?: string | null
@@ -98,7 +103,9 @@ export type PurchaseOrderSerialized = {
     amountExpected?: number | null
     amountPaid?: number | null
     dueDate?: string | null
+    dueWeekNumber?: number | null
     dueDateDefault?: string | null
+    dueWeekNumberDefault?: number | null
     dueDateSource?: 'SYSTEM' | 'USER'
     category?: string | null
     label?: string | null
@@ -327,6 +334,7 @@ function deserializeOrders(
     productId: order.productId,
     quantity: order.quantity,
     poDate: parseDateValue(order.poDate),
+    poWeekNumber: order.poWeekNumber ?? null,
     productionWeeks: normalizeStageWeeks('productionWeeks', order.productionWeeks ?? null, defaults),
     sourceWeeks: normalizeStageWeeks('sourceWeeks', order.sourceWeeks ?? null, defaults),
     oceanWeeks: normalizeStageWeeks('oceanWeeks', order.oceanWeeks ?? null, defaults),
@@ -342,14 +350,19 @@ function deserializeOrders(
     pay3Date: parseDateValue(order.pay3Date),
     productionStart: parseDateValue(order.productionStart),
     productionComplete: parseDateValue(order.productionComplete),
+    productionCompleteWeekNumber: order.productionCompleteWeekNumber ?? null,
     sourceDeparture: parseDateValue(order.sourceDeparture),
+    sourceDepartureWeekNumber: order.sourceDepartureWeekNumber ?? null,
     transportReference: order.transportReference ?? null,
     shipName: order.shipName ?? null,
     containerNumber: order.containerNumber ?? order.transportReference ?? null,
     createdAt: parseDateValue(order.createdAt),
     portEta: parseDateValue(order.portEta),
+    portEtaWeekNumber: order.portEtaWeekNumber ?? null,
     inboundEta: parseDateValue(order.inboundEta),
+    inboundEtaWeekNumber: order.inboundEtaWeekNumber ?? null,
     availableDate: parseDateValue(order.availableDate),
+    availableWeekNumber: order.availableWeekNumber ?? null,
     totalLeadDays: order.totalLeadDays ?? null,
     status: order.status,
     notes: order.notes ?? null,
@@ -361,7 +374,9 @@ function deserializeOrders(
           payment.amountExpected ?? (payment.amount != null ? payment.amount : null),
         amountPaid: payment.amountPaid ?? null,
         dueDate: parseDateValue(payment.dueDate ?? null),
+        dueWeekNumber: payment.dueWeekNumber ?? null,
         dueDateDefault: parseDateValue(payment.dueDateDefault ?? null),
+        dueWeekNumberDefault: payment.dueWeekNumberDefault ?? null,
         dueDateSource: payment.dueDateSource ?? 'SYSTEM',
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
@@ -522,12 +537,13 @@ function buildTimelineRowsFromData(params: {
   productIndex: Map<string, ProductCostSummary>
   leadProfiles: Map<string, LeadTimeProfile>
   parameters: BusinessParameterMap
+  planningWeekConfig?: PlanningWeekConfig | null
 }): {
   timelineRows: OpsTimelineRow[]
   timelineOrders: PurchaseTimelineOrder[]
   derivedMap: Map<string, ReturnType<typeof computePurchaseOrderDerived>>
 } {
-  const { orders, rows, payments, productIndex, leadProfiles, parameters } = params
+  const { orders, rows, payments, productIndex, leadProfiles, parameters, planningWeekConfig } = params
   const ordersById = new Map(orders.map((order) => [order.id, order]))
   const paymentsByOrder = buildPaymentsByOrder(payments)
   const derivedMap = new Map<string, ReturnType<typeof computePurchaseOrderDerived>>()
@@ -580,7 +596,8 @@ function buildTimelineRowsFromData(params: {
       { ...order, payments: paymentsOverride },
       productIndex,
       profile,
-      parameters
+      parameters,
+      { planningWeekConfig }
     )
     derivedMap.set(order.id, derived)
 
@@ -631,13 +648,6 @@ function summaryLineFor(summary: PaymentSummary): string {
     parts.push(`Paid ${currencyFormatter.format(summary.actualAmount)}`)
   }
   return parts.join(' • ')
-}
-
-function formatPaymentWeekNumber(date: Date | null | undefined): string {
-  if (!date) return ''
-  const normalized = coerceToLocalDate(date)
-  if (!normalized) return ''
-  return String(getISOWeek(normalized))
 }
 
 type PaymentUpdatePayload = {
@@ -926,6 +936,7 @@ useEffect(() => {
         productIndex,
         leadProfiles: leadProfileMap,
         parameters: calculator.parameters,
+        planningWeekConfig: planningWeekConfigRef.current,
       })
       derivedMapRef.current = derivedMap
       setTimelineRows(newTimelineRows)
