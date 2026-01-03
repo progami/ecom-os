@@ -1654,9 +1654,31 @@ function getCashFlowView(
 function getPOProfitabilityView(
   financialData: FinancialData
 ): { data: POProfitabilityData[] } {
-  const { derivedOrders } = financialData
+  const { derivedOrders, operations } = financialData
+  const { productNameById } = operations
 
   const data: POProfitabilityData[] = derivedOrders.map(({ derived, input, productName }) => {
+    // Extract batch products - unique products from batch table rows
+    const batchProducts: Array<{ id: string; name: string }> = []
+    const seenProductIds = new Set<string>()
+    if (Array.isArray(input.batchTableRows) && input.batchTableRows.length > 0) {
+      input.batchTableRows.forEach((batch) => {
+        if (!seenProductIds.has(batch.productId)) {
+          seenProductIds.add(batch.productId)
+          batchProducts.push({
+            id: batch.productId,
+            name: productNameById.get(batch.productId) ?? batch.productId,
+          })
+        }
+      })
+    } else {
+      // Fallback to main product if no batches
+      batchProducts.push({
+        id: input.productId,
+        name: productNameById.get(input.productId) ?? input.productId,
+      })
+    }
+
     const quantity = Number(input.quantity ?? 0)
     const sellingPrice = Number(derived.sellingPrice ?? 0)
     const grossRevenue = sellingPrice * quantity
@@ -1707,6 +1729,7 @@ function getPOProfitabilityView(
       orderCode: derived.orderCode,
       productId: input.productId,
       productName,
+      batchProducts,
       quantity,
       status,
       manufacturingCost,

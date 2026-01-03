@@ -22,6 +22,7 @@ export interface POProfitabilityData {
   orderCode: string
   productId: string
   productName: string
+  batchProducts: Array<{ id: string; name: string }>
   quantity: number
   status: POStatus
   manufacturingCost: number
@@ -85,13 +86,15 @@ export function POProfitabilitySection({
   const [sortField, setSortField] = useState<SortField>('grossRevenue')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
-  // Get unique products for SKU filter
+  // Get unique products from all batch products across all POs
   const productOptions = useMemo(() => {
     const productMap = new Map<string, string>()
     data.forEach((po) => {
-      if (!productMap.has(po.productId)) {
-        productMap.set(po.productId, po.productName)
-      }
+      po.batchProducts.forEach((product) => {
+        if (!productMap.has(product.id)) {
+          productMap.set(product.id, product.name)
+        }
+      })
     })
     return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }))
   }, [data])
@@ -102,7 +105,7 @@ export function POProfitabilitySection({
       result = result.filter((po) => po.status === statusFilter)
     }
     if (skuFilter !== 'ALL') {
-      result = result.filter((po) => po.productId === skuFilter)
+      result = result.filter((po) => po.batchProducts.some((p) => p.id === skuFilter))
     }
     return [...result].sort((a, b) => {
       const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
