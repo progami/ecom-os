@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   Bar,
@@ -75,6 +75,11 @@ const statusLabels: Record<POStatus, string> = {
 }
 
 const statusFilters: StatusFilter[] = ['ALL', 'PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED', 'CLOSED']
+
+// Pre-create formatters to avoid creating new instances on every render
+const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+const formatCurrency = (value: number) => currencyFormatter.format(value)
+const formatPercent = (value: number) => `${value.toFixed(1)}%`
 
 export function POProfitabilitySection({
   data,
@@ -197,20 +202,30 @@ export function POProfitabilitySection({
     })
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-  }
-
-  const formatPercent = (value: number) => `${value.toFixed(1)}%`
-
-  // Summary stats
+  // Summary stats - compute all totals in a single pass
   const summary = useMemo(() => {
-    if (filteredData.length === 0) return { totalRevenue: 0, totalProfit: 0, avgMargin: 0, avgROI: 0 }
-    const totalRevenue = filteredData.reduce((sum, row) => sum + row.grossRevenue, 0)
-    const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0)
+    if (filteredData.length === 0) {
+      return { totalRevenue: 0, totalProfit: 0, avgMargin: 0, avgROI: 0, totalQuantity: 0, totalSupplierCost: 0, totalAmazonFees: 0, totalPPC: 0 }
+    }
+    let totalRevenue = 0
+    let totalProfit = 0
+    let totalROI = 0
+    let totalQuantity = 0
+    let totalSupplierCost = 0
+    let totalAmazonFees = 0
+    let totalPPC = 0
+    for (const row of filteredData) {
+      totalRevenue += row.grossRevenue
+      totalProfit += row.netProfit
+      totalROI += row.roi
+      totalQuantity += row.quantity
+      totalSupplierCost += row.supplierCostTotal
+      totalAmazonFees += row.amazonFeesTotal
+      totalPPC += row.ppcCost
+    }
     const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0
-    const avgROI = filteredData.reduce((sum, row) => sum + row.roi, 0) / filteredData.length
-    return { totalRevenue, totalProfit, avgMargin, avgROI }
+    const avgROI = totalROI / filteredData.length
+    return { totalRevenue, totalProfit, avgMargin, avgROI, totalQuantity, totalSupplierCost, totalAmazonFees, totalPPC }
   }, [filteredData])
 
   if (data.length === 0) {
@@ -451,17 +466,17 @@ export function POProfitabilitySection({
                 <TableCell className="font-semibold">Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})</TableCell>
                 <TableCell />
                 <TableCell className="text-right tabular-nums font-semibold">
-                  {filteredData.reduce((sum, row) => sum + row.quantity, 0).toLocaleString()}
+                  {summary.totalQuantity.toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(summary.totalRevenue)}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.supplierCostTotal, 0))}
+                  {formatCurrency(summary.totalSupplierCost)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.amazonFeesTotal, 0))}
+                  {formatCurrency(summary.totalAmazonFees)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcCost, 0))}
+                  {formatCurrency(summary.totalPPC)}
                 </TableCell>
                 <TableCell className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   {formatCurrency(summary.totalProfit)}
@@ -509,21 +524,22 @@ function SortButton({
   )
 }
 
-function StatusBadge({ status }: { status: POStatus }) {
-  const styles: Record<POStatus, string> = {
-    ARRIVED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-    CLOSED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    IN_TRANSIT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-    PRODUCTION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    PLANNED: 'bg-slate-100 text-slate-600 dark:bg-slate-700/30 dark:text-slate-300',
-    CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  }
+const statusBadgeStyles: Record<POStatus, string> = {
+  ARRIVED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  CLOSED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  IN_TRANSIT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+  PRODUCTION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  PLANNED: 'bg-slate-100 text-slate-600 dark:bg-slate-700/30 dark:text-slate-300',
+  CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+}
+
+const StatusBadge = memo(function StatusBadge({ status }: { status: POStatus }) {
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeStyles[status]}`}>
       {statusLabels[status]}
     </span>
   )
-}
+})
 
 function exportChart(name: string, filter: string) {
   const chartElement = document.querySelector('.recharts-wrapper svg') as SVGElement
