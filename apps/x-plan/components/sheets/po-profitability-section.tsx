@@ -352,7 +352,6 @@ export function POProfitabilitySection({
                     dataKey={key}
                     fill={metricConfig[key].color}
                     radius={[4, 4, 0, 0]}
-                    isAnimationActive={false}
                   />
                 ))}
               </BarChart>
