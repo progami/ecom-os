@@ -2,13 +2,25 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { loadPlanningCalendar } from '@/lib/planning'
+import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar'
+import { weekStartsOnForRegion } from '@/lib/strategy-region'
 
 type UpdatePayload = {
   id: string
   values: Record<string, string | null | undefined>
 }
 
-const allowedFields = ['dueDate', 'dueDateDefault', 'dueDateSource', 'percentage', 'amountExpected', 'amountPaid'] as const
+const allowedFields = [
+  'dueDate',
+  'dueWeekNumber',
+  'dueDateDefault',
+  'dueWeekNumberDefault',
+  'dueDateSource',
+  'percentage',
+  'amountExpected',
+  'amountPaid',
+] as const
 
 function parseNumber(value: string | null | undefined) {
   if (!value) return null
@@ -40,9 +52,35 @@ export const PUT = withXPlanAuth(async (request: Request) => {
 
   const updates = body.updates as UpdatePayload[]
 
+  const paymentMeta = await prisma.purchaseOrderPayment.findMany({
+    where: { id: { in: updates.map(({ id }) => id) } },
+    select: {
+      id: true,
+      purchaseOrder: { select: { strategy: { select: { region: true } } } },
+    },
+  })
+
+  const weekStartsOnByPayment = new Map<string, 0 | 1>()
+  const weekStartsOnSet = new Set<0 | 1>()
+  for (const row of paymentMeta) {
+    const weekStartsOn = weekStartsOnForRegion(row.purchaseOrder.strategy?.region === 'UK' ? 'UK' : 'US')
+    weekStartsOnByPayment.set(row.id, weekStartsOn)
+    weekStartsOnSet.add(weekStartsOn)
+  }
+
+  const calendarsByStart = new Map<0 | 1, Awaited<ReturnType<typeof loadPlanningCalendar>>['calendar']>()
+  await Promise.all(
+    Array.from(weekStartsOnSet).map(async (weekStartsOn) => {
+      const planning = await loadPlanningCalendar(weekStartsOn)
+      calendarsByStart.set(weekStartsOn, planning.calendar)
+    }),
+  )
+
   await prisma.$transaction(
     updates.map(({ id, values }) => {
       const data: Record<string, unknown> = {}
+      const weekStartsOn = weekStartsOnByPayment.get(id) ?? 0
+      const calendar = calendarsByStart.get(weekStartsOn)
 
       for (const field of allowedFields) {
         if (!(field in values)) continue
@@ -61,11 +99,45 @@ export const PUT = withXPlanAuth(async (request: Request) => {
 
         if (incoming === null || incoming === '') {
           data[field] = null
+          if (field === 'dueDate') {
+            data.dueWeekNumber = null
+          } else if (field === 'dueDateDefault') {
+            data.dueWeekNumberDefault = null
+          } else if (field === 'dueWeekNumber') {
+            data.dueDate = null
+          } else if (field === 'dueWeekNumberDefault') {
+            data.dueDateDefault = null
+          }
           continue
         }
 
-        if (field === 'dueDate' || field === 'dueDateDefault') {
-          data[field] = parseDate(incoming)
+        if (field === 'dueWeekNumber' || field === 'dueWeekNumberDefault') {
+          const parsedWeek = parseNumber(incoming)
+          const weekNumber = parsedWeek == null ? null : Math.round(parsedWeek)
+          data[field] = weekNumber
+          const dateField = field === 'dueWeekNumber' ? 'dueDate' : 'dueDateDefault'
+          if (calendar && weekNumber != null) {
+            data[dateField] = getCalendarDateForWeek(weekNumber, calendar)
+          }
+        } else if (field === 'dueDate' || field === 'dueDateDefault') {
+          const parsedDate = parseDate(incoming)
+          if (!parsedDate) {
+            data[field] = null
+            continue
+          }
+
+          if (calendar) {
+            const weekNumber = weekNumberForDate(parsedDate, calendar)
+            if (weekNumber != null) {
+              const normalizedDate = getCalendarDateForWeek(weekNumber, calendar)
+              data[field] = normalizedDate
+              const weekField = field === 'dueDate' ? 'dueWeekNumber' : 'dueWeekNumberDefault'
+              data[weekField] = weekNumber
+              continue
+            }
+          }
+
+          data[field] = parsedDate
         } else if (field === 'percentage') {
           const parsed = parseNumber(incoming)
           const decimal = parsed == null ? null : parsed > 1 ? parsed / 100 : parsed
@@ -105,6 +177,17 @@ export const POST = withXPlanAuth(async (request: Request) => {
   const category = typeof body.category === 'string' && body.category.trim().length > 0 ? body.category.trim() : undefined
 
   try {
+    const purchaseOrder = await prisma.purchaseOrder.findUnique({
+      where: { id: purchaseOrderId },
+      select: { id: true, strategy: { select: { region: true } } },
+    })
+
+    const weekStartsOn = weekStartsOnForRegion(purchaseOrder?.strategy?.region === 'UK' ? 'UK' : 'US')
+    const planning = await loadPlanningCalendar(weekStartsOn)
+    const dueWeekNumber = dueDate ? weekNumberForDate(dueDate, planning.calendar) : null
+    const normalizedDueDate =
+      dueWeekNumber != null ? getCalendarDateForWeek(dueWeekNumber, planning.calendar) : dueDate
+
     const nextIndex = Number.isNaN(paymentIndex) ? 1 : paymentIndex
     const created = await prisma.purchaseOrderPayment.create({
       data: {
@@ -113,8 +196,10 @@ export const POST = withXPlanAuth(async (request: Request) => {
         percentage: percentage != null ? new Prisma.Decimal(percentage.toFixed(4)) : null,
         amountExpected: amountExpected != null ? new Prisma.Decimal(amountExpected.toFixed(2)) : null,
         amountPaid: amountPaid != null ? new Prisma.Decimal(amountPaid.toFixed(2)) : null,
-        dueDate,
-        dueDateDefault: dueDate,
+        dueDate: normalizedDueDate,
+        dueWeekNumber,
+        dueDateDefault: normalizedDueDate,
+        dueWeekNumberDefault: dueWeekNumber,
         dueDateSource: normalizedSource,
         label: label ?? `Payment ${nextIndex}`,
         category: category ?? 'OTHER',
