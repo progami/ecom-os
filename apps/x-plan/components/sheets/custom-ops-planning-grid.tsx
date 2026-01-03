@@ -336,7 +336,7 @@ function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageM
   }
 
   if (column.type === 'date') {
-    return row[column.key] ?? ''
+    return toIsoDate(row[column.key]) ?? ''
   }
 
   return row[column.key] ?? ''
@@ -639,6 +639,9 @@ export function CustomOpsPlanningGrid({
     setIsDatePickerOpen(false)
     setEditingCell(null)
     setEditValue('')
+    requestAnimationFrame(() => {
+      tableScrollRef.current?.focus()
+    })
   }, [])
 
   const commitEdit = useCallback((nextValue?: string) => {
