@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import {
   Bar,
@@ -78,8 +78,11 @@ const statusFilters: StatusFilter[] = ['ALL', 'PLANNED', 'PRODUCTION', 'IN_TRANS
 
 // Pre-create formatters to avoid creating new instances on every render
 const currencyFormatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+const numberFormatter = new Intl.NumberFormat('en-US')
 const formatCurrency = (value: number) => currencyFormatter.format(value)
+const formatNumber = (value: number) => numberFormatter.format(value)
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
+const formatAxisPercent = (value: number) => `${value.toFixed(0)}%`
 
 export function POProfitabilitySection({
   data,
@@ -172,14 +175,16 @@ export function POProfitabilitySection({
     })
   }, [filteredData, sortField, sortDirection])
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
+  const handleSort = useCallback((field: SortField) => {
+    setSortField((currentField) => {
+      if (currentField === field) {
+        setSortDirection((dir) => (dir === 'asc' ? 'desc' : 'asc'))
+        return currentField
+      }
       setSortDirection('desc')
-    }
-  }
+      return field
+    })
+  }, [])
 
   // Transform data for Recharts
   // filteredData is already aggregated by PO when "All SKUs" selected
@@ -192,7 +197,7 @@ export function POProfitabilitySection({
     }))
   }, [filteredData, skuFilter])
 
-  const toggleMetric = (key: MetricKey) => {
+  const toggleMetric = useCallback((key: MetricKey) => {
     setEnabledMetrics((prev) => {
       if (prev.includes(key)) {
         if (prev.length <= 1) return prev
@@ -200,7 +205,7 @@ export function POProfitabilitySection({
       }
       return [...prev, key]
     })
-  }
+  }, [])
 
   // Summary stats - compute all totals in a single pass
   const summary = useMemo(() => {
@@ -323,7 +328,7 @@ export function POProfitabilitySection({
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 11, fill: '#64748b' }}
-                  tickFormatter={(value) => `${value.toFixed(0)}%`}
+                  tickFormatter={formatAxisPercent}
                   width={50}
                 />
                 <Tooltip
@@ -333,7 +338,7 @@ export function POProfitabilitySection({
                       <div className="rounded-lg border bg-background p-2 shadow-md">
                         <p className="mb-1 text-xs font-medium">{label}</p>
                         {payload.map((entry) => (
-                          <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
+                          <p key={String(entry.dataKey)} className="text-xs" style={{ color: entry.color }}>
                             {metricConfig[entry.dataKey as MetricKey]?.label}: {formatPercent(entry.value as number)}
                           </p>
                         ))}
@@ -347,6 +352,7 @@ export function POProfitabilitySection({
                     dataKey={key}
                     fill={metricConfig[key].color}
                     radius={[4, 4, 0, 0]}
+                    isAnimationActive={false}
                   />
                 ))}
               </BarChart>
@@ -435,38 +441,14 @@ export function POProfitabilitySection({
             </TableHeader>
             <TableBody>
               {tableSortedData.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <div className="font-medium">{row.orderCode}</div>
-                    <div className="truncate text-xs text-muted-foreground max-w-[160px]" title={row.productName}>
-                      {row.productName}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={row.status} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{row.quantity.toLocaleString()}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(row.grossRevenue)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {formatCurrency(row.netProfit)}
-                  </TableCell>
-                  <TableCell className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
-                    {formatPercent(row.netMarginPercent)}
-                  </TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600' : ''}`}>
-                    {formatPercent(row.roi)}
-                  </TableCell>
-                </TableRow>
+                <POTableRow key={row.id} row={row} />
               ))}
               {/* Total row */}
               <TableRow className="bg-muted/50">
                 <TableCell className="font-semibold">Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})</TableCell>
                 <TableCell />
                 <TableCell className="text-right tabular-nums font-semibold">
-                  {summary.totalQuantity.toLocaleString()}
+                  {formatNumber(summary.totalQuantity)}
                 </TableCell>
                 <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(summary.totalRevenue)}</TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
@@ -538,6 +520,37 @@ const StatusBadge = memo(function StatusBadge({ status }: { status: POStatus }) 
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeStyles[status]}`}>
       {statusLabels[status]}
     </span>
+  )
+})
+
+// Memoized table row to prevent unnecessary re-renders
+const POTableRow = memo(function POTableRow({ row }: { row: POProfitabilityData }) {
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="font-medium">{row.orderCode}</div>
+        <div className="truncate text-xs text-muted-foreground max-w-[160px]" title={row.productName}>
+          {row.productName}
+        </div>
+      </TableCell>
+      <TableCell>
+        <StatusBadge status={row.status} />
+      </TableCell>
+      <TableCell className="text-right tabular-nums">{formatNumber(row.quantity)}</TableCell>
+      <TableCell className="text-right tabular-nums">{formatCurrency(row.grossRevenue)}</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
+      <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
+      <TableCell className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+        {formatCurrency(row.netProfit)}
+      </TableCell>
+      <TableCell className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
+        {formatPercent(row.netMarginPercent)}
+      </TableCell>
+      <TableCell className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600' : ''}`}>
+        {formatPercent(row.roi)}
+      </TableCell>
+    </TableRow>
   )
 })
 
