@@ -21,7 +21,6 @@ import {
   ClipboardDocumentCheckIcon,
   DocumentIcon,
   FolderIcon,
-  PlusIcon,
   UsersIcon,
 } from '@/components/ui/Icons';
 import { Card } from '@/components/ui/Card';
@@ -623,16 +622,6 @@ export default function CaseDetailPage() {
           }
         >
           <div className="space-y-6 max-w-5xl">
-            <div className="flex items-center justify-end">
-              <Button
-                variant="secondary"
-                onClick={() => router.push('/cases/add')}
-                icon={<PlusIcon className="h-4 w-4" />}
-              >
-                New Case
-              </Button>
-            </div>
-
             <Card padding="md">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
