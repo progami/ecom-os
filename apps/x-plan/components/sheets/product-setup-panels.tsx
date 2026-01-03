@@ -6,6 +6,9 @@ import { toast } from 'sonner'
 import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { withAppBasePath } from '@/lib/base-path'
 import { parseNumber, parsePercent } from '@/lib/utils/numbers'
+import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 interface BusinessParameter {
   id: string
@@ -300,19 +303,19 @@ export function ProductSetupParametersPanel({
   }, [flushUpdates])
 
   return (
-    <div className={clsx('overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#041324]', className)}>
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+    <div className={cn('overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10', className)}>
+      <Table className="w-full table-fixed border-collapse">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
               Parameter
-            </th>
-            <th className="w-32 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            </TableHead>
+            <TableHead className="sticky top-0 z-10 h-10 w-32 border-b border-r bg-muted px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
               Value
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {items.map((item) => {
             const isError = item.status === 'error' || item.status === 'blocked'
             const isSaving = item.status === 'saving'
@@ -320,15 +323,15 @@ export function ProductSetupParametersPanel({
             const key = item.id || item.label
 
             return (
-              <tr key={key} className="bg-white dark:bg-transparent">
-                <td className="px-3 py-2">
-                  <label htmlFor={`param-${key}`} className="text-sm text-slate-700 dark:text-slate-200">
+              <TableRow key={key} className="hover:bg-transparent">
+                <TableCell className="border-r px-3 py-2">
+                  <label htmlFor={`param-${key}`} className="text-sm text-muted-foreground">
                     {item.label}
                   </label>
-                </td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell className="px-3 py-2">
                   <div className="relative">
-                    <input
+                    <Input
                       id={`param-${key}`}
                       value={item.value}
                       onChange={(event) => handleValueChange(key, event.target.value)}
@@ -337,29 +340,38 @@ export function ProductSetupParametersPanel({
                       aria-invalid={isError}
                       disabled={isSaving}
                       className={clsx(
-                        'w-full rounded border px-2 py-1.5 text-right text-sm font-medium tabular-nums transition focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-70',
+                        'h-8 w-full pr-8 text-right text-sm font-medium tabular-nums',
                         isError
-                          ? 'border-rose-300 bg-rose-50 text-rose-900 focus:border-rose-400 focus:ring-rose-200 dark:border-rose-500/50 dark:bg-rose-900/20 dark:text-rose-100'
+                          ? 'border-rose-300 bg-rose-50 text-rose-900 focus-visible:ring-rose-200 dark:border-rose-500/50 dark:bg-rose-900/20 dark:text-rose-100'
                           : isDirty
-                            ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-400 focus:ring-amber-200 dark:border-amber-500/50 dark:bg-amber-900/20 dark:text-slate-100'
-                            : 'border-slate-200 bg-white text-slate-900 focus:border-cyan-400 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/20'
+                            ? 'border-amber-300 bg-amber-50 text-slate-900 focus-visible:ring-amber-200 dark:border-amber-500/50 dark:bg-amber-900/20 dark:text-slate-100'
+                            : 'bg-background focus-visible:ring-cyan-100 dark:bg-background dark:focus-visible:ring-cyan-400/20'
                       )}
                     />
-                    {isSaving && (
+                    {isSaving ? (
                       <div className="absolute inset-y-0 right-2 flex items-center">
-                        <svg className="h-3.5 w-3.5 animate-spin text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg
+                          className="h-3.5 w-3.5 animate-spin text-cyan-500"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
                         </svg>
                       </div>
-                    )}
+                    ) : null}
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }
