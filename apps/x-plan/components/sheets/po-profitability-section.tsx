@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react'
 import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import {
-  Area,
-  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -212,18 +212,10 @@ export function POProfitabilitySection({
           {/* Chart */}
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
+              <BarChart
                 data={chartData}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
-                <defs>
-                  {(Object.keys(metricConfig) as MetricKey[]).map((key) => (
-                    <linearGradient key={key} id={`gradient-${key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={metricConfig[key].color} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={metricConfig[key].color} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
                 <XAxis
                   dataKey="name"
@@ -255,16 +247,14 @@ export function POProfitabilitySection({
                   }}
                 />
                 {enabledMetrics.map((key) => (
-                  <Area
+                  <Bar
                     key={key}
-                    type="monotone"
                     dataKey={key}
-                    stroke={metricConfig[key].color}
-                    fill={`url(#gradient-${key})`}
-                    strokeWidth={2}
+                    fill={metricConfig[key].color}
+                    radius={[4, 4, 0, 0]}
                   />
                 ))}
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
           </div>
 
