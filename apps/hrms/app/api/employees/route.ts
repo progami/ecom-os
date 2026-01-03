@@ -12,7 +12,6 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
 import { createTemporaryEmployeeId, formatEmployeeId } from '@/lib/employee-identifiers'
-import { instantiateChecklistForEmployee } from '@/lib/domain/checklists/checklist-service'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -178,17 +177,6 @@ export async function POST(req: Request) {
         include: { roles: true, dept: true },
       })
     })
-
-    // Best-effort: auto-instantiate onboarding checklist for new hires (if a template exists).
-    try {
-      await instantiateChecklistForEmployee({
-        employeeId: emp.id,
-        lifecycleType: 'ONBOARDING',
-        actorId,
-      })
-    } catch {
-      // No onboarding template configured or other non-critical issue; onboarding can be started manually.
-    }
 
     return NextResponse.json(emp, { status: 201 })
   } catch (e) {

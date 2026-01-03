@@ -5,12 +5,11 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
-import { syncChecklistFromTaskStatus } from '@/lib/domain/checklists/checklist-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 const TaskStatusEnum = z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED'])
-const TaskCategoryEnum = z.enum(['GENERAL', 'ONBOARDING', 'OFFBOARDING', 'CASE', 'POLICY'])
+const TaskCategoryEnum = z.enum(['GENERAL', 'CASE', 'POLICY'])
 
 const UpdateTaskSchema = z.object({
   title: z.string().min(1).max(200).trim().optional(),
@@ -209,14 +208,6 @@ export async function PATCH(req: Request, context: RouteContext) {
           relatedId: updated.id,
           relatedType: 'TASK',
         },
-      })
-    }
-
-    if (data.status !== undefined && data.status !== existing.status) {
-      await syncChecklistFromTaskStatus({
-        taskId: updated.id,
-        newStatus: updated.status as 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED',
-        actorId,
       })
     }
 

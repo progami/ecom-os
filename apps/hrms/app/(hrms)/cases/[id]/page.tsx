@@ -469,6 +469,25 @@ export default function CaseDetailPage() {
     }
   }
 
+  const onAction = useCallback(
+    async (actionId: ActionId) => {
+      setError(null);
+      try {
+        await executeAction(
+          actionId,
+          linkedDisciplinaryId
+            ? { type: 'DISCIPLINARY_ACTION', id: linkedDisciplinaryId }
+            : { type: 'CASE', id },
+        );
+        await loadAll();
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to complete action';
+        setError(message);
+      }
+    },
+    [id, linkedDisciplinaryId, loadAll],
+  );
+
   if (loading) {
     return (
       <Card padding="lg">
@@ -493,25 +512,6 @@ export default function CaseDetailPage() {
 
   const canAddAttachment = Boolean(me?.isSuperAdmin || me?.isHR);
   const canEditViolation = Boolean(linkedDisciplinaryId && (me?.isSuperAdmin || me?.isHR));
-
-  const onAction = useCallback(
-    async (actionId: ActionId) => {
-      setError(null);
-      try {
-        await executeAction(
-          actionId,
-          linkedDisciplinaryId
-            ? { type: 'DISCIPLINARY_ACTION', id: linkedDisciplinaryId }
-            : { type: 'CASE', id },
-        );
-        await loadAll();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : 'Failed to complete action';
-        setError(message);
-      }
-    },
-    [id, linkedDisciplinaryId, loadAll],
-  );
 
   return (
     <>

@@ -285,11 +285,10 @@ export async function initializeSlaReminders() {
         run.result.leaveApprovalRemindersCreated +
         run.result.reviewRemindersCreated +
         run.result.disciplinaryRemindersCreated +
-        run.result.acknowledgmentRemindersCreated +
-        run.result.checklistTaskRemindersCreated
+        run.result.acknowledgmentRemindersCreated
       if (created > 0) {
         console.log(
-          `[SLA Reminders] policy=${run.result.policyAckRemindersCreated} leave=${run.result.leaveApprovalRemindersCreated} review=${run.result.reviewRemindersCreated} disciplinary=${run.result.disciplinaryRemindersCreated} ack=${run.result.acknowledgmentRemindersCreated} checklist=${run.result.checklistTaskRemindersCreated}`
+          `[SLA Reminders] policy=${run.result.policyAckRemindersCreated} leave=${run.result.leaveApprovalRemindersCreated} review=${run.result.reviewRemindersCreated} disciplinary=${run.result.disciplinaryRemindersCreated} ack=${run.result.acknowledgmentRemindersCreated}`
         )
       }
     }
@@ -319,11 +318,10 @@ export function startSlaReminders(intervalMs = 6 * 60 * 60 * 1000) {
           run.result.leaveApprovalRemindersCreated +
           run.result.reviewRemindersCreated +
           run.result.disciplinaryRemindersCreated +
-          run.result.acknowledgmentRemindersCreated +
-          run.result.checklistTaskRemindersCreated
+          run.result.acknowledgmentRemindersCreated
         if (created > 0) {
           console.log(
-            `[SLA Reminders] policy=${run.result.policyAckRemindersCreated} leave=${run.result.leaveApprovalRemindersCreated} review=${run.result.reviewRemindersCreated} disciplinary=${run.result.disciplinaryRemindersCreated} ack=${run.result.acknowledgmentRemindersCreated} checklist=${run.result.checklistTaskRemindersCreated}`
+            `[SLA Reminders] policy=${run.result.policyAckRemindersCreated} leave=${run.result.leaveApprovalRemindersCreated} review=${run.result.reviewRemindersCreated} disciplinary=${run.result.disciplinaryRemindersCreated} ack=${run.result.acknowledgmentRemindersCreated}`
           )
         }
       }

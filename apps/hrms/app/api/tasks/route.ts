@@ -7,7 +7,7 @@ import { isHROrAbove, isManagerOf } from '@/lib/permissions';
 import { writeAuditLog } from '@/lib/audit';
 
 const TaskStatusEnum = z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED']);
-const TaskCategoryEnum = z.enum(['GENERAL', 'ONBOARDING', 'OFFBOARDING', 'CASE', 'POLICY']);
+const TaskCategoryEnum = z.enum(['GENERAL', 'CASE', 'POLICY']);
 
 const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200).trim(),
