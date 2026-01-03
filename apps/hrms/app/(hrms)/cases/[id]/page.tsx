@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   CaseAttachmentsApi,
   CasesApi,
@@ -16,16 +16,26 @@ import {
   type Me,
   type Task,
 } from '@/lib/api-client';
-import { PlusIcon } from '@/components/ui/Icons';
+import {
+  CheckCircleIcon,
+  ClipboardDocumentCheckIcon,
+  DocumentIcon,
+  FolderIcon,
+  PlusIcon,
+  UsersIcon,
+} from '@/components/ui/Icons';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Alert } from '@/components/ui/Alert';
 import { StatusBadge } from '@/components/ui/Badge';
 import { FormField, SelectField, TextareaField } from '@/components/ui/FormField';
+import { TabButton } from '@/components/ui/TabButton';
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout';
 import { executeAction } from '@/lib/actions/execute-action';
 import type { ActionId } from '@/lib/contracts/action-ids';
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record';
+
+type CaseTab = 'overview' | 'participants' | 'notes' | 'tasks' | 'attachments';
 
 const statusOptions = [
   { value: 'OPEN', label: 'Open' },
@@ -88,8 +98,19 @@ function formatPersonName(
 export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
 
+  const tabParam = (searchParams.get('tab') ?? '').toLowerCase();
+  const initialTab: CaseTab =
+    tabParam === 'participants' ||
+    tabParam === 'notes' ||
+    tabParam === 'tasks' ||
+    tabParam === 'attachments'
+      ? (tabParam as CaseTab)
+      : 'overview';
+
+  const [activeTab, setActiveTab] = useState<CaseTab>(initialTab);
   const [workflow, setWorkflow] = useState<WorkflowRecordDTO | null>(null);
   const [linkedDisciplinaryId, setLinkedDisciplinaryId] = useState<string | null>(null);
   const [c, setC] = useState<Case | null>(null);
@@ -169,6 +190,11 @@ export default function CaseDetailPage() {
     dueDate: '',
     assignedToId: '',
   });
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabParam]);
 
   const loadAll = useCallback(async () => {
     try {
@@ -488,6 +514,71 @@ export default function CaseDetailPage() {
     [id, linkedDisciplinaryId, loadAll],
   );
 
+  const canAddAttachment = Boolean(me?.isSuperAdmin || me?.isHR);
+  const canEditViolation = Boolean(linkedDisciplinaryId && (me?.isSuperAdmin || me?.isHR));
+  const participantsCount = c?.participants?.length ?? 0;
+  const notesCount = c?.notes?.length ?? 0;
+  const tasksCount = c?.tasks?.length ?? 0;
+  const attachmentsCount = c?.attachments?.length ?? 0;
+  const canViewTasks = tasksCount > 0 || Boolean(me?.isSuperAdmin || me?.isHR);
+
+  const tabs = useMemo(
+    () => [
+      { id: 'overview' as CaseTab, label: 'Overview', icon: DocumentIcon, visible: true },
+      {
+        id: 'participants' as CaseTab,
+        label: 'Participants',
+        icon: UsersIcon,
+        visible: true,
+        badge: participantsCount,
+      },
+      {
+        id: 'notes' as CaseTab,
+        label: 'Notes',
+        icon: ClipboardDocumentCheckIcon,
+        visible: true,
+        badge: notesCount,
+      },
+      {
+        id: 'tasks' as CaseTab,
+        label: 'Tasks',
+        icon: CheckCircleIcon,
+        visible: canViewTasks,
+        badge: tasksCount,
+      },
+      {
+        id: 'attachments' as CaseTab,
+        label: 'Attachments',
+        icon: FolderIcon,
+        visible: canAddAttachment,
+        badge: attachmentsCount,
+      },
+    ],
+    [attachmentsCount, canAddAttachment, canViewTasks, notesCount, participantsCount, tasksCount],
+  );
+
+  const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible), [tabs]);
+
+  function setTab(next: CaseTab) {
+    if (!visibleTabs.some((tab) => tab.id === next)) return;
+    setActiveTab(next);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', next);
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : '');
+  }
+
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab.id === activeTab)) {
+      const fallback = visibleTabs[0]?.id ?? 'overview';
+      setActiveTab(fallback);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', fallback);
+      const qs = params.toString();
+      router.replace(qs ? `?${qs}` : '');
+    }
+  }, [activeTab, router, searchParams, visibleTabs]);
+
   if (loading) {
     return (
       <Card padding="lg">
@@ -509,9 +600,6 @@ export default function CaseDetailPage() {
       </>
     );
   }
-
-  const canAddAttachment = Boolean(me?.isSuperAdmin || me?.isHR);
-  const canEditViolation = Boolean(linkedDisciplinaryId && (me?.isSuperAdmin || me?.isHR));
 
   return (
     <>
@@ -565,7 +653,21 @@ export default function CaseDetailPage() {
               </div>
             </Card>
 
-            {(canEdit || canAddAttachment) && (
+            <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+              {visibleTabs.map((tab) => (
+                <TabButton
+                  key={tab.id}
+                  active={activeTab === tab.id}
+                  onClick={() => setTab(tab.id)}
+                  icon={tab.icon}
+                  badge={tab.badge}
+                >
+                  {tab.label}
+                </TabButton>
+              ))}
+            </div>
+
+            {activeTab === 'overview' && (
               <Card padding="lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
@@ -620,9 +722,9 @@ export default function CaseDetailPage() {
               </Card>
             )}
 
-            {/* Participants */}
-            <Card padding="md">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Participants</h3>
+            {activeTab === 'participants' && (
+              <Card padding="md">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Participants</h3>
 
               <div className="space-y-2">
                 {(c.participants || []).map((p) => {
@@ -667,47 +769,50 @@ export default function CaseDetailPage() {
                 })}
               </div>
 
-              {(me?.isHR || me?.isSuperAdmin) && (
-                <div className="mt-5 pt-5 border-t border-gray-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <SelectField
-                      label="Add participant"
-                      name="participantEmployeeId"
-                      options={employeeOptions}
-                      placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                      value={participantForm.employeeId}
-                      onChange={(e) =>
-                        setParticipantForm((p) => ({ ...p, employeeId: e.target.value }))
-                      }
-                      disabled={participantSaving}
-                    />
+                {(me?.isHR || me?.isSuperAdmin) && (
+                  <div className="mt-5 pt-5 border-t border-gray-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <SelectField
+                        label="Add participant"
+                        name="participantEmployeeId"
+                        options={employeeOptions}
+                        placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
+                        value={participantForm.employeeId}
+                        onChange={(e) =>
+                          setParticipantForm((p) => ({ ...p, employeeId: e.target.value }))
+                        }
+                        disabled={participantSaving}
+                      />
 
-                    <SelectField
-                      label="Role"
-                      name="participantRole"
-                      options={addParticipantRoleOptions}
-                      value={participantForm.role}
-                      onChange={(e) => setParticipantForm((p) => ({ ...p, role: e.target.value }))}
-                      disabled={participantSaving}
-                    />
+                      <SelectField
+                        label="Role"
+                        name="participantRole"
+                        options={addParticipantRoleOptions}
+                        value={participantForm.role}
+                        onChange={(e) =>
+                          setParticipantForm((p) => ({ ...p, role: e.target.value }))
+                        }
+                        disabled={participantSaving}
+                      />
 
-                    <div className="flex items-end justify-end">
-                      <Button
-                        onClick={addParticipant}
-                        loading={participantSaving}
-                        disabled={participantSaving || !participantForm.employeeId}
-                      >
-                        Add
-                      </Button>
+                      <div className="flex items-end justify-end">
+                        <Button
+                          onClick={addParticipant}
+                          loading={participantSaving}
+                          disabled={participantSaving || !participantForm.employeeId}
+                        >
+                          Add
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </Card>
+                )}
+              </Card>
+            )}
 
-            {/* Notes */}
-            <Card padding="md">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Notes</h3>
+            {activeTab === 'notes' && (
+              <Card padding="md">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Notes</h3>
 
               <div className="space-y-3">
                 {(c.notes || []).length === 0 ? (
@@ -730,36 +835,36 @@ export default function CaseDetailPage() {
                 )}
               </div>
 
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-1">
-                  <SelectField
-                    label="Visibility"
-                    name="visibility"
-                    options={visibilityOptions}
-                    value={noteForm.visibility}
-                    onChange={(e) => setNoteForm((p) => ({ ...p, visibility: e.target.value }))}
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <TextareaField
-                    label="Add Note"
-                    name="noteBody"
-                    value={noteForm.body}
-                    onChange={(e) => setNoteForm((p) => ({ ...p, body: e.target.value }))}
-                    rows={3}
-                    placeholder="Write a note..."
-                  />
-                  <div className="flex justify-end mt-3">
-                    <Button onClick={addNote} loading={noteSaving} disabled={noteSaving}>
-                      {noteSaving ? 'Adding...' : 'Add Note'}
-                    </Button>
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-1">
+                    <SelectField
+                      label="Visibility"
+                      name="visibility"
+                      options={visibilityOptions}
+                      value={noteForm.visibility}
+                      onChange={(e) => setNoteForm((p) => ({ ...p, visibility: e.target.value }))}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <TextareaField
+                      label="Add Note"
+                      name="noteBody"
+                      value={noteForm.body}
+                      onChange={(e) => setNoteForm((p) => ({ ...p, body: e.target.value }))}
+                      rows={3}
+                      placeholder="Write a note..."
+                    />
+                    <div className="flex justify-end mt-3">
+                      <Button onClick={addNote} loading={noteSaving} disabled={noteSaving}>
+                        {noteSaving ? 'Adding...' : 'Add Note'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            )}
 
-            {/* Attachments */}
-            {canAddAttachment && (
+            {activeTab === 'attachments' && canAddAttachment && (
               <Card padding="md">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Attachments</h3>
 
@@ -832,8 +937,7 @@ export default function CaseDetailPage() {
               </Card>
             )}
 
-            {/* Tasks */}
-            {((c.tasks || []).length > 0 || Boolean(me?.isSuperAdmin || me?.isHR)) && (
+            {activeTab === 'tasks' && canViewTasks && (
               <Card padding="md">
                 <div className="flex items-center justify-between gap-3 mb-3">
                   <h3 className="text-sm font-semibold text-gray-900">Tasks</h3>
