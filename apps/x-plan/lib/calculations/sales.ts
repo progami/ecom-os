@@ -71,10 +71,15 @@ function buildArrivalSchedule(
   const schedule = new Map<string, ArrivalScheduleEntry>()
 
   for (const order of purchaseOrders) {
-    const arrivalDate = order.availableDate ?? order.inboundEta
-    if (!arrivalDate) continue
-    const weekNumber = weekNumberForDate(arrivalDate, calendar)
-    if (weekNumber == null) continue
+    const weekNumber =
+      order.availableWeekNumber ??
+      order.inboundEtaWeekNumber ??
+      (() => {
+        const arrivalDate = order.availableDate ?? order.inboundEta
+        return arrivalDate ? weekNumberForDate(arrivalDate, calendar) : null
+      })()
+
+    if (weekNumber == null || !calendar.weekDates.has(weekNumber)) continue
     const arrivalBatches =
       Array.isArray(order.batches) && order.batches.length > 0
         ? order.batches

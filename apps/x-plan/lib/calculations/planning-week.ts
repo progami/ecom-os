@@ -1,10 +1,12 @@
-import { addWeeks, differenceInCalendarWeeks, startOfWeek } from 'date-fns'
 import type { YearSegment } from '@/lib/calculations/calendar'
+import type { WeekStartsOn } from '@/lib/calculations/week-utils'
+import { addWeeksUtc, differenceInCalendarWeeksUtc, startOfWeekUtc } from '@/lib/calculations/week-utils'
 import { parseDate, toIsoDate } from '@/lib/utils/dates'
 
 export type PlanningWeekConfig = {
   anchorWeekNumber: number
   anchorWeekDateIso: string
+  weekStartsOn?: WeekStartsOn
   minWeekNumber?: number | null
   maxWeekNumber?: number | null
   yearSegments: YearSegment[]
@@ -25,9 +27,9 @@ export function planningWeekNumberForDate(
   const anchor = coerceAnchor(config)
   if (!anchor) return null
 
-  const base = startOfWeek(anchor.anchorDate, { weekStartsOn: 0 })
-  const target = startOfWeek(date, { weekStartsOn: 0 })
-  const offset = differenceInCalendarWeeks(target, base, { weekStartsOn: 0 })
+  const weekStartsOn = config.weekStartsOn ?? 0
+  const base = startOfWeekUtc(anchor.anchorDate, weekStartsOn)
+  const offset = differenceInCalendarWeeksUtc(date, base, weekStartsOn)
   const weekNumber = anchor.anchorWeekNumber + offset
 
   if (config.minWeekNumber != null && weekNumber < config.minWeekNumber) return null
@@ -52,7 +54,9 @@ export function planningWeekDateForWeekNumber(
   const numericWeek = Number(weekNumber)
   if (!Number.isFinite(numericWeek)) return null
 
-  return addWeeks(anchor.anchorDate, numericWeek - anchor.anchorWeekNumber)
+  const weekStartsOn = config.weekStartsOn ?? 0
+  const base = startOfWeekUtc(anchor.anchorDate, weekStartsOn)
+  return addWeeksUtc(base, numericWeek - anchor.anchorWeekNumber)
 }
 
 export function planningWeekDateIsoForWeekNumber(
@@ -124,4 +128,3 @@ export function weekNumberForYearWeekLabel(
   if (numericLabel < 1 || numericLabel > segment.weekCount) return null
   return segment.startWeekNumber + numericLabel - 1
 }
-

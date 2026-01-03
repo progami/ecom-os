@@ -11,6 +11,7 @@ const DEFAULT_STRATEGY_ID = 'default-strategy'
 const createSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  region: z.enum(['US', 'UK']).optional(),
 })
 
 const updateSchema = z.object({
@@ -18,6 +19,7 @@ const updateSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
+  region: z.enum(['US', 'UK']).optional(),
 })
 
 const deleteSchema = z.object({
@@ -68,6 +70,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
     data: {
       name: parsed.data.name.trim(),
       description: parsed.data.description?.trim(),
+      region: parsed.data.region ?? 'US',
       isDefault: false,
       status: 'DRAFT',
     },
@@ -105,6 +108,7 @@ export const PUT = withXPlanAuth(async (request: Request) => {
       ...(data.name && { name: data.name.trim() }),
       ...(data.description !== undefined && { description: data.description?.trim() }),
       ...(data.status && { status: data.status }),
+      ...(data.region && { region: data.region }),
     },
   })
 

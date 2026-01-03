@@ -59,7 +59,9 @@ export interface PurchaseOrderPaymentInput {
   category?: string | null
   label?: string | null
   dueDate?: Date | null
+  dueWeekNumber?: number | null
   dueDateDefault?: Date | null
+  dueWeekNumberDefault?: number | null
   dueDateSource?: 'SYSTEM' | 'USER'
 }
 
@@ -76,6 +78,7 @@ export interface PurchaseOrderInput {
   orderCode: string
   productId: string
   poDate?: Date | null
+  poWeekNumber?: number | null
   quantity: number
   productionWeeks?: number | null
   sourceWeeks?: number | null
@@ -92,14 +95,19 @@ export interface PurchaseOrderInput {
   pay3Date?: Date | null
   productionStart?: Date | null
   productionComplete?: Date | null
+  productionCompleteWeekNumber?: number | null
   sourceDeparture?: Date | null
+  sourceDepartureWeekNumber?: number | null
   transportReference?: string | null
   createdAt?: Date | null
   shipName?: string | null
   containerNumber?: string | null
   portEta?: Date | null
+  portEtaWeekNumber?: number | null
   inboundEta?: Date | null
+  inboundEtaWeekNumber?: number | null
   availableDate?: Date | null
+  availableWeekNumber?: number | null
   totalLeadDays?: number | null
   status: PurchaseOrderStatus
   statusIcon?: string | null

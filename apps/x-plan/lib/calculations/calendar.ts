@@ -1,4 +1,6 @@
-import { addWeeks, differenceInCalendarWeeks, isValid, startOfWeek } from 'date-fns'
+import { isValid } from 'date-fns'
+import type { WeekStartsOn } from '@/lib/calculations/week-utils'
+import { addWeeksUtc, differenceInCalendarWeeksUtc, startOfWeekUtc } from '@/lib/calculations/week-utils'
 import { SalesWeekInput } from './types'
 
 export interface WeekCalendar {
@@ -7,6 +9,7 @@ export interface WeekCalendar {
   anchorWeekNumber: number | null
   minWeekNumber: number | null
   maxWeekNumber: number | null
+  weekStartsOn: WeekStartsOn
 }
 
 export interface YearSegment {
@@ -23,7 +26,7 @@ function coerceDate(value: Date | string | number | null | undefined): Date | nu
   return isValid(date) ? date : null
 }
 
-export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
+export function buildWeekCalendar(salesWeeks: SalesWeekInput[], weekStartsOn: WeekStartsOn = 0): WeekCalendar {
   const sorted = [...salesWeeks].sort((a, b) => a.weekNumber - b.weekNumber)
   const weekDates = new Map<number, Date | null>()
 
@@ -32,7 +35,8 @@ export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
   let anchorWeekNumber: number | null = null
 
   for (const week of sorted) {
-    weekDates.set(week.weekNumber, coerceDate(week.weekDate ?? null))
+    const date = coerceDate(week.weekDate ?? null)
+    weekDates.set(week.weekNumber, date ? startOfWeekUtc(date, weekStartsOn) : null)
     if (minWeekNumber == null || week.weekNumber < minWeekNumber) {
       minWeekNumber = week.weekNumber
     }
@@ -50,11 +54,11 @@ export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
 
   if (minWeekNumber != null && maxWeekNumber != null) {
     if (calendarStart && anchorWeekNumber != null) {
-      const base = startOfWeek(calendarStart, { weekStartsOn: 0 })
+      const base = startOfWeekUtc(calendarStart, weekStartsOn)
       for (let weekNumber = minWeekNumber; weekNumber <= maxWeekNumber; weekNumber += 1) {
         const existing = weekDates.get(weekNumber)
         if (!existing || !isValid(existing)) {
-          weekDates.set(weekNumber, addWeeks(base, weekNumber - anchorWeekNumber))
+          weekDates.set(weekNumber, addWeeksUtc(base, weekNumber - anchorWeekNumber))
         }
       }
     } else {
@@ -76,6 +80,7 @@ export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
     anchorWeekNumber,
     minWeekNumber,
     maxWeekNumber,
+    weekStartsOn,
   }
 }
 
@@ -87,15 +92,14 @@ export function getCalendarDateForWeek(weekNumber: number, calendar: WeekCalenda
 
   if (!calendar.calendarStart || calendar.anchorWeekNumber == null) return null
 
-  const base = startOfWeek(calendar.calendarStart, { weekStartsOn: 0 })
-  return addWeeks(base, weekNumber - calendar.anchorWeekNumber)
+  const base = startOfWeekUtc(calendar.calendarStart, calendar.weekStartsOn)
+  return addWeeksUtc(base, weekNumber - calendar.anchorWeekNumber)
 }
 
 export function weekNumberForDate(date: Date | null, calendar: WeekCalendar): number | null {
   if (!date || !calendar.calendarStart || calendar.anchorWeekNumber == null) return null
-  const base = startOfWeek(calendar.calendarStart, { weekStartsOn: 0 })
-  const target = startOfWeek(date, { weekStartsOn: 0 })
-  const offset = differenceInCalendarWeeks(target, base)
+  const base = startOfWeekUtc(calendar.calendarStart, calendar.weekStartsOn)
+  const offset = differenceInCalendarWeeksUtc(date, base, calendar.weekStartsOn)
   const weekNumber = calendar.anchorWeekNumber + offset
   if (
     (calendar.minWeekNumber != null && weekNumber < calendar.minWeekNumber) ||

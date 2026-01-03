@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { loadPlanningCalendar } from '@/lib/planning'
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { weekStartsOnForRegion } from '@/lib/strategy-region'
 
 const editableFields = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts'] as const
 
@@ -33,7 +34,12 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  const planning = await loadPlanningCalendar()
+  const strategyRow = await (prisma as unknown as Record<string, any>).strategy?.findUnique?.({
+    where: { id: parsed.data.strategyId },
+    select: { region: true },
+  })
+  const weekStartsOn = weekStartsOnForRegion(strategyRow?.region === 'UK' ? 'UK' : 'US')
+  const planning = await loadPlanningCalendar(weekStartsOn)
   const minWeek = planning.calendar.minWeekNumber ?? 1
   const maxWeek = planning.calendar.maxWeekNumber ?? minWeek
 
