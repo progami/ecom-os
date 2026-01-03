@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Check, Download } from 'lucide-react'
 import {
   Area,
@@ -62,7 +62,6 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
     `${storagePrefix}:disabled`,
     [],
   )
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const hydrated = granularityHydrated && disabledHydrated
 
   const enabledMetrics = useMemo(() => {
@@ -124,8 +123,6 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
       return dataPoint
     })
   }, [enabledMetrics, granularity])
-
-  const hoveredIndex = activeIndex ?? (chartData.length > 0 ? chartData.length - 1 : null)
 
   const formatValue = (value: number, format: TrendFormat) => {
     if (!Number.isFinite(value)) return '—'
@@ -213,107 +210,63 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
           {description && <CardDescription>{description}</CardDescription>}
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 lg:grid-cols-[1fr_200px]">
-            {/* Chart */}
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                  onMouseMove={(state) => {
-                    if (typeof state?.activeTooltipIndex === 'number') {
-                      setActiveIndex(state.activeTooltipIndex)
-                    }
-                  }}
-                  onMouseLeave={() => setActiveIndex(null)}
-                >
-                  <defs>
-                    {enabledMetrics.map((metric) => (
-                      <linearGradient key={metric.key} id={`gradient-${metric.key}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={accentColors[metric.accent].fill} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={accentColors[metric.accent].fill} stopOpacity={0} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
-                  <XAxis
-                    dataKey="label"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    tickFormatter={formatAxisValue}
-                    width={60}
-                  />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload) return null
-                      return (
-                        <div className="rounded-lg border bg-background p-2 shadow-md">
-                          <p className="mb-1 text-xs font-medium">{label}</p>
-                          {payload.map((entry) => (
-                            <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
-                              {metrics.find(m => m.key === entry.dataKey)?.title}: {formatValue(entry.value as number, metrics.find(m => m.key === entry.dataKey)?.format ?? 'currency')}
-                            </p>
-                          ))}
-                        </div>
-                      )
-                    }}
-                  />
+          {/* Chart */}
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              >
+                <defs>
                   {enabledMetrics.map((metric) => (
-                    <Area
-                      key={metric.key}
-                      type="monotone"
-                      dataKey={metric.key}
-                      stroke={accentColors[metric.accent].stroke}
-                      fill={`url(#gradient-${metric.key})`}
-                      strokeWidth={2}
-                    />
+                    <linearGradient key={metric.key} id={`gradient-${metric.key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={accentColors[metric.accent].fill} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={accentColors[metric.accent].fill} stopOpacity={0} />
+                    </linearGradient>
                   ))}
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Stats Sidebar */}
-            <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  {activeIndex !== null ? 'Selected' : 'Latest'}
-                </p>
-                <p className="text-sm font-semibold">
-                  {hoveredIndex !== null ? chartData[hoveredIndex]?.label : '—'}
-                </p>
-              </div>
-              {metrics.map((metric) => {
-                const isEnabled = enabledMetrics.some((m) => m.key === metric.key)
-                const value = hoveredIndex !== null
-                  ? metric.series[granularity].values[hoveredIndex]
-                  : metric.series[granularity].values.at(-1)
-                const prevValue = hoveredIndex !== null && hoveredIndex > 0
-                  ? metric.series[granularity].values[hoveredIndex - 1]
-                  : metric.series[granularity].values.at(-2)
-                const change = value !== undefined && prevValue !== undefined ? value - prevValue : null
-
-                return (
-                  <div key={metric.key} className={!isEnabled ? 'opacity-40' : ''}>
-                    <p className="text-xs font-medium text-muted-foreground">{metric.title}</p>
-                    <p className="text-xl font-semibold">
-                      {formatValue(value ?? NaN, metric.format)}
-                    </p>
-                    {change !== null && (
-                      <p className={`text-xs ${change >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {change >= 0 ? '+' : ''}{formatValue(change, metric.format)}
-                      </p>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickFormatter={formatAxisValue}
+                  width={60}
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload) return null
+                    return (
+                      <div className="rounded-lg border bg-background p-2 shadow-md">
+                        <p className="mb-1 text-xs font-medium">{label}</p>
+                        {payload.map((entry) => (
+                          <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
+                            {metrics.find(m => m.key === entry.dataKey)?.title}: {formatValue(entry.value as number, metrics.find(m => m.key === entry.dataKey)?.format ?? 'currency')}
+                          </p>
+                        ))}
+                      </div>
+                    )
+                  }}
+                />
+                {enabledMetrics.map((metric) => (
+                  <Area
+                    key={metric.key}
+                    type="monotone"
+                    dataKey={metric.key}
+                    stroke={accentColors[metric.accent].stroke}
+                    fill={`url(#gradient-${metric.key})`}
+                    strokeWidth={2}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Legend */}

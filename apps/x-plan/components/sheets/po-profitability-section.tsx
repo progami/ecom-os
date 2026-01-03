@@ -80,7 +80,6 @@ export function POProfitabilitySection({
   description = 'Compare purchase order performance and profitability metrics',
 }: POProfitabilitySectionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>(['grossMarginPercent', 'netMarginPercent', 'roi'])
   const [sortField, setSortField] = useState<SortField>('grossRevenue')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
@@ -115,9 +114,6 @@ export function POProfitabilitySection({
       setSortDirection('desc')
     }
   }
-
-  const hoveredIndex = activeIndex ?? (filteredData.length > 0 ? filteredData.length - 1 : null)
-  const selectedPO = hoveredIndex !== null ? filteredData[hoveredIndex] : null
 
   // Transform data for Recharts
   const chartData = useMemo(() => {
@@ -213,113 +209,63 @@ export function POProfitabilitySection({
           <CardDescription>Performance across purchase orders by arrival date</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 lg:grid-cols-[1fr_200px]">
-            {/* Chart */}
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                  onMouseMove={(state) => {
-                    if (typeof state?.activeTooltipIndex === 'number') {
-                      setActiveIndex(state.activeTooltipIndex)
-                    }
-                  }}
-                  onMouseLeave={() => setActiveIndex(null)}
-                >
-                  <defs>
-                    {(Object.keys(metricConfig) as MetricKey[]).map((key) => (
-                      <linearGradient key={key} id={`gradient-${key}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={metricConfig[key].color} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={metricConfig[key].color} stopOpacity={0} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    tickFormatter={(value) => `${value.toFixed(0)}%`}
-                    width={50}
-                  />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload) return null
-                      return (
-                        <div className="rounded-lg border bg-background p-2 shadow-md">
-                          <p className="mb-1 text-xs font-medium">{label}</p>
-                          {payload.map((entry) => (
-                            <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
-                              {metricConfig[entry.dataKey as MetricKey]?.label}: {formatPercent(entry.value as number)}
-                            </p>
-                          ))}
-                        </div>
-                      )
-                    }}
-                  />
-                  {enabledMetrics.map((key) => (
-                    <Area
-                      key={key}
-                      type="monotone"
-                      dataKey={key}
-                      stroke={metricConfig[key].color}
-                      fill={`url(#gradient-${key})`}
-                      strokeWidth={2}
-                    />
+          {/* Chart */}
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  {(Object.keys(metricConfig) as MetricKey[]).map((key) => (
+                    <linearGradient key={key} id={`gradient-${key}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={metricConfig[key].color} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={metricConfig[key].color} stopOpacity={0} />
+                    </linearGradient>
                   ))}
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Stats Sidebar */}
-            <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  {activeIndex !== null ? 'Selected PO' : 'Latest PO'}
-                </p>
-                <p className="text-sm font-semibold">{selectedPO?.orderCode ?? '—'}</p>
-                {selectedPO && (
-                  <p className="truncate text-xs text-muted-foreground" title={selectedPO.productName}>
-                    {selectedPO.productName}
-                  </p>
-                )}
-              </div>
-              {(Object.keys(metricConfig) as MetricKey[]).map((key) => {
-                const isEnabled = enabledMetrics.includes(key)
-                const value = selectedPO ? selectedPO[key] : null
-                return (
-                  <div key={key} className={!isEnabled ? 'opacity-40' : ''}>
-                    <p className="text-xs font-medium text-muted-foreground">{metricConfig[key].label}</p>
-                    <p className={`text-xl font-semibold ${value !== null && value < 0 ? 'text-red-600' : ''}`}>
-                      {value !== null ? formatPercent(value) : '—'}
-                    </p>
-                  </div>
-                )
-              })}
-              <div className="border-t pt-3">
-                <p className="text-xs font-medium text-muted-foreground">Summary</p>
-                <div className="mt-1 space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Revenue</span>
-                    <span className="font-medium">{selectedPO ? formatCurrency(selectedPO.grossRevenue) : '—'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Net Profit</span>
-                    <span className={`font-medium ${selectedPO && selectedPO.netProfit < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                      {selectedPO ? formatCurrency(selectedPO.netProfit) : '—'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickFormatter={(value) => `${value.toFixed(0)}%`}
+                  width={50}
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload) return null
+                    return (
+                      <div className="rounded-lg border bg-background p-2 shadow-md">
+                        <p className="mb-1 text-xs font-medium">{label}</p>
+                        {payload.map((entry) => (
+                          <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
+                            {metricConfig[entry.dataKey as MetricKey]?.label}: {formatPercent(entry.value as number)}
+                          </p>
+                        ))}
+                      </div>
+                    )
+                  }}
+                />
+                {enabledMetrics.map((key) => (
+                  <Area
+                    key={key}
+                    type="monotone"
+                    dataKey={key}
+                    stroke={metricConfig[key].color}
+                    fill={`url(#gradient-${key})`}
+                    strokeWidth={2}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Legend */}
