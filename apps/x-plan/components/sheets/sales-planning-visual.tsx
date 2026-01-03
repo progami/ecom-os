@@ -53,7 +53,6 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     ? contextProductId
     : defaultProductId
 
-  const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const [showShipments, setShowShipments] = useState(true)
   const [showStockLine, setShowStockLine] = useState(true)
 
@@ -116,10 +115,6 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
       hasShipment: shipmentByWeek.has(point.weekNumber),
     }))
   }, [stockDataPoints, shipmentByWeek])
-
-  const hoveredIndex = activeIndex ?? (chartData.length > 0 ? chartData.length - 1 : null)
-  const activeStock = hoveredIndex !== null ? chartData[hoveredIndex] : null
-  const activeShipment = showShipments && activeStock ? shipmentByWeek.get(activeStock.weekNumber) ?? null : null
 
   if (productOptions.length === 0) {
     return (
@@ -190,146 +185,76 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           <CardDescription>Tracking inventory levels with shipment arrival markers</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 lg:grid-cols-[1fr_200px]">
-            {/* Chart */}
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                  onMouseMove={(state) => {
-                    if (typeof state?.activeTooltipIndex === 'number') {
-                      setActiveIndex(state.activeTooltipIndex)
-                    }
-                  }}
-                  onMouseLeave={() => setActiveIndex(null)}
-                >
-                  <defs>
-                    <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
-                  <XAxis
-                    dataKey="weekLabel"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                    tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()}
-                    width={50}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.[0]) return null
-                      const data = payload[0].payload
-                      return (
-                        <div className="rounded-lg border bg-background p-2 shadow-md">
-                          <p className="text-xs font-medium">{data.weekLabel} · {data.weekDate}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Stock: {Math.round(data.stockEnd).toLocaleString()} units
-                          </p>
-                          {data.hasShipment && (
-                            <p className="text-xs text-emerald-600">Shipment arrives</p>
-                          )}
-                        </div>
-                      )
-                    }}
-                  />
-                  {/* Shipment reference lines */}
-                  {showShipments && shipmentMarkers.map((marker) => {
-                    const dataIndex = chartData.findIndex(d => d.weekNumber === marker.weekNumber)
-                    if (dataIndex === -1) return null
+          {/* Chart */}
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
+                <XAxis
+                  dataKey="weekLabel"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()}
+                  width={50}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.[0]) return null
+                    const data = payload[0].payload
                     return (
-                      <ReferenceLine
-                        key={marker.weekNumber}
-                        x={chartData[dataIndex]?.weekLabel}
-                        stroke="hsl(var(--chart-2))"
-                        strokeDasharray="4 4"
-                        strokeWidth={2}
-                      />
+                      <div className="rounded-lg border bg-background p-2 shadow-md">
+                        <p className="text-xs font-medium">{data.weekLabel} · {data.weekDate}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Stock: {Math.round(data.stockEnd).toLocaleString()} units
+                        </p>
+                        {data.hasShipment && (
+                          <p className="text-xs text-emerald-600">Shipment arrives</p>
+                        )}
+                      </div>
                     )
-                  })}
-                  {showStockLine && (
-                    <Area
-                      type="monotone"
-                      dataKey="stockEnd"
-                      stroke="hsl(var(--chart-1))"
-                      fill="url(#stockGradient)"
+                  }}
+                />
+                {/* Shipment reference lines */}
+                {showShipments && shipmentMarkers.map((marker) => {
+                  const dataIndex = chartData.findIndex(d => d.weekNumber === marker.weekNumber)
+                  if (dataIndex === -1) return null
+                  return (
+                    <ReferenceLine
+                      key={marker.weekNumber}
+                      x={chartData[dataIndex]?.weekLabel}
+                      stroke="hsl(var(--chart-2))"
+                      strokeDasharray="4 4"
                       strokeWidth={2}
                     />
-                  )}
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Stats Sidebar */}
-            <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">
-                  {activeIndex !== null ? 'Selected week' : 'Latest week'}
-                </p>
-                <p className="text-sm font-semibold">
-                  {activeStock
-                    ? `${activeStock.weekLabel} · ${activeStock.weekDate}`
-                    : chartData.length > 0
-                      ? `${chartData[chartData.length - 1].weekLabel} · ${chartData[chartData.length - 1].weekDate}`
-                      : '—'
-                  }
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Stock level</p>
-                <p className="text-xl font-semibold">
-                  {(() => {
-                    const value = activeStock?.stockEnd ?? chartData[chartData.length - 1]?.stockEnd
-                    return value != null ? Math.round(value).toLocaleString() : '—'
-                  })()}
-                  <span className="ml-1 text-sm font-normal text-muted-foreground">units</span>
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Change vs. prior</p>
-                {(() => {
-                  const currentIndex = activeIndex ?? chartData.length - 1
-                  const currentValue = chartData[currentIndex]?.stockEnd
-                  const priorValue = currentIndex > 0 ? chartData[currentIndex - 1]?.stockEnd : null
-
-                  if (currentValue == null || priorValue == null) {
-                    return <p className="text-lg font-medium">—</p>
-                  }
-
-                  const change = currentValue - priorValue
-                  const isPositive = change > 0
-                  const isNegative = change < 0
-
-                  return (
-                    <p className={`text-lg font-medium ${
-                      isPositive ? 'text-emerald-600' : isNegative ? 'text-red-600' : ''
-                    }`}>
-                      {isPositive ? '+' : ''}{Math.round(change).toLocaleString()}
-                    </p>
                   )
-                })()}
-              </div>
-              {activeShipment && (
-                <div className="border-t pt-4">
-                  <p className="text-xs font-medium text-emerald-600">Shipment</p>
-                  <p className="text-sm font-medium">
-                    W{weekLabelByWeekNumber.get(activeShipment.weekNumber) ?? activeShipment.weekNumber} · {activeShipment.weekDate}
-                  </p>
-                  <p className="text-xs text-muted-foreground whitespace-pre-line">
-                    {activeShipment.arrivalDetail}
-                  </p>
-                </div>
-              )}
-            </div>
+                })}
+                {showStockLine && (
+                  <Area
+                    type="monotone"
+                    dataKey="stockEnd"
+                    stroke="hsl(var(--chart-1))"
+                    fill="url(#stockGradient)"
+                    strokeWidth={2}
+                  />
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
 
           {/* Legend */}
