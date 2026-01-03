@@ -98,15 +98,56 @@ export function POProfitabilitySection({
     return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }))
   }, [data])
 
+  // When "All SKUs" selected, aggregate to per-PO view
+  // When specific SKU selected, show per-batch view filtered to that SKU
   const filteredData = useMemo(() => {
     let result = data
+
+    // Apply status filter first
     if (statusFilter !== 'ALL') {
       result = result.filter((row) => row.status === statusFilter)
     }
+
+    // If specific SKU selected, filter to that SKU (per-batch view)
     if (skuFilter !== 'ALL') {
       result = result.filter((row) => row.productId === skuFilter)
+      return [...result].sort((a, b) => {
+        const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
+        const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0
+        return dateA - dateB
+      })
     }
-    return [...result].sort((a, b) => {
+
+    // Aggregate to per-PO view when "All SKUs" selected
+    const poMap = new Map<string, POProfitabilityData>()
+    result.forEach((row) => {
+      const existing = poMap.get(row.orderCode)
+      if (existing) {
+        // Aggregate values
+        existing.quantity += row.quantity
+        existing.grossRevenue += row.grossRevenue
+        existing.supplierCostTotal += row.supplierCostTotal
+        existing.amazonFeesTotal += row.amazonFeesTotal
+        existing.ppcCost += row.ppcCost
+        existing.grossProfit += row.grossProfit
+        existing.netProfit += row.netProfit
+        // Recalculate percentages based on aggregated values
+        existing.grossMarginPercent = existing.grossRevenue > 0
+          ? (existing.grossProfit / existing.grossRevenue) * 100 : 0
+        existing.netMarginPercent = existing.grossRevenue > 0
+          ? (existing.netProfit / existing.grossRevenue) * 100 : 0
+        existing.roi = existing.supplierCostTotal > 0
+          ? (existing.netProfit / existing.supplierCostTotal) * 100 : 0
+        // Combine product names
+        if (!existing.productName.includes(row.productName)) {
+          existing.productName = existing.productName + ', ' + row.productName
+        }
+      } else {
+        poMap.set(row.orderCode, { ...row })
+      }
+    })
+
+    return Array.from(poMap.values()).sort((a, b) => {
       const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
       const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0
       return dateA - dateB
@@ -135,32 +176,16 @@ export function POProfitabilitySection({
     }
   }
 
-  // Transform data for Recharts - group by orderCode for chart display
+  // Transform data for Recharts
+  // filteredData is already aggregated by PO when "All SKUs" selected
   const chartData = useMemo(() => {
-    const grouped = new Map<string, { grossMarginPercent: number; netMarginPercent: number; roi: number; count: number }>()
-    filteredData.forEach((row) => {
-      const existing = grouped.get(row.orderCode)
-      if (existing) {
-        existing.grossMarginPercent += row.grossMarginPercent
-        existing.netMarginPercent += row.netMarginPercent
-        existing.roi += row.roi
-        existing.count += 1
-      } else {
-        grouped.set(row.orderCode, {
-          grossMarginPercent: row.grossMarginPercent,
-          netMarginPercent: row.netMarginPercent,
-          roi: row.roi,
-          count: 1,
-        })
-      }
-    })
-    return Array.from(grouped.entries()).map(([name, values]) => ({
-      name,
-      grossMarginPercent: values.grossMarginPercent / values.count,
-      netMarginPercent: values.netMarginPercent / values.count,
-      roi: values.roi / values.count,
+    return filteredData.map((row) => ({
+      name: skuFilter !== 'ALL' ? `${row.orderCode} - ${row.productName}` : row.orderCode,
+      grossMarginPercent: row.grossMarginPercent,
+      netMarginPercent: row.netMarginPercent,
+      roi: row.roi,
     }))
-  }, [filteredData])
+  }, [filteredData, skuFilter])
 
   const toggleMetric = (key: MetricKey) => {
     setEnabledMetrics((prev) => {
@@ -347,7 +372,9 @@ export function POProfitabilitySection({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base">P&L Breakdown</CardTitle>
-              <CardDescription>Detailed profitability by product batch</CardDescription>
+              <CardDescription>
+                {skuFilter !== 'ALL' ? 'Filtered by SKU' : 'Aggregated by purchase order'}
+              </CardDescription>
             </div>
             <div className="text-right text-xs text-muted-foreground">
               <div>Total Revenue: <span className="font-semibold text-foreground">{formatCurrency(summary.totalRevenue)}</span></div>
@@ -421,7 +448,7 @@ export function POProfitabilitySection({
               ))}
               {/* Total row */}
               <TableRow className="bg-muted/50 font-semibold">
-                <TableCell>Total ({filteredData.length} rows)</TableCell>
+                <TableCell>Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-mono">
                   {filteredData.reduce((sum, row) => sum + row.quantity, 0).toLocaleString()}
