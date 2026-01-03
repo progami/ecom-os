@@ -1,9 +1,5 @@
 'use client'
 
-import clsx from 'clsx'
-import type { ReactNode } from 'react'
-import { Package, Settings, TrendingUp, Wallet } from 'lucide-react'
-
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import {
   ProductSetupParametersPanel,
@@ -20,31 +16,6 @@ type ProductSetupWorkspaceProps = {
   financeParameters: ParameterList
 }
 
-interface SectionCardProps {
-  icon: typeof Package
-  title: string
-  description: string
-  children: ReactNode
-  className?: string
-}
-
-function SectionCard({ icon: Icon, title, description, children, className }: SectionCardProps) {
-  return (
-    <section className={clsx('flex flex-col', className)}>
-      <header className="mb-3 flex items-center gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-600 text-white dark:bg-[#00C2B9]">
-          <Icon className="h-4 w-4" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-white">{title}</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
-        </div>
-      </header>
-      {children}
-    </section>
-  )
-}
-
 export function ProductSetupWorkspace({
   strategyId,
   products,
@@ -55,51 +26,59 @@ export function ProductSetupWorkspace({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
       {/* Left column - Products catalog */}
-      <SectionCard
-        icon={Package}
-        title="Products"
-        description="Manage your product catalog"
-      >
+      <section className="space-y-4">
+        <header className="space-y-1">
+          <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+            Products
+          </h2>
+          <p className="text-sm text-muted-foreground">Manage your product catalog</p>
+        </header>
         <ProductSetupGrid strategyId={strategyId} products={products} />
-      </SectionCard>
+      </section>
 
       {/* Right column - Configuration panels */}
       <div className="flex flex-col gap-6">
-        <SectionCard
-          icon={Settings}
-          title="Operations"
-          description="Lead times & logistics"
-        >
+        <section className="space-y-4">
+          <header className="space-y-1">
+            <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+              Operations
+            </h2>
+            <p className="text-sm text-muted-foreground">Lead times & logistics</p>
+          </header>
           <ProductSetupParametersPanel
             strategyId={strategyId}
             parameterType="ops"
             parameters={operationsParameters}
           />
-        </SectionCard>
+        </section>
 
-        <SectionCard
-          icon={TrendingUp}
-          title="Sales"
-          description="Inventory thresholds"
-        >
+        <section className="space-y-4">
+          <header className="space-y-1">
+            <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+              Sales
+            </h2>
+            <p className="text-sm text-muted-foreground">Inventory thresholds</p>
+          </header>
           <ProductSetupParametersPanel
             strategyId={strategyId}
             parameterType="sales"
             parameters={salesParameters}
           />
-        </SectionCard>
+        </section>
 
-        <SectionCard
-          icon={Wallet}
-          title="Finance"
-          description="Cash flow settings"
-        >
+        <section className="space-y-4">
+          <header className="space-y-1">
+            <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+              Finance
+            </h2>
+            <p className="text-sm text-muted-foreground">Cash flow settings</p>
+          </header>
           <ProductSetupParametersPanel
             strategyId={strategyId}
             parameterType="finance"
             parameters={financeParameters}
           />
-        </SectionCard>
+        </section>
       </div>
     </div>
   )
