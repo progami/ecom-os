@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Check, Download } from 'lucide-react'
+import { Download } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -15,7 +15,6 @@ import {
   YAxis,
 } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
 import { useSalesPlanningFocus } from '@/components/sheets/sales-planning-grid'
 
 type SalesRow = {
@@ -140,34 +139,6 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className={SHEET_TOOLBAR_GROUP}>
-          <span className="text-xs font-medium text-muted-foreground">Show</span>
-          <button
-            type="button"
-            onClick={() => setShowStockLine(!showStockLine)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              showStockLine
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-accent'
-            }`}
-          >
-            {showStockLine && <Check className="h-3 w-3" />}
-            Stock
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowShipments(!showShipments)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-              showShipments
-                ? 'bg-emerald-600 text-white'
-                : 'text-muted-foreground hover:bg-accent'
-            }`}
-          >
-            {showShipments && <Check className="h-3 w-3" />}
-            Shipments
-          </button>
-        </div>
-
         <button
           type="button"
           onClick={() => exportChart('sales-planning', selectedProductId)}
@@ -258,15 +229,39 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           </div>
 
           {/* Legend */}
-          <div className="mt-4 flex items-center gap-4 border-t pt-4">
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-6 rounded-sm" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
-              <span className="text-xs text-muted-foreground">Stock Level</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-3 w-6 rounded-sm border-2 border-dashed" style={{ borderColor: 'hsl(var(--chart-2))' }} />
-              <span className="text-xs text-muted-foreground">Shipment Arrival</span>
-            </div>
+          <div className="mt-4 flex flex-wrap items-center gap-4 border-t pt-4">
+            <button
+              type="button"
+              onClick={() => setShowStockLine(!showStockLine)}
+              className="flex items-center gap-2"
+            >
+              <div
+                className="h-3 w-6 rounded-sm transition-opacity"
+                style={{
+                  backgroundColor: 'hsl(var(--chart-1))',
+                  opacity: showStockLine ? 1 : 0.3
+                }}
+              />
+              <span className={`text-xs ${showStockLine ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Stock Level
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowShipments(!showShipments)}
+              className="flex items-center gap-2"
+            >
+              <div
+                className="h-3 w-6 rounded-sm border-2 border-dashed transition-opacity"
+                style={{
+                  borderColor: 'hsl(var(--chart-2))',
+                  opacity: showShipments ? 1 : 0.3
+                }}
+              />
+              <span className={`text-xs ${showShipments ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Shipment Arrival
+              </span>
+            </button>
           </div>
         </CardContent>
       </Card>
