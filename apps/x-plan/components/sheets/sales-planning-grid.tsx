@@ -1521,7 +1521,7 @@ export function SalesPlanningGrid({
           <button
             type="button"
             className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
-            disabled={!hasPrev && focusProductId !== 'ALL'}
+            disabled={!hasPrev && focusProductId === 'ALL'}
             onClick={() => {
               preserveGridScroll(() => {
                 if (!focusContext) return
