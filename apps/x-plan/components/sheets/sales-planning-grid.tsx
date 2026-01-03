@@ -449,6 +449,59 @@ export function SalesPlanningGrid({
     })
   }, [focusProductId, keyByProductField, productOptions])
 
+  const lowStockWeeksByProduct = useMemo(() => {
+    const map = new Map<string, Set<number>>()
+
+    displayedProducts.forEach((product) => {
+      const keys = keyByProductField.get(product.id) ?? {}
+      const stockWeeksKey = keys.stockWeeks
+      if (!stockWeeksKey) return
+
+      const lowWeeks = new Set<number>()
+      data.forEach((row) => {
+        const week = Number(row.weekNumber)
+        if (!Number.isFinite(week)) return
+        const weeksNumeric = parseNumericInput(row[stockWeeksKey])
+        if (weeksNumeric != null && weeksNumeric <= warningThreshold) {
+          lowWeeks.add(week)
+        }
+      })
+
+      map.set(product.id, lowWeeks)
+    })
+
+    return map
+  }, [data, displayedProducts, keyByProductField, warningThreshold])
+
+  const inboundWeeksByProduct = useMemo(() => {
+    const map = new Map<string, Set<number>>()
+
+    displayedProducts.forEach((product) => {
+      const keys = keyByProductField.get(product.id) ?? {}
+      const stockStartKey = keys.stockStart
+      const stockEndKey = keys.stockEnd
+      if (!stockStartKey || !stockEndKey) return
+
+      const inboundWeeks = new Set<number>()
+      for (let index = 1; index < data.length; index += 1) {
+        const row = data[index]
+        const prevRow = data[index - 1]
+        const week = Number(row?.weekNumber)
+        if (!Number.isFinite(week) || !row || !prevRow) continue
+        const stockStart = parseNumericInput(row[stockStartKey])
+        const prevStockEnd = parseNumericInput(prevRow[stockEndKey])
+        if (stockStart == null || prevStockEnd == null) continue
+        if (stockStart - prevStockEnd > 0) {
+          inboundWeeks.add(week)
+        }
+      }
+
+      map.set(product.id, inboundWeeks)
+    })
+
+    return map
+  }, [data, displayedProducts, keyByProductField])
+
   const metricSequence = useMemo(() => {
     return [
       'stockStart',
@@ -1245,7 +1298,15 @@ export function SalesPlanningGrid({
       const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
 
       if (!row) {
-        return { display: '', isEditable: false, isWarning: false, isReorder: false, tooltip: '' }
+        return {
+          display: '',
+          isEditable: false,
+          isWarning: false,
+          isReorder: false,
+          hasInbound,
+          highlight: 'none' as const,
+          tooltip: '',
+        }
       }
 
       if (columnId === 'weekLabel' || columnId === 'weekDate') {
@@ -1255,6 +1316,7 @@ export function SalesPlanningGrid({
           isWarning: false,
           isReorder: false,
           hasInbound,
+          highlight: 'none' as const,
           tooltip: '',
         }
       }
@@ -1266,6 +1328,7 @@ export function SalesPlanningGrid({
           isWarning: false,
           isReorder: false,
           hasInbound,
+          highlight: 'none' as const,
           tooltip: row.arrivalNote ?? '',
         }
       }
@@ -1275,6 +1338,7 @@ export function SalesPlanningGrid({
       let tooltipText = ''
       let isWarning = false
       let isReorder = false
+      let highlight: 'none' | 'warning' | 'reorder' | 'inbound' = 'none'
 
       const productId = colMeta?.productId
       const reorderInfo = productId ? reorderCueByProductRef.current.get(productId) : undefined
@@ -1298,6 +1362,21 @@ export function SalesPlanningGrid({
 
       const weeksKey = productId ? stockWeeksKeyByProduct.get(productId) : undefined
       const rawWeeks = weeksKey ? row[weeksKey] : undefined
+
+      const isInboundWeek = productId && Number.isFinite(weekNumber)
+        ? (inboundWeeksByProduct.get(productId)?.has(weekNumber) ?? false)
+        : false
+      const isLowStockWeek = productId && Number.isFinite(weekNumber)
+        ? (lowStockWeeksByProduct.get(productId)?.has(weekNumber) ?? false)
+        : false
+
+      if (isInboundWeek) {
+        highlight = 'inbound'
+      } else if (isLowStockWeek) {
+        highlight = 'warning'
+      } else if (productId && isReorderWeek) {
+        highlight = 'reorder'
+      }
 
       if (field === 'stockWeeks' && rawWeeks === '∞') {
         const previousValue =
@@ -1368,15 +1447,23 @@ export function SalesPlanningGrid({
 
       const raw = row[columnId] ?? ''
       if (field === 'finalSalesError') {
-        return { display: raw, isEditable: false, isWarning, isReorder, hasInbound, tooltip: tooltipText }
+        return {
+          display: raw,
+          isEditable: false,
+          isWarning,
+          isReorder,
+          hasInbound,
+          highlight,
+          tooltip: tooltipText,
+        }
       }
 
       if (raw === '∞') {
-        return { display: '∞', isEditable: editable, isWarning, isReorder, hasInbound, tooltip: tooltipText }
+        return { display: '∞', isEditable: editable, isWarning, isReorder, hasInbound, highlight, tooltip: tooltipText }
       }
 
       if (!raw) {
-        return { display: '', isEditable: editable, isWarning, isReorder, hasInbound, tooltip: tooltipText }
+        return { display: '', isEditable: editable, isWarning, isReorder, hasInbound, highlight, tooltip: tooltipText }
       }
 
       return {
@@ -1385,6 +1472,7 @@ export function SalesPlanningGrid({
         isWarning,
         isReorder,
         hasInbound,
+        highlight,
         tooltip: tooltipText,
       }
     },
@@ -1394,7 +1482,9 @@ export function SalesPlanningGrid({
       columnMeta,
       data,
       hasInboundByWeek,
+      inboundWeeksByProduct,
       leadTimeByProduct,
+      lowStockWeeksByProduct,
       stockWeeksKeyByProduct,
       visibleMetrics,
       visibleWeekRange,
@@ -1427,7 +1517,7 @@ export function SalesPlanningGrid({
       const hasNext = currentProductIndex >= 0 && currentProductIndex < productOptions.length - 1
 
       return (
-        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+        <div className="flex min-w-0 items-center justify-center gap-1 whitespace-nowrap">
           <button
             type="button"
             className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
@@ -1450,7 +1540,7 @@ export function SalesPlanningGrid({
               <ChevronLeft className="h-3.5 w-3.5" />
             )}
           </button>
-          <span className="text-xs font-semibold">{product.name}</span>
+          <span className="min-w-0 truncate text-xs font-semibold">{product.name}</span>
           <button
             type="button"
             className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
@@ -1548,7 +1638,7 @@ export function SalesPlanningGrid({
               {leafColumns.map((column) => {
                 const meta = column.columnDef.meta as { width?: number } | undefined
                 const width = typeof meta?.width === 'number' ? meta.width : 110
-                return <col key={column.id} style={{ width, minWidth: width }} />
+                return <col key={column.id} style={{ width, minWidth: width, maxWidth: width }} />
               })}
             </colgroup>
             <TableHeader>
@@ -1663,12 +1753,12 @@ export function SalesPlanningGrid({
                             cancelEditing()
                           }
                         }}
-                        className="h-7 w-full border-primary px-2 text-right text-sm focus-visible:ring-1"
+                        className="h-7 w-full min-w-0 border-primary px-2 text-right text-sm focus-visible:ring-1"
                       />
                     ) : (
                       <span
                         className={cn(
-                          'block truncate tabular-nums',
+                          'block min-w-0 truncate tabular-nums',
                           isPinned ? 'text-left' : 'text-right'
                         )}
                       >
@@ -1680,19 +1770,17 @@ export function SalesPlanningGrid({
                       <TableCell
                         key={column.id}
                         className={cn(
-                          'h-8 whitespace-nowrap border-r px-2 text-sm',
+                          'h-8 whitespace-nowrap border-r px-2 text-sm overflow-hidden',
                           isEvenRow ? 'bg-muted/30' : 'bg-card',
                           meta?.sticky && 'sticky z-10',
                           meta?.sticky && (isEvenRow ? 'bg-muted/50' : 'bg-card'),
                           colIndex === 2 && 'border-r-2',
-                          presentation.isEditable && 'cursor-text bg-accent/50 font-medium',
-                          presentation.isWarning && 'bg-destructive/10 text-destructive',
-                          presentation.isReorder && 'bg-warning-100/80 dark:bg-warning-900/30',
-                          presentation.hasInbound &&
-                            !presentation.isEditable &&
-                            !presentation.isWarning &&
-                            !presentation.isReorder &&
-                            'bg-success-100/70 text-success-900 dark:bg-success-900/30 dark:text-success-100',
+                          presentation.isEditable && 'cursor-text font-medium',
+                          presentation.isEditable && presentation.highlight === 'none' && 'bg-accent/50',
+                          presentation.highlight === 'warning' && 'bg-destructive/10',
+                          presentation.isWarning && 'text-destructive',
+                          presentation.highlight === 'reorder' && 'bg-warning-100/80 dark:bg-warning-900/30',
+                          presentation.highlight === 'inbound' && 'bg-success-100/70 dark:bg-success-900/30',
                           isSelected && 'bg-accent',
                           isCurrent && 'ring-2 ring-inset ring-ring'
                         )}
@@ -1700,6 +1788,7 @@ export function SalesPlanningGrid({
                           left: meta?.sticky ? meta.stickyOffset : undefined,
                           width: meta?.width,
                           minWidth: meta?.width,
+                          maxWidth: meta?.width,
                         }}
                         onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
