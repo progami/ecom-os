@@ -80,18 +80,36 @@ export function POProfitabilitySection({
   description = 'Compare purchase order performance and profitability metrics',
 }: POProfitabilitySectionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [skuFilter, setSkuFilter] = useState<string>('ALL')
   const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>(['grossMarginPercent', 'netMarginPercent', 'roi'])
   const [sortField, setSortField] = useState<SortField>('grossRevenue')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
+  // Get unique products for SKU filter
+  const productOptions = useMemo(() => {
+    const productMap = new Map<string, string>()
+    data.forEach((po) => {
+      if (!productMap.has(po.productId)) {
+        productMap.set(po.productId, po.productName)
+      }
+    })
+    return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }))
+  }, [data])
+
   const filteredData = useMemo(() => {
-    const result = statusFilter === 'ALL' ? data : data.filter((po) => po.status === statusFilter)
+    let result = data
+    if (statusFilter !== 'ALL') {
+      result = result.filter((po) => po.status === statusFilter)
+    }
+    if (skuFilter !== 'ALL') {
+      result = result.filter((po) => po.productId === skuFilter)
+    }
     return [...result].sort((a, b) => {
       const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
       const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0
       return dateA - dateB
     })
-  }, [data, statusFilter])
+  }, [data, statusFilter, skuFilter])
 
   const tableSortedData = useMemo(() => {
     return [...filteredData].sort((a, b) => {
@@ -191,6 +209,43 @@ export function POProfitabilitySection({
             )
           })}
         </div>
+
+        {productOptions.length > 1 && (
+          <div className={SHEET_TOOLBAR_GROUP}>
+            <span className="text-xs font-medium text-muted-foreground">SKU</span>
+            <button
+              type="button"
+              onClick={() => setSkuFilter('ALL')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                skuFilter === 'ALL'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
+              }`}
+            >
+              {skuFilter === 'ALL' && <Check className="h-3 w-3" />}
+              All
+            </button>
+            {productOptions.map((product) => {
+              const isActive = skuFilter === product.id
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => setSkuFilter(product.id)}
+                  title={product.name}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors max-w-[120px] truncate ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {isActive && <Check className="h-3 w-3 shrink-0" />}
+                  <span className="truncate">{product.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         <button
           type="button"
