@@ -13,6 +13,7 @@ type Strategy = {
   id: string
   name: string
   description: string | null
+  region: 'US' | 'UK'
   isDefault: boolean
   createdAt: string
   updatedAt: string
@@ -36,9 +37,11 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
   const [isCreating, setIsCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDescription, setNewDescription] = useState('')
+  const [newRegion, setNewRegion] = useState<'US' | 'UK'>('US')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editRegion, setEditRegion] = useState<'US' | 'UK'>('US')
 
   const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
 
@@ -53,13 +56,14 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, description: newDescription }),
+        body: JSON.stringify({ name: newName, description: newDescription, region: newRegion }),
       })
       if (!response.ok) throw new Error('Failed to create strategy')
       const data = await response.json()
       setStrategies((prev) => [...prev, { ...data.strategy, _count: { products: 0, purchaseOrders: 0, salesWeeks: 0 } }])
       setNewName('')
       setNewDescription('')
+      setNewRegion('US')
       setIsAdding(false)
       toast.success('Strategy created')
     } catch (error) {
@@ -86,11 +90,11 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, name: editName, description: editDescription }),
+        body: JSON.stringify({ id, name: editName, description: editDescription, region: editRegion }),
       })
       if (!response.ok) throw new Error('Failed to update strategy')
       setStrategies((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, name: editName, description: editDescription } : s))
+        prev.map((s) => (s.id === id ? { ...s, name: editName, description: editDescription, region: editRegion } : s))
       )
       setEditingId(null)
       toast.success('Strategy updated')
@@ -137,12 +141,14 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
     setEditingId(strategy.id)
     setEditName(strategy.name)
     setEditDescription(strategy.description ?? '')
+    setEditRegion(strategy.region ?? 'US')
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setEditName('')
     setEditDescription('')
+    setEditRegion('US')
   }
 
   return (
@@ -206,6 +212,17 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                       }}
                       className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100"
                     />
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="shrink-0 font-medium">Region</span>
+                      <select
+                        value={newRegion}
+                        onChange={(e) => setNewRegion(e.target.value === 'UK' ? 'UK' : 'US')}
+                        className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100"
+                      >
+                        <option value="US">US (week starts Sunday)</option>
+                        <option value="UK">UK (week starts Monday)</option>
+                      </select>
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-center text-sm text-slate-500">-</td>
@@ -272,6 +289,14 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                             }}
                             className="w-full rounded border border-cyan-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
                           />
+                          <select
+                            value={editRegion}
+                            onChange={(e) => setEditRegion(e.target.value === 'UK' ? 'UK' : 'US')}
+                            className="w-full rounded border border-cyan-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                          >
+                            <option value="US">US (Sun)</option>
+                            <option value="UK">UK (Mon)</option>
+                          </select>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2.5">
@@ -282,6 +307,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                             <div className="flex items-center gap-2">
                               <span className={clsx('text-sm font-medium', isActive ? 'text-cyan-900 dark:text-cyan-100' : 'text-slate-900 dark:text-slate-100')}>
                                 {strategy.name}
+                              </span>
+                              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                                {strategy.region}
                               </span>
                               {isActive && (
                                 <span className="rounded-full bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-[#00C2B9]">

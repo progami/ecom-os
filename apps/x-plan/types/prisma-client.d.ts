@@ -2,6 +2,9 @@ declare module '@ecom-os/prisma-x-plan' {
   export type PrismaClientOptions = Record<string, unknown>;
   export type DefaultArgs = Record<string, unknown>;
 
+  export type StrategyStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+  export type StrategyRegion = 'US' | 'UK';
+
   export type PurchaseOrderStatus =
     | 'PLANNED'
     | 'PRODUCTION'
@@ -10,12 +13,25 @@ declare module '@ecom-os/prisma-x-plan' {
     | 'CLOSED'
     | 'CANCELLED';
 
+  export interface Strategy {
+    id: string;
+    name: string;
+    description?: string | null;
+    status: StrategyStatus;
+    region: StrategyRegion;
+    isDefault: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+  }
+
   export interface Product {
     id: string;
+    strategyId?: string;
     name: string;
     sku: string;
     isActive: boolean;
     createdAt?: Date;
+    updatedAt?: Date;
     sellingPrice?: number | null;
     manufacturingCost?: number | null;
     freightCost?: number | null;
@@ -32,6 +48,7 @@ declare module '@ecom-os/prisma-x-plan' {
     overrideFbaFee?: number | null;
     overrideReferralRate?: number | null;
     overrideStoragePerMonth?: number | null;
+    strategy?: Strategy;
   }
 
   export interface LeadStageTemplate {
@@ -66,7 +83,9 @@ declare module '@ecom-os/prisma-x-plan' {
     category?: string | null;
     label?: string | null;
     dueDate?: Date | null;
+    dueWeekNumber?: number | null;
     dueDateDefault?: Date | null;
+    dueWeekNumberDefault?: number | null;
     dueDateSource?: 'SYSTEM' | 'USER';
     createdAt?: Date;
     updatedAt?: Date;
@@ -96,9 +115,11 @@ declare module '@ecom-os/prisma-x-plan' {
 
   export interface PurchaseOrder {
     id: string;
+    strategyId?: string;
     orderCode: string;
     productId: string;
     poDate?: Date | null;
+    poWeekNumber?: number | null;
     quantity?: number | null;
     productionWeeks?: number | null;
     sourceWeeks?: number | null;
@@ -115,13 +136,18 @@ declare module '@ecom-os/prisma-x-plan' {
     pay3Date?: Date | null;
     productionStart?: Date | null;
     productionComplete?: Date | null;
+    productionCompleteWeekNumber?: number | null;
     sourceDeparture?: Date | null;
+    sourceDepartureWeekNumber?: number | null;
     transportReference?: string | null;
     shipName?: string | null;
     containerNumber?: string | null;
     portEta?: Date | null;
+    portEtaWeekNumber?: number | null;
     inboundEta?: Date | null;
+    inboundEtaWeekNumber?: number | null;
     availableDate?: Date | null;
+    availableWeekNumber?: number | null;
     totalLeadDays?: number | null;
     status: PurchaseOrderStatus;
     statusIcon?: string | null;
@@ -135,6 +161,7 @@ declare module '@ecom-os/prisma-x-plan' {
     overrideFbaFee?: number | null;
     overrideReferralRate?: number | null;
     overrideStoragePerMonth?: number | null;
+    strategy?: Strategy;
     product: Product;
     payments: PurchaseOrderPayment[];
     batchTableRows: BatchTableRow[];

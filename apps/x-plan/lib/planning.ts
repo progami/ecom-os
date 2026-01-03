@@ -1,17 +1,17 @@
-import { addWeeks } from 'date-fns'
-import { mapSalesWeeks } from '@/lib/calculations/adapters'
 import { buildWeekCalendar, buildYearSegments, type YearSegment } from '@/lib/calculations/calendar'
+import type { WeekStartsOn } from '@/lib/calculations/week-utils'
+import { addWeeksUtc, startOfWeekUtc } from '@/lib/calculations/week-utils'
 import type { SalesWeekInput } from '@/lib/calculations/types'
-import prisma from '@/lib/prisma'
 
-const DEFAULT_PLANNING_ANCHOR = new Date('2025-01-06T00:00:00.000Z')
+const DEFAULT_PLANNING_ANCHOR_REFERENCE = new Date('2025-01-06T00:00:00.000Z')
 const DEFAULT_PLANNING_ANCHOR_WEEK = 1
 const DEFAULT_PLANNING_MIN_WEEK_NUMBER = -104 // covers 2023-01-02
 const DEFAULT_PLANNING_MAX_WEEK_NUMBER = 156 // 2025–2027 inclusive
 const DEFAULT_PLANNING_PRODUCT_ID = '__planning__'
 const EXTRA_PLANNING_YEARS = [2023, 2024] as const
 
-function buildFallbackSalesWeeks(): SalesWeekInput[] {
+function buildFallbackSalesWeeks(weekStartsOn: WeekStartsOn): SalesWeekInput[] {
+  const anchor = startOfWeekUtc(DEFAULT_PLANNING_ANCHOR_REFERENCE, weekStartsOn)
   const weeks: SalesWeekInput[] = []
   for (
     let weekNumber = DEFAULT_PLANNING_MIN_WEEK_NUMBER;
@@ -22,27 +22,42 @@ function buildFallbackSalesWeeks(): SalesWeekInput[] {
       id: `planning-week-${weekNumber}`,
       productId: DEFAULT_PLANNING_PRODUCT_ID,
       weekNumber,
-      weekDate: addWeeks(DEFAULT_PLANNING_ANCHOR, weekNumber - DEFAULT_PLANNING_ANCHOR_WEEK),
+      weekDate: addWeeksUtc(anchor, weekNumber - DEFAULT_PLANNING_ANCHOR_WEEK),
     })
   }
   return weeks
 }
 
-const FALLBACK_WEEKS = buildFallbackSalesWeeks()
+const fallbackWeeksByStart = new Map<WeekStartsOn, SalesWeekInput[]>()
 
-export function ensurePlanningCalendarCoverage(salesWeeks: SalesWeekInput[]): SalesWeekInput[] {
+function getFallbackWeeks(weekStartsOn: WeekStartsOn): SalesWeekInput[] {
+  const existing = fallbackWeeksByStart.get(weekStartsOn)
+  if (existing) return existing
+  const built = buildFallbackSalesWeeks(weekStartsOn)
+  fallbackWeeksByStart.set(weekStartsOn, built)
+  return built
+}
+
+export function ensurePlanningCalendarCoverage(
+  salesWeeks: SalesWeekInput[],
+  weekStartsOn: WeekStartsOn = 0,
+): SalesWeekInput[] {
+  const fallbackWeeks = getFallbackWeeks(weekStartsOn)
   if (!salesWeeks.length) {
-    return [...FALLBACK_WEEKS]
+    return [...fallbackWeeks]
   }
 
   const fallbackByWeek = new Map<number, SalesWeekInput>(
-    FALLBACK_WEEKS.map((week) => [week.weekNumber, week]),
+    fallbackWeeks.map((week) => [week.weekNumber, week]),
   )
 
   const seenWeeks = new Set<number>()
   const enriched = salesWeeks.map((week) => {
     seenWeeks.add(week.weekNumber)
-    if ((week.weekDate == null || Number.isNaN(new Date(week.weekDate).getTime())) && fallbackByWeek.has(week.weekNumber)) {
+    if (
+      (week.weekDate == null || Number.isNaN(new Date(week.weekDate).getTime())) &&
+      fallbackByWeek.has(week.weekNumber)
+    ) {
       const fallback = fallbackByWeek.get(week.weekNumber)
       if (fallback?.weekDate) {
         return { ...week, weekDate: fallback.weekDate }
@@ -67,16 +82,9 @@ export interface PlanningCalendar {
   calendar: ReturnType<typeof buildWeekCalendar>
 }
 
-export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
-  let salesWeekRecords: Awaited<ReturnType<typeof prisma.salesWeek.findMany>> = []
-  try {
-    salesWeekRecords = await prisma.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
-  } catch (error) {
-    console.warn('[x-plan] using fallback planning calendar (salesWeek delegate unavailable)', error)
-  }
-  const mappedWeeks = mapSalesWeeks(salesWeekRecords)
-  const salesWeeks = ensurePlanningCalendarCoverage(mappedWeeks)
-  const calendar = buildWeekCalendar(salesWeeks)
+export async function loadPlanningCalendar(weekStartsOn: WeekStartsOn = 0): Promise<PlanningCalendar> {
+  const salesWeeks = getFallbackWeeks(weekStartsOn)
+  const calendar = buildWeekCalendar(salesWeeks, weekStartsOn)
   const yearSegments = ensureYearSegmentCoverage(buildYearSegments(calendar))
   return { salesWeeks, yearSegments, calendar }
 }

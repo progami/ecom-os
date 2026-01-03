@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { loadPlanningCalendar } from '@/lib/planning'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { weekStartsOnForRegion } from '@/lib/strategy-region'
 
 const numericFields = [
   'sellingPrice',
@@ -55,7 +57,12 @@ function parseNumeric(value: string | null | undefined) {
   return parsed
 }
 
-async function seedSalesWeeksForProduct(productId: string, strategyId: string, client: TransactionClient) {
+async function seedSalesWeeksForProduct(
+  productId: string,
+  strategyId: string,
+  client: TransactionClient,
+  weekStartsOn: 0 | 1,
+) {
   const templateProduct = await client.product.findFirst({
     where: { id: { not: productId }, strategyId },
     orderBy: { createdAt: 'asc' },
@@ -71,19 +78,11 @@ async function seedSalesWeeksForProduct(productId: string, strategyId: string, c
     : []
 
   if (templateWeeks.length === 0) {
-    const today = new Date()
-    const startOfYear = new Date(today.getFullYear(), 0, 1)
-    const firstMonday = new Date(startOfYear)
-    while (firstMonday.getDay() !== 1) {
-      firstMonday.setDate(firstMonday.getDate() + 1)
-    }
-    templateWeeks = Array.from({ length: 52 }, (_, index): TemplateWeek => {
-      const timestamp = firstMonday.getTime() + index * 7 * 24 * 60 * 60 * 1000
-      return {
-        weekNumber: index + 1,
-        weekDate: new Date(timestamp),
-      }
-    })
+    const planning = await loadPlanningCalendar(weekStartsOn)
+    templateWeeks = planning.salesWeeks.map((week) => ({
+      weekNumber: week.weekNumber,
+      weekDate: week.weekDate ?? null,
+    }))
   }
 
   if (templateWeeks.length === 0) return
@@ -122,6 +121,12 @@ export const POST = withXPlanAuth(async (request: Request) => {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  const strategyRow = await (prisma as unknown as Record<string, any>).strategy?.findUnique?.({
+    where: { id: parsed.data.strategyId },
+    select: { region: true },
+  })
+  const weekStartsOn = weekStartsOnForRegion(strategyRow?.region === 'UK' ? 'UK' : 'US')
+
   const result = await prisma.$transaction(async (tx: TransactionClient) => {
     const product = await tx.product.create({
       data: {
@@ -139,7 +144,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
       },
     })
 
-    await seedSalesWeeksForProduct(product.id, parsed.data.strategyId, tx)
+    await seedSalesWeeksForProduct(product.id, parsed.data.strategyId, tx, weekStartsOn)
 
     return product
   })

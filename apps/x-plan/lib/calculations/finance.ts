@@ -4,7 +4,7 @@ import type { BusinessParameterMap, CashFlowWeekInput, ProfitAndLossWeekInput } 
 import type { PurchaseOrderDerived } from './ops'
 import type { SalesWeekDerived } from './sales'
 import { ProductCostSummary } from './product'
-import { buildWeekCalendar, getCalendarDateForWeek, weekNumberForDate } from './calendar'
+import { buildWeekCalendar, getCalendarDateForWeek } from './calendar'
 
 export interface ProfitAndLossWeekDerived {
   weekNumber: number
@@ -257,20 +257,23 @@ export function computeCashFlow(
   weeklyPnl: ProfitAndLossWeekDerived[],
   purchaseOrders: PurchaseOrderDerived[],
   businessParams: BusinessParameterMap,
-  cashOverrides: CashFlowWeekInput[]
+  cashOverrides: CashFlowWeekInput[],
+  options: { calendar?: ReturnType<typeof buildWeekCalendar> } = {},
 ): {
   weekly: CashFlowWeekDerived[]
   monthly: CashFlowSummaryRow[]
   quarterly: CashFlowSummaryRow[]
 } {
-  const calendar = buildWeekCalendar(
-    weeklyPnl.map((row) => ({
-      productId: 'aggregate',
-      id: `${row.weekNumber}`,
-      weekNumber: row.weekNumber,
-      weekDate: row.weekDate ?? undefined,
-    }))
-  )
+  const calendar =
+    options.calendar ??
+    buildWeekCalendar(
+      weeklyPnl.map((row) => ({
+        productId: 'aggregate',
+        id: `${row.weekNumber}`,
+        weekNumber: row.weekNumber,
+        weekDate: row.weekDate ?? undefined,
+      })),
+    )
 
   const overridesByWeek = new Map<number, CashFlowWeekInput>()
   for (const override of cashOverrides) {
@@ -294,8 +297,7 @@ export function computeCashFlow(
   const inventorySpendByWeek = new Map<number, number>()
   for (const order of purchaseOrders) {
     for (const payment of order.plannedPayments) {
-      const date = payment.actualDate ?? payment.plannedDate
-      const weekNumber = weekNumberForDate(date ?? null, calendar)
+      const weekNumber = payment.actualWeekNumber ?? payment.plannedWeekNumber ?? payment.plannedDefaultWeekNumber
       if (weekNumber == null) continue
       const amount = coerceNumber(payment.actualAmount ?? payment.plannedAmount)
       inventorySpendByWeek.set(weekNumber, (inventorySpendByWeek.get(weekNumber) ?? 0) + amount)
