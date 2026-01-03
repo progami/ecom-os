@@ -14,9 +14,17 @@ import Flatpickr from 'react-flatpickr'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
+import { cn } from '@/lib/utils'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { withAppBasePath } from '@/lib/base-path'
-import '@/styles/custom-table.css'
 
 export type OpsInputRow = {
   id: string
@@ -268,8 +276,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'productionWeeks',
     header: 'Prod.',
-    headerWeeks: 'Production (wk)',
-    headerDates: 'Prod Complete (Date)',
+    headerWeeks: 'Prod (wk)',
+    headerDates: 'Prod Complete',
     width: 120,
     type: 'stage',
     editable: true,
@@ -278,8 +286,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'sourceWeeks',
     header: 'Ocean Departure',
-    headerWeeks: 'Ocean Departure (wk)',
-    headerDates: 'Ocean Departure (Date)',
+    headerWeeks: 'Ocean Dep. (wk)',
+    headerDates: 'Ocean Dep.',
     width: 120,
     type: 'stage',
     editable: true,
@@ -289,7 +297,7 @@ const COLUMNS: ColumnDef[] = [
     key: 'oceanWeeks',
     header: 'Ocean',
     headerWeeks: 'Port ETA (wk)',
-    headerDates: 'Port ETA (Date)',
+    headerDates: 'Port ETA',
     width: 120,
     type: 'stage',
     editable: true,
@@ -298,8 +306,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'finalWeeks',
     header: 'Warehouse Arrival',
-    headerWeeks: 'Warehouse Arrival (wk)',
-    headerDates: 'Warehouse Arrival (Date)',
+    headerWeeks: 'Warehouse (wk)',
+    headerDates: 'Warehouse',
     width: 120,
     type: 'stage',
     editable: true,
@@ -309,6 +317,16 @@ const COLUMNS: ColumnDef[] = [
 ]
 
 type StageMode = 'weeks' | 'dates'
+
+const CELL_ID_PREFIX = 'xplan-ops-po'
+
+function sanitizeDomId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function cellDomId(rowId: string, colKey: keyof OpsInputRow): string {
+  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`
+}
 
 function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
   if (column.type === 'stage' && stageMode === 'dates') {
@@ -342,13 +360,15 @@ function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: S
 
 type CustomOpsPlanningRowProps = {
   row: OpsInputRow
+  rowIndex: number
   stageMode: StageMode
   isActive: boolean
+  activeColKey: keyof OpsInputRow | null
   editingColKey: keyof OpsInputRow | null
   editValue: string
   isDatePickerOpen: boolean
   inputRef: { current: HTMLInputElement | null }
-  onSelectOrder?: (orderId: string) => void
+  onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void
   onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void
   onSetEditValue: (value: string) => void
   onCommitEdit?: (nextValue?: string) => void
@@ -358,39 +378,59 @@ type CustomOpsPlanningRowProps = {
 
 const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   row,
+  rowIndex,
   stageMode,
   isActive,
+  activeColKey,
   editingColKey,
   editValue,
   isDatePickerOpen,
   inputRef,
-  onSelectOrder,
+  onSelectCell,
   onStartEditing,
   onSetEditValue,
   onCommitEdit,
   onInputKeyDown,
   setIsDatePickerOpen,
 }: CustomOpsPlanningRowProps) {
+  const isEvenRow = rowIndex % 2 === 1
+
   return (
-    <tr className={isActive ? 'row-active' : ''} onClick={() => onSelectOrder?.(row.id)}>
-      {COLUMNS.map((column) => {
+    <TableRow
+      className={cn(
+        'hover:bg-transparent',
+        isEvenRow ? 'bg-muted/30' : 'bg-card',
+        isActive && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+      )}
+    >
+      {COLUMNS.map((column, colIndex) => {
         const isEditing = editingColKey === column.key
         const isEditable = column.editable !== false
         const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
+        const isNumericCell =
+          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')
 
-        const cellClasses = [
-          isEditable ? 'ops-cell-editable' : 'ops-cell-readonly',
-          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks') ? 'ops-cell-numeric' : '',
-          isDateCell ? 'ops-cell-date' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')
+        const isCurrentCell = activeColKey === column.key
+
+        const cellClassName = cn(
+          'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+          colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
+          isNumericCell && 'text-right',
+          isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+          (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-ring',
+          colIndex === COLUMNS.length - 1 && 'border-r-0'
+        )
+
+        const inputClassName = cn(
+          'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+          isNumericCell && 'text-right'
+        )
 
         if (isEditing && onCommitEdit) {
           return (
-            <td
+            <TableCell
               key={column.key}
-              className={cellClasses}
+              className={cellClassName}
               style={{ width: column.width, minWidth: column.width }}
             >
               {isDateCell ? (
@@ -424,7 +464,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                           onCommitEdit()
                         }
                       }}
-                      className="ops-cell-input"
+                      className={inputClassName}
                       placeholder="YYYY-MM-DD"
                     />
                   )}
@@ -437,38 +477,44 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                   onChange={(event: ChangeEvent<HTMLInputElement>) => onSetEditValue(event.target.value)}
                   onKeyDown={onInputKeyDown}
                   onBlur={() => onCommitEdit()}
-                  className="ops-cell-input"
+                  className={inputClassName}
                 />
               )}
-            </td>
+            </TableCell>
           )
         }
 
         const formattedValue = getCellFormattedValue(row, column, stageMode)
         const showPlaceholder = isDateCell && !formattedValue
         const displayContent = showPlaceholder ? (
-          <span className="ops-cell-placeholder">Click to select date</span>
+          <span className="px-3 text-xs italic text-muted-foreground">Click to select date</span>
         ) : (
           formattedValue
         )
 
         return (
-          <td
+          <TableCell
             key={column.key}
-            className={cellClasses}
+            id={cellDomId(row.id, column.key)}
+            className={cellClassName}
             style={{ width: column.width, minWidth: column.width }}
             onClick={(event) => {
               event.stopPropagation()
-              onSelectOrder?.(row.id)
+              onSelectCell(row.id, column.key)
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation()
               if (!isEditable) return
               onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
             }}
           >
-            <div className="ops-cell-display">{displayContent}</div>
-          </td>
+            <div className={cn('flex h-9 items-center px-3', isNumericCell && 'justify-end')}>
+              {displayContent}
+            </div>
+          </TableCell>
         )
       })}
-    </tr>
+    </TableRow>
   )
 })
 
@@ -487,6 +533,7 @@ export function CustomOpsPlanningGrid({
 }: CustomOpsPlanningGridProps) {
   const [stageMode, setStageMode] = useState<StageMode>('dates')
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -572,9 +619,19 @@ export function CustomOpsPlanningGrid({
 
   const startEditing = useCallback((rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
     setIsDatePickerOpen(false)
+    setActiveCell({ rowId, colKey })
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }, [])
+
+  const selectCell = useCallback(
+    (rowId: string, colKey: keyof OpsInputRow) => {
+      tableScrollRef.current?.focus()
+      setActiveCell({ rowId, colKey })
+      onSelectOrder?.(rowId)
+    },
+    [onSelectOrder]
+  )
 
   const cancelEditing = useCallback(() => {
     setIsDatePickerOpen(false)
@@ -631,8 +688,38 @@ export function CustomOpsPlanningGrid({
       }
     }
 
-    // Don't update if value hasn't changed
-    if (row[colKey] === finalValue) {
+    // Treat stage/date cells as the resolved stage end date, not the underlying weeks value.
+    if (column.type === 'stage' && stageMode === 'dates') {
+      const stageField = colKey as StageWeeksKey
+      const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
+      const currentIso = toIsoDate(resolveStageEnd(row, stageField)) ?? ''
+
+      if (!finalValue || finalValue.trim() === '') {
+        finalValue = ''
+        if ((row[overrideField] ?? '') === '') {
+          cancelEditing()
+          return
+        }
+      } else {
+        const iso = toIsoDate(finalValue)
+        if (!iso) {
+          toast.error('Invalid date')
+          cancelEditing()
+          return
+        }
+        finalValue = iso
+        if (finalValue === currentIso) {
+          cancelEditing()
+          return
+        }
+      }
+    } else if (column.type === 'date') {
+      const currentIso = row[colKey] ? (toIsoDate(row[colKey]) ?? '') : ''
+      if (currentIso === finalValue) {
+        cancelEditing()
+        return
+      }
+    } else if (row[colKey] === finalValue) {
       cancelEditing()
       return
     }
@@ -662,10 +749,12 @@ export function CustomOpsPlanningGrid({
     if (column.type === 'stage' && stageMode === 'dates') {
       const stageField = colKey as StageWeeksKey
       const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
-      const iso = finalValue ? toIsoDate(finalValue) : ''
+      const iso = finalValue
 
       if (!iso) {
-        entry.values[overrideField] = ''
+        if ((row[overrideField] ?? '') !== '') {
+          entry.values[overrideField] = ''
+        }
       } else {
         const picked = new Date(`${iso}T00:00:00Z`)
         const stageStart = resolveStageStart(row, stageField)
@@ -683,9 +772,13 @@ export function CustomOpsPlanningGrid({
             return
           }
           const normalized = formatNumericInput(weeks, 2)
-          entry.values[colKey] = normalized
+          if (row[colKey] !== normalized) {
+            entry.values[colKey] = normalized
+          }
         }
-        entry.values[overrideField] = iso ?? ''
+        if ((row[overrideField] ?? '') !== iso) {
+          entry.values[overrideField] = iso ?? ''
+        }
       }
     } else if (NUMERIC_FIELDS.has(colKey)) {
       entry.values[colKey] = finalValue
@@ -693,7 +786,9 @@ export function CustomOpsPlanningGrid({
       // Clear override if weeks changed
       if ((colKey as string) in STAGE_OVERRIDE_FIELDS) {
         const overrideField = STAGE_OVERRIDE_FIELDS[colKey as StageWeeksKey]
-        entry.values[overrideField] = ''
+        if ((row[overrideField] ?? '') !== '') {
+          entry.values[overrideField] = ''
+        }
       }
     } else if (DATE_FIELDS.has(colKey)) {
       entry.values[colKey] = finalValue
@@ -720,13 +815,129 @@ export function CustomOpsPlanningGrid({
       )
     }
 
+    if (Object.keys(entry.values).length === 0) {
+      pendingRef.current.delete(rowId)
+      cancelEditing()
+      return
+    }
+
     // Update rows
     const updatedRows = rows.map((r) => (r.id === rowId ? updatedRow : r))
     onRowsChange?.(updatedRows)
 
     scheduleFlush()
     cancelEditing()
-	  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
+  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
+
+  const scrollToCell = useCallback((rowId: string, colKey: keyof OpsInputRow) => {
+    requestAnimationFrame(() => {
+      const node = document.getElementById(cellDomId(rowId, colKey))
+      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    })
+  }, [])
+
+  const moveSelection = useCallback(
+    (deltaRow: number, deltaCol: number) => {
+      if (!activeCell) return
+
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      const nextRowIndex = Math.max(0, Math.min(rows.length - 1, currentRowIndex + deltaRow))
+      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol))
+
+      const nextRowId = rows[nextRowIndex]?.id
+      const nextColKey = COLUMNS[nextColIndex]?.key
+      if (!nextRowId || !nextColKey) return
+
+      setActiveCell({ rowId: nextRowId, colKey: nextColKey })
+      onSelectOrder?.(nextRowId)
+      scrollToCell(nextRowId, nextColKey)
+    },
+    [activeCell, rows, onSelectOrder, scrollToCell]
+  )
+
+  const moveSelectionTab = useCallback(
+    (direction: 1 | -1) => {
+      if (!activeCell) return
+
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      let nextRowIndex = currentRowIndex
+      let nextColIndex = currentColIndex + direction
+
+      if (nextColIndex >= COLUMNS.length) {
+        nextColIndex = 0
+        nextRowIndex = Math.min(rows.length - 1, currentRowIndex + 1)
+      } else if (nextColIndex < 0) {
+        nextColIndex = COLUMNS.length - 1
+        nextRowIndex = Math.max(0, currentRowIndex - 1)
+      }
+
+      const nextRowId = rows[nextRowIndex]?.id
+      const nextColKey = COLUMNS[nextColIndex]?.key
+      if (!nextRowId || !nextColKey) return
+
+      setActiveCell({ rowId: nextRowId, colKey: nextColKey })
+      onSelectOrder?.(nextRowId)
+      scrollToCell(nextRowId, nextColKey)
+    },
+    [activeCell, rows, onSelectOrder, scrollToCell]
+  )
+
+  const startEditingActiveCell = useCallback(() => {
+    if (!activeCell) return
+    const row = rows.find((r) => r.id === activeCell.rowId)
+    const column = COLUMNS.find((c) => c.key === activeCell.colKey)
+    if (!row || !column) return
+    if ((column.editable ?? true) === false) return
+    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
+  }, [activeCell, rows, stageMode, startEditing])
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
+      if (editingCell) return
+      if (!activeCell) return
+
+      if (event.key === 'Enter' || event.key === 'F2') {
+        event.preventDefault()
+        startEditingActiveCell()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        moveSelectionTab(event.shiftKey ? -1 : 1)
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection(1, 0)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(-1, 0)
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        moveSelection(0, 1)
+        return
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        moveSelection(0, -1)
+        return
+      }
+    },
+    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
+  )
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
@@ -865,29 +1076,29 @@ export function CustomOpsPlanningGrid({
     const isStageColumn = column.type === 'stage'
     const headerLabel = getHeaderLabel(column)
 
-    if (isStageColumn) {
-      return (
-        <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
+    return (
+      <TableHead
+        key={column.key}
+        style={{ width: column.width, minWidth: column.width }}
+        className="sticky top-0 z-10 h-10 whitespace-nowrap border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80"
+      >
+        {isStageColumn ? (
           <button
             type="button"
-            className="ops-header-toggle"
+            className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
             title={`Click to switch to ${stageMode === 'weeks' ? 'dates' : 'weeks'} view`}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
               toggleStageMode()
             }}
           >
             {headerLabel}
           </button>
-        </th>
-      )
-    }
-
-    return (
-      <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
-        {headerLabel}
-      </th>
+        ) : (
+          headerLabel
+        )}
+      </TableHead>
     )
   }
 
@@ -935,33 +1146,40 @@ export function CustomOpsPlanningGrid({
         )}
       </div>
 
-      <div className="ops-table-container">
-        <div ref={tableScrollRef} className="ops-table-body-scroll">
-          <table className="ops-table">
-            <thead>
-              <tr>{COLUMNS.map(renderHeader)}</tr>
-            </thead>
-            <tbody>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <div
+          ref={tableScrollRef}
+          tabIndex={0}
+          onKeyDown={handleTableKeyDown}
+          className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <Table className="table-fixed border-collapse">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">{COLUMNS.map(renderHeader)}</TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={COLUMNS.length} className="ops-table-empty">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={COLUMNS.length} className="p-6 text-center text-sm text-muted-foreground">
                     No purchase orders yet. Click &ldquo;Add purchase order&rdquo; to get started.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                rows.map((row) => {
+                rows.map((row, rowIndex) => {
                   const isEditingRow = editingCell?.rowId === row.id
                   return (
                     <CustomOpsPlanningRow
                       key={row.id}
                       row={row}
+                      rowIndex={rowIndex}
                       stageMode={stageMode}
                       isActive={activeOrderId === row.id}
+                      activeColKey={activeCell?.rowId === row.id ? activeCell.colKey : null}
                       editingColKey={isEditingRow ? editingCell!.colKey : null}
                       editValue={isEditingRow ? editValue : ''}
                       isDatePickerOpen={isEditingRow ? isDatePickerOpen : false}
                       inputRef={inputRef}
-                      onSelectOrder={onSelectOrder}
+                      onSelectCell={selectCell}
                       onStartEditing={startEditing}
                       onSetEditValue={setEditValue}
                       onCommitEdit={isEditingRow ? commitEdit : undefined}
@@ -971,8 +1189,8 @@ export function CustomOpsPlanningGrid({
                   )
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </section>

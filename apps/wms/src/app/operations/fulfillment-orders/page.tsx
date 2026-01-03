@@ -144,6 +144,19 @@ function FulfillmentOrdersPageContent() {
     [orders, currentStatus]
   )
 
+  // Count orders by status
+  const statusCounts = useMemo(() => {
+    return orders.reduce(
+      (acc, order) => {
+        if (order.status === 'DRAFT') acc.draftCount += 1
+        if (order.status === 'SHIPPED') acc.shippedCount += 1
+        if (order.status === 'CANCELLED') acc.cancelledCount += 1
+        return acc
+      },
+      { draftCount: 0, shippedCount: 0, cancelledCount: 0 }
+    )
+  }, [orders])
+
   const formatDateDisplay = (value: string | null) => {
     if (!value) return '—'
     const parsed = new Date(value)
@@ -186,7 +199,30 @@ function FulfillmentOrdersPageContent() {
               variant="underline"
             />
 
-            <div className="flex flex-col rounded-xl border bg-white shadow-soft">
+            {/* Header with status counts - consistent with Purchase Orders */}
+            <div className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Fulfillment Orders</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Track outbound shipments to customers, Amazon FBA, and warehouse transfers.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                  <span>
+                    <span className="font-semibold text-foreground">{statusCounts.draftCount}</span> draft
+                  </span>
+                  <span>
+                    <span className="font-semibold text-foreground">{statusCounts.shippedCount}</span> shipped
+                  </span>
+                  <span>
+                    <span className="font-semibold text-foreground">{statusCounts.cancelledCount}</span> cancelled
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[960px] table-auto text-sm">
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -195,7 +231,7 @@ function FulfillmentOrdersPageContent() {
                       <th className="px-3 py-2 text-left font-semibold">Warehouse</th>
                       <th className="px-3 py-2 text-left font-semibold">Destination</th>
                       <th className="px-3 py-2 text-right font-semibold">Lines</th>
-                      <th className="px-3 py-2 text-right font-semibold">Qty</th>
+                      <th className="px-3 py-2 text-right font-semibold">Quantity</th>
                       <th className="px-3 py-2 text-left font-semibold">Status</th>
                       <th className="px-3 py-2 text-left font-semibold">Created</th>
                       <th className="px-3 py-2 text-left font-semibold">Shipped</th>

@@ -14,6 +14,7 @@ import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
+import { cn } from '@/lib/utils'
 import {
   planningWeekDateIsoForWeekNumber,
   weekLabelForIsoDate,
@@ -22,8 +23,15 @@ import {
 } from '@/lib/calculations/planning-week'
 import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { withAppBasePath } from '@/lib/base-path'
-import '@/styles/custom-table.css'
 
 export type PurchasePaymentRow = {
   id: string
@@ -104,6 +112,16 @@ const COLUMNS: ColumnDef[] = [
 
 type ScheduleMode = 'weeks' | 'dates'
 
+const CELL_ID_PREFIX = 'xplan-ops-payments'
+
+function sanitizeDomId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function cellDomId(rowId: string, colKey: keyof PurchasePaymentRow): string {
+  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`
+}
+
 function normalizeNumeric(value: unknown, fractionDigits = 2): string {
   return formatNumericInput(value, fractionDigits)
 }
@@ -171,6 +189,7 @@ export function CustomPurchasePaymentsGrid({
     'dates'
   )
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
@@ -234,6 +253,7 @@ export function CustomPurchasePaymentsGrid({
 
   useEffect(() => {
     setSelectedPaymentId(null)
+    setActiveCell(null)
   }, [activeOrderId])
 
   useEffect(() => {
@@ -274,15 +294,27 @@ export function CustomPurchasePaymentsGrid({
   const toggleScheduleMode = useCallback(() => {
     setIsDatePickerOpen(false)
     setEditingCell(null)
+    setActiveCell(null)
     setEditValue('')
     setScheduleMode((previous) => (previous === 'weeks' ? 'dates' : 'weeks'))
   }, [setScheduleMode])
 
   const startEditing = (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
     setIsDatePickerOpen(false)
+    setActiveCell({ rowId, colKey })
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }
+
+  const selectCell = useCallback(
+    (row: PurchasePaymentRow, column: ColumnDef) => {
+      onSelectOrder?.(row.purchaseOrderId)
+      setSelectedPaymentId(row.id)
+      tableScrollRef.current?.focus()
+      setActiveCell({ rowId: row.id, colKey: column.key })
+    },
+    [onSelectOrder]
+  )
 
   const cancelEditing = () => {
     setIsDatePickerOpen(false)
@@ -577,16 +609,124 @@ export function CustomPurchasePaymentsGrid({
   }
 
   const handleCellClick = (row: PurchasePaymentRow, column: ColumnDef) => {
-    onSelectOrder?.(row.purchaseOrderId)
-    setSelectedPaymentId(row.id)
-    if (column.editable) {
-      startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
-    }
+    selectCell(row, column)
   }
 
   const handleCellBlur = () => {
     commitEdit()
   }
+
+  const scrollToCell = useCallback((rowId: string, colKey: keyof PurchasePaymentRow) => {
+    requestAnimationFrame(() => {
+      const node = document.getElementById(cellDomId(rowId, colKey))
+      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    })
+  }, [])
+
+  const moveSelection = useCallback(
+    (deltaRow: number, deltaCol: number) => {
+      if (!activeCell) return
+
+      const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      const nextRowIndex = Math.max(0, Math.min(data.length - 1, currentRowIndex + deltaRow))
+      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol))
+
+      const nextRow = data[nextRowIndex]
+      const nextColKey = COLUMNS[nextColIndex]?.key
+      if (!nextRow || !nextColKey) return
+
+      onSelectOrder?.(nextRow.purchaseOrderId)
+      setSelectedPaymentId(nextRow.id)
+      setActiveCell({ rowId: nextRow.id, colKey: nextColKey })
+      scrollToCell(nextRow.id, nextColKey)
+    },
+    [activeCell, data, onSelectOrder, scrollToCell]
+  )
+
+  const moveSelectionTab = useCallback(
+    (direction: 1 | -1) => {
+      if (!activeCell) return
+
+      const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      let nextRowIndex = currentRowIndex
+      let nextColIndex = currentColIndex + direction
+
+      if (nextColIndex >= COLUMNS.length) {
+        nextColIndex = 0
+        nextRowIndex = Math.min(data.length - 1, currentRowIndex + 1)
+      } else if (nextColIndex < 0) {
+        nextColIndex = COLUMNS.length - 1
+        nextRowIndex = Math.max(0, currentRowIndex - 1)
+      }
+
+      const nextRow = data[nextRowIndex]
+      const nextColKey = COLUMNS[nextColIndex]?.key
+      if (!nextRow || !nextColKey) return
+
+      onSelectOrder?.(nextRow.purchaseOrderId)
+      setSelectedPaymentId(nextRow.id)
+      setActiveCell({ rowId: nextRow.id, colKey: nextColKey })
+      scrollToCell(nextRow.id, nextColKey)
+    },
+    [activeCell, data, onSelectOrder, scrollToCell]
+  )
+
+  const startEditingActiveCell = useCallback(() => {
+    if (!activeCell) return
+    const row = data.find((r) => r.id === activeCell.rowId)
+    const column = COLUMNS.find((c) => c.key === activeCell.colKey)
+    if (!row || !column) return
+    if (!column.editable) return
+    startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
+  }, [activeCell, data, scheduleMode])
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
+      if (editingCell) return
+      if (!activeCell) return
+
+      if (event.key === 'Enter' || event.key === 'F2') {
+        event.preventDefault()
+        startEditingActiveCell()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        moveSelectionTab(event.shiftKey ? -1 : 1)
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection(1, 0)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(-1, 0)
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        moveSelection(0, 1)
+        return
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        moveSelection(0, -1)
+        return
+      }
+    },
+    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
+  )
 
   const formatDisplayValue = (row: PurchasePaymentRow, column: ColumnDef): string => {
     if (column.type === 'schedule') {
@@ -619,63 +759,75 @@ export function CustomPurchasePaymentsGrid({
     return String(value)
   }
 
-  const renderCell = (row: PurchasePaymentRow, column: ColumnDef) => {
+  const renderCell = (row: PurchasePaymentRow, column: ColumnDef, colIndex: number) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
+    const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key
     const displayValue = formatDisplayValue(row, column)
     const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates'
+    const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks'
+    const isNumericCell = column.type === 'currency' || column.type === 'percent'
+    const rowSelected = isRowActive(row)
 
-    const cellClasses = [
-      column.editable ? 'ops-cell-editable' : 'ops-cell-readonly',
-      column.type === 'currency' || column.type === 'percent' ? 'ops-cell-numeric' : '',
-      column.type === 'date' || isScheduleDate ? 'ops-cell-date' : '',
-      column.key === 'weekNumber' && !isScheduleDate ? 'text-center' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const cellClassName = cn(
+      'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+      colIndex === 0 && rowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
+      isNumericCell && 'text-right',
+      isWeekLabel && 'text-center',
+      column.editable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+      (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
+      colIndex === COLUMNS.length - 1 && 'border-r-0'
+    )
+
+    const inputClassName = cn(
+      'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+      isNumericCell && 'text-right',
+      isWeekLabel && 'text-center'
+    )
 
     if (isEditing) {
       return (
-        <td
+        <TableCell
           key={column.key}
-          className={cellClasses}
+          id={cellDomId(row.id, column.key)}
+          className={cellClassName}
           style={{ width: column.width, minWidth: column.width }}
         >
-	          {column.type === 'date' || isScheduleDate ? (
-	            <Flatpickr
-	              value={editValue}
-	              options={{
-	                dateFormat: 'Y-m-d',
-	                allowInput: true,
-	                disableMobile: true,
-	                onOpen: () => setIsDatePickerOpen(true),
-	                onClose: (_dates: Date[], dateStr: string) => {
-	                  setIsDatePickerOpen(false)
-	                  commitEdit(dateStr || editValue)
-	                },
-	              }}
-	              onChange={(_dates: Date[], dateStr: string) => {
-	                setEditValue(dateStr)
-	              }}
-	              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
-	                <input
-	                  ref={(node) => {
-	                    handleNodeChange(node)
-	                    inputRef.current = node as HTMLInputElement | null
-	                  }}
-	                  type="text"
-	                  value={editValue}
-	                  onChange={handleInputChange}
-	                  onKeyDown={handleKeyDown}
-	                  onBlur={() => {
-	                    if (!isDatePickerOpen) {
-	                      handleCellBlur()
-	                    }
-	                  }}
-	                  className="ops-cell-input"
-	                  placeholder="YYYY-MM-DD"
-	                />
-	              )}
-	            />
+          {column.type === 'date' || isScheduleDate ? (
+            <Flatpickr
+              value={editValue}
+              options={{
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                disableMobile: true,
+                onOpen: () => setIsDatePickerOpen(true),
+                onClose: (_dates: Date[], dateStr: string) => {
+                  setIsDatePickerOpen(false)
+                  commitEdit(dateStr || editValue)
+                },
+              }}
+              onChange={(_dates: Date[], dateStr: string) => {
+                setEditValue(dateStr)
+              }}
+              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+                <input
+                  ref={(node) => {
+                    handleNodeChange(node)
+                    inputRef.current = node as HTMLInputElement | null
+                  }}
+                  type="text"
+                  value={editValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={() => {
+                    if (!isDatePickerOpen) {
+                      handleCellBlur()
+                    }
+                  }}
+                  className={inputClassName}
+                  placeholder="YYYY-MM-DD"
+                />
+              )}
+            />
           ) : (
             <input
               ref={inputRef}
@@ -684,29 +836,46 @@ export function CustomPurchasePaymentsGrid({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onBlur={handleCellBlur}
-              className="ops-cell-input"
+              className={inputClassName}
             />
           )}
-        </td>
+        </TableCell>
       )
     }
 
     const showPlaceholder = (column.type === 'date' || isScheduleDate) && !displayValue
     const displayContent = showPlaceholder ? (
-      <span className="ops-cell-placeholder">Click to select</span>
+      <span className="px-3 text-xs italic text-muted-foreground">Click to select</span>
     ) : (
       displayValue
     )
 
     return (
-      <td
+      <TableCell
         key={column.key}
-        className={cellClasses}
+        id={cellDomId(row.id, column.key)}
+        className={cellClassName}
         style={{ width: column.width, minWidth: column.width }}
-        onClick={() => handleCellClick(row, column)}
+        onClick={(event) => {
+          event.stopPropagation()
+          handleCellClick(row, column)
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation()
+          if (!column.editable) return
+          startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
+        }}
       >
-        <div className="ops-cell-display">{displayContent}</div>
-      </td>
+        <div
+          className={cn(
+            'flex h-9 items-center px-3',
+            isNumericCell && 'justify-end',
+            isWeekLabel && 'justify-center'
+          )}
+        >
+          {displayContent}
+        </div>
+      </TableCell>
     )
   }
 
@@ -757,17 +926,26 @@ export function CustomPurchasePaymentsGrid({
         </div>
       </header>
 
-      <div className="ops-table-container">
-        <div ref={tableScrollRef} className="ops-table-body-scroll">
-          <table className="ops-table">
-            <thead>
-              <tr>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <div
+          ref={tableScrollRef}
+          tabIndex={0}
+          onKeyDown={handleTableKeyDown}
+          className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <Table className="table-fixed border-collapse">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
                 {COLUMNS.map((column) => (
-                  <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
+                  <TableHead
+                    key={column.key}
+                    style={{ width: column.width, minWidth: column.width }}
+                    className="sticky top-0 z-10 h-10 whitespace-nowrap border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80"
+                  >
                     {column.type === 'schedule' ? (
                       <button
                         type="button"
-                        className="ops-header-toggle"
+                        className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
                         title={`Click to switch to ${scheduleMode === 'weeks' ? 'date' : 'week'} input`}
                         onClick={(event) => {
                           event.preventDefault()
@@ -780,35 +958,39 @@ export function CustomPurchasePaymentsGrid({
                     ) : (
                       getHeaderLabel(column, scheduleMode)
                     )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.length === 0 ? (
-                <tr>
-                  <td colSpan={COLUMNS.length} className="ops-table-empty">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={COLUMNS.length} className="p-6 text-center text-sm text-muted-foreground">
                     {activeOrderId
                       ? 'No payments for this order. Click "Add Payment" to schedule one.'
                       : 'Select a purchase order above to view or add payments.'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                data.map((row) => (
-                  <tr
+                data.map((row, rowIndex) => (
+                  <TableRow
                     key={row.id}
-                    className={isRowActive(row) ? 'row-active' : ''}
+                    className={cn(
+                      'hover:bg-transparent',
+                      rowIndex % 2 === 1 && 'bg-muted/30',
+                  isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+                    )}
                     onClick={() => {
                       onSelectOrder?.(row.purchaseOrderId)
                       setSelectedPaymentId(row.id)
                     }}
                   >
-                    {COLUMNS.map((column) => renderCell(row, column))}
-                  </tr>
+                    {COLUMNS.map((column, colIndex) => renderCell(row, column, colIndex))}
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </section>

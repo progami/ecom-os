@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, FileSpreadsheet, LineChart, Package, Target, Wallet2 } from 'lucide-react'
+import { ClipboardList, FileSpreadsheet, LineChart, Package, Target, TrendingUp, Wallet2 } from 'lucide-react'
 
 export type SheetSlug =
   | '0-strategies'
@@ -8,6 +8,7 @@ export type SheetSlug =
   | '3-sales-planning'
   | '4-fin-planning-pl'
   | '5-fin-planning-cash-flow'
+  | '6-po-profitability'
 
 export interface SheetConfig {
   slug: SheetSlug
@@ -52,6 +53,12 @@ export const SHEETS: SheetConfig[] = [
     label: 'Cash Flow',
     description: '',
     icon: Wallet2,
+  },
+  {
+    slug: '6-po-profitability',
+    label: 'PO Profitability',
+    description: '',
+    icon: TrendingUp,
   },
 ]
 

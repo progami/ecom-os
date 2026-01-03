@@ -13,9 +13,17 @@ import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
+import { cn } from '@/lib/utils'
 import { formatNumericInput, formatPercentInput, sanitizeNumeric } from '@/components/sheets/validators'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { withAppBasePath } from '@/lib/base-path'
-import '@/styles/custom-table.css'
 
 export type OpsBatchRow = {
   id: string
@@ -165,6 +173,16 @@ const COLUMNS_AFTER_TARIFF: ColumnDef[] = [
 
 type TariffInputMode = 'rate' | 'cost'
 
+const CELL_ID_PREFIX = 'xplan-ops-batch'
+
+function sanitizeDomId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function cellDomId(rowId: string, colKey: keyof OpsBatchRow): string {
+  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`
+}
+
 export function CustomOpsCostGrid({
   rows,
   activeOrderId,
@@ -191,6 +209,7 @@ export function CustomOpsCostGrid({
 
   const [localRows, setLocalRows] = useState<OpsBatchRow[]>(rows)
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -269,6 +288,7 @@ export function CustomOpsCostGrid({
   }, [editingCell])
 
   const startEditing = (rowId: string, colKey: keyof OpsBatchRow, currentValue: string) => {
+    setActiveCell({ rowId, colKey })
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }
@@ -510,14 +530,125 @@ export function CustomOpsCostGrid({
   const handleCellClick = (row: OpsBatchRow, column: ColumnDef) => {
     onSelectOrder?.(row.purchaseOrderId)
     onSelectBatch?.(row.id)
-    if (column.editable) {
-      startEditing(row.id, column.key, row[column.key] ?? '')
-    }
+    tableScrollRef.current?.focus()
+    setActiveCell({ rowId: row.id, colKey: column.key })
   }
 
   const handleCellBlur = () => {
     commitEdit()
   }
+
+  const scrollToCell = useCallback((rowId: string, colKey: keyof OpsBatchRow) => {
+    requestAnimationFrame(() => {
+      const node = document.getElementById(cellDomId(rowId, colKey))
+      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    })
+  }, [])
+
+  const moveSelection = useCallback(
+    (deltaRow: number, deltaCol: number) => {
+      if (!activeCell) return
+
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = columns.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      const nextRowIndex = Math.max(0, Math.min(rows.length - 1, currentRowIndex + deltaRow))
+      const nextColIndex = Math.max(0, Math.min(columns.length - 1, currentColIndex + deltaCol))
+
+      const nextRow = rows[nextRowIndex]
+      const nextColKey = columns[nextColIndex]?.key
+      if (!nextRow || !nextColKey) return
+
+      setActiveCell({ rowId: nextRow.id, colKey: nextColKey })
+      onSelectOrder?.(nextRow.purchaseOrderId)
+      onSelectBatch?.(nextRow.id)
+      scrollToCell(nextRow.id, nextColKey)
+    },
+    [activeCell, columns, onSelectBatch, onSelectOrder, rows, scrollToCell]
+  )
+
+  const moveSelectionTab = useCallback(
+    (direction: 1 | -1) => {
+      if (!activeCell) return
+
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = columns.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      let nextRowIndex = currentRowIndex
+      let nextColIndex = currentColIndex + direction
+
+      if (nextColIndex >= columns.length) {
+        nextColIndex = 0
+        nextRowIndex = Math.min(rows.length - 1, currentRowIndex + 1)
+      } else if (nextColIndex < 0) {
+        nextColIndex = columns.length - 1
+        nextRowIndex = Math.max(0, currentRowIndex - 1)
+      }
+
+      const nextRow = rows[nextRowIndex]
+      const nextColKey = columns[nextColIndex]?.key
+      if (!nextRow || !nextColKey) return
+
+      setActiveCell({ rowId: nextRow.id, colKey: nextColKey })
+      onSelectOrder?.(nextRow.purchaseOrderId)
+      onSelectBatch?.(nextRow.id)
+      scrollToCell(nextRow.id, nextColKey)
+    },
+    [activeCell, columns, onSelectBatch, onSelectOrder, rows, scrollToCell]
+  )
+
+  const startEditingActiveCell = useCallback(() => {
+    if (!activeCell) return
+    const row = rows.find((r) => r.id === activeCell.rowId)
+    const column = columns.find((c) => c.key === activeCell.colKey)
+    if (!row || !column) return
+    if (!column.editable) return
+    startEditing(row.id, column.key, row[column.key] ?? '')
+  }, [activeCell, columns, rows])
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
+      if (editingCell) return
+      if (!activeCell) return
+
+      if (event.key === 'Enter' || event.key === 'F2') {
+        event.preventDefault()
+        startEditingActiveCell()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        moveSelectionTab(event.shiftKey ? -1 : 1)
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection(1, 0)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(-1, 0)
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        moveSelection(0, 1)
+        return
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        moveSelection(0, -1)
+        return
+      }
+    },
+    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
+  )
 
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const nextValue = e.target.value
@@ -546,24 +677,40 @@ export function CustomOpsCostGrid({
     return value
   }
 
-  const renderCell = (row: OpsBatchRow, column: ColumnDef) => {
+  const renderCell = (row: OpsBatchRow, column: ColumnDef, colIndex: number) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
+    const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key
     const displayValue = formatDisplayValue(row, column)
 
-    const cellClasses = [
-      column.editable ? 'ops-cell-editable' : 'ops-cell-readonly',
-      column.type === 'numeric' || column.type === 'percent' ? 'ops-cell-numeric' : '',
-      column.type === 'dropdown' ? 'ops-cell-select' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const isNumericCell = column.type === 'numeric' || column.type === 'percent'
+    const isDropdown = column.type === 'dropdown'
+    const isRowSelected = isRowActive(row)
+
+    const cellClassName = cn(
+      'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+      colIndex === 0 && isRowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
+      isNumericCell && 'text-right',
+      column.editable
+        ? isDropdown
+          ? 'cursor-pointer bg-accent/50 font-medium'
+          : 'cursor-text bg-accent/50 font-medium'
+        : 'bg-muted/50 text-muted-foreground',
+      (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
+      colIndex === columns.length - 1 && 'border-r-0'
+    )
+
+    const inputClassName = cn(
+      'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+      isNumericCell && 'text-right'
+    )
 
     if (isEditing) {
       if (column.type === 'dropdown') {
         return (
-          <td
+          <TableCell
             key={column.key}
-            className={cellClasses}
+            id={cellDomId(row.id, column.key)}
+            className={cellClassName}
             style={{ width: column.width, minWidth: column.width }}
           >
             <select
@@ -574,6 +721,7 @@ export function CustomOpsCostGrid({
               onBlur={handleCellBlur}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
+              className="h-9 w-full bg-transparent px-3 text-sm font-medium text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
             >
               <option value="">Select product...</option>
               {products.map((product) => (
@@ -582,14 +730,15 @@ export function CustomOpsCostGrid({
                 </option>
               ))}
             </select>
-          </td>
+          </TableCell>
         )
       }
 
       return (
-        <td
+        <TableCell
           key={column.key}
-          className={cellClasses}
+          id={cellDomId(row.id, column.key)}
+          className={cellClassName}
           style={{ width: column.width, minWidth: column.width }}
         >
           <input
@@ -601,25 +750,31 @@ export function CustomOpsCostGrid({
             onBlur={handleCellBlur}
             onClick={(event) => event.stopPropagation()}
             onMouseDown={(event) => event.stopPropagation()}
-            className="ops-cell-input"
+            className={inputClassName}
             placeholder={column.type === 'percent' ? 'e.g. 10 for 10%' : undefined}
           />
-        </td>
+        </TableCell>
       )
     }
 
     return (
-      <td
+      <TableCell
         key={column.key}
-        className={cellClasses}
+        id={cellDomId(row.id, column.key)}
+        className={cellClassName}
         style={{ width: column.width, minWidth: column.width }}
         onClick={(event) => {
           event.stopPropagation()
           handleCellClick(row, column)
         }}
+        onDoubleClick={(event) => {
+          event.stopPropagation()
+          if (!column.editable) return
+          startEditing(row.id, column.key, row[column.key] ?? '')
+        }}
       >
-        <div className="ops-cell-display">{displayValue}</div>
-      </td>
+        <div className={cn('flex h-9 items-center px-3', isNumericCell && 'justify-end')}>{displayValue}</div>
+      </TableCell>
     )
   }
 
@@ -661,17 +816,26 @@ export function CustomOpsCostGrid({
         </div>
       </header>
 
-      <div className="ops-table-container">
-        <div ref={tableScrollRef} className="ops-table-body-scroll">
-          <table className="ops-table">
-            <thead>
-              <tr>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <div
+          ref={tableScrollRef}
+          tabIndex={0}
+          onKeyDown={handleTableKeyDown}
+          className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <Table className="table-fixed border-collapse">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
                 {columns.map((column) => (
-                  <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
+                  <TableHead
+                    key={column.key}
+                    style={{ width: column.width, minWidth: column.width }}
+                    className="sticky top-0 z-10 h-10 whitespace-nowrap border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80"
+                  >
                     {column.key === 'tariffRate' || column.key === 'tariffCost' ? (
                       <button
                         type="button"
-                        className="ops-header-toggle"
+                        className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
                         onClick={(event) => {
                           event.preventDefault()
                           event.stopPropagation()
@@ -684,31 +848,35 @@ export function CustomOpsCostGrid({
                     ) : (
                       column.header
                     )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="ops-table-empty">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={columns.length} className="p-6 text-center text-sm text-muted-foreground">
                     {activeOrderId
                       ? 'No batches for this order. Click "Add batch" to add cost details.'
                       : 'Select a purchase order above to view or add batches.'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                rows.map((row) => (
-                  <tr
+                rows.map((row, rowIndex) => (
+                  <TableRow
                     key={row.id}
-                    className={isRowActive(row) ? 'row-active' : ''}
+                    className={cn(
+                      'hover:bg-transparent',
+                      rowIndex % 2 === 1 && 'bg-muted/30',
+                      isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+                    )}
                   >
-                    {columns.map((column) => renderCell(row, column))}
-                  </tr>
+                    {columns.map((column, colIndex) => renderCell(row, column, colIndex))}
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </section>

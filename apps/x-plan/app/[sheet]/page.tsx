@@ -9,9 +9,11 @@ import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle'
 import { FinancialTrendsSection, type FinancialMetricDefinition } from '@/components/sheets/financial-trends-section'
-import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
+import { POProfitabilitySection, type POProfitabilityData, type POStatus } from '@/components/sheets/po-profitability-section'
+import type { OpsInputRow } from '@/components/sheets/custom-ops-planning-grid'
+import type { OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
-import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
+import type { PurchasePaymentRow } from '@/components/sheets/custom-purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
 import {
@@ -278,20 +280,30 @@ function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
     let label = ''
     if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
       label = record.periodLabel
-    } else if ('weekDate' in record) {
-      const weekDate = record.weekDate as Date | string | number | null | undefined
-      if (weekDate != null) {
-        const formatted = formatDateDisplay(weekDate)
-        if (formatted) {
-          label = formatted
+    } else {
+      // Get week label (relative to year segment)
+      const weekLabel = 'weekLabel' in record ? record.weekLabel as string | number | null | undefined : null
+      const weekNumber = 'weekNumber' in record ? record.weekNumber as string | number | null | undefined : null
+      const weekIdentifier = weekLabel ?? weekNumber
+
+      // Get formatted date
+      let formattedDate = ''
+      if ('weekDate' in record) {
+        const weekDate = record.weekDate as Date | string | number | null | undefined
+        if (weekDate != null) {
+          formattedDate = formatDateDisplay(weekDate) ?? ''
         }
       }
-    }
 
-    if (!label && 'weekNumber' in record) {
-      const weekValue = record.weekNumber as string | number | null | undefined
-      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
-        label = `W${weekValue}`
+      // Combine week number and date if both available
+      if (weekIdentifier != null && !(typeof weekIdentifier === 'string' && weekIdentifier.trim() === '')) {
+        if (formattedDate) {
+          label = `W${weekIdentifier} · ${formattedDate}`
+        } else {
+          label = `W${weekIdentifier}`
+        }
+      } else if (formattedDate) {
+        label = formattedDate
       }
     }
 
@@ -317,20 +329,30 @@ function buildCashFlowTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
     let label = ''
     if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
       label = record.periodLabel
-    } else if ('weekDate' in record) {
-      const weekDate = record.weekDate as Date | string | number | null | undefined
-      if (weekDate != null) {
-        const formatted = formatDateDisplay(weekDate)
-        if (formatted) {
-          label = formatted
+    } else {
+      // Get week label (relative to year segment)
+      const weekLabel = 'weekLabel' in record ? record.weekLabel as string | number | null | undefined : null
+      const weekNumber = 'weekNumber' in record ? record.weekNumber as string | number | null | undefined : null
+      const weekIdentifier = weekLabel ?? weekNumber
+
+      // Get formatted date
+      let formattedDate = ''
+      if ('weekDate' in record) {
+        const weekDate = record.weekDate as Date | string | number | null | undefined
+        if (weekDate != null) {
+          formattedDate = formatDateDisplay(weekDate) ?? ''
         }
       }
-    }
 
-    if (!label && 'weekNumber' in record) {
-      const weekValue = record.weekNumber as string | number | null | undefined
-      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
-        label = `W${weekValue}`
+      // Combine week number and date if both available
+      if (weekIdentifier != null && !(typeof weekIdentifier === 'string' && weekIdentifier.trim() === '')) {
+        if (formattedDate) {
+          label = `W${weekIdentifier} · ${formattedDate}`
+        } else {
+          label = `W${weekIdentifier}`
+        }
+      } else if (formattedDate) {
+        label = formattedDate
       }
     }
 
@@ -1014,24 +1036,7 @@ type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>
 
 async function getOpsPlanningView(strategyId: string, planning?: PlanningCalendar, activeSegment?: YearSegment | null): Promise<{
   poTableRows: OpsInputRow[]
-  batchTableRows: Array<{
-    id: string
-    purchaseOrderId: string
-    orderCode: string
-    batchCode?: string
-    productId: string
-    productName: string
-    quantity: string
-    sellingPrice: string
-    manufacturingCost: string
-    freightCost: string
-    tariffRate: string
-    tariffCost: string
-    tacosPercent: string
-    fbaFee: string
-    referralRate: string
-    storagePerMonth: string
-  }>
+  batchTableRows: OpsBatchRow[]
   timelineRows: OpsTimelineRow[]
   timelineOrders: PurchaseTimelineOrder[]
   payments: PurchasePaymentRow[]
@@ -1646,6 +1651,96 @@ function getCashFlowView(
   }
 }
 
+function getPOProfitabilityView(
+  financialData: FinancialData
+): { data: POProfitabilityData[] } {
+  const { derivedOrders, operations } = financialData
+  const { productNameById } = operations
+
+  // Flatten to per-batch rows for proper per-SKU filtering
+  const data: POProfitabilityData[] = []
+
+  for (const { derived, input } of derivedOrders) {
+    // Map status
+    const statusMap: Record<string, POStatus> = {
+      PLANNED: 'PLANNED',
+      PRODUCTION: 'PRODUCTION',
+      IN_TRANSIT: 'IN_TRANSIT',
+      ARRIVED: 'ARRIVED',
+      CLOSED: 'CLOSED',
+      CANCELLED: 'CANCELLED',
+    }
+    const status: POStatus = statusMap[input.status ?? ''] ?? 'PLANNED'
+
+    // Process each batch as a separate row
+    for (const batch of derived.batches) {
+      const quantity = batch.quantity
+      const sellingPrice = batch.sellingPrice
+      const grossRevenue = sellingPrice * quantity
+
+      // Per-unit costs from batch
+      const manufacturingCost = batch.manufacturingCost
+      const freightCost = batch.freightCost
+      const landedUnitCost = batch.landedUnitCost
+      const tariffCost = batch.tariffRate * batch.manufacturingCost
+
+      // Supplier cost total (COGS)
+      const supplierCostTotal = landedUnitCost * quantity
+
+      // Amazon fees
+      const fbaFee = batch.fbaFee
+      const amazonReferralRate = batch.amazonReferralRate
+      const amazonFeesPerUnit = fbaFee + (sellingPrice * amazonReferralRate)
+      const amazonFeesTotal = amazonFeesPerUnit * quantity
+
+      // PPC/Advertising
+      const tacosPercent = batch.tacosPercent
+      const ppcCost = sellingPrice * tacosPercent * quantity
+
+      // Profit calculations
+      const grossProfit = grossRevenue - supplierCostTotal - amazonFeesTotal
+      const grossMarginPercent = grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0
+      const netProfit = grossProfit - ppcCost
+      const netMarginPercent = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0
+
+      // ROI = Net Profit / Total Investment (supplier cost)
+      const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0
+
+      data.push({
+        id: `${derived.id}-${batch.productId}`,
+        orderCode: derived.orderCode,
+        batchCode: batch.batchCode ?? null,
+        productId: batch.productId,
+        productName: productNameById.get(batch.productId) ?? batch.productId,
+        quantity,
+        status,
+        sellingPrice,
+        manufacturingCost,
+        freightCost,
+        tariffCost,
+        landedUnitCost,
+        supplierCostTotal,
+        grossRevenue,
+        fbaFee,
+        amazonReferralRate,
+        amazonFeesTotal,
+        tacosPercent,
+        ppcCost,
+        grossProfit,
+        grossMarginPercent,
+        netProfit,
+        netMarginPercent,
+        roi,
+        productionStart: derived.productionStart ?? null,
+        availableDate: derived.availableDate ?? null,
+        totalLeadDays: derived.totalLeadDays ?? 0,
+      })
+    }
+  }
+
+  return { data }
+}
+
 export default async function SheetPage({ params, searchParams }: SheetPageProps) {
   const [routeParams, rawSearchParams] = await Promise.all([
     params,
@@ -1851,7 +1946,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         />
       )
 
-      const pnlWeeklyBase = data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const segmentStart = activeSegment?.startWeekNumber ?? null
+      const pnlWeeklyBase = data.profit.weekly
+        .filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+        .map((entry) => ({
+          ...entry,
+          weekLabel: segmentStart != null ? String(entry.weekNumber - segmentStart + 1) : String(entry.weekNumber),
+        }))
       const pnlWeekly = activeSegment ? pnlWeeklyBase : limitRows(pnlWeeklyBase, 52)
       const pnlMonthly = limitRows(filterSummaryByYear(data.profit.monthly, activeYear), 12)
       const pnlQuarterly = limitRows(filterSummaryByYear(data.profit.quarterly, activeYear), 8)
@@ -1911,7 +2012,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />
       )
 
-      const cashWeeklyBase = data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const cashSegmentStart = activeSegment?.startWeekNumber ?? null
+      const cashWeeklyBase = data.cash.weekly
+        .filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+        .map((entry) => ({
+          ...entry,
+          weekLabel: cashSegmentStart != null ? String(entry.weekNumber - cashSegmentStart + 1) : String(entry.weekNumber),
+        }))
       const cashWeekly = activeSegment ? cashWeeklyBase : limitRows(cashWeeklyBase, 52)
 
       const cashWeeklyWithOpening = (() => {
@@ -1983,6 +2090,20 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           storageKey="xplan:visual:cashflow"
         />
       )
+      break
+    }
+    case '6-po-profitability': {
+      const data = await getFinancialData()
+      const view = getPOProfitabilityView(data)
+      // PO Profitability shows chart + table in one unified view, no toggle needed
+      tabularContent = (
+        <POProfitabilitySection
+          data={view.data}
+          title="PO Profitability Analysis"
+          description="Compare purchase order performance and profitability metrics"
+        />
+      )
+      visualContent = null
       break
     }
     default: {
