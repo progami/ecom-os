@@ -1207,6 +1207,15 @@ export function SalesPlanningGrid({
         return
       }
 
+      if (event.key === 'F2') {
+        const columnId = leafColumnIds[activeCell.col]
+        const meta = columnId ? columnMeta[columnId] : undefined
+        if (!meta || !isEditableMetric(meta.field)) return
+        event.preventDefault()
+        startEditing(activeCell)
+        return
+      }
+
       if (event.key === 'Enter') {
         const columnId = leafColumnIds[activeCell.col]
         const meta = columnId ? columnMeta[columnId] : undefined
