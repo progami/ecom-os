@@ -1980,8 +1980,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <ProfitAndLossGrid
           strategyId={strategyId}
           weekly={view.weekly}
-          monthlySummary={view.monthlySummary}
-          quarterlySummary={view.quarterlySummary}
         />
       )
 
