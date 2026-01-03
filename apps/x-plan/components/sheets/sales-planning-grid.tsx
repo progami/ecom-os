@@ -327,6 +327,8 @@ export function SalesPlanningGrid({
   }, [rows])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const clipboardRef = useRef<HTMLTextAreaElement | null>(null)
+  const pasteStartRef = useRef<CellCoords | null>(null)
   const getScrollElement = useCallback(() => scrollRef.current, [])
   usePersistentScroll(`hot:sales-planning:${strategyId}`, true, getScrollElement)
 
@@ -1080,6 +1082,83 @@ export function SalesPlanningGrid({
     [columnLayout]
   )
 
+  const buildClipboardText = useCallback(
+    (range: CellRange) => {
+      const normalized = normalizeRange(range)
+      const lines: string[] = []
+
+      for (let rowIndex = normalized.top; rowIndex <= normalized.bottom; rowIndex += 1) {
+        const absoluteRowIndex = visibleRowIndices[rowIndex]
+        const row = data[absoluteRowIndex]
+        if (!row) continue
+
+        const parts: string[] = []
+        for (let colIndex = normalized.left; colIndex <= normalized.right; colIndex += 1) {
+          const columnId = leafColumnIds[colIndex]
+          if (!columnId) continue
+          parts.push(row[columnId] ?? '')
+        }
+        lines.push(parts.join('\t'))
+      }
+
+      return lines.join('\n')
+    },
+    [data, leafColumnIds, visibleRowIndices]
+  )
+
+  const copySelectionToClipboard = useCallback(async () => {
+    const currentSelection = selectionRef.current ?? (activeCell ? { from: activeCell, to: activeCell } : null)
+    if (!currentSelection) return
+
+    const text = buildClipboardText(currentSelection)
+    if (!text) return
+
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // Fallback for browsers that block clipboard writes.
+    }
+
+    const clipboard = clipboardRef.current
+    if (!clipboard) return
+
+    clipboard.value = text
+    clipboard.focus()
+    clipboard.select()
+
+    try {
+      document.execCommand('copy')
+    } finally {
+      clipboard.value = ''
+      requestAnimationFrame(() => scrollRef.current?.focus())
+    }
+  }, [activeCell, buildClipboardText])
+
+  const updateActiveSelection = useCallback(
+    (nextCoords: CellCoords, { extendSelection }: { extendSelection: boolean }) => {
+      setActiveCell(nextCoords)
+
+      if (extendSelection && selectionAnchorRef.current) {
+        const nextRange = { from: selectionAnchorRef.current, to: nextCoords }
+        setSelection(nextRange)
+        setSelectionStats(
+          computeSelectionStatsFromData(data, visibleRowIndices, leafColumnIds, nextRange)
+        )
+      } else {
+        selectionAnchorRef.current = nextCoords
+        const nextRange = { from: nextCoords, to: nextCoords }
+        setSelection(nextRange)
+        setSelectionStats(
+          computeSelectionStatsFromData(data, visibleRowIndices, leafColumnIds, nextRange)
+        )
+      }
+
+      requestAnimationFrame(() => ensureCellVisible(nextCoords))
+    },
+    [data, ensureCellVisible, leafColumnIds, visibleRowIndices]
+  )
+
   const moveActiveCell = useCallback(
     (deltaRow: number, deltaCol: number) => {
       if (!activeCell) return
@@ -1113,10 +1192,18 @@ export function SalesPlanningGrid({
       if (!activeCell) return
 
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault()
+        copySelectionToClipboard().catch(() => {})
         return
       }
 
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
+        const clipboard = clipboardRef.current
+        if (!clipboard) return
+        pasteStartRef.current = activeCell
+        clipboard.value = ''
+        clipboard.focus()
+        clipboard.select()
         return
       }
 
@@ -1132,24 +1219,37 @@ export function SalesPlanningGrid({
         return
       }
 
-      if (event.key === 'ArrowDown') {
+      const isArrowKey = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(event.key)
+      if (isArrowKey) {
+        const jump = event.ctrlKey || event.metaKey
+        const extendSelection = event.shiftKey
+        if (extendSelection && !selectionAnchorRef.current) {
+          selectionAnchorRef.current = activeCell
+        }
+
+        const lastRow = Math.max(0, visibleRows.length - 1)
+        const lastCol = Math.max(0, leafColumnIds.length - 1)
+
+        let nextRow = activeCell.row
+        let nextCol = activeCell.col
+
+        if (jump) {
+          if (event.key === 'ArrowDown') nextRow = lastRow
+          if (event.key === 'ArrowUp') nextRow = 0
+          if (event.key === 'ArrowRight') nextCol = lastCol
+          if (event.key === 'ArrowLeft') nextCol = 0
+        } else {
+          if (event.key === 'ArrowDown') nextRow += 1
+          if (event.key === 'ArrowUp') nextRow -= 1
+          if (event.key === 'ArrowRight') nextCol += 1
+          if (event.key === 'ArrowLeft') nextCol -= 1
+        }
+
+        nextRow = Math.max(0, Math.min(lastRow, nextRow))
+        nextCol = Math.max(0, Math.min(lastCol, nextCol))
+
         event.preventDefault()
-        moveActiveCell(1, 0)
-        return
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        moveActiveCell(-1, 0)
-        return
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        moveActiveCell(0, 1)
-        return
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        moveActiveCell(0, -1)
+        updateActiveSelection({ row: nextRow, col: nextCol }, { extendSelection })
         return
       }
 
@@ -1181,37 +1281,23 @@ export function SalesPlanningGrid({
       applyEdits,
       cancelEditing,
       columnMeta,
+      copySelectionToClipboard,
       editingCell,
       leafColumnIds,
       moveActiveCell,
       startEditing,
+      updateActiveSelection,
+      visibleRows.length,
     ]
   )
 
   const handleCopy = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
       if (!selectionRef.current) return
-      const range = normalizeRange(selectionRef.current)
-      const lines: string[] = []
-
-      for (let rowIndex = range.top; rowIndex <= range.bottom; rowIndex += 1) {
-        const absoluteRowIndex = visibleRowIndices[rowIndex]
-        const row = data[absoluteRowIndex]
-        if (!row) continue
-
-        const parts: string[] = []
-        for (let colIndex = range.left; colIndex <= range.right; colIndex += 1) {
-          const columnId = leafColumnIds[colIndex]
-          if (!columnId) continue
-          parts.push(row[columnId] ?? '')
-        }
-        lines.push(parts.join('\t'))
-      }
-
       event.preventDefault()
-      event.clipboardData.setData('text/plain', lines.join('\n'))
+      event.clipboardData.setData('text/plain', buildClipboardText(selectionRef.current))
     },
-    [data, leafColumnIds, visibleRowIndices]
+    [buildClipboardText]
   )
 
   const handlePaste = useCallback(
@@ -1248,6 +1334,52 @@ export function SalesPlanningGrid({
       }
 
       applyEdits(edits)
+    },
+    [activeCell, applyEdits, leafColumnIds, visibleRows.length]
+  )
+
+  const handleClipboardPaste = useCallback(
+    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      const start = pasteStartRef.current ?? activeCell
+      if (!start) return
+
+      const text = event.clipboardData.getData('text/plain')
+      if (!text) return
+
+      event.preventDefault()
+      pasteStartRef.current = null
+
+      const rowsMatrix = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'))
+
+      if (rowsMatrix.length === 0) return
+
+      const edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }> = []
+      for (let r = 0; r < rowsMatrix.length; r += 1) {
+        for (let c = 0; c < rowsMatrix[r]!.length; c += 1) {
+          const targetRow = start.row + r
+          const targetCol = start.col + c
+          if (targetRow >= visibleRows.length) continue
+          if (targetCol >= leafColumnIds.length) continue
+          const columnId = leafColumnIds[targetCol]
+          if (!columnId) continue
+          edits.push({
+            visibleRowIndex: targetRow,
+            columnId,
+            rawValue: rowsMatrix[r]![c] ?? '',
+          })
+        }
+      }
+
+      applyEdits(edits)
+
+      const clipboard = clipboardRef.current
+      if (clipboard) clipboard.value = ''
+      requestAnimationFrame(() => scrollRef.current?.focus())
     },
     [activeCell, applyEdits, leafColumnIds, visibleRows.length]
   )
@@ -1622,6 +1754,13 @@ export function SalesPlanningGrid({
         className="relative overflow-hidden rounded-lg border bg-card"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
+        <textarea
+          ref={clipboardRef}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="absolute -left-[9999px] top-0 h-1 w-1 opacity-0"
+          onPaste={handleClipboardPaste}
+        />
         <div
           ref={scrollRef}
           tabIndex={0}
