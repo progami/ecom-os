@@ -1919,9 +1919,14 @@ export function SalesPlanningGrid({
                         key={column.id}
                         className={cn(
                           'h-8 whitespace-nowrap border-r px-2 text-sm overflow-hidden',
-                          isEvenRow ? 'bg-muted/30' : 'bg-card',
+                          meta?.sticky
+                            ? isEvenRow
+                              ? 'bg-muted'
+                              : 'bg-card'
+                            : isEvenRow
+                              ? 'bg-muted/30'
+                              : 'bg-card',
                           meta?.sticky && 'sticky z-10',
-                          meta?.sticky && (isEvenRow ? 'bg-muted/50' : 'bg-card'),
                           colIndex === 2 && 'border-r-2',
                           presentation.isEditable && 'cursor-text font-medium',
                           presentation.isEditable && presentation.highlight === 'none' && 'bg-accent/50',
