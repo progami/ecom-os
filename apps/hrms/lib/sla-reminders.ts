@@ -7,7 +7,6 @@ export type SlaReminderResult = {
   reviewRemindersCreated: number
   disciplinaryRemindersCreated: number
   acknowledgmentRemindersCreated: number
-  checklistTaskRemindersCreated: number
 }
 
 function formatDay(date: Date): string {
@@ -47,7 +46,6 @@ export async function processSlaReminders(options?: {
   reviewPendingHours?: number
   disciplinaryPendingHours?: number
   acknowledgmentPendingDays?: number
-  checklistOverdueDays?: number
 }): Promise<SlaReminderResult> {
   const dedupeHours = options?.dedupeHours ?? 20
   const policyAckOverdueDays = options?.policyAckOverdueDays ?? 3
@@ -55,7 +53,6 @@ export async function processSlaReminders(options?: {
   const reviewPendingHours = options?.reviewPendingHours ?? 24
   const disciplinaryPendingHours = options?.disciplinaryPendingHours ?? 24
   const acknowledgmentPendingDays = options?.acknowledgmentPendingDays ?? 3
-  const checklistOverdueDays = options?.checklistOverdueDays ?? 2
 
   const now = new Date()
   const since = new Date(now.getTime() - dedupeHours * 60 * 60 * 1000)
@@ -65,7 +62,6 @@ export async function processSlaReminders(options?: {
   let reviewRemindersCreated = 0
   let disciplinaryRemindersCreated = 0
   let acknowledgmentRemindersCreated = 0
-  let checklistTaskRemindersCreated = 0
 
   // ============ POLICY ACKNOWLEDGEMENT REMINDERS ============
   const policyThreshold = new Date(now.getTime() - policyAckOverdueDays * 24 * 60 * 60 * 1000)
@@ -500,56 +496,11 @@ export async function processSlaReminders(options?: {
     }
   }
 
-  // ============ CHECKLIST TASK REMINDERS (ONBOARDING/OFFBOARDING TASKS) ============
-  const checklistThreshold = new Date(now.getTime() - checklistOverdueDays * 24 * 60 * 60 * 1000)
-  const overdueChecklistTasks = await prisma.task.findMany({
-    where: {
-      category: { in: ['ONBOARDING', 'OFFBOARDING'] },
-      status: { in: ['OPEN', 'IN_PROGRESS'] },
-      dueDate: { lte: checklistThreshold },
-      assignedToId: { not: null },
-    },
-    select: {
-      id: true,
-      title: true,
-      dueDate: true,
-      assignedToId: true,
-    },
-    take: 200,
-    orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-  })
-
-  if (overdueChecklistTasks.length > 0) {
-    const title = 'Checklist task overdue'
-    const ids = overdueChecklistTasks.map((t) => t.id)
-    const existing = await existingKeys({ since, title, relatedType: 'TASK', relatedIds: ids })
-
-    for (const task of overdueChecklistTasks) {
-      if (!task.assignedToId) continue
-      const k = key(task.assignedToId, task.id, title)
-      if (existing.has(k)) continue
-
-      await prisma.notification.create({
-        data: {
-          type: 'SYSTEM',
-          title,
-          message: `A checklist task is overdue: "${task.title}". Please review and complete it in HRMS.`,
-          link: `/tasks/${task.id}`,
-          employeeId: task.assignedToId,
-          relatedId: task.id,
-          relatedType: 'TASK',
-        },
-      })
-      checklistTaskRemindersCreated += 1
-    }
-  }
-
   return {
     policyAckRemindersCreated,
     leaveApprovalRemindersCreated,
     reviewRemindersCreated,
     disciplinaryRemindersCreated,
     acknowledgmentRemindersCreated,
-    checklistTaskRemindersCreated,
   }
 }

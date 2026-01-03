@@ -59,8 +59,6 @@ export async function GET(req: Request) {
     push('REVIEWS', snapshot.overdue.reviews.items)
     push('VIOLATIONS', snapshot.overdue.violations.items)
     push('ACKS', snapshot.overdue.acknowledgements.items)
-    push('ONBOARDING_BLOCKED', snapshot.overdue.onboarding.blockedItems)
-    push('ONBOARDING_OVERDUE_TASKS', snapshot.overdue.onboarding.overdueTasks)
 
     const headers = ['bucket', 'id', 'title', 'subtitle', 'href', 'createdAt', 'dueAt']
     const csv = toCsv(headers, rows)
@@ -90,4 +88,3 @@ export async function GET(req: Request) {
     return safeErrorResponse(e, 'Failed to export HR ops overdue list')
   }
 }
-

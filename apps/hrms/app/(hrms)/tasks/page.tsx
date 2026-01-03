@@ -21,6 +21,12 @@ import {
 import { TableEmptyState } from '@/components/ui/EmptyState';
 import { StatusBadge } from '@/components/ui/Badge';
 
+const CATEGORY_LABELS: Record<string, string> = {
+  GENERAL: 'General',
+  CASE: 'Case',
+  POLICY: 'Policy',
+};
+
 function formatDate(dateStr: string | null | undefined) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -106,8 +112,7 @@ export default function TasksPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-gray-700">
-                Work Queue is your inbox. Task List is the full list of tasks (including checklist
-                and case tasks).
+                Work Queue is your inbox. Task List is the full list of tasks.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -175,7 +180,9 @@ export default function TasksPage() {
                   <TableCell>
                     <StatusBadge status={t.status} />
                   </TableCell>
-                  <TableCell className="text-gray-600">{t.category}</TableCell>
+                  <TableCell className="text-gray-600">
+                    {CATEGORY_LABELS[t.category] ?? t.category}
+                  </TableCell>
                   <TableCell className="text-gray-600">{formatDate(t.dueDate ?? null)}</TableCell>
                 </TableRow>
               ))

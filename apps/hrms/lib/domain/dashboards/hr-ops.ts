@@ -16,12 +16,6 @@ export type HrOpsDashboardSnapshot = {
     reviews: { count: number; items: HrOpsDashboardWorkItem[] }
     violations: { count: number; items: HrOpsDashboardWorkItem[] }
     acknowledgements: { count: number; items: HrOpsDashboardWorkItem[] }
-    onboarding: {
-      blockedCount: number
-      overdueTasksCount: number
-      blockedItems: HrOpsDashboardWorkItem[]
-      overdueTasks: HrOpsDashboardWorkItem[]
-    }
   }
   cases: {
     byStatus: Record<string, number>
@@ -48,16 +42,13 @@ function iso(value: Date | null | undefined): string | null {
 export async function getHrOpsDashboardSnapshot(options?: {
   take?: number
   approvalThresholdDays?: number
-  checklistOverdueDays?: number
   ackThresholdDays?: number
 }): Promise<HrOpsDashboardSnapshot> {
   const take = options?.take ?? 50
   const approvalThresholdDays = options?.approvalThresholdDays ?? 1
-  const checklistOverdueDays = options?.checklistOverdueDays ?? 2
   const ackThresholdDays = options?.ackThresholdDays ?? 3
 
   const approvalThreshold = daysAgo(approvalThresholdDays)
-  const checklistOverdueThreshold = daysAgo(checklistOverdueDays)
   const ackThreshold = daysAgo(ackThresholdDays)
 
   const [
@@ -68,6 +59,8 @@ export async function getHrOpsDashboardSnapshot(options?: {
     pendingAdminViolations,
     pendingAcksReviews,
     pendingAcksViolations,
+    casesByStatus,
+    casesBySeverity,
   ] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: { status: 'PENDING', createdAt: { lte: approvalThreshold } },
@@ -150,44 +143,6 @@ export async function getHrOpsDashboardSnapshot(options?: {
         employee: { select: { firstName: true, lastName: true } },
       },
     }),
-  ])
-
-  const [blockedChecklistItems, overdueChecklistTasks, casesByStatus, casesBySeverity] = await Promise.all([
-    prisma.checklistItemInstance.findMany({
-      where: { status: 'BLOCKED' },
-      take,
-      orderBy: { dueDate: 'asc' },
-      select: {
-        id: true,
-        dueDate: true,
-        instance: {
-          select: {
-            id: true,
-            employee: { select: { firstName: true, lastName: true } },
-            template: { select: { lifecycleType: true, name: true } },
-          },
-        },
-        templateItem: { select: { title: true } },
-      },
-    }),
-    prisma.task.findMany({
-      where: {
-        category: { in: ['ONBOARDING', 'OFFBOARDING'] },
-        status: { in: ['OPEN', 'IN_PROGRESS'] },
-        dueDate: { lte: checklistOverdueThreshold },
-        assignedToId: { not: null },
-      },
-      take,
-      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
-      select: {
-        id: true,
-        title: true,
-        dueDate: true,
-        assignedTo: { select: { firstName: true, lastName: true } },
-        category: true,
-        status: true,
-      },
-    }),
     prisma.case.groupBy({
       by: ['status'],
       _count: { _all: true },
@@ -268,24 +223,6 @@ export async function getHrOpsDashboardSnapshot(options?: {
           })),
         ],
       },
-      onboarding: {
-        blockedCount: blockedChecklistItems.length,
-        overdueTasksCount: overdueChecklistTasks.length,
-        blockedItems: blockedChecklistItems.map((b) => ({
-          id: b.id,
-          href: `/checklists/${b.instance.id}`,
-          title: `${b.templateItem.title}`,
-          subtitle: `${b.instance.employee.firstName} ${b.instance.employee.lastName} • ${b.instance.template.lifecycleType.toLowerCase()} • ${b.instance.template.name}`,
-          dueAt: iso(b.dueDate),
-        })),
-        overdueTasks: overdueChecklistTasks.map((t) => ({
-          id: t.id,
-          href: `/tasks/${t.id}`,
-          title: t.title,
-          subtitle: `${t.category} • ${t.status} • assigned to ${t.assignedTo?.firstName ?? '—'} ${t.assignedTo?.lastName ?? ''}`.trim(),
-          dueAt: iso(t.dueDate),
-        })),
-      },
     },
     cases: {
       byStatus: casesByStatus.reduce<Record<string, number>>((acc, row) => {
@@ -299,4 +236,3 @@ export async function getHrOpsDashboardSnapshot(options?: {
     },
   }
 }
-
