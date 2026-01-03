@@ -210,7 +210,7 @@ export function POProfitabilitySection({
           })}
         </div>
 
-        {productOptions.length > 1 && (
+        {productOptions.length > 0 && (
           <div className={SHEET_TOOLBAR_GROUP}>
             <span className="text-xs font-medium text-muted-foreground">SKU</span>
             <button
