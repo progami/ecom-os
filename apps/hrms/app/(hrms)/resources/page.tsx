@@ -25,10 +25,10 @@ import { EmptyState } from '@/components/ui/EmptyState'
 
 const CATEGORY_CONFIG: Record<string, { label: string; icon: typeof FolderIcon; color: string }> = {
   ACCOUNTING: { label: 'Accounting', icon: ChartBarIcon, color: 'bg-success-100 text-success-800' },
-  LEGAL: { label: 'Legal', icon: DocumentIcon, color: 'bg-info-100 text-info-800' },
+  LEGAL: { label: 'Legal', icon: DocumentIcon, color: 'bg-secondary text-primary' },
   DESIGN: { label: 'Design', icon: PencilIcon, color: 'bg-accent/10 text-accent' },
   MARKETING: { label: 'Marketing', icon: BellIcon, color: 'bg-warning-100 text-warning-800' },
-  IT: { label: 'IT', icon: ClipboardDocumentCheckIcon, color: 'bg-info-100 text-info-800' },
+  IT: { label: 'IT', icon: ClipboardDocumentCheckIcon, color: 'bg-brand-navy-100 text-brand-navy-700' },
   HR: { label: 'HR', icon: UsersIcon, color: 'bg-primary/10 text-primary' },
   OTHER: { label: 'Other', icon: FolderIcon, color: 'bg-muted text-muted-foreground' },
 }
