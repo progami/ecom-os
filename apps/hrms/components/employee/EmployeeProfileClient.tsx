@@ -745,8 +745,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
               <p className="text-xs text-muted-foreground mt-1">Cases where this employee is the subject.</p>
             </div>
             {isHR ? (
-              <Button href={`/cases/add?subjectEmployeeId=${employee.id}`} icon={<ExclamationTriangleIcon className="h-4 w-4" />}>
-                New case
+              <Button href={`/cases/violations/add?employeeId=${employee.id}`} icon={<ExclamationTriangleIcon className="h-4 w-4" />}>
+                Raise Violation
               </Button>
             ) : null}
           </div>

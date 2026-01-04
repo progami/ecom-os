@@ -19,8 +19,8 @@ function labelCaseType(type: string) {
   return type.replaceAll('_', ' ').toLowerCase()
 }
 
-type CaseTab = 'ALL' | 'VIOLATION' | 'GRIEVANCE' | 'INVESTIGATION' | 'INCIDENT' | 'REQUEST' | 'OTHER'
-const CASE_TABS: CaseTab[] = ['ALL', 'VIOLATION', 'GRIEVANCE', 'INVESTIGATION', 'INCIDENT', 'REQUEST', 'OTHER']
+type CaseTab = 'ALL' | 'VIOLATION'
+const CASE_TABS: CaseTab[] = ['ALL', 'VIOLATION']
 
 export function CasesClientPage(props: { initialTab?: string; initialQuery?: string }) {
   const router = useRouter()
@@ -118,10 +118,10 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
         icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
         action={
           <Button
-            href={activeTab === 'VIOLATION' ? '/cases/violations/add' : '/cases/add'}
+            href="/cases/violations/add"
             icon={<PlusIcon className="h-4 w-4" />}
           >
-            {activeTab === 'VIOLATION' ? 'Raise Violation' : 'New Case'}
+            Raise Violation
           </Button>
         }
       />
@@ -133,21 +133,6 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
           </TabButton>
           <TabButton active={activeTab === 'VIOLATION'} onClick={() => setActiveTab('VIOLATION')} icon={ExclamationTriangleIcon}>
             Violations
-          </TabButton>
-          <TabButton active={activeTab === 'GRIEVANCE'} onClick={() => setActiveTab('GRIEVANCE')} icon={ExclamationTriangleIcon}>
-            Grievances
-          </TabButton>
-          <TabButton active={activeTab === 'INVESTIGATION'} onClick={() => setActiveTab('INVESTIGATION')} icon={ExclamationTriangleIcon}>
-            Investigations
-          </TabButton>
-          <TabButton active={activeTab === 'INCIDENT'} onClick={() => setActiveTab('INCIDENT')} icon={ExclamationTriangleIcon}>
-            Incidents
-          </TabButton>
-          <TabButton active={activeTab === 'REQUEST'} onClick={() => setActiveTab('REQUEST')} icon={ExclamationTriangleIcon}>
-            Requests
-          </TabButton>
-          <TabButton active={activeTab === 'OTHER'} onClick={() => setActiveTab('OTHER')} icon={ExclamationTriangleIcon}>
-            Other
           </TabButton>
         </div>
 
@@ -167,8 +152,8 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
             <TableEmptyContent
               icon={<ExclamationTriangleIcon className="h-10 w-10" />}
               title="No cases found"
-              description="Create your first case to start tracking issues and investigations."
-              action={{ label: 'New Case', href: '/cases/add' }}
+              description="Raise a violation to start tracking employee issues."
+              action={{ label: 'Raise Violation', href: '/cases/violations/add' }}
             />
           }
         />
