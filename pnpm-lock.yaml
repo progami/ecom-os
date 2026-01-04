@@ -90,9 +90,6 @@ importers:
       googleapis:
         specifier: ^168.0.0
         version: 168.0.0
-      mime-types:
-        specifier: ^3.0.1
-        version: 3.0.2
       next:
         specifier: 16.0.8
         version: 16.0.8(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
