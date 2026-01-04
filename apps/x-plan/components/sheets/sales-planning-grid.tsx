@@ -47,7 +47,7 @@ import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { withAppBasePath } from '@/lib/base-path'
-import type { HandsontableSelectionStats } from '@/lib/handsontable'
+import type { SelectionStats } from '@/lib/selection-stats'
 import { formatDateDisplay } from '@/lib/utils/dates'
 
 const PLANNING_ANCHOR_WEEK = 1
@@ -252,7 +252,7 @@ function computeSelectionStatsFromData(
   visibleRowIndices: number[],
   columnIds: string[],
   range: CellRange | null
-): HandsontableSelectionStats | null {
+): SelectionStats | null {
   if (!range) return null
   const { top, bottom, left, right } = normalizeRange(range)
   if (top < 0 || left < 0) return null
@@ -663,7 +663,7 @@ export function SalesPlanningGrid({
   selectionRef.current = selection
 
   const [activeCell, setActiveCell] = useState<CellCoords | null>(null)
-  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
+  const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null)
 
   const [editingCell, setEditingCell] = useState<{
     coords: CellCoords

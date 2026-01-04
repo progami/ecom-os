@@ -2,10 +2,10 @@
 
 import { clsx } from 'clsx'
 
-import type { HandsontableSelectionStats } from '@/lib/handsontable'
+import type { SelectionStats } from '@/lib/selection-stats'
 
 type SelectionStatsBarProps = {
-  stats: HandsontableSelectionStats | null
+  stats: SelectionStats | null
   className?: string
 }
 
