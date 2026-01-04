@@ -296,6 +296,9 @@ export function CustomOpsCostGrid({
   const cancelEditing = useCallback(() => {
     setEditingCell(null)
     setEditValue('')
+    requestAnimationFrame(() => {
+      tableScrollRef.current?.focus()
+    })
   }, [])
 
   const toggleTariffInputMode = useCallback(() => {
@@ -403,123 +406,27 @@ export function CustomOpsCostGrid({
     cancelEditing()
   }, [editingCell, editValue, localRows, products, pendingRef, scheduleFlush, onRowsChange, columns, cancelEditing])
 
-  const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
-    let idx = startIndex + direction
-    while (idx >= 0 && idx < columns.length) {
-      if (columns[idx].editable) return idx
-      idx += direction
-    }
-    return -1
-  }
-
-  const moveToCell = (rowIndex: number, colIndex: number) => {
-    if (rowIndex < 0 || rowIndex >= localRows.length) return
-    if (colIndex < 0 || colIndex >= columns.length) return
-    const column = columns[colIndex]
-    if (!column.editable) return
-    const row = localRows[rowIndex]
-    startEditing(row.id, column.key, row[column.key] ?? '')
-  }
-
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       commitEdit()
-      // Move to next row, same column
-      if (editingCell) {
-        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
-        if (currentRowIndex < localRows.length - 1) {
-          moveToCell(currentRowIndex + 1, currentColIndex)
-        }
-      }
+      moveSelection(1, 0)
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'Escape') {
       e.preventDefault()
       cancelEditing()
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'Tab') {
       e.preventDefault()
       commitEdit()
-      // Move to next/prev editable cell
-      if (editingCell) {
-        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
-        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
-
-        if (nextColIndex !== -1) {
-          moveToCell(currentRowIndex, nextColIndex)
-        } else if (!e.shiftKey && currentRowIndex < localRows.length - 1) {
-          // Move to first editable column of next row
-          const firstEditableColIndex = findNextEditableColumn(-1, 1)
-          if (firstEditableColIndex !== -1) {
-            moveToCell(currentRowIndex + 1, firstEditableColIndex)
-          }
-        } else if (e.shiftKey && currentRowIndex > 0) {
-          // Move to last editable column of previous row
-          const lastEditableColIndex = findNextEditableColumn(columns.length, -1)
-          if (lastEditableColIndex !== -1) {
-            moveToCell(currentRowIndex - 1, lastEditableColIndex)
-          }
-        }
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      commitEdit()
-      if (editingCell) {
-        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
-        moveToCell(currentRowIndex - 1, currentColIndex)
-      }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      commitEdit()
-      if (editingCell) {
-        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
-        moveToCell(currentRowIndex + 1, currentColIndex)
-      }
-    } else if (e.key === 'ArrowLeft' && e.currentTarget instanceof HTMLInputElement) {
-      // Only move to prev cell if cursor is at start of input (not for select)
-      const input = e.currentTarget
-      if (input.selectionStart === 0 && input.selectionEnd === 0) {
-        e.preventDefault()
-        commitEdit()
-        if (editingCell) {
-          const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
-          const prevColIndex = findNextEditableColumn(currentColIndex, -1)
-          if (prevColIndex !== -1) {
-            moveToCell(currentRowIndex, prevColIndex)
-          } else if (currentRowIndex > 0) {
-            // Move to last editable column of previous row
-            const lastEditableColIndex = findNextEditableColumn(columns.length, -1)
-            if (lastEditableColIndex !== -1) {
-              moveToCell(currentRowIndex - 1, lastEditableColIndex)
-            }
-          }
-        }
-      }
-    } else if (e.key === 'ArrowRight' && e.currentTarget instanceof HTMLInputElement) {
-      // Only move to next cell if cursor is at end of input (not for select)
-      const input = e.currentTarget
-      const len = input.value.length
-      if (input.selectionStart === len && input.selectionEnd === len) {
-        e.preventDefault()
-        commitEdit()
-        if (editingCell) {
-          const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
-          const nextColIndex = findNextEditableColumn(currentColIndex, 1)
-          if (nextColIndex !== -1) {
-            moveToCell(currentRowIndex, nextColIndex)
-          } else if (currentRowIndex < localRows.length - 1) {
-            // Move to first editable column of next row
-            const firstEditableColIndex = findNextEditableColumn(-1, 1)
-            if (firstEditableColIndex !== -1) {
-              moveToCell(currentRowIndex + 1, firstEditableColIndex)
-            }
-          }
-        }
-      }
+      moveSelectionTab(e.shiftKey ? -1 : 1)
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     }
   }
 
@@ -687,7 +594,7 @@ export function CustomOpsCostGrid({
     const isRowSelected = isRowActive(row)
 
     const cellClassName = cn(
-      'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+      'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
       colIndex === 0 && isRowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
       isNumericCell && 'text-right',
       column.editable
@@ -763,6 +670,7 @@ export function CustomOpsCostGrid({
         id={cellDomId(row.id, column.key)}
         className={cellClassName}
         style={{ width: column.width, minWidth: column.width }}
+        title={displayValue || undefined}
         onClick={(event) => {
           event.stopPropagation()
           handleCellClick(row, column)
@@ -773,7 +681,11 @@ export function CustomOpsCostGrid({
           startEditing(row.id, column.key, row[column.key] ?? '')
         }}
       >
-        <div className={cn('flex h-9 items-center px-3', isNumericCell && 'justify-end')}>{displayValue}</div>
+        <div className={cn('flex h-9 min-w-0 items-center px-3', isNumericCell && 'justify-end')}>
+          <span className={cn('block min-w-0 truncate', isNumericCell && 'tabular-nums')}>
+            {displayValue}
+          </span>
+        </div>
       </TableCell>
     )
   }
