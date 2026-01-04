@@ -1,92 +1,140 @@
-'use client';
+'use client'
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { MeApi, TasksApi, type Me, type Task } from '@/lib/api-client';
-import { CheckCircleIcon, PlusIcon } from '@/components/ui/Icons';
-import { ListPageHeader } from '@/components/ui/PageHeader';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Alert } from '@/components/ui/Alert';
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableSkeleton,
-  ResultsCount,
-} from '@/components/ui/Table';
-import { TableEmptyState } from '@/components/ui/EmptyState';
-import { StatusBadge } from '@/components/ui/Badge';
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { ColumnDef } from '@tanstack/react-table'
+import { MeApi, TasksApi, type Me, type Task } from '@/lib/api-client'
+import { CheckCircleIcon, PlusIcon } from '@/components/ui/Icons'
+import { ListPageHeader } from '@/components/ui/PageHeader'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { Alert } from '@/components/ui/Alert'
+import { DataTable } from '@/components/ui/DataTable'
+import { ResultsCount } from '@/components/ui/Table'
+import { TableEmptyContent } from '@/components/ui/EmptyState'
+import { StatusBadge } from '@/components/ui/Badge'
 
 const CATEGORY_LABELS: Record<string, string> = {
   GENERAL: 'General',
   CASE: 'Case',
   POLICY: 'Policy',
-};
+}
 
 function formatDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '—';
+  if (!dateStr) return '—'
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  });
+  })
 }
 
 export default function TasksPage() {
-  const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
-  const [items, setItems] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const router = useRouter()
+  const [me, setMe] = useState<Me | null>(null)
+  const [items, setItems] = useState<Task[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [scope, setScope] = useState<'mine' | 'all'>('mine')
 
-  const canSeeAllTasks = Boolean(me?.isHR || me?.isSuperAdmin);
+  const canSeeAllTasks = Boolean(me?.isHR || me?.isSuperAdmin)
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
     MeApi.get()
       .then((data) => {
-        if (cancelled) return;
-        setMe(data);
+        if (cancelled) return
+        setMe(data)
       })
       .catch(() => {
-        if (cancelled) return;
-        setMe(null);
-      });
+        if (cancelled) return
+        setMe(null)
+      })
 
     return () => {
-      cancelled = true;
-    };
-  }, []);
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (!canSeeAllTasks && scope === 'all') {
-      setScope('mine');
+      setScope('mine')
     }
-  }, [canSeeAllTasks, scope]);
+  }, [canSeeAllTasks, scope])
 
   const load = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      const data = await TasksApi.list({ scope });
-      setItems(data.items || []);
+      setLoading(true)
+      setError(null)
+      const data = await TasksApi.list({ scope })
+      setItems(data.items)
     } catch (e) {
-      console.error('Failed to load tasks', e);
-      setItems([]);
-      setError(e instanceof Error ? e.message : 'Failed to load tasks');
+      console.error('Failed to load tasks', e)
+      setItems([])
+      setError(e instanceof Error ? e.message : 'Failed to load tasks')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [scope]);
+  }, [scope])
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load()
+  }, [load])
+
+  const columns = useMemo<ColumnDef<Task>[]>(
+    () => [
+      {
+        accessorKey: 'title',
+        header: 'Title',
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-foreground">{row.original.title}</p>
+            {row.original.description && (
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                {row.original.description}
+              </p>
+            )}
+          </div>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'category',
+        header: 'Category',
+        cell: ({ getValue }) => {
+          const category = getValue<string>()
+          return (
+            <span className="text-muted-foreground">
+              {CATEGORY_LABELS[category] ?? category}
+            </span>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'dueDate',
+        header: 'Due',
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{formatDate(getValue<string>())}</span>
+        ),
+        enableSorting: true,
+      },
+    ],
+    []
+  )
+
+  const handleRowClick = useCallback(
+    (task: Task) => {
+      router.push(`/tasks/${task.id}`)
+    },
+    [router]
+  )
 
   return (
     <>
@@ -111,18 +159,20 @@ export default function TasksPage() {
         <Card padding="md">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-muted-foreground">
                 Work Queue is your inbox. Task List is the full list of tasks.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {canSeeAllTasks ? (
-                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+                <div className="inline-flex rounded-lg border border-border bg-card p-1">
                   <button
                     type="button"
                     onClick={() => setScope('mine')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      scope === 'mine' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                      scope === 'mine'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted'
                     }`}
                   >
                     My tasks
@@ -131,7 +181,9 @@ export default function TasksPage() {
                     type="button"
                     onClick={() => setScope('all')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      scope === 'all' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                      scope === 'all'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:bg-muted'
                     }`}
                   >
                     All tasks
@@ -148,48 +200,22 @@ export default function TasksPage() {
 
         <ResultsCount count={items.length} singular="task" plural="tasks" loading={loading} />
 
-        <Table>
-          <TableHeader>
-            <TableHead>Title</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Due</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableSkeleton rows={6} columns={4} />
-            ) : items.length === 0 ? (
-              <TableEmptyState
-                colSpan={4}
-                icon={<CheckCircleIcon className="h-10 w-10" />}
-                title="No tasks yet"
-                description="Create a task to get started."
-                action={{ label: 'Add Task', href: '/tasks/add' }}
-              />
-            ) : (
-              items.map((t) => (
-                <TableRow key={t.id} onClick={() => router.push(`/tasks/${t.id}`)}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">{t.title}</p>
-                      {t.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{t.description}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={t.status} />
-                  </TableCell>
-                  <TableCell className="text-gray-600">
-                    {CATEGORY_LABELS[t.category] ?? t.category}
-                  </TableCell>
-                  <TableCell className="text-gray-600">{formatDate(t.dueDate ?? null)}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          skeletonRows={6}
+          onRowClick={handleRowClick}
+          emptyState={
+            <TableEmptyContent
+              icon={<CheckCircleIcon className="h-10 w-10" />}
+              title="No tasks yet"
+              description="Create a task to get started."
+              action={{ label: 'Add Task', href: '/tasks/add' }}
+            />
+          }
+        />
       </div>
     </>
-  );
+  )
 }

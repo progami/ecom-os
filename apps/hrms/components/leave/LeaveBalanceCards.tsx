@@ -30,8 +30,8 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
   if (!filteredBalances || filteredBalances.length === 0) {
     return (
       <div className="text-center py-8">
-        <CalendarDaysIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">No leave balance data available</p>
+        <CalendarDaysIcon className="h-10 w-10 text-muted-foreground/50 mx-auto mb-2" />
+        <p className="text-muted-foreground text-sm">No leave balance data available</p>
       </div>
     )
   }
@@ -50,35 +50,35 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
         return (
           <div
             key={balance.leaveType}
-            className="relative bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition-colors"
+            className="relative bg-card rounded-lg border border-border p-4 hover:border-input transition-colors"
           >
             {/* Label */}
-            <p className="text-sm font-medium text-gray-900 mb-3">
+            <p className="text-sm font-medium text-foreground mb-3">
               {label}
             </p>
 
             {isAsNeeded ? (
               <div className="mb-4">
-                <span className="text-sm font-medium text-gray-900">As needed</span>
-                <p className="text-xs text-gray-500 mt-1">No annual cap is enforced.</p>
+                <span className="text-sm font-medium text-foreground">As needed</span>
+                <p className="text-xs text-muted-foreground mt-1">No annual cap is enforced.</p>
               </div>
             ) : (
               <>
                 {/* Available / Total */}
                 <div className="flex items-baseline gap-1.5 mb-3">
                   <span className={`text-3xl font-semibold tabular-nums ${
-                    isEmpty ? 'text-gray-300' : isLow ? 'text-amber-600' : 'text-gray-900'
+                    isEmpty ? 'text-muted-foreground/50' : isLow ? 'text-warning-600' : 'text-foreground'
                   }`}>
                     {available}
                   </span>
-                  <span className="text-sm text-gray-400">/ {total}</span>
+                  <span className="text-sm text-muted-foreground">/ {total}</span>
                 </div>
 
                 {/* Progress bar - shows remaining */}
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${
-                      isEmpty ? 'bg-gray-200' : isLow ? 'bg-amber-500' : 'bg-blue-500'
+                      isEmpty ? 'bg-muted' : isLow ? 'bg-warning-500' : 'bg-primary'
                     }`}
                     style={{ width: `${availablePercent}%` }}
                   />
@@ -89,7 +89,7 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
             {/* Pending badge */}
             {balance.pending > 0 && (
               <div className="absolute top-3 right-3">
-                <span className="text-xs text-amber-600 font-medium">
+                <span className="text-xs text-warning-600 font-medium">
                   {balance.pending} pending
                 </span>
               </div>

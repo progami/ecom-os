@@ -86,13 +86,13 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
       {error && <Alert variant="error">{error}</Alert>}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground mb-1">
           Leave Type
         </label>
         <select
           value={leaveType}
           onChange={(e) => setLeaveType(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
         >
           {LEAVE_TYPES.map((type) => (
             <option key={type.value} value={type.value}>
@@ -104,19 +104,19 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-foreground mb-1">
             Start Date
           </label>
           <input
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-foreground mb-1">
             End Date
           </label>
           <input
@@ -124,27 +124,27 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             min={startDate}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             required
           />
         </div>
       </div>
 
       {totalDays > 0 && (
-        <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+        <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
           Total: <span className="font-medium">{totalDays} business day{totalDays !== 1 ? 's' : ''}</span>
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground mb-1">
           Reason (optional)
         </label>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
           placeholder="Briefly describe the reason for your leave..."
         />
       </div>

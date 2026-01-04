@@ -29,14 +29,14 @@ function ToggleSwitch({
       onClick={() => onChange(!checked)}
       className={`
         relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
-        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-        ${checked ? 'bg-blue-600' : 'bg-gray-200'}
+        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+        ${checked ? 'bg-primary' : 'bg-muted'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
       `}
     >
       <span
         className={`
-          pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0
+          pointer-events-none inline-block h-5 w-5 transform rounded-full bg-card shadow ring-0
           transition duration-200 ease-in-out
           ${checked ? 'translate-x-5' : 'translate-x-0'}
         `}
@@ -64,8 +64,8 @@ function Avatar({ src, name }: { src?: string | null; name: string }) {
   }
 
   return (
-    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-      <span className="text-sm font-medium text-gray-600">{initials}</span>
+    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+      <span className="text-sm font-medium text-muted-foreground">{initials}</span>
     </div>
   )
 }
@@ -148,8 +148,8 @@ export default function AccessManagementPage() {
         />
         <Card padding="lg">
           <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-gray-200 rounded w-full max-w-md" />
-            <div className="h-64 bg-gray-200 rounded" />
+            <div className="h-10 bg-muted rounded w-full max-w-md" />
+            <div className="h-64 bg-muted rounded" />
           </div>
         </Card>
       </>
@@ -172,25 +172,25 @@ export default function AccessManagementPage() {
 
       <Card padding="md" className="mb-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <div className="mb-2 flex items-center gap-2">
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
                 Super Admin
               </span>
-              <span className="text-xs text-gray-500">System owner</span>
+              <span className="text-xs text-muted-foreground">System owner</span>
             </div>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-foreground">
               Full system access. Can manage access, view all records, and provide final approval for violations and reviews.
             </p>
           </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-100 text-warning-800">
                 HR
               </span>
-              <span className="text-xs text-gray-500">People ops</span>
+              <span className="text-xs text-muted-foreground">People ops</span>
             </div>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-foreground">
               Can review violations, access all employee records, and handle HR workflow steps and escalations.
             </p>
           </div>
@@ -201,41 +201,41 @@ export default function AccessManagementPage() {
         {/* Search */}
         <div className="mb-6">
           <div className="relative max-w-md">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search employees..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
             />
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-border">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <tr className="bg-muted">
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Employee
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Department
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
                     Super Admin
                   </span>
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-100 text-warning-800">
                     HR
                   </span>
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {filteredEmployees.map((emp) => {
                 const isCurrentUser = emp.id === currentUserId
                 const fullName = `${emp.firstName} ${emp.lastName}`
@@ -243,23 +243,23 @@ export default function AccessManagementPage() {
                 return (
                   <tr
                     key={emp.id}
-                    className={`hover:bg-gray-50 ${isCurrentUser ? 'bg-blue-50' : ''}`}
+                    className={`hover:bg-muted ${isCurrentUser ? 'bg-accent/5' : ''}`}
                   >
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <Avatar src={emp.avatar} name={fullName} />
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-foreground">
                             {fullName}
                             {isCurrentUser && (
-                              <span className="ml-2 text-xs text-blue-600">(You)</span>
+                              <span className="ml-2 text-xs text-accent">(You)</span>
                             )}
                           </div>
-                          <div className="text-sm text-gray-500">{emp.position}</div>
+                          <div className="text-sm text-muted-foreground">{emp.position}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {emp.department || '-'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-center">
@@ -272,7 +272,7 @@ export default function AccessManagementPage() {
                         />
                       </div>
                       {isCurrentUser && emp.isSuperAdmin && (
-                        <div className="text-xs text-gray-400 mt-1">Cannot remove own</div>
+                        <div className="text-xs text-muted-foreground mt-1">Cannot remove own</div>
                       )}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-center">
@@ -293,13 +293,13 @@ export default function AccessManagementPage() {
         </div>
 
         {filteredEmployees.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             {searchQuery ? 'No employees match your search' : 'No employees found'}
           </div>
         )}
 
         {/* Summary */}
-        <div className="mt-6 pt-4 border-t border-gray-200 text-sm text-gray-500">
+        <div className="mt-6 pt-4 border-t border-border text-sm text-muted-foreground">
           <div className="flex gap-6">
             <span>
               Total: <strong>{employees.length}</strong> employees

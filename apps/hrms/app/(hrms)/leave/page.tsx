@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { ColumnDef } from '@tanstack/react-table'
 import {
   DashboardApi,
   LeavesApi,
@@ -24,16 +25,9 @@ import { Alert } from '@/components/ui/Alert'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { SearchForm } from '@/components/ui/SearchForm'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  ResultsCount,
-} from '@/components/ui/Table'
-import { TableEmptyState } from '@/components/ui/EmptyState'
+import { DataTable } from '@/components/ui/DataTable'
+import { ResultsCount } from '@/components/ui/Table'
+import { TableEmptyContent } from '@/components/ui/EmptyState'
 import { TabButton } from '@/components/ui/TabButton'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
@@ -90,40 +84,18 @@ function formatDateRange(start: string, end: string): string {
   return `${formatDate(start)} - ${formatDate(end)}`
 }
 
-function TableRowSkeleton() {
-  return (
-    <>
-      {[...Array(5)].map((_, i) => (
-        <tr key={i} className="animate-pulse">
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-16" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-5 bg-gray-200 rounded w-20" /></td>
-        </tr>
-      ))}
-    </>
-  )
-}
-
-function TeamTableRowSkeleton() {
-  return (
-    <>
-      {[...Array(5)].map((_, i) => (
-        <tr key={i} className="animate-pulse">
-          <td className="px-4 py-4"><div className="h-10 w-10 bg-gray-200 rounded-full" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-16" /></td>
-          <td className="px-4 py-4"><div className="h-5 bg-gray-200 rounded w-20" /></td>
-          <td className="px-4 py-4"><div className="h-8 bg-gray-200 rounded w-24" /></td>
-        </tr>
-      ))}
-    </>
-  )
-}
-
 type TeamFilter = 'pending' | 'all'
+
+type TeamLeaveRequest = {
+  id: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  status: string
+  reason?: string | null
+  employee: { id: string; firstName: string; lastName: string; avatar?: string | null }
+}
 
 // Team Leave Section with unified table
 function TeamLeaveSection({
@@ -134,26 +106,8 @@ function TeamLeaveSection({
   onApprove,
   onReject,
 }: {
-  pendingRequests: Array<{
-    id: string
-    leaveType: string
-    startDate: string
-    endDate: string
-    totalDays: number
-    status: string
-    reason?: string | null
-    employee: { id: string; firstName: string; lastName: string; avatar?: string | null }
-  }>
-  approvalHistory: Array<{
-    id: string
-    leaveType: string
-    startDate: string
-    endDate: string
-    totalDays: number
-    status: string
-    reason?: string | null
-    employee: { id: string; firstName: string; lastName: string; avatar?: string | null }
-  }>
+  pendingRequests: TeamLeaveRequest[]
+  approvalHistory: TeamLeaveRequest[]
   loading: boolean
   processingId: string | null
   onApprove: (id: string) => void
@@ -174,7 +128,7 @@ function TeamLeaveSection({
     if (!q) return true
     const searchLower = q.toLowerCase()
     const name = `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase()
-    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] || r.leaveType
+    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType
     return (
       name.includes(searchLower) ||
       leaveType.toLowerCase().includes(searchLower) ||
@@ -182,21 +136,133 @@ function TeamLeaveSection({
     )
   })
 
+  const columns = useMemo<ColumnDef<TeamLeaveRequest>[]>(
+    () => [
+      {
+        id: 'avatar',
+        header: '',
+        cell: ({ row }) => (
+          <Avatar
+            src={row.original.employee.avatar}
+            alt={`${row.original.employee.firstName} ${row.original.employee.lastName}`}
+            size="sm"
+          />
+        ),
+        enableSorting: false,
+      },
+      {
+        accessorFn: (row) => `${row.employee.firstName} ${row.employee.lastName}`,
+        id: 'employee',
+        header: 'Employee',
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-foreground">
+              {row.original.employee.firstName} {row.original.employee.lastName}
+            </p>
+            {row.original.reason && (
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                {row.original.reason}
+              </p>
+            )}
+          </div>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'leaveType',
+        header: 'Leave Type',
+        cell: ({ getValue }) => {
+          const type = getValue<string>()
+          return <span className="text-muted-foreground">{LEAVE_TYPE_LABELS[type] ?? type}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'startDate',
+        header: 'Dates',
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {formatDateRange(row.original.startDate, row.original.endDate)}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'totalDays',
+        header: 'Days',
+        cell: ({ getValue }) => {
+          const days = getValue<number>()
+          return <span className="text-muted-foreground">{days} day{days !== 1 ? 's' : ''}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => {
+          const status = getValue<string>()
+          if (status === 'PENDING') {
+            return (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-800">
+                <ClockIcon className="h-3 w-3" />
+                Pending
+              </span>
+            )
+          }
+          return <StatusBadge status={STATUS_LABELS[status] ?? status} />
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => {
+          if (row.original.status === 'PENDING') {
+            return (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onReject(row.original.id)}
+                  disabled={processingId === row.original.id}
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => onApprove(row.original.id)}
+                  disabled={processingId === row.original.id}
+                >
+                  <CheckIcon className="h-4 w-4 mr-1" />
+                  Approve
+                </Button>
+              </div>
+            )
+          }
+          return <span className="text-xs text-muted-foreground">—</span>
+        },
+        enableSorting: false,
+      },
+    ],
+    [processingId, onApprove, onReject]
+  )
+
   return (
     <div className="space-y-6">
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+      <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
         <button
           onClick={() => setFilter('pending')}
           className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
             filter === 'pending'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-card text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Pending
           {pendingRequests.length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
+            <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-warning-100 text-warning-800 rounded-full">
               {pendingRequests.length}
             </span>
           )}
@@ -205,8 +271,8 @@ function TeamLeaveSection({
           onClick={() => setFilter('all')}
           className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
             filter === 'all'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-card text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           All Requests
@@ -230,101 +296,22 @@ function TeamLeaveSection({
         loading={loading}
       />
 
-      {/* Unified Table */}
-      <Table>
-        <TableHeader>
-          <TableHead className="w-14">{''}</TableHead>
-          <TableHead>Employee</TableHead>
-          <TableHead>Leave Type</TableHead>
-          <TableHead>Dates</TableHead>
-          <TableHead>Days</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-            <TeamTableRowSkeleton />
-          ) : filteredRequests.length === 0 ? (
-            <TableEmptyState
-              colSpan={7}
-              icon={<UsersIcon className="h-10 w-10" />}
-              title={
-                filter === 'pending'
-                  ? 'No pending requests. All team leave requests have been processed.'
-                  : 'No leave requests found.'
-              }
-            />
-          ) : (
-            filteredRequests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell>
-                  <Avatar
-                    src={request.employee.avatar}
-                    alt={`${request.employee.firstName} ${request.employee.lastName}`}
-                    size="sm"
-                  />
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {request.employee.firstName} {request.employee.lastName}
-                    </p>
-                    {request.reason && (
-                      <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                        {request.reason}
-                      </p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-gray-600">
-                  {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType}
-                </TableCell>
-                <TableCell className="text-gray-600">
-                  {formatDateRange(request.startDate, request.endDate)}
-                </TableCell>
-                <TableCell className="text-gray-600">
-                  {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
-                </TableCell>
-                <TableCell>
-                  {request.status === 'PENDING' ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                      <ClockIcon className="h-3 w-3" />
-                      Pending
-                    </span>
-                  ) : (
-                    <StatusBadge status={STATUS_LABELS[request.status] || request.status} />
-                  )}
-                </TableCell>
-                <TableCell>
-                  {request.status === 'PENDING' ? (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onReject(request.id)}
-                        disabled={processingId === request.id}
-                        className="text-gray-600 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <XIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => onApprove(request.id)}
-                        disabled={processingId === request.id}
-                      >
-                        <CheckIcon className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-gray-400">—</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+      <DataTable
+        columns={columns}
+        data={filteredRequests}
+        loading={loading}
+        skeletonRows={5}
+        emptyState={
+          <TableEmptyContent
+            icon={<UsersIcon className="h-10 w-10" />}
+            title={
+              filter === 'pending'
+                ? 'No pending requests. All team leave requests have been processed.'
+                : 'No leave requests found.'
+            }
+          />
+        }
+      />
     </div>
   )
 }
@@ -347,20 +334,20 @@ function RequestLeavePanel({
     <div className="relative z-50">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-foreground/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Panel */}
       <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
         <div className="w-screen max-w-md">
-          <div className="flex h-full flex-col bg-white shadow-xl">
+          <div className="flex h-full flex-col bg-card shadow-xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Request Leave</h2>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Request Leave</h2>
               <button
                 onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
               >
                 <XIcon className="h-5 w-5" />
               </button>
@@ -438,8 +425,8 @@ function LeavePageContent() {
           LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
           LeavesApi.list({ employeeId: data.currentEmployee.id }),
         ])
-        setLeaveBalances(balanceData.balances || [])
-        setLeaveRequests(requestsData.items || [])
+        setLeaveBalances(balanceData.balances)
+        setLeaveRequests(requestsData.items)
       } catch (e) {
         console.error('Failed to load leave data', e)
       } finally {
@@ -455,8 +442,8 @@ function LeavePageContent() {
       LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
       LeavesApi.list({ employeeId: data.currentEmployee.id }),
     ])
-    setLeaveBalances(balanceData.balances || [])
-    setLeaveRequests(requestsData.items || [])
+    setLeaveBalances(balanceData.balances)
+    setLeaveRequests(requestsData.items)
     await fetchDashboardData()
   }
 
@@ -469,8 +456,8 @@ function LeavePageContent() {
         LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
         LeavesApi.list({ employeeId: data.currentEmployee.id }),
       ])
-      setLeaveBalances(balanceData.balances || [])
-      setLeaveRequests(requestsData.items || [])
+      setLeaveBalances(balanceData.balances)
+      setLeaveRequests(requestsData.items)
     } finally {
       setProcessingId(null)
     }
@@ -504,7 +491,7 @@ function LeavePageContent() {
   const filteredRequests = leaveRequests.filter((r) => {
     if (!q) return true
     const searchLower = q.toLowerCase()
-    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] || r.leaveType
+    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType
     return (
       leaveType.toLowerCase().includes(searchLower) ||
       r.status.toLowerCase().includes(searchLower) ||
@@ -512,18 +499,92 @@ function LeavePageContent() {
     )
   })
 
-  // Filter pending requests based on search
-  const filteredPendingRequests = (data?.pendingLeaveRequests || []).filter((r) => {
-    if (!q) return true
-    const searchLower = q.toLowerCase()
-    const name = `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase()
-    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] || r.leaveType
-    return (
-      name.includes(searchLower) ||
-      leaveType.toLowerCase().includes(searchLower) ||
-      r.reason?.toLowerCase().includes(searchLower)
-    )
-  })
+  // My Leave table columns
+  const myLeaveColumns = useMemo<ColumnDef<LeaveRequest>[]>(
+    () => [
+      {
+        accessorKey: 'leaveType',
+        header: 'Leave Type',
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-foreground">
+              {LEAVE_TYPE_LABELS[row.original.leaveType] ?? row.original.leaveType.replace(/_/g, ' ')}
+            </p>
+            {row.original.reason && (
+              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                {row.original.reason}
+              </p>
+            )}
+          </div>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'startDate',
+        header: 'Dates',
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {formatDateRange(row.original.startDate, row.original.endDate)}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'totalDays',
+        header: 'Days',
+        cell: ({ getValue }) => {
+          const days = getValue<number>()
+          return <span className="text-muted-foreground">{days} day{days !== 1 ? 's' : ''}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'createdAt',
+        header: 'Submitted',
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{formatDate(getValue<string>())}</span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => {
+          const status = getValue<string>()
+          return <StatusBadge status={STATUS_LABELS[status] ?? status} />
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => {
+          if (row.original.status === 'PENDING') {
+            return (
+              <button
+                onClick={() => handleCancelLeave(row.original.id)}
+                disabled={processingId === row.original.id}
+                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                title="Cancel request"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            )
+          }
+          if (row.original.status === 'APPROVED' && row.original.reviewedBy) {
+            return (
+              <span className="text-xs text-muted-foreground">
+                by {row.original.reviewedBy.firstName}
+              </span>
+            )
+          }
+          return null
+        },
+        enableSorting: false,
+      },
+    ],
+    [processingId]
+  )
 
   if (loading) {
     return (
@@ -535,9 +596,9 @@ function LeavePageContent() {
         />
         <div className="space-y-6">
           <Card padding="md">
-            <div className="animate-pulse h-10 bg-gray-200 rounded w-full" />
+            <div className="animate-pulse h-10 bg-muted rounded w-full" />
           </Card>
-          <div className="animate-pulse h-64 bg-gray-100 rounded-lg" />
+          <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
         </div>
       </>
     )
@@ -634,9 +695,9 @@ function LeavePageContent() {
             {/* Leave Balance Summary */}
             <Card padding="lg">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900">Leave Balance</h3>
+                <h3 className="text-sm font-semibold text-foreground">Leave Balance</h3>
                 {!leaveLoading && (
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     {leaveBalances.filter(b => b.leaveType !== 'UNPAID').length} types available
                   </span>
                 )}
@@ -644,10 +705,10 @@ function LeavePageContent() {
               {leaveLoading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse bg-white rounded-lg border border-gray-200 p-4">
-                      <div className="h-4 bg-gray-200 rounded w-16 mb-3" />
-                      <div className="h-8 bg-gray-200 rounded w-12 mb-3" />
-                      <div className="h-1.5 bg-gray-100 rounded-full" />
+                    <div key={i} className="animate-pulse bg-card rounded-lg border border-border p-4">
+                      <div className="h-4 bg-muted rounded w-16 mb-3" />
+                      <div className="h-8 bg-muted rounded w-12 mb-3" />
+                      <div className="h-1.5 bg-muted/50 rounded-full" />
                     </div>
                   ))}
                 </div>
@@ -675,81 +736,26 @@ function LeavePageContent() {
             />
 
             {/* Leave Requests Table */}
-            <Table>
-              <TableHeader>
-                <TableHead>Leave Type</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-20">{''}</TableHead>
-              </TableHeader>
-              <TableBody>
-                {leaveLoading ? (
-                  <TableRowSkeleton />
-                ) : filteredRequests.length === 0 ? (
-                  <TableEmptyState
-                    colSpan={6}
-                    icon={<CalendarDaysIcon className="h-10 w-10" />}
-                    title="No leave requests yet. Click 'Request Leave' to submit your first request."
-                  />
-                ) : (
-                  filteredRequests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType.replace(/_/g, ' ')}
-                          </p>
-                          {request.reason && (
-                            <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                              {request.reason}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {formatDateRange(request.startDate, request.endDate)}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
-                      </TableCell>
-                      <TableCell className="text-gray-500">
-                        {formatDate(request.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={STATUS_LABELS[request.status] || request.status} />
-                      </TableCell>
-                      <TableCell>
-                        {request.status === 'PENDING' && (
-                          <button
-                            onClick={() => handleCancelLeave(request.id)}
-                            disabled={processingId === request.id}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                            title="Cancel request"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        )}
-                        {request.status === 'APPROVED' && request.reviewedBy && (
-                          <span className="text-xs text-gray-400">
-                            by {request.reviewedBy.firstName}
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={myLeaveColumns}
+              data={filteredRequests}
+              loading={leaveLoading}
+              skeletonRows={5}
+              emptyState={
+                <TableEmptyContent
+                  icon={<CalendarDaysIcon className="h-10 w-10" />}
+                  title="No leave requests yet. Click 'Request Leave' to submit your first request."
+                />
+              }
+            />
           </div>
         )}
 
         {/* Team Tab */}
         {activeTab === 'team' && data?.isManager && (
           <TeamLeaveSection
-            pendingRequests={data.pendingLeaveRequests || []}
-            approvalHistory={data.leaveApprovalHistory || []}
+            pendingRequests={data.pendingLeaveRequests ?? []}
+            approvalHistory={data.leaveApprovalHistory ?? []}
             loading={loading}
             processingId={processingId}
             onApprove={handleApprove}
@@ -771,9 +777,9 @@ function LeavePageSkeleton() {
       />
       <div className="space-y-6">
         <Card padding="md">
-          <div className="animate-pulse h-10 bg-gray-200 rounded w-full" />
+          <div className="animate-pulse h-10 bg-muted rounded w-full" />
         </Card>
-        <div className="animate-pulse h-64 bg-gray-100 rounded-lg" />
+        <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
       </div>
     </>
   )

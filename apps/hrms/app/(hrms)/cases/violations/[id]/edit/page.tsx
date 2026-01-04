@@ -200,10 +200,10 @@ export default function EditViolationPage() {
         <div className="max-w-3xl">
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-10 bg-gray-200 rounded" />
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-10 bg-gray-200 rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
             </div>
           </Card>
         </div>
@@ -256,8 +256,8 @@ export default function EditViolationPage() {
             <FormSection title="Employee">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Employee</label>
-                  <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900">
+                  <label className="block text-sm font-medium text-foreground mb-2">Employee</label>
+                  <div className="px-4 py-3 bg-muted border border-border rounded-lg text-sm text-foreground">
                     {record.employee
                       ? `${record.employee.firstName} ${record.employee.lastName} (${record.employee.employeeId})`
                       : record.employeeId}

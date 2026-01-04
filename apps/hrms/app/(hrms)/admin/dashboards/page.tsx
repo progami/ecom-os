@@ -84,8 +84,8 @@ export default function AdminDashboardsPage() {
           showBack
         />
         <Card padding="lg">
-          <div className="flex items-center gap-3 text-sm text-gray-600">
-            <SpinnerIcon className="h-5 w-5 animate-spin text-blue-600" />
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <SpinnerIcon className="h-5 w-5 animate-spin text-accent" />
             Loading dashboards…
           </div>
         </Card>
@@ -122,7 +122,7 @@ export default function AdminDashboardsPage() {
 
       <Card padding="md" className="mb-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Ops dashboards show organization-wide metrics for HR. Your personal items and requests
             live in My Hub and Work Queue.
           </p>
@@ -137,8 +137,8 @@ export default function AdminDashboardsPage() {
           onClick={() => setTab('HR_OPS')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             tab === 'HR_OPS'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              ? 'bg-primary text-white'
+              : 'bg-card text-foreground border border-border hover:bg-muted'
           }`}
         >
           HR Ops
@@ -147,8 +147,8 @@ export default function AdminDashboardsPage() {
           onClick={() => setTab('COMPLIANCE')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             tab === 'COMPLIANCE'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              ? 'bg-primary text-white'
+              : 'bg-card text-foreground border border-border hover:bg-muted'
           }`}
         >
           Compliance
@@ -159,38 +159,38 @@ export default function AdminDashboardsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Overdue approvals
               </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {(hrOps?.overdue.leaves.count ?? 0) +
                   (hrOps?.overdue.reviews.count ?? 0) +
                   (hrOps?.overdue.violations.count ?? 0)}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Leaves, reviews, violations</p>
+              <p className="mt-1 text-sm text-muted-foreground">Leaves, reviews, violations</p>
             </Card>
             <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Ack pending
               </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {hrOps?.overdue.acknowledgements.count ?? 0}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Reviews + violations</p>
+              <p className="mt-1 text-sm text-muted-foreground">Reviews + violations</p>
             </Card>
             <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Open cases
               </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {hrOps ? sumCounts(hrOps.cases.byStatus) : 0}
               </p>
-              <p className="mt-1 text-sm text-gray-600">All statuses</p>
+              <p className="mt-1 text-sm text-muted-foreground">All statuses</p>
             </Card>
           </div>
 
           <Card padding="lg">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Overdue items</h2>
+            <h2 className="text-sm font-semibold text-foreground mb-4">Overdue items</h2>
 
             <div className="space-y-6">
               {(
@@ -202,21 +202,21 @@ export default function AdminDashboardsPage() {
                 ] as const
               ).map((section) => (
                 <div key={section.title}>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     {section.title}
                   </p>
                   {section.items.length === 0 ? (
-                    <p className="text-sm text-gray-500">No items.</p>
+                    <p className="text-sm text-muted-foreground">No items.</p>
                   ) : (
-                    <div className="divide-y divide-gray-100 rounded-lg border border-gray-100 bg-white">
+                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
                       {section.items.slice(0, 12).map((item) => (
                         <a
                           key={`${section.title}:${item.id}`}
                           href={item.href}
-                          className="block px-4 py-3 hover:bg-gray-50 transition-colors"
+                          className="block px-4 py-3 hover:bg-muted transition-colors"
                         >
-                          <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                          <p className="text-sm text-gray-600 mt-0.5">{item.subtitle}</p>
+                          <p className="text-sm font-medium text-foreground">{item.title}</p>
+                          <p className="text-sm text-muted-foreground mt-0.5">{item.subtitle}</p>
                         </a>
                       ))}
                     </div>
@@ -230,42 +230,42 @@ export default function AdminDashboardsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Policies
               </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {compliance?.policies.length ?? 0}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Active</p>
+              <p className="mt-1 text-sm text-muted-foreground">Active</p>
             </Card>
             <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Pending acknowledgements
               </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {compliance?.policies.reduce((acc, p) => acc + p.pendingCount, 0) ?? 0}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Across all policies</p>
+              <p className="mt-1 text-sm text-muted-foreground">Across all policies</p>
             </Card>
             <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Overall compliance
               </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
+              <p className="mt-2 text-2xl font-semibold text-foreground">
                 {overallCompliancePct === null ? '—' : pct(overallCompliancePct)}
               </p>
-              <p className="mt-1 text-sm text-gray-600">Applicable acknowledgements</p>
+              <p className="mt-1 text-sm text-muted-foreground">Applicable acknowledgements</p>
             </Card>
           </div>
 
           <Card padding="lg">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">
+            <h2 className="text-sm font-semibold text-foreground mb-4">
               Policy acknowledgement compliance
             </h2>
             {compliance?.policies.length ? (
-              <div className="overflow-auto border border-gray-100 rounded-lg">
+              <div className="overflow-auto border border-border rounded-lg">
                 <table className="min-w-[900px] w-full text-sm">
-                  <thead className="bg-gray-50 text-gray-600">
+                  <thead className="bg-muted text-muted-foreground">
                     <tr>
                       <th className="text-left px-4 py-3 font-semibold">Policy</th>
                       <th className="text-left px-4 py-3 font-semibold">Region</th>
@@ -275,22 +275,22 @@ export default function AdminDashboardsPage() {
                       <th className="text-right px-4 py-3 font-semibold">Compliance</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {compliance.policies.map((p) => (
-                      <tr key={p.policyId} className="bg-white">
+                      <tr key={p.policyId} className="bg-card">
                         <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{p.title}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="font-medium text-foreground">{p.title}</p>
+                          <p className="text-xs text-muted-foreground">
                             {p.category} • v{p.version}
                           </p>
                         </td>
-                        <td className="px-4 py-3 text-gray-700">{p.region}</td>
-                        <td className="px-4 py-3 text-right text-gray-700">{p.applicableCount}</td>
-                        <td className="px-4 py-3 text-right text-gray-700">
+                        <td className="px-4 py-3 text-foreground">{p.region}</td>
+                        <td className="px-4 py-3 text-right text-foreground">{p.applicableCount}</td>
+                        <td className="px-4 py-3 text-right text-foreground">
                           {p.acknowledgedCount}
                         </td>
-                        <td className="px-4 py-3 text-right text-gray-700">{p.pendingCount}</td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-900">
+                        <td className="px-4 py-3 text-right text-foreground">{p.pendingCount}</td>
+                        <td className="px-4 py-3 text-right font-medium text-foreground">
                           {pct(p.compliancePct)}
                         </td>
                       </tr>
@@ -299,7 +299,7 @@ export default function AdminDashboardsPage() {
                 </table>
               </div>
             ) : (
-              <p className="text-sm text-gray-600">No active policies found.</p>
+              <p className="text-sm text-muted-foreground">No active policies found.</p>
             )}
           </Card>
         </div>

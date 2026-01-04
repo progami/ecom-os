@@ -37,28 +37,28 @@ export function WorkQueueDashboard({ data, loading, error, selectedId, onSelect,
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card padding="md">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{meta?.totalCount ?? 0}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{meta?.totalCount ?? 0}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Action Required</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{meta?.actionRequiredCount ?? 0}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action Required</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{meta?.actionRequiredCount ?? 0}</p>
         </Card>
         <Card padding="md">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Overdue</p>
-          <p className="mt-1 text-2xl font-bold text-gray-900">{meta?.overdueCount ?? 0}</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Overdue</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{meta?.overdueCount ?? 0}</p>
         </Card>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-3">
-            <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
-            <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
-            <div className="h-24 rounded-xl bg-gray-100 animate-pulse" />
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
           </div>
           <div className="lg:col-span-2">
-            <div className="h-80 rounded-xl bg-gray-100 animate-pulse" />
+            <div className="h-80 rounded-xl bg-muted animate-pulse" />
           </div>
         </div>
       ) : (

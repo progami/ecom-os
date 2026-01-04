@@ -1,24 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ColumnDef } from '@tanstack/react-table'
 import { CasesApi, type Case } from '@/lib/api-client'
 import { ExclamationTriangleIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { SearchForm } from '@/components/ui/SearchForm'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableSkeleton,
-  ResultsCount,
-} from '@/components/ui/Table'
-import { TableEmptyState } from '@/components/ui/EmptyState'
+import { DataTable } from '@/components/ui/DataTable'
+import { ResultsCount } from '@/components/ui/Table'
+import { TableEmptyContent } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/Badge'
 import { TabButton } from '@/components/ui/TabButton'
 
@@ -34,7 +27,7 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
   const [items, setItems] = useState<Case[]>([])
   const [q, setQ] = useState(props.initialQuery ?? '')
   const [activeTab, setActiveTab] = useState<CaseTab>(() => {
-    const raw = (props.initialTab || 'ALL').toUpperCase()
+    const raw = (props.initialTab ?? 'ALL').toUpperCase()
     return CASE_TABS.includes(raw as CaseTab) ? (raw as CaseTab) : 'ALL'
   })
   const [loading, setLoading] = useState(true)
@@ -44,7 +37,7 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
       setLoading(true)
       const caseType = activeTab === 'ALL' ? undefined : activeTab
       const data = await CasesApi.list({ q, caseType })
-      setItems(data.items || [])
+      setItems(data.items)
     } catch (e) {
       console.error('Failed to load cases', e)
       setItems([])
@@ -57,20 +50,80 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
     load()
   }, [load])
 
+  const columns = useMemo<ColumnDef<Case>[]>(
+    () => [
+      {
+        accessorKey: 'caseNumber',
+        header: 'Case',
+        cell: ({ row }) => {
+          const c = row.original
+          return (
+            <div>
+              <p className="font-medium text-foreground">#{c.caseNumber} • {c.title}</p>
+              {c.subjectEmployee && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Subject: {c.subjectEmployee.firstName} {c.subjectEmployee.lastName}
+                </p>
+              )}
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'caseType',
+        header: 'Type',
+        cell: ({ getValue }) => {
+          const type = getValue<string>()
+          return <span className="text-muted-foreground capitalize">{labelCaseType(type)}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => {
+          const status = getValue<string>()
+          return <StatusBadge status={status} />
+        },
+        enableSorting: true,
+      },
+      {
+        accessorFn: (row) =>
+          row.assignedTo ? `${row.assignedTo.firstName} ${row.assignedTo.lastName}` : '',
+        id: 'assignee',
+        header: 'Assignee',
+        cell: ({ getValue }) => {
+          const value = getValue<string>()
+          return <span className="text-muted-foreground">{value || '—'}</span>
+        },
+        enableSorting: true,
+      },
+    ],
+    []
+  )
+
+  const handleRowClick = useCallback(
+    (caseItem: Case) => {
+      router.push(`/cases/${caseItem.id}`)
+    },
+    [router]
+  )
+
   return (
     <>
       <ListPageHeader
         title="Cases"
         description="HR case management and investigations"
         icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-        action={(
+        action={
           <Button
             href={activeTab === 'VIOLATION' ? '/cases/violations/add' : '/cases/add'}
             icon={<PlusIcon className="h-4 w-4" />}
           >
             {activeTab === 'VIOLATION' ? 'Raise Violation' : 'New Case'}
           </Button>
-        )}
+        }
       />
 
       <div className="space-y-6">
@@ -104,51 +157,22 @@ export function CasesClientPage(props: { initialTab?: string; initialQuery?: str
 
         <ResultsCount count={items.length} singular="case" plural="cases" loading={loading} />
 
-        <Table>
-          <TableHeader>
-            <TableHead>Case</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Assignee</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableSkeleton rows={6} columns={4} />
-            ) : items.length === 0 ? (
-              <TableEmptyState
-                colSpan={4}
-                icon={<ExclamationTriangleIcon className="h-10 w-10" />}
-                title="No cases found"
-                description="Create your first case to start tracking issues and investigations."
-                action={{ label: 'New Case', href: '/cases/add' }}
-              />
-            ) : (
-              items.map((c) => (
-                <TableRow key={c.id} onClick={() => router.push(`/cases/${c.id}`)}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">#{c.caseNumber} • {c.title}</p>
-                      {c.subjectEmployee && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          Subject: {c.subjectEmployee.firstName} {c.subjectEmployee.lastName}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-gray-600">{labelCaseType(c.caseType)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={c.status} />
-                  </TableCell>
-                  <TableCell className="text-gray-600">
-                    {c.assignedTo ? `${c.assignedTo.firstName} ${c.assignedTo.lastName}` : '—'}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          skeletonRows={6}
+          onRowClick={handleRowClick}
+          emptyState={
+            <TableEmptyContent
+              icon={<ExclamationTriangleIcon className="h-10 w-10" />}
+              title="No cases found"
+              description="Create your first case to start tracking issues and investigations."
+              action={{ label: 'New Case', href: '/cases/add' }}
+            />
+          }
+        />
       </div>
     </>
   )
 }
-

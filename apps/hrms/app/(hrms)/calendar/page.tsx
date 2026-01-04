@@ -19,15 +19,15 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 }
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  PERFORMANCE_REVIEW: 'bg-blue-100 text-blue-700 border-blue-200',
-  PROBATION_END: 'bg-amber-100 text-amber-700 border-amber-200',
+  PERFORMANCE_REVIEW: 'bg-accent/10 text-accent border-accent/20',
+  PROBATION_END: 'bg-warning-100 text-warning-700 border-warning-200',
   PIP_REVIEW: 'bg-orange-100 text-orange-700 border-orange-200',
-  DISCIPLINARY_HEARING: 'bg-red-100 text-red-700 border-red-200',
+  DISCIPLINARY_HEARING: 'bg-danger-100 text-danger-700 border-danger-200',
   INTERVIEW: 'bg-purple-100 text-purple-700 border-purple-200',
-  TRAINING: 'bg-blue-100 text-blue-700 border-blue-200',
+  TRAINING: 'bg-accent/10 text-accent border-accent/20',
   COMPANY_EVENT: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-  HOLIDAY: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  OTHER: 'bg-gray-100 text-gray-700 border-gray-200',
+  HOLIDAY: 'bg-success-100 text-success-700 border-success-200',
+  OTHER: 'bg-muted text-foreground border-border',
 }
 
 function formatDate(dateString: string, allDay?: boolean): string {
@@ -127,20 +127,20 @@ export default function HRCalendarPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <SpinnerIcon className="h-8 w-8 animate-spin text-blue-600" />
+          <SpinnerIcon className="h-8 w-8 animate-spin text-accent" />
         </div>
       ) : error ? (
         <Card padding="lg">
           <div className="text-center py-8">
-            <p className="text-red-600">{error}</p>
+            <p className="text-danger-600">{error}</p>
           </div>
         </Card>
       ) : events.length === 0 ? (
         <Card padding="lg">
           <div className="text-center py-12">
-            <CalendarIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-medium text-gray-900 mb-1">No Events</h3>
-            <p className="text-gray-500">There are no HR calendar events scheduled.</p>
+            <CalendarIcon className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+            <h3 className="text-lg font-medium text-foreground mb-1">No Events</h3>
+            <p className="text-muted-foreground">There are no HR calendar events scheduled.</p>
           </div>
         </Card>
       ) : (
@@ -148,27 +148,27 @@ export default function HRCalendarPage() {
           {/* Upcoming Events Summary */}
           {upcomingEvents.length > 0 && (
             <Card padding="lg">
-              <h2 className="text-sm font-semibold text-gray-900 mb-4">
+              <h2 className="text-sm font-semibold text-foreground mb-4">
                 Upcoming Events ({upcomingEvents.length})
               </h2>
               <div className="space-y-3">
                 {upcomingEvents.slice(0, 5).map(event => (
                   <div
                     key={event.id}
-                    className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg"
+                    className="flex items-start gap-3 p-3 bg-muted rounded-lg"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-gray-900">{event.title}</span>
+                        <span className="font-medium text-foreground">{event.title}</span>
                         <span className={`text-xs px-2 py-0.5 rounded border ${EVENT_TYPE_COLORS[event.eventType] || EVENT_TYPE_COLORS.OTHER}`}>
                           {EVENT_TYPE_LABELS[event.eventType] || event.eventType}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         {formatDateRange(event.startDate, event.endDate, event.allDay)}
                       </p>
                       {event.description && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{event.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{event.description}</p>
                       )}
                     </div>
                   </div>
@@ -179,40 +179,40 @@ export default function HRCalendarPage() {
 
           {/* All Events by Month */}
           <Card padding="lg">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">All Events</h2>
+            <h2 className="text-sm font-semibold text-foreground mb-4">All Events</h2>
             <div className="space-y-6">
               {Object.entries(groupedEvents).map(([month, monthEvents]) => (
                 <div key={month}>
-                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
                     {month}
                   </h3>
                   <div className="space-y-2">
                     {monthEvents.map(event => (
                       <div
                         key={event.id}
-                        className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted transition-colors"
                       >
                         <div className="w-12 text-center flex-shrink-0">
-                          <div className="text-lg font-bold text-gray-900">
+                          <div className="text-lg font-bold text-foreground">
                             {new Date(event.startDate).getDate()}
                           </div>
-                          <div className="text-xs text-gray-500 uppercase">
+                          <div className="text-xs text-muted-foreground uppercase">
                             {new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'short' })}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{event.title}</span>
+                            <span className="font-medium text-foreground">{event.title}</span>
                             <span className={`text-xs px-2 py-0.5 rounded border ${EVENT_TYPE_COLORS[event.eventType] || EVENT_TYPE_COLORS.OTHER}`}>
                               {EVENT_TYPE_LABELS[event.eventType] || event.eventType}
                             </span>
                           </div>
                           {event.description && (
-                            <p className="text-sm text-gray-500 truncate">{event.description}</p>
+                            <p className="text-sm text-muted-foreground truncate">{event.description}</p>
                           )}
                         </div>
                         {!event.allDay && (
-                          <div className="text-xs text-gray-500 flex-shrink-0">
+                          <div className="text-xs text-muted-foreground flex-shrink-0">
                             {new Date(event.startDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
                           </div>
                         )}

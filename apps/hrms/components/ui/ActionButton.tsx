@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { Button } from '@/components/ui/Button'
 import { LockClosedIcon } from '@/components/ui/Icons'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'default' | 'destructive' | 'outline'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 type ActionButtonProps = {
@@ -57,12 +57,11 @@ export function ActionButton({
         {label}
       </Button>
       {showReason ? (
-        <div className="flex items-start gap-1.5 text-xs text-gray-600">
-          <LockClosedIcon className="h-3.5 w-3.5 text-gray-400 mt-0.5" />
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+          <LockClosedIcon className="h-3.5 w-3.5 text-muted-foreground/60 mt-0.5" />
           <span>{disabledReason}</span>
         </div>
       ) : null}
     </div>
   )
 }
-

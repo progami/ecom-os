@@ -42,7 +42,7 @@ const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
 function RatingInput({ name, label, value, onChange }: { name: string; label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
@@ -52,13 +52,13 @@ function RatingInput({ name, label, value, onChange }: { name: string; label: st
             className="p-1 hover:scale-110 transition-transform"
           >
             {star <= value ? (
-              <StarFilledIcon className="h-6 w-6 text-amber-400" />
+              <StarFilledIcon className="h-6 w-6 text-warning-400" />
             ) : (
-              <StarIcon className="h-6 w-6 text-gray-300 hover:text-amber-300" />
+              <StarIcon className="h-6 w-6 text-muted-foreground/50 hover:text-warning-300" />
             )}
           </button>
         ))}
-        <span className="ml-2 text-sm text-gray-500">{value}/5</span>
+        <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
       </div>
       <input type="hidden" name={name} value={value} />
     </div>
@@ -341,10 +341,10 @@ export default function AddReviewPage() {
         <Suspense fallback={
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-10 bg-gray-200 rounded" />
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-10 bg-gray-200 rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
             </div>
           </Card>
         }>

@@ -48,12 +48,12 @@ export default function NoAccessPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <div className="text-sm font-semibold text-gray-900">HRMS</div>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">Access required</h1>
-          <p className="mt-2 text-sm text-gray-600">
+    <div className="min-h-screen bg-muted/50 flex items-center justify-center px-4">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-sm">
+        <div className="px-6 py-5 border-b border-border">
+          <div className="text-sm font-semibold text-foreground">HRMS</div>
+          <h1 className="mt-1 text-xl font-semibold text-foreground">Access required</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             HRMS can’t be opened for your account yet. This usually means access hasn’t been granted, or your employee
             profile is still provisioning. Request access and HR will review it.
           </p>
@@ -61,13 +61,13 @@ export default function NoAccessPage() {
 
         <div className="px-6 py-5 space-y-4">
           {me.email ? (
-            <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-700">
+            <div className="rounded-xl bg-muted/50 border border-border px-4 py-3 text-sm text-foreground">
               Signed in as <span className="font-medium">{me.name ? `${me.name} • ` : ''}{me.email}</span>
             </div>
           ) : null}
 
           {requested ? (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
+            <div className="rounded-xl bg-success-50 border border-success-200 px-4 py-3 text-sm text-success-800">
               Request sent. Check your email for updates and revisit HRMS once access is granted.
             </div>
           ) : (
@@ -75,23 +75,23 @@ export default function NoAccessPage() {
               type="button"
               onClick={requestAccess}
               disabled={requesting}
-              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
             >
               {requesting ? 'Requesting access…' : 'Request access'}
             </button>
           )}
 
           {error ? (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+            <div className="rounded-xl bg-danger-50 border border-danger-200 px-4 py-3 text-sm text-danger-800">
               {error}
             </div>
           ) : null}
 
           <div className="flex items-center justify-between text-sm">
-            <Link className="text-gray-600 hover:text-gray-900" href="/">
+            <Link className="text-muted-foreground hover:text-foreground" href="/">
               Go back
             </Link>
-            <a className="text-blue-700 hover:text-blue-800 font-medium" href="https://ecomos.targonglobal.com">
+            <a className="text-accent hover:text-primary font-medium" href="https://ecomos.targonglobal.com">
               Back to portal
             </a>
           </div>
