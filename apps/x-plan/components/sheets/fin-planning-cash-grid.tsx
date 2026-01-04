@@ -398,12 +398,12 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
           onCopy={handleCopy}
         >
           <Table
-            className="relative border-collapse table-fixed"
-            style={{ width: tableWidth, minWidth: tableWidth }}
+            className="relative border-collapse w-full"
+            style={{ minWidth: tableWidth }}
           >
             <colgroup>
               {columnConfig.map((config) => (
-                <col key={config.key} style={{ width: config.width, minWidth: config.width, maxWidth: config.width }} />
+                <col key={config.key} style={{ minWidth: config.width }} />
               ))}
             </colgroup>
             <TableHeader>
@@ -417,7 +417,6 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                     )}
                     style={{
                       left: config.sticky ? config.stickyOffset : undefined,
-                      width: config.width,
                       minWidth: config.width,
                     }}
                   >
@@ -513,9 +512,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                           )}
                           style={{
                             left: isPinned ? config.stickyOffset : undefined,
-                            width: config.width,
                             minWidth: config.width,
-                            maxWidth: config.width,
                           }}
                           onPointerDown={(e) => handlePointerDown(e, rowIndex, colIndex)}
                           onPointerMove={(e) => handlePointerMove(e, rowIndex, colIndex)}
