@@ -320,6 +320,9 @@ export function CustomPurchasePaymentsGrid({
     setIsDatePickerOpen(false)
     setEditingCell(null)
     setEditValue('')
+    requestAnimationFrame(() => {
+      tableScrollRef.current?.focus()
+    })
   }
 
   const commitEdit = useCallback((nextValue?: string) => {
@@ -491,116 +494,27 @@ export function CustomPurchasePaymentsGrid({
     scheduleMode,
   ])
 
-  const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
-    let idx = startIndex + direction
-    while (idx >= 0 && idx < COLUMNS.length) {
-      if (COLUMNS[idx].editable) return idx
-      idx += direction
-    }
-    return -1
-  }
-
-  const moveToCell = (rowIndex: number, colIndex: number) => {
-    if (rowIndex < 0 || rowIndex >= data.length) return
-    if (colIndex < 0 || colIndex >= COLUMNS.length) return
-    const column = COLUMNS[colIndex]
-    if (!column.editable) return
-    const row = data[rowIndex]
-    startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
-  }
-
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       commitEdit()
-      // Move to next row, same column
-      if (editingCell) {
-        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        if (currentRowIndex < data.length - 1) {
-          moveToCell(currentRowIndex + 1, currentColIndex)
-        }
-      }
+      moveSelection(1, 0)
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'Escape') {
       e.preventDefault()
       cancelEditing()
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     } else if (e.key === 'Tab') {
       e.preventDefault()
       commitEdit()
-      if (editingCell) {
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
-        const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
-
-        if (nextColIndex !== -1) {
-          moveToCell(currentRowIndex, nextColIndex)
-        } else if (!e.shiftKey && currentRowIndex < data.length - 1) {
-          const firstEditableColIndex = findNextEditableColumn(-1, 1)
-          if (firstEditableColIndex !== -1) {
-            moveToCell(currentRowIndex + 1, firstEditableColIndex)
-          }
-        } else if (e.shiftKey && currentRowIndex > 0) {
-          const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
-          if (lastEditableColIndex !== -1) {
-            moveToCell(currentRowIndex - 1, lastEditableColIndex)
-          }
-        }
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      commitEdit()
-      if (editingCell) {
-        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        moveToCell(currentRowIndex - 1, currentColIndex)
-      }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      commitEdit()
-      if (editingCell) {
-        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        moveToCell(currentRowIndex + 1, currentColIndex)
-      }
-    } else if (e.key === 'ArrowLeft') {
-      const input = e.currentTarget
-      if (input.selectionStart === 0 && input.selectionEnd === 0) {
-        e.preventDefault()
-        commitEdit()
-        if (editingCell) {
-          const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-          const prevColIndex = findNextEditableColumn(currentColIndex, -1)
-          if (prevColIndex !== -1) {
-            moveToCell(currentRowIndex, prevColIndex)
-          } else if (currentRowIndex > 0) {
-            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
-            if (lastEditableColIndex !== -1) {
-              moveToCell(currentRowIndex - 1, lastEditableColIndex)
-            }
-          }
-        }
-      }
-    } else if (e.key === 'ArrowRight') {
-      const input = e.currentTarget
-      const len = input.value.length
-      if (input.selectionStart === len && input.selectionEnd === len) {
-        e.preventDefault()
-        commitEdit()
-        if (editingCell) {
-          const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-          const nextColIndex = findNextEditableColumn(currentColIndex, 1)
-          if (nextColIndex !== -1) {
-            moveToCell(currentRowIndex, nextColIndex)
-          } else if (currentRowIndex < data.length - 1) {
-            const firstEditableColIndex = findNextEditableColumn(-1, 1)
-            if (firstEditableColIndex !== -1) {
-              moveToCell(currentRowIndex + 1, firstEditableColIndex)
-            }
-          }
-        }
-      }
+      moveSelectionTab(e.shiftKey ? -1 : 1)
+      requestAnimationFrame(() => {
+        tableScrollRef.current?.focus()
+      })
     }
   }
 
@@ -769,7 +683,7 @@ export function CustomPurchasePaymentsGrid({
     const rowSelected = isRowActive(row)
 
     const cellClassName = cn(
-      'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+      'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
       colIndex === 0 && rowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
       isNumericCell && 'text-right',
       isWeekLabel && 'text-center',
@@ -844,11 +758,6 @@ export function CustomPurchasePaymentsGrid({
     }
 
     const showPlaceholder = (column.type === 'date' || isScheduleDate) && !displayValue
-    const displayContent = showPlaceholder ? (
-      <span className="px-3 text-xs italic text-muted-foreground">Click to select</span>
-    ) : (
-      displayValue
-    )
 
     return (
       <TableCell
@@ -856,6 +765,7 @@ export function CustomPurchasePaymentsGrid({
         id={cellDomId(row.id, column.key)}
         className={cellClassName}
         style={{ width: column.width, minWidth: column.width }}
+        title={showPlaceholder ? undefined : displayValue || undefined}
         onClick={(event) => {
           event.stopPropagation()
           handleCellClick(row, column)
@@ -868,12 +778,23 @@ export function CustomPurchasePaymentsGrid({
       >
         <div
           className={cn(
-            'flex h-9 items-center px-3',
+            'flex h-9 min-w-0 items-center px-3',
             isNumericCell && 'justify-end',
             isWeekLabel && 'justify-center'
           )}
         >
-          {displayContent}
+          {showPlaceholder ? (
+            <span className="text-xs italic text-muted-foreground">Click to select</span>
+          ) : (
+            <span
+              className={cn(
+                'block min-w-0 truncate',
+                isWeekLabel ? 'text-center' : isNumericCell ? 'text-right tabular-nums' : 'text-left'
+              )}
+            >
+              {displayValue}
+            </span>
+          )}
         </div>
       </TableCell>
     )
