@@ -1,24 +1,23 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
+import { ColumnDef } from '@tanstack/react-table'
 import { AuditLogsApi, type AuditLog } from '@/lib/api-client'
 import { LockClosedIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableSkeleton,
-  ResultsCount,
-} from '@/components/ui/Table'
-import { TableEmptyState } from '@/components/ui/EmptyState'
+import { DataTable } from '@/components/ui/DataTable'
+import { ResultsCount } from '@/components/ui/Table'
+import { TableEmptyContent } from '@/components/ui/EmptyState'
 
 function formatWhen(isoString: string) {
-  return new Date(isoString).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(isoString).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export default function AuditLogsPage() {
@@ -29,7 +28,7 @@ export default function AuditLogsPage() {
     try {
       setLoading(true)
       const data = await AuditLogsApi.list({ take: 100 })
-      setItems(data.items || [])
+      setItems(data.items)
     } catch (e) {
       console.error('Failed to load audit logs', e)
       setItems([])
@@ -42,6 +41,59 @@ export default function AuditLogsPage() {
     load()
   }, [load])
 
+  const columns = useMemo<ColumnDef<AuditLog>[]>(
+    () => [
+      {
+        accessorKey: 'createdAt',
+        header: 'When',
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{formatWhen(getValue<string>())}</span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorFn: (row) =>
+          row.actor ? `${row.actor.firstName} ${row.actor.lastName}` : '',
+        id: 'actor',
+        header: 'Actor',
+        cell: ({ getValue }) => {
+          const value = getValue<string>()
+          return <span className="text-foreground">{value || '—'}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'action',
+        header: 'Action',
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{getValue<string>()}</span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorFn: (row) => `${row.entityType} • ${row.entityId}`,
+        id: 'entity',
+        header: 'Entity',
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">
+            {row.original.entityType} • {row.original.entityId}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'summary',
+        header: 'Summary',
+        cell: ({ getValue }) => {
+          const value = getValue<string>()
+          return <span className="text-sm text-foreground">{value || '—'}</span>
+        },
+        enableSorting: false,
+      },
+    ],
+    []
+  )
+
   return (
     <>
       <ListPageHeader
@@ -52,52 +104,27 @@ export default function AuditLogsPage() {
 
       <div className="space-y-6">
         <Card padding="md">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Use this for compliance reviews, incident investigations, and approvals traceability.
           </p>
         </Card>
 
         <ResultsCount count={items.length} singular="entry" plural="entries" loading={loading} />
 
-        <Table>
-          <TableHeader>
-            <TableHead>When</TableHead>
-            <TableHead>Actor</TableHead>
-            <TableHead>Action</TableHead>
-            <TableHead>Entity</TableHead>
-            <TableHead>Summary</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableSkeleton rows={8} columns={5} />
-            ) : items.length === 0 ? (
-              <TableEmptyState
-                colSpan={5}
-                icon={<LockClosedIcon className="h-10 w-10" />}
-                title="No audit entries"
-                description="No activity has been recorded yet."
-              />
-            ) : (
-              items.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="text-gray-600">{formatWhen(log.createdAt)}</TableCell>
-                  <TableCell className="text-gray-900">
-                    {log.actor ? `${log.actor.firstName} ${log.actor.lastName}` : '—'}
-                  </TableCell>
-                  <TableCell className="text-gray-600">{log.action}</TableCell>
-                  <TableCell className="text-gray-600">
-                    {log.entityType} • {log.entityId}
-                  </TableCell>
-                  <TableCell className="text-gray-900">
-                    <span className="text-sm">{log.summary || '—'}</span>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          skeletonRows={8}
+          emptyState={
+            <TableEmptyContent
+              icon={<LockClosedIcon className="h-10 w-10" />}
+              title="No audit entries"
+              description="No activity has been recorded yet."
+            />
+          }
+        />
       </div>
     </>
   )
 }
-

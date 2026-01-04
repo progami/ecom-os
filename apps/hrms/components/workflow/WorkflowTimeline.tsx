@@ -19,7 +19,7 @@ function formatWhen(isoString: string) {
 
 export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
   if (!items.length) {
-    return <p className="text-sm text-gray-500">No activity yet.</p>;
+    return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   }
 
   return (
@@ -30,7 +30,7 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
             {item.actor.avatarUrl ? (
               <Avatar src={item.actor.avatarUrl} alt={item.actor.name} size="sm" />
             ) : (
-              <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
+              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground">
                 {item.actor.type === 'system'
                   ? 'SYS'
                   : (item.actor.name?.slice(0, 1) || '?').toUpperCase()}
@@ -39,16 +39,16 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
           </div>
           <div className="min-w-0">
             <div className="flex items-baseline justify-between gap-3">
-              <p className="text-sm font-medium text-gray-900 truncate">{item.event}</p>
-              <p className="text-xs text-gray-500 whitespace-nowrap">{formatWhen(item.at)}</p>
+              <p className="text-sm font-medium text-foreground truncate">{item.event}</p>
+              <p className="text-xs text-muted-foreground whitespace-nowrap">{formatWhen(item.at)}</p>
             </div>
             {item.transition ? (
-              <p className="text-xs text-gray-600 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {item.transition.from} → {item.transition.to}
               </p>
             ) : null}
             {item.note ? (
-              <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{item.note}</p>
+              <p className="text-sm text-foreground mt-1 whitespace-pre-line">{item.note}</p>
             ) : null}
             {item.attachments?.length ? (
               <div className="mt-2 flex flex-col gap-1">
@@ -56,7 +56,7 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
                   <a
                     key={att.downloadHref}
                     href={att.downloadHref}
-                    className="text-xs text-blue-700 hover:underline"
+                    className="text-xs text-accent hover:underline"
                   >
                     {att.name}
                   </a>

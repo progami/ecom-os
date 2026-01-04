@@ -24,6 +24,7 @@ import { NotificationBell } from '@/components/ui/NotificationBell';
 import { NavigationHistoryProvider } from '@/lib/navigation-history';
 import { MeApi } from '@/lib/api-client';
 import { CommandPalette } from '@/components/search/CommandPalette';
+import { cn } from '@/lib/utils';
 
 interface NavItem {
   name: string;
@@ -78,10 +79,6 @@ const navigation: NavSection[] = [
   },
 ];
 
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
-}
-
 function Sidebar({
   onClose,
   isSuperAdmin,
@@ -115,21 +112,21 @@ function Sidebar({
     .filter((section) => section.items.length > 0);
 
   return (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
+    <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 shadow-md">
-            <span className="text-sm font-bold text-white">HR</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md">
+            <span className="text-sm font-bold text-primary-foreground">HR</span>
           </div>
-          <span className="text-lg font-semibold text-gray-900">HRMS</span>
+          <span className="text-lg font-semibold text-foreground">HRMS</span>
         </Link>
         <div className="flex items-center gap-2">
           <div className="hidden md:block">
             <NotificationBell />
           </div>
           {onClose && (
-            <button onClick={onClose} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
-              <XIcon className="h-5 w-5 text-gray-500" />
+            <button onClick={onClose} className="md:hidden p-2 hover:bg-muted rounded-lg">
+              <XIcon className="h-5 w-5 text-muted-foreground" />
             </button>
           )}
         </div>
@@ -140,7 +137,7 @@ function Sidebar({
           {filteredNavigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {section.title && (
-                <div className="px-3 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="px-3 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {section.title}
                 </div>
               )}
@@ -152,16 +149,16 @@ function Sidebar({
                       onClick={onClose}
                       className={cn(
                         matchesPath(item.href)
-                          ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600 -ml-px'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                          ? 'bg-accent/10 text-accent border-l-4 border-accent -ml-px'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
                         'group flex gap-x-3 rounded-lg py-3 px-3 text-sm font-medium transition-colors',
                       )}
                     >
                       <item.icon
                         className={cn(
                           matchesPath(item.href)
-                            ? 'text-blue-600'
-                            : 'text-gray-400 group-hover:text-gray-600',
+                            ? 'text-accent'
+                            : 'text-muted-foreground group-hover:text-foreground',
                           'h-5 w-5 shrink-0 transition-colors',
                         )}
                       />
@@ -193,12 +190,12 @@ function MobileNav({
 
   return (
     <div className="relative z-50 md:hidden">
-      <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-foreground/80 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 flex">
         <div className="relative mr-16 flex w-full max-w-xs flex-1">
           <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
             <button type="button" className="-m-2.5 p-2.5" onClick={onClose}>
-              <XIcon className="h-6 w-6 text-white" />
+              <XIcon className="h-6 w-6 text-primary-foreground" />
             </button>
           </div>
           <Sidebar onClose={onClose} isSuperAdmin={isSuperAdmin} isHR={isHR} />
@@ -225,15 +222,15 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
   };
 
   return (
-    <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-white px-4 py-4 border-b border-gray-200 sm:px-6 md:hidden">
+    <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-card px-4 py-4 border-b border-border sm:px-6 md:hidden">
       <button
         type="button"
-        className="-m-2 p-2 text-gray-600 hover:text-gray-900"
+        className="-m-2 p-2 text-muted-foreground hover:text-foreground"
         onClick={onMenuClick}
       >
         <MenuIcon className="h-6 w-6" />
       </button>
-      <div className="flex-1 text-base font-semibold text-gray-900">{getCurrentPageName()}</div>
+      <div className="flex-1 text-base font-semibold text-foreground">{getCurrentPageName()}</div>
       <NotificationBell />
     </div>
   );
@@ -299,22 +296,22 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
       />
 
       {/* Main Content */}
-      <div className="md:pl-64 min-h-screen flex flex-col bg-gray-50">
+      <div className="md:pl-64 min-h-screen flex flex-col bg-background">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
         <main className="flex-1">
           <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">{children}</div>
         </main>
 
-        <footer className="border-t border-gray-200 bg-white mt-auto">
+        <footer className="border-t border-border bg-card mt-auto">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               HRMS{' '}
               <a
                 href={versionHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-gray-700 transition-colors"
+                className="underline hover:text-foreground transition-colors"
               >
                 v{version}
               </a>

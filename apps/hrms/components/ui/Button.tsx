@@ -1,120 +1,125 @@
-import Link from 'next/link'
-import { SpinnerIcon } from './Icons'
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+import Link from "next/link"
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
-type ButtonSize = 'sm' | 'md' | 'lg'
+import { cn } from "@/lib/utils"
 
-type ButtonProps = {
-  children: React.ReactNode
-  variant?: ButtonVariant
-  size?: ButtonSize
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        danger: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+        brand: "bg-brand-teal-500 text-white hover:bg-brand-teal-600",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        md: "h-10 px-4 py-2",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
   href?: string
-  disabled?: boolean
   loading?: boolean
-  type?: 'button' | 'submit' | 'reset'
-  onClick?: () => void
-  className?: string
   icon?: React.ReactNode
 }
 
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-  secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500',
-  ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-500',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
-}
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, href, loading, icon, children, disabled, type = "button", ...props }, ref) => {
+    const content = (
+      <>
+        {loading ? (
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : icon ? (
+          icon
+        ) : null}
+        {children}
+      </>
+    )
 
-const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'h-9 px-4 text-sm',
-  md: 'h-11 px-5 text-sm',
-  lg: 'h-12 px-6 text-base',
-}
+    if (href && !disabled) {
+      return (
+        <Link href={href} className={cn(buttonVariants({ variant, size, className }))}>
+          {content}
+        </Link>
+      )
+    }
 
-export function Button({
-  children,
-  variant = 'primary',
-  size = 'md',
-  href,
-  disabled = false,
-  loading = false,
-  type = 'button',
-  onClick,
-  className = '',
-  icon,
-}: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
-
-  const combinedClassName = `${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`
-
-  const content = (
-    <>
-      {loading ? (
-        <SpinnerIcon className="h-4 w-4 animate-spin" />
-      ) : icon ? (
-        icon
-      ) : null}
-      {children}
-    </>
-  )
-
-  if (href && !disabled) {
+    const Comp = asChild ? Slot : "button"
     return (
-      <Link href={href} className={combinedClassName}>
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        disabled={disabled || loading}
+        type={type}
+        {...props}
+      >
         {content}
-      </Link>
+      </Comp>
     )
   }
-
-  return (
-    <button
-      type={type}
-      disabled={disabled || loading}
-      onClick={onClick}
-      className={combinedClassName}
-    >
-      {content}
-    </button>
-  )
-}
+)
+Button.displayName = "Button"
 
 // Icon button for actions like back, edit, delete
-type IconButtonProps = {
+interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   icon: React.ReactNode
-  onClick?: () => void
   href?: string
   label: string
-  variant?: 'default' | 'ghost'
-  size?: 'sm' | 'md'
-  className?: string
+  variant?: "default" | "ghost"
+  size?: "sm" | "md"
 }
 
-export function IconButton({
-  icon,
-  onClick,
-  href,
-  label,
-  variant = 'default',
-  size = 'md',
-  className = '',
-}: IconButtonProps) {
-  const sizeClasses = size === 'sm' ? 'h-9 w-9' : 'h-11 w-11'
-  const variantClasses = variant === 'ghost'
-    ? 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
-    : 'border border-gray-300 hover:bg-gray-50 text-gray-600'
+const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
+  ({ icon, href, label, variant = "default", size = "md", className, ...props }, ref) => {
+    const sizeClasses = size === "sm" ? "h-9 w-9" : "h-11 w-11"
+    const variantClasses =
+      variant === "ghost"
+        ? "hover:bg-muted text-muted-foreground hover:text-foreground"
+        : "border border-input hover:bg-muted text-muted-foreground"
 
-  const baseClasses = `flex items-center justify-center rounded-lg transition-colors ${sizeClasses} ${variantClasses} ${className}`
+    const baseClasses = cn(
+      "flex items-center justify-center rounded-lg transition-colors",
+      sizeClasses,
+      variantClasses,
+      className
+    )
 
-  if (href) {
+    if (href) {
+      return (
+        <Link href={href} className={baseClasses} aria-label={label}>
+          {icon}
+        </Link>
+      )
+    }
+
     return (
-      <Link href={href} className={baseClasses} aria-label={label}>
+      <button ref={ref} className={baseClasses} aria-label={label} {...props}>
         {icon}
-      </Link>
+      </button>
     )
   }
+)
+IconButton.displayName = "IconButton"
 
-  return (
-    <button onClick={onClick} className={baseClasses} aria-label={label}>
-      {icon}
-    </button>
-  )
-}
+export { Button, IconButton, buttonVariants }

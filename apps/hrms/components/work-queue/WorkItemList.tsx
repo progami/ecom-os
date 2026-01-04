@@ -12,9 +12,9 @@ type WorkItemListProps = {
 export function WorkItemList({ items, selectedId, onSelect }: WorkItemListProps) {
   if (!items.length) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
-        <p className="text-sm font-medium text-gray-900">You’re all caught up</p>
-        <p className="text-sm text-gray-600 mt-1">No work items are pending for you right now.</p>
+      <div className="rounded-xl border border-border bg-card p-6 text-center">
+        <p className="text-sm font-medium text-foreground">You’re all caught up</p>
+        <p className="text-sm text-muted-foreground mt-1">No work items are pending for you right now.</p>
       </div>
     )
   }

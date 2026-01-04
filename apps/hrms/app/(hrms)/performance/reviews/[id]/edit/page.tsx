@@ -66,9 +66,9 @@ function RatingInput({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+      <label className="block text-sm font-medium text-foreground mb-1.5">
         {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
+        {required && <span className="text-danger-500 ml-1">*</span>}
       </label>
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -80,13 +80,13 @@ function RatingInput({
             className={`p-1 transition-transform ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:scale-110'}`}
           >
             {star <= value ? (
-              <StarFilledIcon className="h-6 w-6 text-amber-400" />
+              <StarFilledIcon className="h-6 w-6 text-warning-400" />
             ) : (
-              <StarIcon className="h-6 w-6 text-gray-300 hover:text-amber-300" />
+              <StarIcon className="h-6 w-6 text-muted-foreground/50 hover:text-warning-300" />
             )}
           </button>
         ))}
-        <span className="ml-2 text-sm text-gray-500">{value}/5</span>
+        <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
       </div>
       <input type="hidden" name={name} value={value} />
     </div>
@@ -304,10 +304,10 @@ export default function EditReviewPage() {
         <div className="max-w-3xl">
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-10 bg-gray-200 rounded" />
-              <div className="h-4 bg-gray-200 rounded w-1/4" />
-              <div className="h-10 bg-gray-200 rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
             </div>
           </Card>
         </div>
@@ -378,10 +378,10 @@ export default function EditReviewPage() {
           <Card padding="lg" className="mb-6">
             <div className="flex items-start justify-between mb-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-foreground">
                   {review.employee?.firstName} {review.employee?.lastName}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {roleTitle} • {review.employee?.department}
                 </p>
               </div>
@@ -440,13 +440,13 @@ export default function EditReviewPage() {
                 disabled={!canEditMeta}
               />
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Manager</label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-900">
+                <label className="block text-sm font-medium text-foreground mb-1.5">Manager</label>
+                <div className="px-3 py-2 bg-muted border border-border rounded-md text-sm text-foreground">
                   {review.assignedReviewer
                     ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}`
                     : review.reviewerName}
                   {review.assignedReviewer?.position && (
-                    <span className="text-gray-500 ml-1">({review.assignedReviewer.position})</span>
+                    <span className="text-muted-foreground ml-1">({review.assignedReviewer.position})</span>
                   )}
                 </div>
               </div>
@@ -455,10 +455,10 @@ export default function EditReviewPage() {
 
           {/* Performance Ratings Card */}
           <Card padding="lg" className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Performance Ratings</h3>
+            <h3 className="text-lg font-medium text-foreground mb-4">Performance Ratings</h3>
 
             {/* Overall Rating - Highlighted */}
-            <div className="bg-amber-50 rounded-lg p-4 mb-6">
+            <div className="bg-warning-50 rounded-lg p-4 mb-6">
               <RatingInput
                 name="overallRating"
                 label="Overall Rating"
@@ -524,7 +524,7 @@ export default function EditReviewPage() {
 
           {/* Feedback Card */}
           <Card padding="lg" className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Feedback</h3>
+            <h3 className="text-lg font-medium text-foreground mb-4">Feedback</h3>
             <div className="space-y-4">
               <TextareaField
                 label="Strengths"

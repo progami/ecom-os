@@ -19,8 +19,8 @@ export function WorkItemPreviewPane({ item, onAction }: WorkItemPreviewPaneProps
   if (!item) {
     return (
       <Card padding="lg">
-        <p className="text-sm font-medium text-gray-900">Select an item</p>
-        <p className="text-sm text-gray-600 mt-1">Pick a work item from the list to see details and next actions.</p>
+        <p className="text-sm font-medium text-foreground">Select an item</p>
+        <p className="text-sm text-muted-foreground mt-1">Pick a work item from the list to see details and next actions.</p>
       </Card>
     )
   }
@@ -35,22 +35,22 @@ export function WorkItemPreviewPane({ item, onAction }: WorkItemPreviewPaneProps
             <Badge variant={item.isOverdue ? 'error' : item.isActionRequired ? 'warning' : 'default'}>
               {item.typeLabel}
             </Badge>
-            <span className="text-xs text-gray-500">{item.stageLabel}</span>
+            <span className="text-xs text-muted-foreground">{item.stageLabel}</span>
           </div>
 
-          <h2 className="mt-3 text-lg font-semibold text-gray-900">{item.title}</h2>
-          {item.description ? <p className="mt-2 text-sm text-gray-700 whitespace-pre-line">{item.description}</p> : null}
+          <h2 className="mt-3 text-lg font-semibold text-foreground">{item.title}</h2>
+          {item.description ? <p className="mt-2 text-sm text-foreground whitespace-pre-line">{item.description}</p> : null}
 
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <p className="text-xs font-medium text-gray-500">Due</p>
-              <p className={item.isOverdue ? 'text-sm font-medium text-red-700' : 'text-sm font-medium text-gray-900'}>
+              <p className="text-xs font-medium text-muted-foreground">Due</p>
+              <p className={item.isOverdue ? 'text-sm font-medium text-danger-700' : 'text-sm font-medium text-foreground'}>
                 {dueLabel}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500">Created</p>
-              <p className="text-sm font-medium text-gray-900">{formatWorkItemWhen(item.createdAt)}</p>
+              <p className="text-xs font-medium text-muted-foreground">Created</p>
+              <p className="text-sm font-medium text-foreground">{formatWorkItemWhen(item.createdAt)}</p>
             </div>
           </div>
         </div>

@@ -37,7 +37,7 @@ export function LeaveHistoryTable({ requests, loading, onCancel }: LeaveHistoryT
     return (
       <div className="animate-pulse space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 bg-gray-100 rounded-lg" />
+          <div key={i} className="h-16 bg-muted rounded-lg" />
         ))}
       </div>
     )
@@ -46,8 +46,8 @@ export function LeaveHistoryTable({ requests, loading, onCancel }: LeaveHistoryT
   if (!requests || requests.length === 0) {
     return (
       <div className="text-center py-8">
-        <CalendarDaysIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">No leave requests</p>
+        <CalendarDaysIcon className="h-10 w-10 text-muted-foreground/50 mx-auto mb-2" />
+        <p className="text-muted-foreground text-sm">No leave requests</p>
       </div>
     )
   }
@@ -57,26 +57,26 @@ export function LeaveHistoryTable({ requests, loading, onCancel }: LeaveHistoryT
       {requests.map((request) => (
         <div
           key={request.id}
-          className="p-4 bg-gray-50 rounded-lg border border-gray-100"
+          className="p-4 bg-muted/50 rounded-lg border border-border"
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-foreground">
                   {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType.replace(/_/g, ' ')}
                 </span>
                 <StatusBadge status={request.status} />
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 {formatDate(request.startDate)} — {formatDate(request.endDate)}
-                <span className="text-gray-400 mx-2">·</span>
+                <span className="text-muted-foreground mx-2">·</span>
                 {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
               </p>
               {request.reason && (
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{request.reason}</p>
+                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{request.reason}</p>
               )}
               {request.reviewedBy && (
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {request.status === 'APPROVED' ? 'Approved' : 'Reviewed'} by {request.reviewedBy.firstName} {request.reviewedBy.lastName}
                 </p>
               )}
@@ -84,7 +84,7 @@ export function LeaveHistoryTable({ requests, loading, onCancel }: LeaveHistoryT
             {request.status === 'PENDING' && onCancel && (
               <button
                 onClick={() => onCancel(request.id)}
-                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                className="p-1.5 text-muted-foreground hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-colors"
                 title="Cancel request"
               >
                 <XIcon className="h-4 w-4" />

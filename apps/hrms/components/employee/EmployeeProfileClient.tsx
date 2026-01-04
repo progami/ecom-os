@@ -388,7 +388,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       <>
         <ListPageHeader title={headerTitle} description="Loading…" icon={<UsersIcon className="h-6 w-6 text-white" />} />
         <Card padding="lg">
-          <p className="text-sm text-gray-600">Loading…</p>
+          <p className="text-sm text-muted-foreground">Loading…</p>
         </Card>
       </>
     )
@@ -404,7 +404,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           </Alert>
         ) : null}
         <Card padding="lg">
-          <p className="text-sm text-gray-600">Employee not found.</p>
+          <p className="text-sm text-muted-foreground">Employee not found.</p>
           <div className="mt-4">
             <Button href="/work" variant="secondary">
               Back to Work Queue
@@ -454,7 +454,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Card padding="md">
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">Overview</h2>
+              <h2 className="text-sm font-semibold text-foreground mb-3">Overview</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InfoRow icon={EnvelopeIcon} label="Email" value={employee.email} />
                 <InfoRow icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
@@ -470,7 +470,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
           <div className="space-y-6">
             <Card padding="md">
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">Quick actions</h2>
+              <h2 className="text-sm font-semibold text-foreground mb-3">Quick actions</h2>
               <div className="space-y-2">
                 <Button
                   variant="secondary"
@@ -494,8 +494,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
             </Card>
 
             <Card padding="md">
-              <h2 className="text-sm font-semibold text-gray-900 mb-3">Security</h2>
-              <p className="text-xs text-gray-500">
+              <h2 className="text-sm font-semibold text-foreground mb-3">Security</h2>
+              <p className="text-xs text-muted-foreground">
                 Documents are served using short-lived download links. Emails contain only a title and a link to HRMS.
               </p>
             </Card>
@@ -506,7 +506,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       {activeTab === 'job' ? (
         <div className="space-y-6">
           <Card padding="md">
-            <h2 className="text-sm font-semibold text-gray-900 mb-3">Job & Org</h2>
+            <h2 className="text-sm font-semibold text-foreground mb-3">Job & Org</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FieldRow label="Department" value={employee.department || '—'} fieldKey="department" permissions={permissions} />
               <FieldRow label="Role / title" value={employee.position} fieldKey="position" permissions={permissions} />
@@ -534,8 +534,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           <Card padding="md">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Documents</h2>
-                <p className="text-xs text-gray-500 mt-1">
+                <h2 className="text-sm font-semibold text-foreground">Documents</h2>
+                <p className="text-xs text-muted-foreground mt-1">
                   Uploads are stored securely. Email notifications include only a title + “View in HRMS” link.
                 </p>
               </div>
@@ -544,18 +544,18 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
             {isHR || isSelf ? (
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="sm:col-span-1">
-                  <label className="text-xs font-medium text-gray-700">Title (optional)</label>
+                  <label className="text-xs font-medium text-foreground">Title (optional)</label>
                   <input
-                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                    className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground"
                     value={uploadTitle}
                     onChange={(e) => setUploadTitle(e.target.value)}
                     placeholder="e.g. Offer Letter"
                   />
                 </div>
                 <div className="sm:col-span-1">
-                  <label className="text-xs font-medium text-gray-700">Visibility</label>
+                  <label className="text-xs font-medium text-foreground">Visibility</label>
                   <select
-                    className="mt-1 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                    className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground"
                     value={uploadVisibility}
                     onChange={(e) => setUploadVisibility(e.target.value as any)}
                     disabled={!isHR && isSelf}
@@ -564,12 +564,12 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                     <option value="EMPLOYEE_AND_HR">Employee + HR</option>
                   </select>
                   {!isHR && isSelf ? (
-                    <p className="text-xs text-gray-500 mt-1">Self uploads are visible to the employee and HR.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Self uploads are visible to the employee and HR.</p>
                   ) : null}
                 </div>
                 <div className="sm:col-span-1">
-                  <label className="text-xs font-medium text-gray-700">File</label>
-                  <input className="mt-1 block w-full text-sm text-gray-700" type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+                  <label className="text-xs font-medium text-foreground">File</label>
+                  <input className="mt-1 block w-full text-sm text-foreground" type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
                 </div>
 
                 <div className="sm:col-span-3 flex justify-end">
@@ -586,16 +586,16 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           </Card>
 
           <Card padding="md">
-            <h3 className="text-sm font-semibold text-gray-900">Files</h3>
+            <h3 className="text-sm font-semibold text-foreground">Files</h3>
             {filesLoading ? (
-              <p className="text-sm text-gray-600 mt-3">Loading…</p>
+              <p className="text-sm text-muted-foreground mt-3">Loading…</p>
             ) : files.length === 0 ? (
-              <p className="text-sm text-gray-600 mt-3">No documents yet.</p>
+              <p className="text-sm text-muted-foreground mt-3">No documents yet.</p>
             ) : (
               <div className="mt-3 overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="text-left text-xs text-gray-500">
+                    <tr className="text-left text-xs text-muted-foreground">
                       <th className="py-2 pr-4">Title</th>
                       <th className="py-2 pr-4">Visibility</th>
                       <th className="py-2 pr-4">Uploaded</th>
@@ -603,16 +603,16 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                       <th className="py-2 pr-0 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-border">
                     {files.map((f) => (
                       <tr key={f.id}>
                         <td className="py-3 pr-4">
-                          <div className="font-medium text-gray-900">{f.title}</div>
-                          <div className="text-xs text-gray-500">{f.fileName || '—'}</div>
+                          <div className="font-medium text-foreground">{f.title}</div>
+                          <div className="text-xs text-muted-foreground">{f.fileName || '—'}</div>
                         </td>
-                        <td className="py-3 pr-4 text-gray-700">{f.visibility === 'HR_ONLY' ? 'HR only' : 'Employee + HR'}</td>
-                        <td className="py-3 pr-4 text-gray-700">{formatDate(f.uploadedAt)}</td>
-                        <td className="py-3 pr-4 text-gray-700">{formatBytes(f.size)}</td>
+                        <td className="py-3 pr-4 text-foreground">{f.visibility === 'HR_ONLY' ? 'HR only' : 'Employee + HR'}</td>
+                        <td className="py-3 pr-4 text-foreground">{formatDate(f.uploadedAt)}</td>
+                        <td className="py-3 pr-4 text-foreground">{formatBytes(f.size)}</td>
                         <td className="py-3 pr-0 text-right">
                           <Button variant="secondary" onClick={() => downloadFile(f.id)}>
                             Download
@@ -630,23 +630,23 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
       {activeTab === 'timeline' && canViewTimeline ? (
         <Card padding="md">
-          <h2 className="text-sm font-semibold text-gray-900 mb-3">Timeline</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-3">Timeline</h2>
           {timelineLoading ? (
-            <p className="text-sm text-gray-600">Loading…</p>
+            <p className="text-sm text-muted-foreground">Loading…</p>
           ) : timelineEvents.length === 0 ? (
-            <p className="text-sm text-gray-600">No timeline events yet.</p>
+            <p className="text-sm text-muted-foreground">No timeline events yet.</p>
           ) : (
             <div className="space-y-3">
               {timelineEvents.map((event) => (
-                <div key={event.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                <div key={event.id} className="rounded-lg border border-border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-gray-900">{event.title}</div>
-                      {event.description ? <div className="text-sm text-gray-600 mt-1">{event.description}</div> : null}
-                      <div className="text-xs text-gray-500 mt-2">{new Date(event.occurredAt).toLocaleString()}</div>
+                      <div className="font-medium text-foreground">{event.title}</div>
+                      {event.description ? <div className="text-sm text-muted-foreground mt-1">{event.description}</div> : null}
+                      <div className="text-xs text-muted-foreground mt-2">{new Date(event.occurredAt).toLocaleString()}</div>
                     </div>
                     {event.href ? (
-                      <Link href={event.href} className="text-sm text-blue-700 hover:underline shrink-0">
+                      <Link href={event.href} className="text-sm text-accent hover:underline shrink-0">
                         View
                       </Link>
                     ) : null}
@@ -662,8 +662,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
         <Card padding="md">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Performance</h2>
-              <p className="text-xs text-gray-500 mt-1">Performance reviews and cycles for this employee.</p>
+              <h2 className="text-sm font-semibold text-foreground">Performance</h2>
+              <p className="text-xs text-muted-foreground mt-1">Performance reviews and cycles for this employee.</p>
             </div>
             {isHR ? (
               <Button href={`/performance/reviews/add?employeeId=${employee.id}`} icon={<ClipboardDocumentCheckIcon className="h-4 w-4" />}>
@@ -673,24 +673,24 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           </div>
 
           {reviewsLoading ? (
-            <p className="text-sm text-gray-600 mt-4">Loading…</p>
+            <p className="text-sm text-muted-foreground mt-4">Loading…</p>
           ) : reviews.length === 0 ? (
-            <p className="text-sm text-gray-600 mt-4">No performance reviews found.</p>
+            <p className="text-sm text-muted-foreground mt-4">No performance reviews found.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {reviews.map((review) => (
                 <Link
                   key={review.id}
                   href={`/performance/reviews/${review.id}`}
-                  className="block rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300"
+                  className="block rounded-lg border border-border bg-card p-4 hover:border-input"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-gray-900 truncate">{review.reviewPeriod}</div>
-                      <div className="text-sm text-gray-600">{review.reviewerName}</div>
-                      <div className="text-xs text-gray-500 mt-1">{formatDate(review.reviewDate)}</div>
+                      <div className="font-medium text-foreground truncate">{review.reviewPeriod}</div>
+                      <div className="text-sm text-muted-foreground">{review.reviewerName}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{formatDate(review.reviewDate)}</div>
                     </div>
-                    <div className="text-xs text-gray-500 shrink-0">{review.status.replaceAll('_', ' ').toLowerCase()}</div>
+                    <div className="text-xs text-muted-foreground shrink-0">{review.status.replaceAll('_', ' ').toLowerCase()}</div>
                   </div>
                 </Link>
               ))}
@@ -704,20 +704,20 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           <Card padding="md">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">Time off</h2>
-                <p className="text-xs text-gray-500 mt-1">Balances and leave history.</p>
+                <h2 className="text-sm font-semibold text-foreground">Time off</h2>
+                <p className="text-xs text-muted-foreground mt-1">Balances and leave history.</p>
               </div>
               <Button onClick={() => setShowLeaveForm(true)}>Request leave</Button>
             </div>
             <div className="mt-4">
-              {leaveLoading ? <p className="text-sm text-gray-600">Loading…</p> : <LeaveBalanceCards balances={leaveBalances} />}
+              {leaveLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : <LeaveBalanceCards balances={leaveBalances} />}
             </div>
           </Card>
 
           {showLeaveForm ? (
             <Card padding="md">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-gray-900">Request leave</h3>
+                <h3 className="text-sm font-semibold text-foreground">Request leave</h3>
                 <Button variant="secondary" onClick={() => setShowLeaveForm(false)}>
                   Cancel
                 </Button>
@@ -729,9 +729,9 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           ) : null}
 
           <Card padding="md">
-            <h3 className="text-sm font-semibold text-gray-900">History</h3>
+            <h3 className="text-sm font-semibold text-foreground">History</h3>
             <div className="mt-4">
-              {leaveLoading ? <p className="text-sm text-gray-600">Loading…</p> : <LeaveHistoryTable requests={leaveRequests} />}
+              {leaveLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : <LeaveHistoryTable requests={leaveRequests} />}
             </div>
           </Card>
         </div>
@@ -741,8 +741,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
         <Card padding="md">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-gray-900">Cases</h2>
-              <p className="text-xs text-gray-500 mt-1">Cases where this employee is the subject.</p>
+              <h2 className="text-sm font-semibold text-foreground">Cases</h2>
+              <p className="text-xs text-muted-foreground mt-1">Cases where this employee is the subject.</p>
             </div>
             {isHR ? (
               <Button href={`/cases/add?subjectEmployeeId=${employee.id}`} icon={<ExclamationTriangleIcon className="h-4 w-4" />}>
@@ -752,24 +752,24 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           </div>
 
           {casesLoading ? (
-            <p className="text-sm text-gray-600 mt-4">Loading…</p>
+            <p className="text-sm text-muted-foreground mt-4">Loading…</p>
           ) : cases.length === 0 ? (
-            <p className="text-sm text-gray-600 mt-4">No cases found.</p>
+            <p className="text-sm text-muted-foreground mt-4">No cases found.</p>
           ) : (
             <div className="mt-4 space-y-3">
               {cases.map((c) => (
-                <Link key={c.id} href={`/cases/${c.id}`} className="block rounded-lg border border-gray-200 bg-white p-4 hover:border-gray-300">
+                <Link key={c.id} href={`/cases/${c.id}`} className="block rounded-lg border border-border bg-card p-4 hover:border-input">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="font-medium text-gray-900 truncate">
+                      <div className="font-medium text-foreground truncate">
                         #{c.caseNumber} • {c.title}
                       </div>
-                      <div className="text-sm text-gray-600">{c.caseType.replaceAll('_', ' ').toLowerCase()}</div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-sm text-muted-foreground">{c.caseType.replaceAll('_', ' ').toLowerCase()}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
                         {c.status.replaceAll('_', ' ').toLowerCase()} • {String(c.severity).toLowerCase()}
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500 shrink-0">{formatDate(c.createdAt)}</div>
+                    <div className="text-xs text-muted-foreground shrink-0">{formatDate(c.createdAt)}</div>
                   </div>
                 </Link>
               ))}
@@ -792,10 +792,10 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
+      <Icon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
       <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm text-gray-900 font-medium">{value || '—'}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm text-foreground font-medium">{value || '—'}</p>
       </div>
     </div>
   )
@@ -817,23 +817,23 @@ function FieldRow({
   const reason = field?.reason as string | undefined
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-gray-500">{label}</p>
-          <p className="text-sm font-medium text-gray-900 mt-0.5 truncate">{value || '—'}</p>
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="text-sm font-medium text-foreground mt-0.5 truncate">{value || '—'}</p>
         </div>
         <span
           className={
             canEdit
-              ? 'text-xs rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5'
-              : 'text-xs rounded-full bg-gray-100 text-gray-700 px-2 py-0.5'
+              ? 'text-xs rounded-full bg-success-50 text-success-700 px-2 py-0.5'
+              : 'text-xs rounded-full bg-muted text-foreground px-2 py-0.5'
           }
         >
           {canEdit ? 'Editable' : 'Read-only'}
         </span>
       </div>
-      {!canEdit && reason ? <p className="text-xs text-gray-500 mt-2">{reason}</p> : null}
+      {!canEdit && reason ? <p className="text-xs text-muted-foreground mt-2">{reason}</p> : null}
     </div>
   )
 }

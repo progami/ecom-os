@@ -60,9 +60,9 @@ export default function PolicyWorkflowPage() {
     return (
       <Card padding="lg">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3" />
-          <div className="h-4 bg-gray-200 rounded w-2/3" />
-          <div className="h-40 bg-gray-200 rounded" />
+          <div className="h-6 bg-muted rounded w-1/3" />
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-40 bg-muted rounded" />
         </div>
       </Card>
     )
@@ -71,8 +71,8 @@ export default function PolicyWorkflowPage() {
   if (!dto) {
     return (
       <Card padding="lg">
-        <p className="text-sm font-medium text-gray-900">Policy</p>
-        <p className="text-sm text-gray-600 mt-1">{error ?? 'Not found'}</p>
+        <p className="text-sm font-medium text-foreground">Policy</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
       </Card>
     )
   }
@@ -90,15 +90,15 @@ export default function PolicyWorkflowPage() {
           <div className="space-y-6">
             {policy.summary ? (
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Summary</h3>
-                <p className="text-sm text-gray-700 whitespace-pre-line">{policy.summary}</p>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Summary</h3>
+                <p className="text-sm text-foreground whitespace-pre-line">{policy.summary}</p>
               </Card>
             ) : null}
 
             {policy.content ? (
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">Policy content</h3>
-                <div className="prose prose-sm max-w-none prose-headings:text-blue-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-blue-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-blue-50 prose-th:text-blue-900 prose-th:p-2 prose-th:border prose-th:border-blue-200 prose-td:p-2 prose-td:border prose-td:border-gray-200 prose-strong:text-blue-800 prose-a:text-blue-600 hover:prose-a:text-blue-800">
+                <h3 className="text-sm font-semibold text-foreground mb-4">Policy content</h3>
+                <div className="prose prose-sm max-w-none prose-headings:text-accent prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-accent/20 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-accent/5 prose-th:text-primary prose-th:p-2 prose-th:border prose-th:border-accent/20 prose-td:p-2 prose-td:border prose-td:border-border prose-strong:text-primary prose-a:text-accent hover:prose-a:text-primary">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {policy.content}
                   </ReactMarkdown>

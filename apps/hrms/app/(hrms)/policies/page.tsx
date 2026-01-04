@@ -1,28 +1,18 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { ColumnDef } from '@tanstack/react-table'
 import { MeApi, PoliciesApi, type Policy } from '@/lib/api-client'
-import {
-  DocumentIcon,
-  PlusIcon,
-} from '@/components/ui/Icons'
+import { DocumentIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { SearchForm } from '@/components/ui/SearchForm'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableSkeleton,
-  ResultsCount,
-} from '@/components/ui/Table'
-import { TableEmptyState } from '@/components/ui/EmptyState'
+import { DataTable } from '@/components/ui/DataTable'
+import { ResultsCount } from '@/components/ui/Table'
+import { TableEmptyContent } from '@/components/ui/EmptyState'
 
 const REGION_LABELS: Record<string, string> = {
   ALL: 'All Regions',
@@ -41,7 +31,7 @@ export default function PoliciesPage() {
     try {
       setLoading(true)
       const data = await PoliciesApi.list({ q })
-      setItems(data.items || [])
+      setItems(data.items)
     } catch (e) {
       console.error('Failed to load policies', e)
       setItems([])
@@ -59,12 +49,77 @@ export default function PoliciesPage() {
       try {
         const me = await MeApi.get()
         setCanManagePolicies(Boolean(me.isSuperAdmin || me.isHR))
-      } catch (e) {
+      } catch {
         setCanManagePolicies(false)
       }
     }
     loadPermissions()
   }, [])
+
+  const columns = useMemo<ColumnDef<Policy>[]>(
+    () => [
+      {
+        accessorKey: 'title',
+        header: 'Title',
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium text-foreground">{row.original.title}</p>
+            {row.original.summary && (
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                {row.original.summary}
+              </p>
+            )}
+          </div>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'category',
+        header: 'Category',
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{getValue<string>()}</span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'region',
+        header: 'Region',
+        cell: ({ getValue }) => {
+          const region = getValue<string>()
+          return (
+            <span className="text-muted-foreground">
+              {REGION_LABELS[region] ?? region}
+            </span>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'version',
+        header: 'Version',
+        cell: ({ getValue }) => (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+            v{getValue<number>()}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
+        enableSorting: true,
+      },
+    ],
+    []
+  )
+
+  const handleRowClick = useCallback(
+    (policy: Policy) => {
+      router.push(`/policies/${policy.id}`)
+    },
+    [router]
+  )
 
   return (
     <>
@@ -82,7 +137,6 @@ export default function PoliciesPage() {
       />
 
       <div className="space-y-6">
-        {/* Search */}
         <Card padding="md">
           <SearchForm
             value={q}
@@ -92,7 +146,6 @@ export default function PoliciesPage() {
           />
         </Card>
 
-        {/* Results count */}
         <ResultsCount
           count={items.length}
           singular="policy"
@@ -100,57 +153,20 @@ export default function PoliciesPage() {
           loading={loading}
         />
 
-        {/* Table */}
-        <Table>
-          <TableHeader>
-            <TableHead>Title</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Region</TableHead>
-            <TableHead>Version</TableHead>
-            <TableHead>Status</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableSkeleton rows={5} columns={5} />
-            ) : items.length === 0 ? (
-              <TableEmptyState
-                colSpan={5}
-                icon={<DocumentIcon className="h-10 w-10" />}
-                title="No policies found"
-                action={{
-                  label: 'Add your first policy',
-                  href: '/policies/add',
-                }}
-              />
-            ) : (
-              items.map((p) => (
-                <TableRow
-                  key={p.id}
-                  onClick={() => router.push(`/policies/${p.id}`)}
-                >
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">{p.title}</p>
-                      {p.summary && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{p.summary}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-gray-600">{p.category}</TableCell>
-                  <TableCell className="text-gray-600">{REGION_LABELS[p.region] || p.region}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                      v{p.version}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={p.status} />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          skeletonRows={5}
+          onRowClick={handleRowClick}
+          emptyState={
+            <TableEmptyContent
+              icon={<DocumentIcon className="h-10 w-10" />}
+              title="No policies found"
+              action={{ label: 'Add your first policy', href: '/policies/add' }}
+            />
+          }
+        />
       </div>
     </>
   )

@@ -127,12 +127,12 @@ export function WorkflowRecordLayout({
   if (!access.canView) {
     return (
       <Card padding="lg">
-        <h1 className="text-lg font-semibold text-gray-900">No access</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <h1 className="text-lg font-semibold text-foreground">No access</h1>
+        <p className="text-sm text-muted-foreground mt-1">
           {access.noAccessReason ?? "You don't have access to this record."}
         </p>
         <div className="mt-4">
-          <Link href={backHref} className="text-sm text-blue-700 hover:underline">
+          <Link href={backHref} className="text-sm text-accent hover:underline">
             Back
           </Link>
         </div>
@@ -142,22 +142,22 @@ export function WorkflowRecordLayout({
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
+      <div className="sticky top-0 z-30 bg-card border-b border-border">
         <div className="py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <Link
                 href={backHref}
-                className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeftIcon className="h-4 w-4" />
                 Back
               </Link>
               <div className="mt-2">
-                <h1 className="text-xl font-semibold text-gray-900 truncate">
+                <h1 className="text-xl font-semibold text-foreground truncate">
                   {toDisplayText(identity.title, 'Record')}
                 </h1>
-                <p className="text-sm text-gray-600 mt-0.5 truncate">
+                <p className="text-sm text-muted-foreground mt-0.5 truncate">
                   {toDisplayText(subject.displayName, '—')}
                   {subject.employeeId ? ` • ${toDisplayText(subject.employeeId, '')}` : ''}
                   {subject.subtitle ? ` • ${toDisplayText(subject.subtitle, '')}` : ''}
@@ -219,14 +219,14 @@ export function WorkflowRecordLayout({
                   <summary className="list-none">
                     <ActionButton label="More" variant="secondary" />
                   </summary>
-                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-lg p-2 z-10">
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-card shadow-lg p-2 z-10">
                     {actions.more.map((action) => (
                       <button
                         key={action.id}
                         className={
                           action.variant === 'danger'
-                            ? 'w-full text-left px-3 py-2 text-sm rounded-md text-red-700 hover:bg-red-50'
-                            : 'w-full text-left px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-50'
+                            ? 'w-full text-left px-3 py-2 text-sm rounded-md text-danger-700 hover:bg-danger-50'
+                            : 'w-full text-left px-3 py-2 text-sm rounded-md text-foreground hover:bg-muted/50'
                         }
                         onClick={() => {
                           if (!onAction) {
@@ -255,20 +255,20 @@ export function WorkflowRecordLayout({
                 <div
                   className={
                     stage.status === 'completed'
-                      ? 'h-2.5 w-2.5 rounded-full bg-emerald-500'
+                      ? 'h-2.5 w-2.5 rounded-full bg-success-500'
                       : stage.status === 'current'
-                        ? 'h-2.5 w-2.5 rounded-full bg-blue-600'
-                        : 'h-2.5 w-2.5 rounded-full bg-gray-300'
+                        ? 'h-2.5 w-2.5 rounded-full bg-primary'
+                        : 'h-2.5 w-2.5 rounded-full bg-border'
                   }
                 />
                 <span
                   className={
-                    stage.status === 'upcoming' ? 'text-xs text-gray-500' : 'text-xs text-gray-900'
+                    stage.status === 'upcoming' ? 'text-xs text-muted-foreground' : 'text-xs text-foreground'
                   }
                 >
                   {toDisplayText(stage.label, '—')}
                 </span>
-                {idx < stages.length - 1 ? <div className="w-8 h-px bg-gray-200" /> : null}
+                {idx < stages.length - 1 ? <div className="w-8 h-px bg-muted" /> : null}
               </div>
             ))}
           </div>
@@ -281,10 +281,10 @@ export function WorkflowRecordLayout({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {summary.map((row, idx) => (
                 <div key={`${toDisplayText(row.label, 'Field')}-${idx}`}>
-                  <p className="text-xs font-medium text-gray-500">
+                  <p className="text-xs font-medium text-muted-foreground">
                     {toDisplayText(row.label, 'Field')}
                   </p>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">
+                  <p className="text-sm font-medium text-foreground mt-0.5">
                     {toDisplayText(row.value, '—')}
                   </p>
                 </div>
@@ -297,7 +297,7 @@ export function WorkflowRecordLayout({
 
         <div className="space-y-6">
           <Card padding="md">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Timeline</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Timeline</h3>
             <WorkflowTimeline items={timeline} />
           </Card>
         </div>

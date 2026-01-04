@@ -54,8 +54,8 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
   if (!history || history.length === 0) {
     return (
       <div className="text-center py-6">
-        <CalendarDaysIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-        <p className="text-gray-500 text-sm">No approval history yet</p>
+        <CalendarDaysIcon className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+        <p className="text-muted-foreground text-sm">No approval history yet</p>
       </div>
     )
   }
@@ -65,7 +65,7 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
       {history.map((item) => (
         <div
           key={item.id}
-          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+          className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
         >
           <Avatar
             src={item.employee.avatar}
@@ -74,32 +74,32 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-medium text-foreground">
                 {item.employee.firstName} {item.employee.lastName}
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-muted-foreground">
                 {LEAVE_TYPE_LABELS[item.leaveType] || item.leaveType}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>{formatDateRange(item.startDate, item.endDate)}</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-muted-foreground/50">·</span>
               <span>{item.totalDays} day{item.totalDays !== 1 ? 's' : ''}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {item.status === 'APPROVED' ? (
-              <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
+              <span className="flex items-center gap-1 text-xs font-medium text-success-600 bg-success-50 px-2 py-1 rounded">
                 <CheckIcon className="h-3 w-3" />
                 Approved
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded">
+              <span className="flex items-center gap-1 text-xs font-medium text-danger-600 bg-danger-50 px-2 py-1 rounded">
                 <XIcon className="h-3 w-3" />
                 Rejected
               </span>
             )}
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground">
               {formatRelativeTime(item.reviewedAt)}
             </span>
           </div>

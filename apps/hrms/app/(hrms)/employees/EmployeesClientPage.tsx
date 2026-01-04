@@ -1,23 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { ColumnDef } from '@tanstack/react-table'
 import { EmployeesApi, type Employee } from '@/lib/api-client'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { SearchForm } from '@/components/ui/SearchForm'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableSkeleton,
-  ResultsCount,
-} from '@/components/ui/Table'
+import { DataTable } from '@/components/ui/DataTable'
+import { ResultsCount } from '@/components/ui/Table'
 import { UsersIcon } from '@/components/ui/Icons'
-import { TableEmptyState } from '@/components/ui/EmptyState'
+import { TableEmptyContent } from '@/components/ui/EmptyState'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatusBadge } from '@/components/ui/Badge'
 
@@ -26,6 +20,7 @@ function fullName(emp: Pick<Employee, 'firstName' | 'lastName'>) {
 }
 
 export function EmployeesClientPage(props: { initialQuery?: string }) {
+  const router = useRouter()
   const [items, setItems] = useState<Employee[]>([])
   const [q, setQ] = useState(props.initialQuery ?? '')
   const [loading, setLoading] = useState(true)
@@ -34,7 +29,7 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
     try {
       setLoading(true)
       const data = await EmployeesApi.list({ q })
-      setItems(data.items || [])
+      setItems(data.items)
     } catch (e) {
       console.error('Failed to load employees', e)
       setItems([])
@@ -46,6 +41,82 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
   useEffect(() => {
     load()
   }, [load])
+
+  const columns = useMemo<ColumnDef<Employee>[]>(
+    () => [
+      {
+        accessorKey: 'firstName',
+        header: 'Employee',
+        cell: ({ row }) => {
+          const emp = row.original
+          return (
+            <div className="flex items-center gap-3">
+              <Avatar src={emp.avatar} alt={fullName(emp)} size="sm" />
+              <div className="min-w-0">
+                <div className="font-medium text-foreground truncate">{fullName(emp)}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {emp.employeeId} • {emp.email}
+                </div>
+              </div>
+            </div>
+          )
+        },
+        enableSorting: true,
+      },
+      {
+        accessorFn: (row) => row.department ?? row.dept?.name ?? '',
+        id: 'department',
+        header: 'Department',
+        cell: ({ getValue }) => {
+          const value = getValue<string>()
+          return <span className="text-muted-foreground">{value || '—'}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'position',
+        header: 'Role',
+        cell: ({ getValue }) => {
+          const value = getValue<string>()
+          return <span className="text-muted-foreground">{value || '—'}</span>
+        },
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ getValue }) => {
+          const status = getValue<string>()
+          return <StatusBadge status={status} />
+        },
+        enableSorting: true,
+      },
+      {
+        id: 'actions',
+        header: 'Profile',
+        meta: { align: 'right' as const },
+        cell: ({ row }) => (
+          <Button
+            variant="secondary"
+            size="sm"
+            href={`/employees/${row.original.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            Profile
+          </Button>
+        ),
+        enableSorting: false,
+      },
+    ],
+    []
+  )
+
+  const handleRowClick = useCallback(
+    (employee: Employee) => {
+      router.push(`/employees/${employee.id}`)
+    },
+    [router]
+  )
 
   return (
     <>
@@ -67,53 +138,20 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
 
         <ResultsCount count={items.length} singular="employee" plural="employees" loading={loading} />
 
-        <Table>
-          <TableHeader>
-            <TableHead>Employee</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead align="right">Profile</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableSkeleton rows={6} columns={5} />
-            ) : items.length === 0 ? (
-              <TableEmptyState
-                colSpan={5}
-                icon={<UsersIcon className="h-10 w-10" />}
-                title="No employees found"
-                description="Try a different search term."
-              />
-            ) : (
-              items.map((emp) => (
-                <TableRow key={emp.id} hoverable={false}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar src={emp.avatar} alt={fullName(emp)} size="sm" />
-                      <div className="min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{fullName(emp)}</div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {emp.employeeId} • {emp.email}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-gray-700">{emp.department || emp.dept?.name || '—'}</TableCell>
-                  <TableCell className="text-gray-700">{emp.position || '—'}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={emp.status} />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button variant="secondary" size="sm" href={`/employees/${emp.id}`}>
-                      Profile
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={columns}
+          data={items}
+          loading={loading}
+          skeletonRows={6}
+          onRowClick={handleRowClick}
+          emptyState={
+            <TableEmptyContent
+              icon={<UsersIcon className="h-10 w-10" />}
+              title="No employees found"
+              description="Try a different search term."
+            />
+          }
+        />
       </div>
     </>
   )
