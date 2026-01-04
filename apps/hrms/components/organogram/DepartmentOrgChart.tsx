@@ -86,15 +86,15 @@ function DepartmentCard({
     <div
       className={`relative flex flex-col rounded-lg p-3 min-w-[180px] max-w-[200px] transition-all duration-200 ${
         isRoot
-          ? 'border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-white shadow-md'
+          ? 'border-2 border-accent bg-gradient-to-br from-accent/5 to-card shadow-md'
           : hasHead
-            ? 'border border-gray-200 bg-white shadow-sm hover:shadow-md'
-            : 'border border-dashed border-gray-300 bg-gray-50'
+            ? 'border border-border bg-card shadow-sm hover:shadow-md'
+            : 'border border-dashed border-input bg-muted/50'
       }`}
       data-department-id={node.id}
     >
       {/* Department Name */}
-      <h3 className={`font-semibold text-center leading-tight mb-2 ${isRoot ? 'text-blue-900 text-sm' : 'text-gray-800 text-xs'}`}>
+      <h3 className={`font-semibold text-center leading-tight mb-2 ${isRoot ? 'text-primary text-sm' : 'text-foreground text-xs'}`}>
         {node.name}
       </h3>
 
@@ -102,7 +102,7 @@ function DepartmentCard({
       {node.head ? (
         <Link
           href={`/employees/${node.head.id}`}
-          className="flex items-center gap-2 p-1.5 bg-blue-50 rounded-md border border-blue-100 mb-1.5 hover:bg-blue-100 transition-colors"
+          className="flex items-center gap-2 p-1.5 bg-accent/5 rounded-md border border-accent/20 mb-1.5 hover:bg-accent/10 transition-colors"
         >
           <Avatar
             src={node.head.avatar}
@@ -110,16 +110,16 @@ function DepartmentCard({
             size="sm"
           />
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-gray-900 truncate">
+            <p className="text-[11px] font-semibold text-foreground truncate">
               {node.head.firstName} {node.head.lastName}
             </p>
-            <p className="text-[9px] text-blue-600 font-medium truncate">
+            <p className="text-[9px] text-accent font-medium truncate">
               Head{node.head.employmentType ? ` • ${formatEmploymentType(node.head.employmentType)}` : ''}
             </p>
           </div>
         </Link>
       ) : (
-        <div className="flex items-center justify-center gap-1 p-1.5 text-gray-400 text-[10px] mb-1.5">
+        <div className="flex items-center justify-center gap-1 p-1.5 text-muted-foreground text-[10px] mb-1.5">
           <UsersIcon className="h-3 w-3" />
           <span>No head</span>
         </div>
@@ -127,14 +127,14 @@ function DepartmentCard({
 
       {/* Team Members - compact list */}
       {otherMembers.length > 0 && (
-        <div className="border-t border-gray-100 pt-1.5 mt-1">
-          <p className="text-[9px] text-gray-400 uppercase tracking-wider font-medium mb-1">Members</p>
+        <div className="border-t border-border pt-1.5 mt-1">
+          <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium mb-1">Members</p>
           <div className="space-y-0.5">
             {otherMembers.map((emp) => (
               <Link
                 key={emp.id}
                 href={`/employees/${emp.id}`}
-                className="flex items-center gap-1.5 p-1 rounded hover:bg-gray-50 transition-colors group"
+                className="flex items-center gap-1.5 p-1 rounded hover:bg-muted/50 transition-colors group"
               >
                 <Avatar
                   src={emp.avatar}
@@ -142,10 +142,10 @@ function DepartmentCard({
                   size="sm"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-medium text-gray-700 group-hover:text-blue-600 truncate">
+                  <p className="text-[10px] font-medium text-foreground group-hover:text-accent truncate">
                     {emp.firstName} {emp.lastName}
                   </p>
-                  <p className="text-[8px] text-gray-400 truncate">
+                  <p className="text-[8px] text-muted-foreground truncate">
                     {emp.position}{emp.employmentType ? ` • ${formatEmploymentType(emp.employmentType)}` : ''}
                   </p>
                 </div>
@@ -156,19 +156,19 @@ function DepartmentCard({
       )}
 
       {members.length === 0 && !node.head && (
-        <p className="text-[9px] text-gray-400 text-center py-1">No members</p>
+        <p className="text-[9px] text-muted-foreground text-center py-1">No members</p>
       )}
 
       {/* Expand/collapse button */}
       {hasChildren && (
         <button
           onClick={onToggle}
-          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 hover:border-gray-300 transition-colors z-10"
+          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-card border border-border shadow-sm flex items-center justify-center hover:bg-muted/50 hover:border-input transition-colors z-10"
         >
           {isExpanded ? (
-            <MinusIcon className="h-2.5 w-2.5 text-gray-500" />
+            <MinusIcon className="h-2.5 w-2.5 text-muted-foreground" />
           ) : (
-            <PlusIcon className="h-2.5 w-2.5 text-gray-500" />
+            <PlusIcon className="h-2.5 w-2.5 text-muted-foreground" />
           )}
         </button>
       )}
@@ -207,12 +207,12 @@ function DeptTreeNode({
       {hasChildren && isExpanded && (
         <div className="flex flex-col items-center mt-10">
           {/* Vertical line down from parent */}
-          <div className="w-0.5 h-8 bg-gradient-to-b from-blue-300 to-gray-300 rounded-full" />
+          <div className="w-0.5 h-8 bg-gradient-to-b from-accent/50 to-border rounded-full" />
 
           {/* Horizontal connector line */}
           {node.childDepts.length > 1 && (
             <div
-              className="h-0.5 bg-gray-300 rounded-full"
+              className="h-0.5 bg-border rounded-full"
               style={{
                 width: `calc(${(node.childDepts.length - 1) * 220}px)`,
                 marginBottom: '-1px'
@@ -225,7 +225,7 @@ function DeptTreeNode({
             {node.childDepts.map((child) => (
               <div key={child.id} className="flex flex-col items-center">
                 {/* Vertical line to child */}
-                <div className="w-0.5 h-8 bg-gray-300 rounded-full mb-2" />
+                <div className="w-0.5 h-8 bg-border rounded-full mb-2" />
                 <DeptTreeNode
                   node={child}
                   expandedNodes={expandedNodes}
@@ -288,12 +288,12 @@ export function DepartmentOrgChart({ departments }: Props) {
 
   if (departments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-          <UsersIcon className="h-8 w-8 text-gray-400" />
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <UsersIcon className="h-8 w-8 text-muted-foreground" />
         </div>
-        <p className="text-lg font-medium text-gray-700">No departments found</p>
-        <p className="text-sm mt-2 text-gray-500">Create departments and assign heads to see the organization structure.</p>
+        <p className="text-lg font-medium text-foreground">No departments found</p>
+        <p className="text-sm mt-2 text-muted-foreground">Create departments and assign heads to see the organization structure.</p>
       </div>
     )
   }
@@ -304,14 +304,14 @@ export function DepartmentOrgChart({ departments }: Props) {
       <div className="flex items-center justify-end gap-2">
         <button
           onClick={expandAll}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
         >
           <PlusIcon className="h-4 w-4" />
           Expand All
         </button>
         <button
           onClick={collapseAll}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
         >
           <MinusIcon className="h-4 w-4" />
           Collapse All

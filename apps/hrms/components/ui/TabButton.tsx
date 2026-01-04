@@ -18,14 +18,14 @@ export function TabButton({
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
         active
-          ? 'bg-blue-50 text-blue-700'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          ? 'bg-accent/5 text-accent'
+          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
       }`}
     >
       <Icon className="h-4 w-4" />
       {children}
       {badge !== undefined && badge > 0 && (
-        <span className="px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
+        <span className="px-1.5 py-0.5 text-xs font-semibold bg-warning-100 text-warning-700 rounded-full">
           {badge}
         </span>
       )}

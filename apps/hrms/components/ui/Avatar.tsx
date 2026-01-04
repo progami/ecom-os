@@ -41,7 +41,7 @@ export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarPro
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-blue-100 flex items-center justify-center font-medium text-blue-700 ${className}`}
+      className={`${sizeClass} rounded-full bg-accent/10 flex items-center justify-center font-medium text-accent ${className}`}
     >
       {initials || '?'}
     </div>

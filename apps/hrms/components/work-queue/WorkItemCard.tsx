@@ -37,16 +37,16 @@ export function WorkItemCard({ item, selected = false, onSelect }: WorkItemCardP
       type="button"
       onClick={onSelect}
       className={cn(
-        'w-full text-left rounded-xl border shadow-sm bg-white px-4 py-4 transition-colors',
-        selected ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+        'w-full text-left rounded-xl border shadow-sm bg-card px-4 py-4 transition-colors',
+        selected ? 'border-accent ring-2 ring-accent/20' : 'border-border hover:border-input'
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold text-gray-600">{item.typeLabel}</p>
-            <span className="text-xs text-gray-400">•</span>
-            <p className="text-xs text-gray-600">{item.stageLabel}</p>
+            <p className="text-xs font-semibold text-muted-foreground">{item.typeLabel}</p>
+            <span className="text-xs text-muted-foreground">•</span>
+            <p className="text-xs text-muted-foreground">{item.stageLabel}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -56,18 +56,18 @@ export function WorkItemCard({ item, selected = false, onSelect }: WorkItemCardP
       </div>
 
       <div className="mt-2">
-        <p className="text-sm font-semibold text-gray-900 line-clamp-2">{item.title}</p>
+        <p className="text-sm font-semibold text-foreground line-clamp-2">{item.title}</p>
         {item.description ? (
-          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{item.description}</p>
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{item.description}</p>
         ) : null}
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className={cn('text-xs', item.isOverdue ? 'text-red-700 font-medium' : 'text-gray-500')}>{dueLabel}</p>
+        <p className={cn('text-xs', item.isOverdue ? 'text-danger-700 font-medium' : 'text-muted-foreground')}>{dueLabel}</p>
         {item.isActionRequired ? (
-          <span className="text-xs font-semibold text-blue-700">Action required</span>
+          <span className="text-xs font-semibold text-accent">Action required</span>
         ) : (
-          <span className="text-xs text-gray-500">FYI</span>
+          <span className="text-xs text-muted-foreground">FYI</span>
         )}
       </div>
     </button>

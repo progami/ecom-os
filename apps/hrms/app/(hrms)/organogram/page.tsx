@@ -132,7 +132,7 @@ function OrganogramContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <SpinnerIcon className="h-8 w-8 animate-spin text-blue-600" />
+        <SpinnerIcon className="h-8 w-8 animate-spin text-accent" />
       </div>
     )
   }
@@ -154,13 +154,13 @@ function OrganogramContent() {
       <div className="mb-6 space-y-4">
         {/* View Mode Toggle & Refresh */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+          <div className="flex items-center gap-2 p-1 bg-muted rounded-lg w-fit">
           <button
             onClick={() => setViewMode('person')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               viewMode === 'person'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <UsersIcon className="h-4 w-4" />
@@ -170,8 +170,8 @@ function OrganogramContent() {
             onClick={() => setViewMode('department')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               viewMode === 'department'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <BuildingIcon className="h-4 w-4" />
@@ -181,8 +181,8 @@ function OrganogramContent() {
             onClick={() => setViewMode('project')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               viewMode === 'project'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <FolderIcon className="h-4 w-4" />
@@ -193,14 +193,14 @@ function OrganogramContent() {
           {/* Refresh Button */}
           <div className="flex items-center gap-3">
             {lastUpdated && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-muted-foreground">
                 Updated {lastUpdated.toLocaleTimeString()}
               </span>
             )}
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors disabled:opacity-50"
             >
               <RefreshIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -210,7 +210,7 @@ function OrganogramContent() {
 
         {/* Search */}
         <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <input
             type="text"
             placeholder={
@@ -222,19 +222,19 @@ function OrganogramContent() {
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-10 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full"
             >
-              <XIcon className="h-4 w-4 text-gray-400" />
+              <XIcon className="h-4 w-4 text-muted-foreground" />
             </button>
           )}
         </div>
         {searchQuery && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Showing{' '}
             {viewMode === 'person'
               ? filteredEmployees.length
@@ -285,7 +285,7 @@ export default function OrganogramPage() {
       <Suspense
         fallback={
           <div className="flex items-center justify-center h-64">
-            <SpinnerIcon className="h-8 w-8 animate-spin text-blue-600" />
+            <SpinnerIcon className="h-8 w-8 animate-spin text-accent" />
           </div>
         }
       >

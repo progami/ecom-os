@@ -63,9 +63,9 @@ export default function LeaveRequestWorkflowPage() {
     return (
       <Card padding="lg">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3" />
-          <div className="h-4 bg-gray-200 rounded w-2/3" />
-          <div className="h-40 bg-gray-200 rounded" />
+          <div className="h-6 bg-muted rounded w-1/3" />
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-40 bg-muted rounded" />
         </div>
       </Card>
     )
@@ -74,8 +74,8 @@ export default function LeaveRequestWorkflowPage() {
   if (!dto) {
     return (
       <Card padding="lg">
-        <p className="text-sm font-medium text-gray-900">Leave request</p>
-        <p className="text-sm text-gray-600 mt-1">{error ?? 'Not found'}</p>
+        <p className="text-sm font-medium text-foreground">Leave request</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
       </Card>
     )
   }
@@ -92,44 +92,44 @@ export default function LeaveRequestWorkflowPage() {
         {leave ? (
           <div className="space-y-6">
             <Card padding="lg">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Request details</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Request details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Leave type</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{leave.leaveType?.replaceAll('_', ' ')?.toLowerCase() || '—'}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Leave type</p>
+                  <p className="text-sm text-foreground mt-0.5">{leave.leaveType?.replaceAll('_', ' ')?.toLowerCase() || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Total days</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{String(leave.totalDays ?? '—')}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Total days</p>
+                  <p className="text-sm text-foreground mt-0.5">{String(leave.totalDays ?? '—')}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Start date</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{formatDate(leave.startDate)}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Start date</p>
+                  <p className="text-sm text-foreground mt-0.5">{formatDate(leave.startDate)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500">End date</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{formatDate(leave.endDate)}</p>
+                  <p className="text-xs font-medium text-muted-foreground">End date</p>
+                  <p className="text-sm text-foreground mt-0.5">{formatDate(leave.endDate)}</p>
                 </div>
                 <div className="sm:col-span-2">
-                  <p className="text-xs font-medium text-gray-500">Reason</p>
-                  <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{leave.reason || '—'}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Reason</p>
+                  <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">{leave.reason || '—'}</p>
                 </div>
               </div>
             </Card>
 
             {leave.reviewedAt || leave.reviewNotes ? (
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Decision</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Decision</h3>
                 <div className="space-y-2 text-sm">
                   {leave.reviewedAt ? (
                     <div>
-                      <p className="text-xs font-medium text-gray-500">Reviewed at</p>
-                      <p className="text-sm text-gray-900 mt-0.5">{formatDate(leave.reviewedAt)}</p>
+                      <p className="text-xs font-medium text-muted-foreground">Reviewed at</p>
+                      <p className="text-sm text-foreground mt-0.5">{formatDate(leave.reviewedAt)}</p>
                     </div>
                   ) : null}
                   <div>
-                    <p className="text-xs font-medium text-gray-500">Notes</p>
-                    <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{leave.reviewNotes || '—'}</p>
+                    <p className="text-xs font-medium text-muted-foreground">Notes</p>
+                    <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">{leave.reviewNotes || '—'}</p>
                   </div>
                 </div>
               </Card>

@@ -25,19 +25,19 @@ function RatingDisplay({ label, value }: { label: string; value: number | null |
   const hasRating = value != null && value > 0;
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-gray-600">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       {hasRating ? (
         <div className="flex items-center gap-0.5">
           {[1, 2, 3, 4, 5].map((star) => (
             <StarFilledIcon
               key={star}
-              className={`h-4 w-4 ${star <= (value ?? 0) ? 'text-amber-400' : 'text-gray-200'}`}
+              className={`h-4 w-4 ${star <= (value ?? 0) ? 'text-warning-400' : 'text-muted'}`}
             />
           ))}
-          <span className="ml-2 text-sm font-medium text-gray-700">{value}/5</span>
+          <span className="ml-2 text-sm font-medium text-foreground">{value}/5</span>
         </div>
       ) : (
-        <span className="text-sm text-gray-400">Not rated</span>
+        <span className="text-sm text-muted-foreground">Not rated</span>
       )}
     </div>
   );
@@ -102,9 +102,9 @@ export default function PerformanceReviewWorkflowPage() {
     return (
       <Card padding="lg">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/3" />
-          <div className="h-4 bg-gray-200 rounded w-2/3" />
-          <div className="h-40 bg-gray-200 rounded" />
+          <div className="h-6 bg-muted rounded w-1/3" />
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-40 bg-muted rounded" />
         </div>
       </Card>
     );
@@ -113,8 +113,8 @@ export default function PerformanceReviewWorkflowPage() {
   if (!dto) {
     return (
       <Card padding="lg">
-        <p className="text-sm font-medium text-gray-900">Performance review</p>
-        <p className="text-sm text-gray-600 mt-1">{error ?? 'Not found'}</p>
+        <p className="text-sm font-medium text-foreground">Performance review</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
       </Card>
     );
   }
@@ -160,29 +160,29 @@ export default function PerformanceReviewWorkflowPage() {
             </div>
 
             <Card padding="lg">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Review details</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">Review details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Review type</p>
-                  <p className="text-sm text-gray-900 mt-0.5">
+                  <p className="text-xs font-medium text-muted-foreground">Review type</p>
+                  <p className="text-sm text-foreground mt-0.5">
                     {review.reviewType?.replaceAll('_', ' ') || '—'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Period</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{review.reviewPeriod || '—'}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Period</p>
+                  <p className="text-sm text-foreground mt-0.5">{review.reviewPeriod || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Role</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{review.roleTitle || '—'}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Role</p>
+                  <p className="text-sm text-foreground mt-0.5">{review.roleTitle || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500">Review date</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{formatDate(review.reviewDate)}</p>
+                  <p className="text-xs font-medium text-muted-foreground">Review date</p>
+                  <p className="text-sm text-foreground mt-0.5">{formatDate(review.reviewDate)}</p>
                 </div>
                 <div className="sm:col-span-2">
-                  <p className="text-xs font-medium text-gray-500">Manager</p>
-                  <p className="text-sm text-gray-900 mt-0.5">
+                  <p className="text-xs font-medium text-muted-foreground">Manager</p>
+                  <p className="text-sm text-foreground mt-0.5">
                     {review.assignedReviewer
                       ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}${review.assignedReviewer.position ? ` (${review.assignedReviewer.position})` : ''}`
                       : review.reviewerName}
@@ -192,8 +192,8 @@ export default function PerformanceReviewWorkflowPage() {
             </Card>
 
             <Card padding="lg">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Ratings</h3>
-              <div className="divide-y divide-gray-100">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Ratings</h3>
+              <div className="divide-y divide-border">
                 <RatingDisplay label="Overall" value={review.overallRating} />
                 <RatingDisplay label="Quality of work" value={review.qualityOfWork} />
                 <RatingDisplay label="Productivity" value={review.productivity} />
@@ -206,36 +206,36 @@ export default function PerformanceReviewWorkflowPage() {
 
             {review.strengths || review.areasToImprove || review.goals || review.comments ? (
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Feedback</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Feedback</h3>
                 <div className="space-y-4 text-sm">
                   {review.strengths ? (
                     <div>
-                      <p className="text-xs font-medium text-gray-500">Strengths</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                      <p className="text-xs font-medium text-muted-foreground">Strengths</p>
+                      <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">
                         {review.strengths}
                       </p>
                     </div>
                   ) : null}
                   {review.areasToImprove ? (
                     <div>
-                      <p className="text-xs font-medium text-gray-500">Areas to improve</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                      <p className="text-xs font-medium text-muted-foreground">Areas to improve</p>
+                      <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">
                         {review.areasToImprove}
                       </p>
                     </div>
                   ) : null}
                   {review.goals ? (
                     <div>
-                      <p className="text-xs font-medium text-gray-500">Goals</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                      <p className="text-xs font-medium text-muted-foreground">Goals</p>
+                      <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">
                         {review.goals}
                       </p>
                     </div>
                   ) : null}
                   {review.comments ? (
                     <div>
-                      <p className="text-xs font-medium text-gray-500">Additional comments</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                      <p className="text-xs font-medium text-muted-foreground">Additional comments</p>
+                      <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">
                         {review.comments}
                       </p>
                     </div>

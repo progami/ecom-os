@@ -26,9 +26,9 @@ function getNotificationIcon(type: string) {
     case 'POLICY_CREATED':
     case 'POLICY_UPDATED':
     case 'POLICY_ARCHIVED':
-      return <DocumentIcon className="h-5 w-5 text-blue-600" />
+      return <DocumentIcon className="h-5 w-5 text-accent" />
     default:
-      return <BellIcon className="h-5 w-5 text-gray-600" />
+      return <BellIcon className="h-5 w-5 text-muted-foreground" />
   }
 }
 
@@ -115,92 +115,92 @@ export function NotificationBell() {
   const dropdown = isOpen && typeof document !== 'undefined' ? createPortal(
     <div
       ref={dropdownRef}
-      className="fixed w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]"
+      className="fixed w-80 sm:w-96 bg-card rounded-lg shadow-xl border border-border z-[9999]"
       style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
     >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h3 className="font-semibold text-gray-900">Notifications</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <h3 className="font-semibold text-foreground">Notifications</h3>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              className="text-xs text-accent hover:text-accent font-medium"
             >
               Mark all read
             </button>
           )}
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1 hover:bg-gray-100 rounded"
+            className="p-1 hover:bg-muted rounded"
           >
-            <XIcon className="h-4 w-4 text-gray-400" />
+            <XIcon className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
       </div>
 
       <div className="max-h-96 overflow-y-auto">
         {loading && notifications.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 text-sm">Loading...</div>
+          <div className="p-4 text-center text-muted-foreground text-sm">Loading...</div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center">
-            <BellIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No notifications yet</p>
+            <BellIcon className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+            <p className="text-muted-foreground text-sm">No notifications yet</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
+          <ul className="divide-y divide-border">
             {notifications.map((notification) => (
               <li key={notification.id}>
                 {notification.link ? (
                   <Link
                     href={notification.link}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${
-                      !notification.isRead ? 'bg-blue-50/50' : ''
+                    className={`flex gap-3 px-4 py-3 hover:bg-muted/50 transition-colors ${
+                      !notification.isRead ? 'bg-accent/5/50' : ''
                     }`}
                   >
                     <div className="flex-shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!notification.isRead ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                      <p className={`text-sm ${!notification.isRead ? 'font-medium text-foreground' : 'text-foreground'}`}>
                         {notification.title}
                       </p>
-                      <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {formatTimeAgo(notification.createdAt)}
                       </p>
                     </div>
                     {!notification.isRead && (
                       <div className="flex-shrink-0">
-                        <span className="h-2 w-2 rounded-full bg-blue-500 block" />
+                        <span className="h-2 w-2 rounded-full bg-primary block" />
                       </div>
                     )}
                   </Link>
                 ) : (
                   <div
                     className={`flex gap-3 px-4 py-3 ${
-                      !notification.isRead ? 'bg-blue-50/50' : ''
+                      !notification.isRead ? 'bg-accent/5/50' : ''
                     }`}
                   >
                     <div className="flex-shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!notification.isRead ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                      <p className={`text-sm ${!notification.isRead ? 'font-medium text-foreground' : 'text-foreground'}`}>
                         {notification.title}
                       </p>
-                      <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         {formatTimeAgo(notification.createdAt)}
                       </p>
                     </div>
                     {!notification.isRead && (
                       <div className="flex-shrink-0">
-                        <span className="h-2 w-2 rounded-full bg-blue-500 block" />
+                        <span className="h-2 w-2 rounded-full bg-primary block" />
                       </div>
                     )}
                   </div>
@@ -219,11 +219,11 @@ export function NotificationBell() {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
       >
         <BellIcon className="h-6 w-6" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger-500 text-[10px] font-medium text-white">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}

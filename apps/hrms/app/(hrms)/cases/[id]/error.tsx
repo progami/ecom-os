@@ -42,14 +42,14 @@ export default function CaseDetailError({
 
   return (
     <Card padding="lg">
-      <h1 className="text-lg font-semibold text-gray-900">Unable to load case</h1>
-      <p className="text-sm text-gray-600 mt-2">
+      <h1 className="text-lg font-semibold text-foreground">Unable to load case</h1>
+      <p className="text-sm text-muted-foreground mt-2">
         Something went wrong while rendering this case. Try again, or go back to the cases list.
       </p>
 
       <details className="mt-4">
-        <summary className="cursor-pointer text-sm text-gray-700">Technical details</summary>
-        <pre className="mt-2 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800 whitespace-pre-wrap">
+        <summary className="cursor-pointer text-sm text-foreground">Technical details</summary>
+        <pre className="mt-2 max-h-64 overflow-auto rounded-lg border border-border bg-muted p-3 text-xs text-foreground whitespace-pre-wrap">
           {errorDetails}
         </pre>
         <div className="mt-2 flex items-center gap-3">
@@ -68,7 +68,7 @@ export default function CaseDetailError({
         <Button onClick={reset}>Try again</Button>
         <Link
           href="/cases"
-          className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
+          className="inline-flex items-center rounded-lg border border-input bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
         >
           Back to cases
         </Link>

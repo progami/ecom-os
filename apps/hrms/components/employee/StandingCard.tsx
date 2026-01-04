@@ -22,28 +22,28 @@ const STANDING_CONFIG: Record<Standing, {
   iconColor: string
 }> = {
   GREEN: {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    text: 'text-emerald-700',
+    bg: 'bg-success-50',
+    border: 'border-success-200',
+    text: 'text-success-700',
     title: 'Role Model',
     icon: CheckCircleIcon,
-    iconColor: 'text-emerald-500',
+    iconColor: 'text-success-500',
   },
   YELLOW: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-700',
+    bg: 'bg-warning-50',
+    border: 'border-warning-200',
+    text: 'text-warning-700',
     title: 'Needs Coaching',
     icon: ExclamationCircleIcon,
-    iconColor: 'text-amber-500',
+    iconColor: 'text-warning-500',
   },
   RED: {
-    bg: 'bg-red-50',
-    border: 'border-red-200',
-    text: 'text-red-700',
+    bg: 'bg-danger-50',
+    border: 'border-danger-200',
+    text: 'text-danger-700',
     title: 'At Risk',
     icon: ExclamationCircleIcon,
-    iconColor: 'text-red-500',
+    iconColor: 'text-danger-500',
   },
 }
 
@@ -86,7 +86,7 @@ export function StandingCard({ employeeId }: StandingCardProps) {
     return (
       <Card padding="lg">
         <div className="flex items-center justify-center h-24">
-          <SpinnerIcon className="h-6 w-6 animate-spin text-blue-600" />
+          <SpinnerIcon className="h-6 w-6 animate-spin text-accent" />
         </div>
       </Card>
     )
@@ -109,14 +109,14 @@ export function StandingCard({ employeeId }: StandingCardProps) {
           <div className="flex items-center gap-2 mb-1">
             <h3 className={`font-semibold ${config.text}`}>{config.title}</h3>
             {data.blocksPromotion && (
-              <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
+              <span className="text-xs px-2 py-0.5 bg-danger-100 text-danger-700 rounded-full">
                 Blocks Promotion
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600 mb-2">{data.reason}</p>
+          <p className="text-sm text-muted-foreground mb-2">{data.reason}</p>
           {data.suggestedAction && (
-            <p className="text-xs font-medium text-gray-500">
+            <p className="text-xs font-medium text-muted-foreground">
               Suggested Action: {ACTION_LABELS[data.suggestedAction] || data.suggestedAction}
             </p>
           )}

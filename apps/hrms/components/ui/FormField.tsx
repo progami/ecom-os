@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+
 type FormFieldProps = {
   label: React.ReactNode
   name: string
@@ -29,9 +31,9 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       {children || (
         <input
@@ -44,22 +46,24 @@ export function FormField({
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={`w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200
-            ${error
-              ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-            }
-            ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'}
-            placeholder:text-gray-400
-            focus:outline-none focus:ring-2 focus:ring-offset-0
-          `}
+          className={cn(
+            'w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-offset-0',
+            'placeholder:text-muted-foreground',
+            error
+              ? 'border-destructive focus:ring-destructive focus:border-destructive'
+              : 'border-input focus:ring-ring focus:border-ring',
+            disabled
+              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+              : 'bg-background'
+          )}
         />
       )}
       {hint && !error && (
-        <p className="text-xs text-gray-500 mt-2">{hint}</p>
+        <p className="text-xs text-muted-foreground mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600 mt-2">{error}</p>
+        <p className="text-xs text-destructive mt-2">{error}</p>
       )}
     </div>
   )
@@ -93,9 +97,9 @@ export function SelectField({
 }: SelectFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       <select
         id={name}
@@ -105,14 +109,14 @@ export function SelectField({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className={`w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200 bg-white
-          ${error
-            ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-          }
-          ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}
-          focus:outline-none focus:ring-2 focus:ring-offset-0
-        `}
+        className={cn(
+          'w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200 bg-background',
+          'focus:outline-none focus:ring-2 focus:ring-offset-0',
+          error
+            ? 'border-destructive focus:ring-destructive focus:border-destructive'
+            : 'border-input focus:ring-ring focus:border-ring',
+          disabled && 'bg-muted text-muted-foreground cursor-not-allowed'
+        )}
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt) => (
@@ -122,7 +126,7 @@ export function SelectField({
         ))}
       </select>
       {error && (
-        <p className="text-xs text-red-600 mt-2">{error}</p>
+        <p className="text-xs text-destructive mt-2">{error}</p>
       )}
     </div>
   )
@@ -162,9 +166,9 @@ export function TextareaField({
 }: TextareaFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
+      <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       <textarea
         id={name}
@@ -176,23 +180,25 @@ export function TextareaField({
         onChange={onChange}
         disabled={disabled}
         rows={rows}
-        className={`w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200
-          ${error
-            ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-          }
-          ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'}
-          ${monospace ? 'font-mono' : ''}
-          ${resizable ? 'resize-y' : 'resize-none'}
-          placeholder:text-gray-400
-          focus:outline-none focus:ring-2 focus:ring-offset-0
-        `}
+        className={cn(
+          'w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200',
+          'focus:outline-none focus:ring-2 focus:ring-offset-0',
+          'placeholder:text-muted-foreground',
+          error
+            ? 'border-destructive focus:ring-destructive focus:border-destructive'
+            : 'border-input focus:ring-ring focus:border-ring',
+          disabled
+            ? 'bg-muted text-muted-foreground cursor-not-allowed'
+            : 'bg-background',
+          monospace && 'font-mono',
+          resizable ? 'resize-y' : 'resize-none'
+        )}
       />
       {hint && !error && (
-        <p className="text-xs text-gray-500 mt-2">{hint}</p>
+        <p className="text-xs text-muted-foreground mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600 mt-2">{error}</p>
+        <p className="text-xs text-destructive mt-2">{error}</p>
       )}
     </div>
   )
@@ -209,9 +215,9 @@ export function FormSection({ title, description, children }: FormSectionProps) 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {description && (
-          <p className="text-xs text-gray-500 mt-1">{description}</p>
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
         )}
       </div>
       {children}
@@ -226,7 +232,7 @@ type FormActionsProps = {
 
 export function FormActions({ children }: FormActionsProps) {
   return (
-    <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+    <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
       {children}
     </div>
   )
@@ -264,15 +270,15 @@ export function CheckboxGroupField({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-foreground mb-2">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-destructive ml-0.5">*</span>}
       </label>
       <div className="space-y-2">
         {options.map((opt) => (
           <label
             key={opt.value}
-            className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-muted transition-colors"
           >
             <input
               type="checkbox"
@@ -280,17 +286,17 @@ export function CheckboxGroupField({
               value={opt.value}
               checked={value.includes(opt.value)}
               onChange={(e) => handleChange(opt.value, e.target.checked)}
-              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="h-4 w-4 text-accent border-input rounded focus:ring-ring"
             />
-            <span className="text-sm text-gray-700">{opt.label}</span>
+            <span className="text-sm text-foreground">{opt.label}</span>
           </label>
         ))}
       </div>
       {hint && !error && (
-        <p className="text-xs text-gray-500 mt-2">{hint}</p>
+        <p className="text-xs text-muted-foreground mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600 mt-2">{error}</p>
+        <p className="text-xs text-destructive mt-2">{error}</p>
       )}
     </div>
   )

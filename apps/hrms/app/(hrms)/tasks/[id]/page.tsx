@@ -211,8 +211,8 @@ export default function TaskDetailPage() {
         />
         <Card padding="lg">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/2" />
-            <div className="h-4 bg-gray-200 rounded w-1/3" />
+            <div className="h-6 bg-muted rounded w-1/2" />
+            <div className="h-4 bg-muted rounded w-1/3" />
           </div>
         </Card>
       </>
@@ -229,7 +229,7 @@ export default function TaskDetailPage() {
           showBack
         />
         <Card padding="lg">
-          <p className="text-sm text-gray-600">Task not found.</p>
+          <p className="text-sm text-muted-foreground">Task not found.</p>
         </Card>
       </>
     );
@@ -276,50 +276,50 @@ export default function TaskDetailPage() {
         <Card padding="md">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                 Status
               </p>
               <StatusBadge status={task.status} />
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Due</p>
-              <p className="text-sm text-gray-900">{formatDate(task.dueDate ?? null)}</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Due</p>
+              <p className="text-sm text-foreground">{formatDate(task.dueDate ?? null)}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                 Assigned
               </p>
-              <p className="text-sm text-gray-900">
+              <p className="text-sm text-foreground">
                 {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : '—'}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                 Completed
               </p>
-              <p className="text-sm text-gray-900">{formatDate(task.completedAt ?? null)}</p>
+              <p className="text-sm text-foreground">{formatDate(task.completedAt ?? null)}</p>
             </div>
           </div>
 
           {(task.subjectEmployee || task.case) && (
-            <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="mt-4 pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
               {task.subjectEmployee && (
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                     Subject
                   </p>
-                  <p className="text-sm text-gray-900">
+                  <p className="text-sm text-foreground">
                     {task.subjectEmployee.firstName} {task.subjectEmployee.lastName}
                   </p>
                 </div>
               )}
               {task.case && (
                 <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                     Case
                   </p>
                   <Link
-                    className="text-sm text-blue-700 hover:text-blue-800"
+                    className="text-sm text-accent hover:text-primary"
                     href={`/cases/${task.case.id}`}
                   >
                     Case #{task.case.caseNumber}: {task.case.title}
@@ -419,7 +419,7 @@ export default function TaskDetailPage() {
               </div>
             </FormSection>
 
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+            <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
               <Button type="submit" loading={saving} disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}
               </Button>

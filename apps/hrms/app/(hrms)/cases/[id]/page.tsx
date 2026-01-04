@@ -582,9 +582,9 @@ export default function CaseDetailPage() {
     return (
       <Card padding="lg">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 rounded w-1/2" />
-          <div className="h-4 bg-gray-200 rounded w-1/3" />
-          <div className="h-24 bg-gray-200 rounded" />
+          <div className="h-6 bg-muted rounded w-1/2" />
+          <div className="h-4 bg-muted rounded w-1/3" />
+          <div className="h-24 bg-muted rounded" />
         </div>
       </Card>
     );
@@ -594,7 +594,7 @@ export default function CaseDetailPage() {
     return (
       <>
         <Card padding="lg">
-          <p className="text-sm text-gray-600">Case not found.</p>
+          <p className="text-sm text-muted-foreground">Case not found.</p>
         </Card>
       </>
     );
@@ -625,24 +625,24 @@ export default function CaseDetailPage() {
             <Card padding="md">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">{c.title}</h2>
-                  <p className="text-sm text-gray-600">
+                  <h2 className="text-lg font-semibold text-foreground">{c.title}</h2>
+                  <p className="text-sm text-muted-foreground">
                     {formatEnum(c.caseType)} • Severity: {formatEnum(c.severity)}
                   </p>
                   {c.subjectEmployee && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Subject: {c.subjectEmployee.firstName} {c.subjectEmployee.lastName}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={c.status} />
-                  <span className="text-xs text-gray-500">Updated {formatDate(c.updatedAt)}</span>
+                  <span className="text-xs text-muted-foreground">Updated {formatDate(c.updatedAt)}</span>
                 </div>
               </div>
             </Card>
 
-            <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
+            <div className="flex flex-wrap gap-2 border-b border-border pb-3">
               {visibleTabs.map((tab) => (
                 <TabButton
                   key={tab.id}
@@ -713,7 +713,7 @@ export default function CaseDetailPage() {
 
             {activeTab === 'participants' && (
               <Card padding="md">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Participants</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Participants</h3>
 
               <div className="space-y-2">
                 {(c.participants || []).map((p) => {
@@ -722,17 +722,17 @@ export default function CaseDetailPage() {
                   return (
                     <div
                       key={p.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-white"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-lg border border-border bg-card"
                     >
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-foreground">
                         {formatPersonName(p.employee)}
-                        <span className="ml-2 text-xs text-gray-500">• {formatEnum(p.role)}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">• {formatEnum(p.role)}</span>
                       </div>
 
                       {(me?.isHR || me?.isSuperAdmin) && (
                         <div className="flex items-center gap-2">
                           <select
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-3 py-2 border border-input rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                             value={p.role}
                             onChange={(e) => updateParticipantRole(p.id, e.target.value)}
                             disabled={participantSaving}
@@ -759,7 +759,7 @@ export default function CaseDetailPage() {
               </div>
 
                 {(me?.isHR || me?.isSuperAdmin) && (
-                  <div className="mt-5 pt-5 border-t border-gray-200">
+                  <div className="mt-5 pt-5 border-t border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <SelectField
                         label="Add participant"
@@ -801,24 +801,24 @@ export default function CaseDetailPage() {
 
             {activeTab === 'notes' && (
               <Card padding="md">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Notes</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Notes</h3>
 
               <div className="space-y-3">
                 {(c.notes || []).length === 0 ? (
-                  <p className="text-sm text-gray-600">No notes yet.</p>
+                  <p className="text-sm text-muted-foreground">No notes yet.</p>
                 ) : (
                   (c.notes as CaseNote[]).map((note) => (
-                    <div key={note.id} className="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div key={note.id} className="p-4 rounded-lg border border-border bg-card">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-foreground">
                           {formatPersonName(note.author)}
-                          <span className="ml-2 text-xs text-gray-500">
+                          <span className="ml-2 text-xs text-muted-foreground">
                             • {formatEnum(note.visibility)}
                           </span>
                         </p>
-                        <span className="text-xs text-gray-500">{formatDate(note.createdAt)}</span>
+                        <span className="text-xs text-muted-foreground">{formatDate(note.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{note.body}</p>
+                      <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{note.body}</p>
                     </div>
                   ))
                 )}
@@ -855,22 +855,22 @@ export default function CaseDetailPage() {
 
             {activeTab === 'attachments' && canAddAttachment && (
               <Card padding="md">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Attachments</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Attachments</h3>
 
                 <div className="space-y-3">
                   {(c.attachments || []).length === 0 ? (
-                    <p className="text-sm text-gray-600">No attachments.</p>
+                    <p className="text-sm text-muted-foreground">No attachments.</p>
                   ) : (
                     (c.attachments || []).map((a) => (
                       <div
                         key={a.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-white"
+                        className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-foreground">
                             {a.title || 'Attachment'}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             {a.fileName ? `${a.fileName} • ` : ''}
                             {a.visibility ? `${formatEnum(a.visibility, '')} • ` : ''}
                             {formatDate(a.createdAt)}
@@ -905,9 +905,9 @@ export default function CaseDetailPage() {
                       onChange={(e) => setAttachmentVisibility(e.target.value as any)}
                     />
                     <div className="mt-3">
-                      <label className="text-xs font-medium text-gray-700">File</label>
+                      <label className="text-xs font-medium text-foreground">File</label>
                       <input
-                        className="mt-1 block w-full text-sm text-gray-700"
+                        className="mt-1 block w-full text-sm text-foreground"
                         type="file"
                         onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
                       />
@@ -929,7 +929,7 @@ export default function CaseDetailPage() {
             {activeTab === 'tasks' && canViewTasks && (
               <Card padding="md">
                 <div className="flex items-center justify-between gap-3 mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Tasks</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Tasks</h3>
                   {(me?.isSuperAdmin || me?.isHR) && (
                     <Button
                       variant="secondary"
@@ -943,17 +943,17 @@ export default function CaseDetailPage() {
 
                 <div className="space-y-2">
                   {(c.tasks || []).length === 0 ? (
-                    <p className="text-sm text-gray-600">No case tasks.</p>
+                    <p className="text-sm text-muted-foreground">No case tasks.</p>
                   ) : (
                     (c.tasks || []).map((t) => (
                       <div
                         key={t.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-white cursor-pointer hover:bg-gray-50"
+                        className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-card cursor-pointer hover:bg-muted"
                         onClick={() => router.push(`/tasks/${t.id}`)}
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{t.title}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm font-medium text-foreground">{t.title}</p>
+                          <p className="text-xs text-muted-foreground">
                             {formatEnum(t.category, 'general')}
                             {t.assignedTo ? ` • assigned to ${formatPersonName(t.assignedTo)}` : ''}
                             {` • due ${formatDate(t.dueDate ?? null)}`}
@@ -966,7 +966,7 @@ export default function CaseDetailPage() {
                 </div>
 
                 {(me?.isSuperAdmin || me?.isHR) && showTaskForm && (
-                  <div className="mt-5 pt-5 border-t border-gray-200">
+                  <div className="mt-5 pt-5 border-t border-border">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="sm:col-span-2">
                         <FormField
@@ -1031,7 +1031,7 @@ export default function CaseDetailPage() {
         </WorkflowRecordLayout>
       ) : (
         <Card padding="lg">
-          <p className="text-sm text-gray-600">Unable to load workflow view.</p>
+          <p className="text-sm text-muted-foreground">Unable to load workflow view.</p>
         </Card>
       )}
     </>
