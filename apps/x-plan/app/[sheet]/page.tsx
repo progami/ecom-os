@@ -17,7 +17,13 @@ import type { PurchasePaymentRow } from '@/components/sheets/custom-purchase-pay
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
 import { auth } from '@/lib/auth'
-import { buildStrategyAccessWhere, getStrategyActor } from '@/lib/strategy-access'
+import {
+  areStrategyAssignmentFieldsAvailable,
+  buildStrategyAccessWhere,
+  getStrategyActor,
+  isStrategyAssignmentFieldsMissingError,
+  markStrategyAssignmentFieldsUnavailable,
+} from '@/lib/strategy-access'
 import {
   Prisma,
   type BatchTableRow,
@@ -455,43 +461,82 @@ async function resolveStrategyId(
   const prismaAny = prisma as unknown as Record<string, any>
   const DEFAULT_STRATEGY_ID = 'default-strategy'
 
-  // If strategyId is provided in URL, validate it exists
-  if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
-    const exists = await prismaAny.strategy.findFirst({
-      where: {
-        id: searchParamStrategy,
-        ...buildStrategyAccessWhere(actor),
-      },
+  try {
+    // If strategyId is provided in URL, validate it exists
+    if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
+      const exists = await prismaAny.strategy.findFirst({
+        where: {
+          id: searchParamStrategy,
+          ...buildStrategyAccessWhere(actor),
+        },
+        select: { id: true },
+      })
+      if (exists) return searchParamStrategy
+    }
+
+    // Prefer the canonical default strategy for existing data (created via migration).
+    const canonicalDefault = await prismaAny.strategy.findFirst({
+      where: { id: DEFAULT_STRATEGY_ID, ...buildStrategyAccessWhere(actor) },
       select: { id: true },
     })
-    if (exists) return searchParamStrategy
+    if (canonicalDefault) return canonicalDefault.id
+
+    // Otherwise get the default strategy (legacy behavior)
+    const defaultStrategy = await prismaAny.strategy.findFirst({
+      where: { isDefault: true, ...buildStrategyAccessWhere(actor) },
+      select: { id: true },
+    })
+
+    if (defaultStrategy) return defaultStrategy.id
+
+    // If no default, get the first strategy
+    const firstStrategy = await prismaAny.strategy.findFirst({
+      where: buildStrategyAccessWhere(actor),
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    })
+
+    if (firstStrategy) return firstStrategy.id
+
+    return null
+  } catch (error) {
+    if (!isStrategyAssignmentFieldsMissingError(error)) {
+      throw error
+    }
+
+    markStrategyAssignmentFieldsUnavailable()
+
+    // Legacy fallback when assignment fields are missing (migration not deployed).
+    if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
+      const exists = await prismaAny.strategy.findFirst({
+        where: { id: searchParamStrategy },
+        select: { id: true },
+      })
+      if (exists) return searchParamStrategy
+    }
+
+    const canonicalDefault = await prismaAny.strategy.findFirst({
+      where: { id: DEFAULT_STRATEGY_ID },
+      select: { id: true },
+    })
+    if (canonicalDefault) return canonicalDefault.id
+
+    const defaultStrategy = await prismaAny.strategy.findFirst({
+      where: { isDefault: true },
+      select: { id: true },
+    })
+
+    if (defaultStrategy) return defaultStrategy.id
+
+    const firstStrategy = await prismaAny.strategy.findFirst({
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    })
+
+    if (firstStrategy) return firstStrategy.id
+
+    return null
   }
-
-  // Prefer the canonical default strategy for existing data (created via migration).
-  const canonicalDefault = await prismaAny.strategy.findFirst({
-    where: { id: DEFAULT_STRATEGY_ID, ...buildStrategyAccessWhere(actor) },
-    select: { id: true },
-  })
-  if (canonicalDefault) return canonicalDefault.id
-
-  // Otherwise get the default strategy (legacy behavior)
-  const defaultStrategy = await prismaAny.strategy.findFirst({
-    where: { isDefault: true, ...buildStrategyAccessWhere(actor) },
-    select: { id: true },
-  })
-
-  if (defaultStrategy) return defaultStrategy.id
-
-  // If no default, get the first strategy
-  const firstStrategy = await prismaAny.strategy.findFirst({
-    where: buildStrategyAccessWhere(actor),
-    orderBy: { createdAt: 'asc' },
-    select: { id: true },
-  })
-
-  if (firstStrategy) return firstStrategy.id
-
-  return null
 }
 
 function columnKey(productIndex: number, metric: SalesMetric) {
@@ -1871,19 +1916,69 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '0-strategies': {
       // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
       const prismaAnyLocal = prisma as unknown as Record<string, any>
-      const strategiesData = await prismaAnyLocal.strategy.findMany({
-        where: buildStrategyAccessWhere(actor),
-        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
-        include: {
-          _count: {
-            select: {
-              products: true,
-              purchaseOrders: true,
-              salesWeeks: true,
-            },
-          },
-        },
-      })
+
+      const countsSelect = {
+        products: true,
+        purchaseOrders: true,
+        salesWeeks: true,
+      }
+
+      const orderBy = [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
+
+      const strategySelect = {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        region: true,
+        isDefault: true,
+        createdById: true,
+        createdByEmail: true,
+        assigneeId: true,
+        assigneeEmail: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: countsSelect },
+      }
+
+      const legacyStrategySelect = {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        region: true,
+        isDefault: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: countsSelect },
+      }
+
+      let strategiesData: any[]
+
+      if (areStrategyAssignmentFieldsAvailable()) {
+        try {
+          strategiesData = await prismaAnyLocal.strategy.findMany({
+            where: buildStrategyAccessWhere(actor),
+            orderBy,
+            select: strategySelect,
+          })
+        } catch (error) {
+          if (!isStrategyAssignmentFieldsMissingError(error)) {
+            throw error
+          }
+          markStrategyAssignmentFieldsUnavailable()
+          strategiesData = await prismaAnyLocal.strategy.findMany({
+            orderBy,
+            select: legacyStrategySelect,
+          })
+        }
+      } else {
+        strategiesData = await prismaAnyLocal.strategy.findMany({
+          orderBy,
+          select: legacyStrategySelect,
+        })
+      }
+
       const canonicalDefaultId = 'default-strategy'
       type StrategyRow = {
         id: string
@@ -1905,13 +2000,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         }
       }
 
+      const hasCanonicalDefault = strategiesData.some((s: any) => s.id === canonicalDefaultId)
       const strategies: StrategyRow[] = strategiesData.map((s: any) => ({
         id: s.id,
         name: s.name,
         description: s.description,
         status: s.status,
         region: s.region === 'UK' ? 'UK' : 'US',
-        isDefault: s.id === canonicalDefaultId,
+        isDefault: hasCanonicalDefault ? s.id === canonicalDefaultId : Boolean(s.isDefault),
         createdById: s.createdById ?? null,
         createdByEmail: s.createdByEmail ?? null,
         assigneeId: s.assigneeId ?? null,
@@ -1921,8 +2017,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         _count: s._count,
       }))
       strategies.sort((a, b) => {
-        const aDefault = a.id === canonicalDefaultId
-        const bDefault = b.id === canonicalDefaultId
+        const aDefault = a.isDefault
+        const bDefault = b.isDefault
         if (aDefault !== bDefault) return aDefault ? -1 : 1
         return b.updatedAt.localeCompare(a.updatedAt)
       })
