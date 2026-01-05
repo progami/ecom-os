@@ -305,7 +305,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         moveActiveCell(0, -1)
-      } else if (e.key === 'Enter' && activeCell) {
+      } else if ((e.key === 'Enter' || e.key === 'F2') && activeCell) {
         e.preventDefault()
         const config = columnConfig[activeCell.col]
         if (config?.editable) {
