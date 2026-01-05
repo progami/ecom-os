@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { Session } from 'next-auth'
 import { getPortalAuthPrisma } from '@ecom-os/auth/server'
+import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
 
 type StrategyActor = {
@@ -27,6 +28,8 @@ function parseEmailSet(raw: string | undefined) {
 
 const DEFAULT_SUPER_ADMINS = new Set(['jarrar@targonglobal.com'])
 
+let strategyAssignmentFieldsAvailable = true
+
 function superAdminEmailSet() {
   const configured = parseEmailSet(process.env.XPLAN_SUPER_ADMIN_EMAILS)
   return configured.size > 0 ? configured : DEFAULT_SUPER_ADMINS
@@ -36,6 +39,28 @@ export function isXPlanSuperAdmin(email: string | null | undefined) {
   const normalized = email?.trim().toLowerCase()
   if (!normalized) return false
   return superAdminEmailSet().has(normalized)
+}
+
+export function markStrategyAssignmentFieldsUnavailable() {
+  strategyAssignmentFieldsAvailable = false
+}
+
+export function areStrategyAssignmentFieldsAvailable() {
+  return strategyAssignmentFieldsAvailable
+}
+
+export function isStrategyAssignmentFieldsMissingError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2022') {
+    return true
+  }
+
+  const message = error instanceof Error ? error.message : String(error)
+  return (
+    message.includes('createdById') ||
+    message.includes('createdByEmail') ||
+    message.includes('assigneeId') ||
+    message.includes('assigneeEmail')
+  )
 }
 
 export function getStrategyActor(session: Session | null): StrategyActor {
@@ -51,7 +76,7 @@ export function getStrategyActor(session: Session | null): StrategyActor {
 }
 
 export function buildStrategyAccessWhere(actor: StrategyActor) {
-  if (actor.isSuperAdmin) return {}
+  if (actor.isSuperAdmin || !strategyAssignmentFieldsAvailable) return {}
 
   const or: Array<Record<string, unknown>> = []
   if (actor.id) {
@@ -71,17 +96,27 @@ export function buildStrategyAccessWhere(actor: StrategyActor) {
 export async function canAccessStrategy(strategyId: string, actor: StrategyActor): Promise<boolean> {
   if (actor.isSuperAdmin) return true
   if (!strategyId) return false
+  if (!strategyAssignmentFieldsAvailable) return true
 
   const prismaAny = prisma as unknown as Record<string, any>
-  const row = await prismaAny.strategy.findFirst({
-    where: {
-      id: strategyId,
-      ...buildStrategyAccessWhere(actor),
-    },
-    select: { id: true },
-  })
 
-  return Boolean(row)
+  try {
+    const row = await prismaAny.strategy.findFirst({
+      where: {
+        id: strategyId,
+        ...buildStrategyAccessWhere(actor),
+      },
+      select: { id: true },
+    })
+
+    return Boolean(row)
+  } catch (error) {
+    if (isStrategyAssignmentFieldsMissingError(error)) {
+      markStrategyAssignmentFieldsUnavailable()
+      return true
+    }
+    throw error
+  }
 }
 
 export async function requireStrategyAccess(strategyId: string, actor: StrategyActor): Promise<void> {
@@ -154,4 +189,3 @@ export async function resolveAllowedXPlanAssigneeById(id: string): Promise<Allow
     fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
   }
 }
-
