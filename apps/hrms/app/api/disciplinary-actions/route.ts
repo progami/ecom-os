@@ -215,7 +215,7 @@ export async function POST(req: Request) {
           witnesses: data.witnesses ?? null,
           evidence: data.evidence ?? null,
           actionTaken: data.actionTaken,
-          // Always start with PENDING_HR_REVIEW - approval chain: Manager -> HR -> Super Admin
+          // Start with PENDING_HR_REVIEW - HR approves violations (simplified workflow)
           status: 'PENDING_HR_REVIEW',
         },
         include: {
@@ -240,7 +240,7 @@ export async function POST(req: Request) {
           type: 'VIOLATION_PENDING_HR',
           title: 'Violation Pending Review',
           message: `A new violation has been raised for ${item.employee.firstName} ${item.employee.lastName}. Please review.`,
-          link: `/cases/${caseId}`,
+          link: `/performance/disciplinary/${item.id}`,
           employeeId: hr.id,
           relatedId: item.id,
           relatedType: 'DISCIPLINARY',

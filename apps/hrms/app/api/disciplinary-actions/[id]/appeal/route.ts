@@ -267,7 +267,7 @@ export async function POST(req: Request, context: RouteContext) {
 	        },
 	      })
 
-      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+      const recordLink = `/performance/disciplinary/${id}`
 
 	      // Notify HR about the appeal
 	      const hrEmployees = await getHREmployees()
