@@ -13,21 +13,21 @@ type StandingData = {
 
 const STANDING_STYLES: Record<Standing, { bg: string; text: string; dot: string; label: string }> = {
   GREEN: {
-    bg: 'bg-success-50',
-    text: 'text-success-700',
-    dot: 'bg-success-500',
+    bg: 'bg-emerald-50',
+    text: 'text-emerald-700',
+    dot: 'bg-emerald-500',
     label: 'Role Model',
   },
   YELLOW: {
-    bg: 'bg-warning-50',
-    text: 'text-warning-700',
-    dot: 'bg-warning-400',
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    dot: 'bg-amber-400',
     label: 'Coaching',
   },
   RED: {
-    bg: 'bg-danger-50',
-    text: 'text-danger-700',
-    dot: 'bg-danger-500',
+    bg: 'bg-red-50',
+    text: 'text-red-700',
+    dot: 'bg-red-500',
     label: 'At Risk',
   },
 }
