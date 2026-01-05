@@ -31,9 +31,9 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">
+      <label htmlFor={name} className="block text-sm font-semibold text-foreground mb-2">
         {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
+        {required && <span className="text-[hsl(var(--destructive))] ml-0.5">*</span>}
       </label>
       {children || (
         <input
@@ -47,15 +47,15 @@ export function FormField({
           onChange={onChange}
           disabled={disabled}
           className={cn(
-            'w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200',
+            'w-full px-4 py-3 border rounded-xl text-sm transition-all duration-200 shadow-[var(--shadow-sm)]',
             'focus:outline-none focus:ring-2 focus:ring-offset-0',
             'placeholder:text-muted-foreground',
             error
-              ? 'border-destructive focus:ring-destructive focus:border-destructive'
-              : 'border-input focus:ring-ring focus:border-ring',
+              ? 'border-[hsl(var(--destructive))] focus:ring-[hsl(var(--destructive))] focus:border-[hsl(var(--destructive))]'
+              : 'border-border/60 focus:ring-[hsl(var(--accent))] focus:border-[hsl(var(--accent))]',
             disabled
               ? 'bg-muted text-muted-foreground cursor-not-allowed'
-              : 'bg-background'
+              : 'bg-card'
           )}
         />
       )}
@@ -63,7 +63,7 @@ export function FormField({
         <p className="text-xs text-muted-foreground mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-destructive mt-2">{error}</p>
+        <p className="text-xs text-[hsl(var(--destructive))] mt-2">{error}</p>
       )}
     </div>
   )
@@ -97,9 +97,9 @@ export function SelectField({
 }: SelectFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">
+      <label htmlFor={name} className="block text-sm font-semibold text-foreground mb-2">
         {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
+        {required && <span className="text-[hsl(var(--destructive))] ml-0.5">*</span>}
       </label>
       <select
         id={name}
@@ -110,11 +110,11 @@ export function SelectField({
         onChange={onChange}
         disabled={disabled}
         className={cn(
-          'w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200 bg-background',
+          'w-full px-4 py-3 border rounded-xl text-sm transition-all duration-200 bg-card shadow-[var(--shadow-sm)]',
           'focus:outline-none focus:ring-2 focus:ring-offset-0',
           error
-            ? 'border-destructive focus:ring-destructive focus:border-destructive'
-            : 'border-input focus:ring-ring focus:border-ring',
+            ? 'border-[hsl(var(--destructive))] focus:ring-[hsl(var(--destructive))] focus:border-[hsl(var(--destructive))]'
+            : 'border-border/60 focus:ring-[hsl(var(--accent))] focus:border-[hsl(var(--accent))]',
           disabled && 'bg-muted text-muted-foreground cursor-not-allowed'
         )}
       >
@@ -126,7 +126,7 @@ export function SelectField({
         ))}
       </select>
       {error && (
-        <p className="text-xs text-destructive mt-2">{error}</p>
+        <p className="text-xs text-[hsl(var(--destructive))] mt-2">{error}</p>
       )}
     </div>
   )
@@ -166,9 +166,9 @@ export function TextareaField({
 }: TextareaFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-foreground mb-2">
+      <label htmlFor={name} className="block text-sm font-semibold text-foreground mb-2">
         {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
+        {required && <span className="text-[hsl(var(--destructive))] ml-0.5">*</span>}
       </label>
       <textarea
         id={name}
@@ -181,15 +181,15 @@ export function TextareaField({
         disabled={disabled}
         rows={rows}
         className={cn(
-          'w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200',
+          'w-full px-4 py-3 border rounded-xl text-sm transition-all duration-200 shadow-[var(--shadow-sm)]',
           'focus:outline-none focus:ring-2 focus:ring-offset-0',
           'placeholder:text-muted-foreground',
           error
-            ? 'border-destructive focus:ring-destructive focus:border-destructive'
-            : 'border-input focus:ring-ring focus:border-ring',
+            ? 'border-[hsl(var(--destructive))] focus:ring-[hsl(var(--destructive))] focus:border-[hsl(var(--destructive))]'
+            : 'border-border/60 focus:ring-[hsl(var(--accent))] focus:border-[hsl(var(--accent))]',
           disabled
             ? 'bg-muted text-muted-foreground cursor-not-allowed'
-            : 'bg-background',
+            : 'bg-card',
           monospace && 'font-mono',
           resizable ? 'resize-y' : 'resize-none'
         )}
@@ -198,7 +198,7 @@ export function TextareaField({
         <p className="text-xs text-muted-foreground mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-destructive mt-2">{error}</p>
+        <p className="text-xs text-[hsl(var(--destructive))] mt-2">{error}</p>
       )}
     </div>
   )
