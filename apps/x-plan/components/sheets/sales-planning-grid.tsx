@@ -1181,6 +1181,7 @@ export function SalesPlanningGrid({
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
       if (editingCell) {
         if (event.key === 'Escape') {
           event.preventDefault()
