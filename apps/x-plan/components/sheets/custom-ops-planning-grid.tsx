@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import Flatpickr from 'react-flatpickr'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo'
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
 import { cn } from '@/lib/utils'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
@@ -672,6 +673,33 @@ export function CustomOpsPlanningGrid({
     onFlush: handleFlush,
   })
 
+  // Undo/redo functionality
+  const applyUndoRedoEdits = useCallback(
+    (edits: CellEdit<string>[]) => {
+      let updatedRows = [...rows]
+      for (const edit of edits) {
+        const rowIndex = updatedRows.findIndex((r) => r.id === edit.rowKey)
+        if (rowIndex < 0) continue
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [edit.field]: edit.newValue }
+
+        // Queue for API update
+        if (!pendingRef.current.has(edit.rowKey)) {
+          pendingRef.current.set(edit.rowKey, { id: edit.rowKey, values: {} })
+        }
+        const entry = pendingRef.current.get(edit.rowKey)!
+        entry.values[edit.field] = edit.newValue
+      }
+      onRowsChange?.(updatedRows)
+      scheduleFlush()
+    },
+    [rows, pendingRef, scheduleFlush, onRowsChange]
+  )
+
+  const { recordEdits, undo, redo, canUndo, canRedo } = useGridUndoRedo<string>({
+    maxHistory: 50,
+    onApplyEdits: applyUndoRedoEdits,
+  })
+
   // Use ref pattern to avoid cleanup running on every re-render
   const flushNowRef = useRef(flushNow)
   useEffect(() => {
@@ -908,13 +936,22 @@ export function CustomOpsPlanningGrid({
       return
     }
 
+    // Record edits for undo/redo
+    const undoEdits: CellEdit<string>[] = Object.entries(entry.values).map(([field, newValue]) => ({
+      rowKey: rowId,
+      field,
+      oldValue: row[field as keyof OpsInputRow] ?? '',
+      newValue: newValue as string,
+    }))
+    recordEdits(undoEdits)
+
     // Update rows
     const updatedRows = rows.map((r) => (r.id === rowId ? updatedRow : r))
     onRowsChange?.(updatedRows)
 
     scheduleFlush()
     cancelEditing()
-  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
+  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing, recordEdits])
 
   const scrollToCell = useCallback((rowId: string, colKey: keyof OpsInputRow) => {
     requestAnimationFrame(() => {
@@ -983,48 +1020,6 @@ export function CustomOpsPlanningGrid({
     if ((column.editable ?? true) === false) return
     startEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
   }, [activeCell, rows, stageMode, startEditing])
-
-  const handleTableKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return
-      if (editingCell) return
-      if (!activeCell) return
-
-      if (event.key === 'Enter' || event.key === 'F2') {
-        event.preventDefault()
-        startEditingActiveCell()
-        return
-      }
-
-      if (event.key === 'Tab') {
-        event.preventDefault()
-        moveSelectionTab(event.shiftKey ? -1 : 1)
-        return
-      }
-
-      if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        moveSelection(1, 0)
-        return
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        moveSelection(-1, 0)
-        return
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        moveSelection(0, 1)
-        return
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        moveSelection(0, -1)
-        return
-      }
-    },
-    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
-  )
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
@@ -1161,12 +1156,10 @@ export function CustomOpsPlanningGrid({
     selectionAnchorRef.current = null
   }, [])
 
-  // Copy handler
-  const handleCopy = useCallback(
-    (e: ClipboardEvent<HTMLDivElement>) => {
-      if (!selection) return
-      e.preventDefault()
-      const { top, bottom, left, right } = normalizeRange(selection)
+  // Copy handler - use resolved values for stage columns in dates mode
+  const buildClipboardText = useCallback(
+    (range: CellRange): string => {
+      const { top, bottom, left, right } = normalizeRange(range)
       const lines: string[] = []
       for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
         const row = rows[rowIndex]
@@ -1175,13 +1168,119 @@ export function CustomOpsPlanningGrid({
         for (let colIndex = left; colIndex <= right; colIndex += 1) {
           const column = COLUMNS[colIndex]
           if (!column) continue
-          cells.push(row[column.key] ?? '')
+          // Use edit value for stage columns in dates mode to get resolved date
+          cells.push(getCellEditValue(row, column, stageMode))
         }
         lines.push(cells.join('\t'))
       }
-      e.clipboardData.setData('text/plain', lines.join('\n'))
+      return lines.join('\n')
     },
-    [rows, selection]
+    [rows, stageMode]
+  )
+
+  // Programmatic copy to clipboard (for Ctrl+C shortcut)
+  const copySelectionToClipboard = useCallback(async () => {
+    const currentSelection = selection ?? (activeCell ? (() => {
+      const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
+      const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
+      if (rowIndex < 0 || colIndex < 0) return null
+      const coords = { row: rowIndex, col: colIndex }
+      return { from: coords, to: coords }
+    })() : null)
+
+    if (!currentSelection) return
+
+    const text = buildClipboardText(currentSelection)
+    if (!text) return
+
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      // Fallback - browser may block clipboard writes
+    }
+  }, [activeCell, rows, selection, buildClipboardText])
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
+      if (editingCell) return
+
+      // Handle Ctrl+Z for undo and Ctrl+Shift+Z / Ctrl+Y for redo (even without active cell)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) {
+          redo()
+        } else {
+          undo()
+        }
+        return
+      }
+
+      // Handle Ctrl+Y for redo (Windows convention)
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'y') {
+        event.preventDefault()
+        redo()
+        return
+      }
+
+      if (!activeCell) return
+
+      // Handle Ctrl+C for copy
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault()
+        copySelectionToClipboard().catch(() => {})
+        return
+      }
+
+      // Handle Ctrl+V for paste - let native handler take over
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
+        // Don't prevent default - let the native paste event fire
+        return
+      }
+
+      if (event.key === 'Enter' || event.key === 'F2') {
+        event.preventDefault()
+        startEditingActiveCell()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        moveSelectionTab(event.shiftKey ? -1 : 1)
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection(1, 0)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(-1, 0)
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        moveSelection(0, 1)
+        return
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        moveSelection(0, -1)
+        return
+      }
+    },
+    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell, copySelectionToClipboard, undo, redo]
+  )
+
+  const handleCopy = useCallback(
+    (e: ClipboardEvent<HTMLDivElement>) => {
+      if (!selection) return
+      e.preventDefault()
+      e.clipboardData.setData('text/plain', buildClipboardText(selection))
+    },
+    [selection, buildClipboardText]
   )
 
   // Paste handler
@@ -1230,8 +1329,10 @@ export function CustomOpsPlanningGrid({
 
       if (updates.length === 0) return
 
-      // Apply updates
+      // Apply updates and track for undo
       let updatedRows = [...rows]
+      const undoEdits: CellEdit<string>[] = []
+
       for (const update of updates) {
         const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId)
         if (rowIndex < 0) continue
@@ -1240,6 +1341,65 @@ export function CustomOpsPlanningGrid({
         if (!column) continue
 
         let finalValue = update.value
+        const originalRow = rows.find((r) => r.id === update.rowId)
+
+        // Queue for API update
+        if (!pendingRef.current.has(update.rowId)) {
+          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} })
+        }
+        const entry = pendingRef.current.get(update.rowId)!
+
+        // Handle stage columns in dates mode - convert pasted date to weeks + override
+        if (column.type === 'stage' && stageMode === 'dates') {
+          const stageField = column.key as StageWeeksKey
+          const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
+          const row = updatedRows[rowIndex]
+
+          // Try to parse the pasted value as a date
+          const pastedDate = toIsoDate(finalValue)
+          if (pastedDate) {
+            // Track undo for override field
+            undoEdits.push({
+              rowKey: update.rowId,
+              field: overrideField,
+              oldValue: originalRow?.[overrideField] ?? '',
+              newValue: pastedDate,
+            })
+
+            // Update the override field with the date
+            updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate }
+            entry.values[overrideField] = pastedDate
+
+            // Calculate weeks from stage start to pasted date
+            const stageStart = resolveStageStart(row, stageField)
+            if (stageStart) {
+              const picked = new Date(`${pastedDate}T00:00:00Z`)
+              const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000)
+              const weeks = Math.max(0, diffDays / 7)
+              const normalizedWeeks = formatNumericInput(weeks, 2)
+
+              // Track undo for weeks field
+              undoEdits.push({
+                rowKey: update.rowId,
+                field: stageField,
+                oldValue: originalRow?.[stageField] ?? '',
+                newValue: normalizedWeeks,
+              })
+
+              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [stageField]: normalizedWeeks }
+              entry.values[stageField] = normalizedWeeks
+            }
+          }
+          continue
+        }
+
+        // Handle date columns
+        if (column.type === 'date') {
+          const pastedDate = toIsoDate(finalValue)
+          if (pastedDate) {
+            finalValue = pastedDate
+          }
+        }
 
         // Normalize numeric values
         if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
@@ -1247,21 +1407,28 @@ export function CustomOpsPlanningGrid({
           finalValue = normalizeNumeric(finalValue, precision)
         }
 
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue }
+        // Track undo
+        undoEdits.push({
+          rowKey: update.rowId,
+          field: update.colKey,
+          oldValue: originalRow?.[update.colKey] ?? '',
+          newValue: finalValue,
+        })
 
-        // Queue for API update
-        if (!pendingRef.current.has(update.rowId)) {
-          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} })
-        }
-        const entry = pendingRef.current.get(update.rowId)!
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue }
         entry.values[update.colKey] = finalValue
+      }
+
+      // Record all edits as a single undo batch
+      if (undoEdits.length > 0) {
+        recordEdits(undoEdits)
       }
 
       onRowsChange?.(updatedRows)
       scheduleFlush()
       toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`)
     },
-    [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange]
+    [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, recordEdits]
   )
 
   const getHeaderLabel = (column: ColumnDef): string => {
