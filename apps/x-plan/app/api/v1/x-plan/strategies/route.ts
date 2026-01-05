@@ -3,8 +3,11 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
 import {
+  areStrategyAssignmentFieldsAvailable,
   buildStrategyAccessWhere,
   getStrategyActor,
+  isStrategyAssignmentFieldsMissingError,
+  markStrategyAssignmentFieldsUnavailable,
   resolveAllowedXPlanAssigneeById,
 } from '@/lib/strategy-access'
 
@@ -33,21 +36,94 @@ const deleteSchema = z.object({
   id: z.string().min(1),
 })
 
+const countsSelect = {
+  products: true,
+  purchaseOrders: true,
+  salesWeeks: true,
+}
+
+const listSelect = {
+  id: true,
+  name: true,
+  description: true,
+  status: true,
+  region: true,
+  isDefault: true,
+  createdById: true,
+  createdByEmail: true,
+  assigneeId: true,
+  assigneeEmail: true,
+  createdAt: true,
+  updatedAt: true,
+  _count: { select: countsSelect },
+}
+
+const legacyListSelect = {
+  id: true,
+  name: true,
+  description: true,
+  status: true,
+  region: true,
+  isDefault: true,
+  createdAt: true,
+  updatedAt: true,
+  _count: { select: countsSelect },
+}
+
+const writeSelect = {
+  id: true,
+  name: true,
+  description: true,
+  status: true,
+  region: true,
+  isDefault: true,
+  createdById: true,
+  createdByEmail: true,
+  assigneeId: true,
+  assigneeEmail: true,
+  createdAt: true,
+  updatedAt: true,
+}
+
+const legacyWriteSelect = {
+  id: true,
+  name: true,
+  description: true,
+  status: true,
+  region: true,
+  isDefault: true,
+  createdAt: true,
+  updatedAt: true,
+}
+
 export const GET = withXPlanAuth(async (_request, session) => {
   const actor = getStrategyActor(session)
-  const strategies = await prismaAny.strategy.findMany({
-    where: buildStrategyAccessWhere(actor),
-    orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
-    include: {
-      _count: {
-        select: {
-          products: true,
-          purchaseOrders: true,
-          salesWeeks: true,
-        },
-      },
-    },
-  })
+  const orderBy = [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
+
+  let strategies: any[]
+  if (areStrategyAssignmentFieldsAvailable()) {
+    try {
+      strategies = await prismaAny.strategy.findMany({
+        where: buildStrategyAccessWhere(actor),
+        orderBy,
+        select: listSelect,
+      })
+    } catch (error) {
+      if (!isStrategyAssignmentFieldsMissingError(error)) {
+        throw error
+      }
+      markStrategyAssignmentFieldsUnavailable()
+      strategies = await prismaAny.strategy.findMany({
+        orderBy,
+        select: legacyListSelect,
+      })
+    }
+  } else {
+    strategies = await prismaAny.strategy.findMany({
+      orderBy,
+      select: legacyListSelect,
+    })
+  }
 
   const hasCanonicalDefault = strategies.some((strategy: any) => strategy.id === DEFAULT_STRATEGY_ID)
   const normalized = strategies.map((strategy: any) => ({
@@ -83,7 +159,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
   const requestedAssigneeId = parsed.data.assigneeId ?? actor.id
   let assigneeEmail = actor.email
 
-  if (requestedAssigneeId !== actor.id) {
+  if (areStrategyAssignmentFieldsAvailable() && requestedAssigneeId !== actor.id) {
     const allowed = await resolveAllowedXPlanAssigneeById(requestedAssigneeId)
     if (!allowed) {
       return NextResponse.json({ error: 'Assignee must be an allowed X-Plan user' }, { status: 400 })
@@ -91,19 +167,51 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
     assigneeEmail = allowed.email.trim().toLowerCase()
   }
 
-  const strategy = await prismaAny.strategy.create({
-    data: {
-      name: parsed.data.name.trim(),
-      description: parsed.data.description?.trim(),
-      region: parsed.data.region ?? 'US',
-      isDefault: false,
-      status: 'DRAFT',
-      createdById: actor.id,
-      createdByEmail: actor.email,
-      assigneeId: requestedAssigneeId,
-      assigneeEmail,
-    },
-  })
+  let strategy: any
+  if (areStrategyAssignmentFieldsAvailable()) {
+    try {
+      strategy = await prismaAny.strategy.create({
+        data: {
+          name: parsed.data.name.trim(),
+          description: parsed.data.description?.trim(),
+          region: parsed.data.region ?? 'US',
+          isDefault: false,
+          status: 'DRAFT',
+          createdById: actor.id,
+          createdByEmail: actor.email,
+          assigneeId: requestedAssigneeId,
+          assigneeEmail,
+        },
+        select: writeSelect,
+      })
+    } catch (error) {
+      if (!isStrategyAssignmentFieldsMissingError(error)) {
+        throw error
+      }
+      markStrategyAssignmentFieldsUnavailable()
+      strategy = await prismaAny.strategy.create({
+        data: {
+          name: parsed.data.name.trim(),
+          description: parsed.data.description?.trim(),
+          region: parsed.data.region ?? 'US',
+          isDefault: false,
+          status: 'DRAFT',
+        },
+        select: legacyWriteSelect,
+      })
+    }
+  } else {
+    strategy = await prismaAny.strategy.create({
+      data: {
+        name: parsed.data.name.trim(),
+        description: parsed.data.description?.trim(),
+        region: parsed.data.region ?? 'US',
+        isDefault: false,
+        status: 'DRAFT',
+      },
+      select: legacyWriteSelect,
+    })
+  }
 
   return NextResponse.json({ strategy })
 })
@@ -125,16 +233,68 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
   const { assigneeId: requestedAssigneeId, ...strategyUpdates } = data
 
   const actor = getStrategyActor(session)
-  const existing = await prismaAny.strategy.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      createdById: true,
-      createdByEmail: true,
-      assigneeId: true,
-      assigneeEmail: true,
-    },
-  })
+
+  if (!areStrategyAssignmentFieldsAvailable()) {
+    // Legacy behavior when assignment fields are missing (migration not deployed).
+    if (strategyUpdates.status === 'ACTIVE') {
+      await prismaAny.strategy.updateMany({
+        where: { status: 'ACTIVE', id: { not: id } },
+        data: { status: 'DRAFT' },
+      })
+    }
+
+    const strategy = await prismaAny.strategy.update({
+      where: { id },
+      data: {
+        ...(strategyUpdates.name && { name: strategyUpdates.name.trim() }),
+        ...(strategyUpdates.description !== undefined && { description: strategyUpdates.description?.trim() }),
+        ...(strategyUpdates.status && { status: strategyUpdates.status }),
+        ...(strategyUpdates.region && { region: strategyUpdates.region }),
+      },
+      select: legacyWriteSelect,
+    })
+
+    return NextResponse.json({ strategy })
+  }
+
+  let existing: any
+  try {
+    existing = await prismaAny.strategy.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        createdById: true,
+        createdByEmail: true,
+        assigneeId: true,
+        assigneeEmail: true,
+      },
+    })
+  } catch (error) {
+    if (!isStrategyAssignmentFieldsMissingError(error)) {
+      throw error
+    }
+    markStrategyAssignmentFieldsUnavailable()
+
+    if (strategyUpdates.status === 'ACTIVE') {
+      await prismaAny.strategy.updateMany({
+        where: { status: 'ACTIVE', id: { not: id } },
+        data: { status: 'DRAFT' },
+      })
+    }
+
+    const strategy = await prismaAny.strategy.update({
+      where: { id },
+      data: {
+        ...(strategyUpdates.name && { name: strategyUpdates.name.trim() }),
+        ...(strategyUpdates.description !== undefined && { description: strategyUpdates.description?.trim() }),
+        ...(strategyUpdates.status && { status: strategyUpdates.status }),
+        ...(strategyUpdates.region && { region: strategyUpdates.region }),
+      },
+      select: legacyWriteSelect,
+    })
+
+    return NextResponse.json({ strategy })
+  }
 
   if (!existing) {
     return NextResponse.json({ error: 'Strategy not found' }, { status: 404 })
@@ -191,6 +351,7 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
   const strategy = await prismaAny.strategy.update({
     where: { id },
     data: updateData,
+    select: writeSelect,
   })
 
   return NextResponse.json({ strategy })
@@ -212,10 +373,27 @@ export const DELETE = withXPlanAuth(async (request: Request, session) => {
   }
 
   const actor = getStrategyActor(session)
-  const existing = await prismaAny.strategy.findUnique({
-    where: { id },
-    select: { id: true, createdById: true, createdByEmail: true, assigneeId: true, assigneeEmail: true },
-  })
+
+
+  if (!areStrategyAssignmentFieldsAvailable()) {
+    await prismaAny.strategy.delete({ where: { id } })
+    return NextResponse.json({ ok: true })
+  }
+
+  let existing: any
+  try {
+    existing = await prismaAny.strategy.findUnique({
+      where: { id },
+      select: { id: true, createdById: true, createdByEmail: true, assigneeId: true, assigneeEmail: true },
+    })
+  } catch (error) {
+    if (!isStrategyAssignmentFieldsMissingError(error)) {
+      throw error
+    }
+    markStrategyAssignmentFieldsUnavailable()
+    await prismaAny.strategy.delete({ where: { id } })
+    return NextResponse.json({ ok: true })
+  }
 
   if (!existing) {
     return NextResponse.json({ error: 'Strategy not found' }, { status: 404 })
