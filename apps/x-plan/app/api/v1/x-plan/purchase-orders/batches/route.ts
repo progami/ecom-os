@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 
 const prismaAny = prisma as unknown as {
   batchTableRow?: typeof prisma.batchTableRow
@@ -93,7 +94,7 @@ async function recalcOrderQuantity(purchaseOrderId: string) {
   }
 }
 
-export const POST = withXPlanAuth(async (request: Request) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const delegate = ensureBatchDelegate()
   if (!delegate) {
     return NextResponse.json(
@@ -115,8 +116,8 @@ export const POST = withXPlanAuth(async (request: Request) => {
   const { purchaseOrderId, productId, quantity, batchCode } = parsed.data
 
   const [purchaseOrder, product] = await Promise.all([
-    prisma.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, select: { id: true } }),
-    prisma.product.findUnique({ where: { id: productId }, select: { id: true } }),
+    prisma.purchaseOrder.findUnique({ where: { id: purchaseOrderId }, select: { id: true, strategyId: true } }),
+    prisma.product.findUnique({ where: { id: productId }, select: { id: true, strategyId: true } }),
   ])
 
   if (!purchaseOrder) {
@@ -124,6 +125,13 @@ export const POST = withXPlanAuth(async (request: Request) => {
   }
   if (!product) {
     return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  }
+
+  const { response } = await requireXPlanStrategyAccess(purchaseOrder.strategyId, session)
+  if (response) return response
+
+  if (product.strategyId !== purchaseOrder.strategyId) {
+    return NextResponse.json({ error: 'Product does not belong to strategy' }, { status: 400 })
   }
 
   let created
@@ -163,7 +171,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
   })
 })
 
-export const PUT = withXPlanAuth(async (request: Request) => {
+export const PUT = withXPlanAuth(async (request: Request, session) => {
   const delegate = ensureBatchDelegate()
   if (!delegate) {
     return NextResponse.json(
@@ -182,13 +190,51 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  const existingRows = await delegate.findMany({
+    where: { id: { in: parsed.data.updates.map(({ id }) => id) } },
+    select: { id: true, purchaseOrderId: true },
+  })
+  const existingById = new Map(existingRows.map((row) => [row.id, row]))
+
+  const purchaseOrderIds = Array.from(new Set(existingRows.map((row) => row.purchaseOrderId)))
+  const purchaseOrders = await prisma.purchaseOrder.findMany({
+    where: { id: { in: purchaseOrderIds } },
+    select: { id: true, strategyId: true },
+  })
+  const purchaseOrderById = new Map(purchaseOrders.map((order) => [order.id, order]))
+
+  const { response } = await requireXPlanStrategiesAccess(
+    purchaseOrders.map((order) => order.strategyId),
+    session,
+  )
+  if (response) return response
+
   const ordersToRecalc = new Set<string>()
 
   for (const { id, values } of parsed.data.updates) {
-    const existing = await delegate.findUnique({ where: { id }, select: { purchaseOrderId: true } })
+    const existing = existingById.get(id)
     if (!existing) {
       return NextResponse.json({ error: `Batch ${id} not found` }, { status: 404 })
     }
+
+    const purchaseOrder = purchaseOrderById.get(existing.purchaseOrderId)
+    if (!purchaseOrder) {
+      return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
+    }
+
+    if ('productId' in values) {
+      const incomingProductId = values.productId
+      if (incomingProductId) {
+        const product = await prisma.product.findUnique({ where: { id: incomingProductId }, select: { id: true, strategyId: true } })
+        if (!product) {
+          return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+        }
+        if (product.strategyId !== purchaseOrder.strategyId) {
+          return NextResponse.json({ error: 'Product does not belong to strategy' }, { status: 400 })
+        }
+      }
+    }
+
     const data: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (!(field in values)) continue
@@ -245,7 +291,7 @@ export const PUT = withXPlanAuth(async (request: Request) => {
   return NextResponse.json({ ok: true })
 })
 
-export const DELETE = withXPlanAuth(async (request: Request) => {
+export const DELETE = withXPlanAuth(async (request: Request, session) => {
   const delegate = ensureBatchDelegate()
   if (!delegate) {
     return NextResponse.json(
@@ -270,6 +316,17 @@ export const DELETE = withXPlanAuth(async (request: Request) => {
   if (!existing) {
     return NextResponse.json({ error: 'Batch not found' }, { status: 404 })
   }
+
+  const purchaseOrder = await prisma.purchaseOrder.findUnique({
+    where: { id: existing.purchaseOrderId },
+    select: { id: true, strategyId: true },
+  })
+  if (!purchaseOrder) {
+    return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
+  }
+
+  const { response } = await requireXPlanStrategyAccess(purchaseOrder.strategyId, session)
+  if (response) return response
 
   try {
     await delegate.delete({ where: { id } })

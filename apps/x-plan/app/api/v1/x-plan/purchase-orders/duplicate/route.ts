@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 
 // Type assertion for Prisma models (some generated client types are not fully resolved at build time)
 const prismaAny = prisma as unknown as Record<string, any>
@@ -47,7 +48,7 @@ async function resolveDuplicateOrderCode(strategyId: string, sourceOrderCode: st
   throw new Error('Unable to generate a unique purchase order code. Try again.')
 }
 
-export const POST = withXPlanAuth(async (request: Request) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = duplicateSchema.safeParse(body)
 
@@ -67,6 +68,9 @@ export const POST = withXPlanAuth(async (request: Request) => {
   if (!source) {
     return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
   }
+
+  const { response } = await requireXPlanStrategyAccess(source.strategyId, session)
+  if (response) return response
 
   const orderCode = await resolveDuplicateOrderCode(source.strategyId, source.orderCode)
 

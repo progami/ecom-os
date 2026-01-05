@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -12,12 +12,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 const DEFAULT_STRATEGY_ID = 'default-strategy'
 
+type Assignee = {
+  id: string
+  email: string
+  fullName: string | null
+}
+
 type Strategy = {
   id: string
   name: string
   description: string | null
   region: 'US' | 'UK'
   isDefault: boolean
+  createdById?: string | null
+  createdByEmail?: string | null
+  assigneeId?: string | null
+  assigneeEmail?: string | null
   createdAt: string
   updatedAt: string
   _count: {
@@ -30,9 +40,14 @@ type Strategy = {
 interface StrategiesWorkspaceProps {
   strategies: Strategy[]
   activeStrategyId?: string | null
+  viewer: {
+    id: string | null
+    email: string | null
+    isSuperAdmin: boolean
+  }
 }
 
-export function StrategiesWorkspace({ strategies: initialStrategies, activeStrategyId }: StrategiesWorkspaceProps) {
+export function StrategiesWorkspace({ strategies: initialStrategies, activeStrategyId, viewer }: StrategiesWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [strategies, setStrategies] = useState<Strategy[]>(initialStrategies)
@@ -41,12 +56,75 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
   const [newName, setNewName] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newRegion, setNewRegion] = useState<'US' | 'UK'>('US')
+  const [newAssigneeId, setNewAssigneeId] = useState<string>('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editRegion, setEditRegion] = useState<'US' | 'UK'>('US')
+  const [editAssigneeId, setEditAssigneeId] = useState<string>('')
+
+  const [assignees, setAssignees] = useState<Assignee[]>([])
+  const [directoryConfigured, setDirectoryConfigured] = useState(true)
 
   const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
+
+  const canAssignByStrategyId = useMemo(() => {
+    const map = new Map<string, boolean>()
+    for (const strategy of strategies) {
+      const canAssign =
+        viewer.isSuperAdmin ||
+        (viewer.id != null && strategy.createdById === viewer.id) ||
+        (viewer.email != null && strategy.createdByEmail?.toLowerCase() === viewer.email)
+      map.set(strategy.id, canAssign)
+    }
+    return map
+  }, [strategies, viewer.email, viewer.id, viewer.isSuperAdmin])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadAssignees() {
+      try {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/assignees'))
+        const data = (await response.json().catch(() => null)) as
+          | { assignees?: Assignee[]; directoryConfigured?: boolean; error?: string }
+          | null
+
+        if (!response.ok) {
+          const message = data?.error || 'Failed to load assignees'
+          throw new Error(message)
+        }
+
+        if (cancelled) return
+        setAssignees(Array.isArray(data?.assignees) ? data!.assignees : [])
+        setDirectoryConfigured(Boolean(data?.directoryConfigured))
+      } catch (error) {
+        console.error(error)
+        if (!cancelled) {
+          setAssignees([])
+          setDirectoryConfigured(false)
+        }
+      }
+    }
+
+    void loadAssignees()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isAdding) return
+    if (!newAssigneeId && viewer.id) {
+      setNewAssigneeId(viewer.id)
+    }
+  }, [isAdding, newAssigneeId, viewer.id])
+
+  const renderAssigneeLabel = (strategy: Strategy) => {
+    if (strategy.assigneeEmail) return strategy.assigneeEmail
+    return 'Unassigned'
+  }
 
   const handleCreate = async () => {
     if (!newName.trim()) {
@@ -59,19 +137,34 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName, description: newDescription, region: newRegion }),
+        body: JSON.stringify({
+          name: newName,
+          description: newDescription,
+          region: newRegion,
+          ...(newAssigneeId ? { assigneeId: newAssigneeId } : {}),
+        }),
       })
-      if (!response.ok) throw new Error('Failed to create strategy')
-      const data = await response.json()
-      setStrategies((prev) => [...prev, { ...data.strategy, _count: { products: 0, purchaseOrders: 0, salesWeeks: 0 } }])
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message = (data as any)?.error || 'Failed to create strategy'
+        throw new Error(message)
+      }
+      setStrategies((prev) => [
+        ...prev,
+        {
+          ...(data as any).strategy,
+          _count: { products: 0, purchaseOrders: 0, salesWeeks: 0 },
+        },
+      ])
       setNewName('')
       setNewDescription('')
       setNewRegion('US')
+      setNewAssigneeId(viewer.id ?? '')
       setIsAdding(false)
       toast.success('Strategy created')
     } catch (error) {
       console.error(error)
-      toast.error('Failed to create strategy')
+      toast.error(error instanceof Error ? error.message : 'Failed to create strategy')
     } finally {
       setIsCreating(false)
     }
@@ -90,20 +183,32 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
     }
 
     try {
+      const canAssign = Boolean(canAssignByStrategyId.get(id))
+      const currentAssigneeId = strategy?.assigneeId ?? ''
+      const assigneeChanged = editAssigneeId !== currentAssigneeId && editAssigneeId !== ''
+
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, name: editName, description: editDescription, region: editRegion }),
+        body: JSON.stringify({
+          id,
+          name: editName,
+          description: editDescription,
+          region: editRegion,
+          ...(canAssign && assigneeChanged ? { assigneeId: editAssigneeId } : {}),
+        }),
       })
-      if (!response.ok) throw new Error('Failed to update strategy')
-      setStrategies((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, name: editName, description: editDescription, region: editRegion } : s))
-      )
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message = (data as any)?.error || 'Failed to update strategy'
+        throw new Error(message)
+      }
+      setStrategies((prev) => prev.map((s) => (s.id === id ? { ...s, ...(data as any).strategy } : s)))
       setEditingId(null)
       toast.success('Strategy updated')
     } catch (error) {
       console.error(error)
-      toast.error('Failed to update strategy')
+      toast.error(error instanceof Error ? error.message : 'Failed to update strategy')
     }
   }
 
@@ -148,6 +253,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
     setEditName(strategy.name)
     setEditDescription(strategy.description ?? '')
     setEditRegion(strategy.region ?? 'US')
+    setEditAssigneeId(strategy.assigneeId ?? '')
   }
 
   const cancelEdit = () => {
@@ -155,6 +261,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
     setEditName('')
     setEditDescription('')
     setEditRegion('US')
+    setEditAssigneeId('')
   }
 
   const primaryActionClass =
@@ -188,6 +295,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
               <TableRow className="hover:bg-transparent">
                 <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Strategy
+                </TableHead>
+                <TableHead className="sticky top-0 z-10 h-10 w-60 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                  Assignee
                 </TableHead>
                 <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Products
@@ -232,6 +342,27 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                       </select>
                     </div>
                   </TableCell>
+                  <TableCell className="border-r px-4 py-3 align-top">
+                    <select
+                      value={newAssigneeId}
+                      onChange={(e) => setNewAssigneeId(e.target.value)}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      disabled={assignees.length === 0}
+                    >
+                      <option value="" disabled>
+                        {assignees.length === 0
+                          ? directoryConfigured
+                            ? 'Loading assignees...'
+                            : 'Directory unavailable'
+                          : 'Select assignee'}
+                      </option>
+                      {assignees.map((assignee) => (
+                        <option key={assignee.id} value={assignee.id}>
+                          {assignee.email}
+                        </option>
+                      ))}
+                    </select>
+                  </TableCell>
                   <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">-</TableCell>
                   <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">-</TableCell>
                   <TableCell className="px-4 py-3">
@@ -259,7 +390,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
 
               {strategies.length === 0 && !isAdding ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={4} className="p-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
                     No strategies yet. Create your first planning strategy to get started.
                   </TableCell>
                 </TableRow>
@@ -267,6 +398,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                 strategies.map((strategy) => {
                   const isActive = selectedStrategyId === strategy.id
                   const isEditing = editingId === strategy.id
+                  const canAssign = Boolean(canAssignByStrategyId.get(strategy.id))
 
                   return (
                     <TableRow
@@ -331,6 +463,36 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{strategy.description}</p>
                               ) : null}
                             </div>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="border-r px-4 py-3" onClick={(e) => isEditing && e.stopPropagation()}>
+                        {isEditing ? (
+                          <select
+                            value={editAssigneeId}
+                            onChange={(e) => setEditAssigneeId(e.target.value)}
+                            className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            disabled={!canAssign || assignees.length === 0}
+                          >
+                            <option value="" disabled>
+                              {assignees.length === 0
+                                ? directoryConfigured
+                                  ? 'Loading assignees...'
+                                  : 'Directory unavailable'
+                                : 'Select assignee'}
+                            </option>
+                            {assignees.map((assignee) => (
+                              <option key={assignee.id} value={assignee.id}>
+                                {assignee.email}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm text-foreground">{renderAssigneeLabel(strategy)}</span>
+                            {!canAssign && strategy.createdByEmail ? (
+                              <span className="text-[11px] text-muted-foreground">Creator: {strategy.createdByEmail}</span>
+                            ) : null}
                           </div>
                         )}
                       </TableCell>

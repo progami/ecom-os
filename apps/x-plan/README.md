@@ -28,6 +28,8 @@ cp apps/x-plan/.env.dev.ci apps/x-plan/.env.local
 
 Set `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, and any other secrets used by the auth gateway.
 
+To enable strategy assignee selection (users pulled from the portal directory), also set `PORTAL_DB_URL` to the portal auth schema (for example: `postgresql://portal_auth:***@localhost:5432/portal_db?schema=auth`).
+
 ### 4. Provision a database (optional Docker helper)
 
 X-Plan stores data inside the `xplan` schema of the `portal_db` database. For local development you can launch Postgres via Docker:
@@ -101,8 +103,10 @@ All edits persist automatically via the debounced save handlers—watch for the 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string targeting the `xplan` schema |
+| `PORTAL_DB_URL` | Portal auth database connection string (needed for strategy assignee directory) |
 | `NEXTAUTH_URL` | Public URL for the app (used by NextAuth) |
 | `NEXTAUTH_SECRET` | Shared auth secret (should match the portal) |
 | `PORTAL_AUTH_URL` | Base URL for the portal auth service (defaults to `http://localhost:3000` in dev) |
+| `XPLAN_SUPER_ADMIN_EMAILS` | Optional comma/space list of super admin emails (defaults to `jarrar@targonglobal.com`) |
 
 See `apps/x-plan/.env.dev.ci` for quick-start values.
