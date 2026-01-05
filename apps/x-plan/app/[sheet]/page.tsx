@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupWorkspace } from '@/components/sheets/product-setup-workspace'
@@ -16,6 +16,8 @@ import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/custom-purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
+import { auth } from '@/lib/auth'
+import { buildStrategyAccessWhere, getStrategyActor } from '@/lib/strategy-access'
 import {
   Prisma,
   type BatchTableRow,
@@ -446,26 +448,35 @@ function isHiddenParameterLabel(label: string) {
   return HIDDEN_PARAMETER_LABELS.has(label.trim().toLowerCase())
 }
 
-async function resolveStrategyId(searchParamStrategy: string | string[] | undefined): Promise<string> {
+async function resolveStrategyId(
+  searchParamStrategy: string | string[] | undefined,
+  actor: ReturnType<typeof getStrategyActor>,
+): Promise<string | null> {
   const prismaAny = prisma as unknown as Record<string, any>
   const DEFAULT_STRATEGY_ID = 'default-strategy'
 
   // If strategyId is provided in URL, validate it exists
   if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
-    const exists = await prismaAny.strategy.findUnique({ where: { id: searchParamStrategy } })
+    const exists = await prismaAny.strategy.findFirst({
+      where: {
+        id: searchParamStrategy,
+        ...buildStrategyAccessWhere(actor),
+      },
+      select: { id: true },
+    })
     if (exists) return searchParamStrategy
   }
 
   // Prefer the canonical default strategy for existing data (created via migration).
-  const canonicalDefault = await prismaAny.strategy.findUnique({
-    where: { id: DEFAULT_STRATEGY_ID },
+  const canonicalDefault = await prismaAny.strategy.findFirst({
+    where: { id: DEFAULT_STRATEGY_ID, ...buildStrategyAccessWhere(actor) },
     select: { id: true },
   })
   if (canonicalDefault) return canonicalDefault.id
 
   // Otherwise get the default strategy (legacy behavior)
   const defaultStrategy = await prismaAny.strategy.findFirst({
-    where: { isDefault: true },
+    where: { isDefault: true, ...buildStrategyAccessWhere(actor) },
     select: { id: true },
   })
 
@@ -473,14 +484,14 @@ async function resolveStrategyId(searchParamStrategy: string | string[] | undefi
 
   // If no default, get the first strategy
   const firstStrategy = await prismaAny.strategy.findFirst({
+    where: buildStrategyAccessWhere(actor),
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   })
 
   if (firstStrategy) return firstStrategy.id
 
-  // This should not happen if the database has been migrated
-  throw new Error('No strategies found. Please create a strategy first.')
+  return null
 }
 
 function columnKey(productIndex: number, metric: SalesMetric) {
@@ -1773,17 +1784,53 @@ function getPOProfitabilityView(
 }
 
 export default async function SheetPage({ params, searchParams }: SheetPageProps) {
-  const [routeParams, rawSearchParams] = await Promise.all([
+  const [routeParams, rawSearchParams, session] = await Promise.all([
     params,
     searchParams ?? Promise.resolve({}),
+    auth(),
   ])
   const config = getSheetConfig(routeParams.sheet)
   if (!config) notFound()
 
   const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>
+  const actor = getStrategyActor(session)
+  const viewer = {
+    id: actor.id,
+    email: actor.email,
+    isSuperAdmin: actor.isSuperAdmin,
+  }
 
-  // Resolve strategyId from URL or get default
-  const strategyId = await resolveStrategyId(parsedSearch.strategy)
+  const toQueryString = (params: Record<string, string | string[] | undefined>) => {
+    const next = new URLSearchParams()
+    for (const [key, value] of Object.entries(params)) {
+      if (value == null) continue
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          next.append(key, entry)
+        }
+        continue
+      }
+      next.set(key, value)
+    }
+    return next
+  }
+
+  const requestedStrategyId = typeof parsedSearch.strategy === 'string' ? parsedSearch.strategy : null
+  const resolvedStrategyId = await resolveStrategyId(parsedSearch.strategy, actor)
+
+  if (!resolvedStrategyId) {
+    if (config.slug !== '0-strategies') {
+      const nextParams = toQueryString(parsedSearch)
+      nextParams.delete('strategy')
+      redirect(`/0-strategies?${nextParams.toString()}`)
+    }
+  } else if (requestedStrategyId && requestedStrategyId !== resolvedStrategyId) {
+    const nextParams = toQueryString(parsedSearch)
+    nextParams.set('strategy', resolvedStrategyId)
+    redirect(`/${routeParams.sheet}?${nextParams.toString()}`)
+  }
+
+  const strategyId = resolvedStrategyId ?? 'default-strategy'
 
   const prismaAnyLocal = prisma as unknown as Record<string, any>
   const strategyRegionRow = await prismaAnyLocal.strategy?.findUnique?.({
@@ -1825,6 +1872,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
       const prismaAnyLocal = prisma as unknown as Record<string, any>
       const strategiesData = await prismaAnyLocal.strategy.findMany({
+        where: buildStrategyAccessWhere(actor),
         orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
         include: {
           _count: {
@@ -1844,6 +1892,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         status: string
         region: 'US' | 'UK'
         isDefault: boolean
+        createdById: string | null
+        createdByEmail: string | null
+        assigneeId: string | null
+        assigneeEmail: string | null
         createdAt: string
         updatedAt: string
         _count: {
@@ -1860,6 +1912,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         status: s.status,
         region: s.region === 'UK' ? 'UK' : 'US',
         isDefault: s.id === canonicalDefaultId,
+        createdById: s.createdById ?? null,
+        createdByEmail: s.createdByEmail ?? null,
+        assigneeId: s.assigneeId ?? null,
+        assigneeEmail: s.assigneeEmail ?? null,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
         _count: s._count,
@@ -1870,7 +1926,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         if (aDefault !== bDefault) return aDefault ? -1 : 1
         return b.updatedAt.localeCompare(a.updatedAt)
       })
-      tabularContent = <StrategiesWorkspace strategies={strategies} activeStrategyId={strategyId} />
+      tabularContent = <StrategiesWorkspace strategies={strategies} activeStrategyId={resolvedStrategyId} viewer={viewer} />
       visualContent = null
       break
     }

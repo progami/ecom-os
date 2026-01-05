@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 import { loadPlanningCalendar } from '@/lib/planning'
 import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar'
 import { weekStartsOnForRegion } from '@/lib/strategy-region'
@@ -44,7 +45,7 @@ function parseDate(value: string | null | undefined) {
   return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
 }
 
-export const PUT = withXPlanAuth(async (request: Request) => {
+export const PUT = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   if (!body || !Array.isArray(body.updates)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
@@ -56,9 +57,15 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     where: { id: { in: updates.map(({ id }) => id) } },
     select: {
       id: true,
-      purchaseOrder: { select: { strategy: { select: { region: true } } } },
+      purchaseOrder: { select: { strategyId: true, strategy: { select: { region: true } } } },
     },
   })
+
+  const { response } = await requireXPlanStrategiesAccess(
+    paymentMeta.map((row) => row.purchaseOrder.strategyId),
+    session,
+  )
+  if (response) return response
 
   const weekStartsOnByPayment = new Map<string, 0 | 1>()
   const weekStartsOnSet = new Set<0 | 1>()
@@ -159,7 +166,7 @@ export const PUT = withXPlanAuth(async (request: Request) => {
   return NextResponse.json({ ok: true })
 })
 
-export const POST = withXPlanAuth(async (request: Request) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   if (!body || typeof body.purchaseOrderId !== 'string') {
     return NextResponse.json({ error: 'purchaseOrderId is required' }, { status: 400 })
@@ -179,8 +186,15 @@ export const POST = withXPlanAuth(async (request: Request) => {
   try {
     const purchaseOrder = await prisma.purchaseOrder.findUnique({
       where: { id: purchaseOrderId },
-      select: { id: true, strategy: { select: { region: true } } },
+      select: { id: true, strategyId: true, strategy: { select: { region: true } } },
     })
+
+    if (!purchaseOrder) {
+      return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
+    }
+
+    const { response } = await requireXPlanStrategyAccess(purchaseOrder.strategyId, session)
+    if (response) return response
 
     const weekStartsOn = weekStartsOnForRegion(purchaseOrder?.strategy?.region === 'UK' ? 'UK' : 'US')
     const planning = await loadPlanningCalendar(weekStartsOn)
@@ -234,7 +248,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
   }
 })
 
-export const DELETE = withXPlanAuth(async (request: Request) => {
+export const DELETE = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   if (!body || !Array.isArray(body.ids)) {
     return NextResponse.json({ error: 'ids array is required' }, { status: 400 })
@@ -243,6 +257,17 @@ export const DELETE = withXPlanAuth(async (request: Request) => {
   const ids = body.ids as string[]
 
   try {
+    const payments = await prisma.purchaseOrderPayment.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, purchaseOrder: { select: { strategyId: true } } },
+    })
+
+    const { response } = await requireXPlanStrategiesAccess(
+      payments.map((payment) => payment.purchaseOrder.strategyId),
+      session,
+    )
+    if (response) return response
+
     await prisma.purchaseOrderPayment.deleteMany({
       where: { id: { in: ids } },
     })

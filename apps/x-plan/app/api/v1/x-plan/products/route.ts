@@ -4,6 +4,7 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { loadPlanningCalendar } from '@/lib/planning'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 import { weekStartsOnForRegion } from '@/lib/strategy-region'
 
 const numericFields = [
@@ -98,13 +99,16 @@ async function seedSalesWeeksForProduct(
   })
 }
 
-export const GET = withXPlanAuth(async (request: Request) => {
+export const GET = withXPlanAuth(async (request: Request, session) => {
   const { searchParams } = new URL(request.url)
   const strategyId = searchParams.get('strategyId')
 
   if (!strategyId) {
     return NextResponse.json({ error: 'strategyId is required' }, { status: 400 })
   }
+
+  const { response } = await requireXPlanStrategyAccess(strategyId, session)
+  if (response) return response
 
   const products = await prisma.product.findMany({
     where: { strategyId },
@@ -113,13 +117,16 @@ export const GET = withXPlanAuth(async (request: Request) => {
   return NextResponse.json({ products })
 })
 
-export const POST = withXPlanAuth(async (request: Request) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
+
+  const { response } = await requireXPlanStrategyAccess(parsed.data.strategyId, session)
+  if (response) return response
 
   const strategyRow = await (prisma as unknown as Record<string, any>).strategy?.findUnique?.({
     where: { id: parsed.data.strategyId },
@@ -152,13 +159,24 @@ export const POST = withXPlanAuth(async (request: Request) => {
   return NextResponse.json({ product: result })
 })
 
-export const PUT = withXPlanAuth(async (request: Request) => {
+export const PUT = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
+
+  const productIds = parsed.data.updates.map(({ id }) => id)
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true, strategyId: true },
+  })
+  const { response } = await requireXPlanStrategiesAccess(
+    products.map((product) => product.strategyId),
+    session,
+  )
+  if (response) return response
 
   const updates = parsed.data.updates
     .map(({ id, values }) => {
@@ -208,7 +226,7 @@ export const PUT = withXPlanAuth(async (request: Request) => {
   return NextResponse.json({ ok: true })
 })
 
-export const DELETE = withXPlanAuth(async (request: Request) => {
+export const DELETE = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = deleteSchema.safeParse(body)
 
@@ -217,6 +235,15 @@ export const DELETE = withXPlanAuth(async (request: Request) => {
   }
 
   const ids = parsed.data.ids
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, strategyId: true },
+  })
+  const { response } = await requireXPlanStrategiesAccess(
+    products.map((product) => product.strategyId),
+    session,
+  )
+  if (response) return response
 
   await prisma.$transaction(async (tx: TransactionClient) => {
     await tx.purchaseOrder.deleteMany({ where: { productId: { in: ids } } })
