@@ -4,7 +4,6 @@ import { UpdatePolicySchema, bumpVersion } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
 import { getViewerContext } from '@/lib/domain/workflow/viewer'
 import { policyToWorkflowRecordDTO } from '@/lib/domain/policies/workflow-record'
 
@@ -171,18 +170,6 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
       },
     })
 
-    await writeAuditLog({
-      actorId,
-      action: 'UPDATE',
-      entityType: 'POLICY',
-      entityId: p.id,
-      summary: `Updated policy "${p.title}"`,
-      metadata: {
-        changed: Object.keys(updates),
-      },
-      req,
-    })
-
     return NextResponse.json(p)
   } catch (e) {
     return safeErrorResponse(e, 'Failed to update policy')
@@ -219,16 +206,6 @@ export async function DELETE(req: Request, context: PolicyRouteContext) {
 
     await prisma.policy.delete({ where: { id } })
 
-    if (existing) {
-      await writeAuditLog({
-        actorId,
-        action: 'DELETE',
-        entityType: 'POLICY',
-        entityId: existing.id,
-        summary: `Deleted policy "${existing.title}"`,
-        req,
-      })
-    }
     return NextResponse.json({ ok: true })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to delete policy')

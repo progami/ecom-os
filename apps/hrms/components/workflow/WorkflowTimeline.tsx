@@ -1,4 +1,4 @@
-import { Avatar } from '@/components/ui/Avatar';
+import { Avatar } from '@/components/ui/avatar';
 import type { WorkflowTimelineEntry } from '@/lib/contracts/workflow-record';
 
 type WorkflowTimelineProps = {

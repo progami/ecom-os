@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { PoliciesApi, type Policy } from '@/lib/api-client'
 import { DocumentIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Alert } from '@/components/ui/Alert'
-import {
-  FormField,
-  SelectField,
-  TextareaField,
-  FormSection,
-  FormActions,
-} from '@/components/ui/FormField'
+import { Card, CardDivider } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { NativeSelect } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import { useNavigationHistory } from '@/lib/navigation-history'
 
 const categoryOptions = [
@@ -49,6 +50,19 @@ function getNextVersions(current: string): { minor: string; major: string } {
   }
 }
 
+const EditPolicySchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  category: z.string().min(1, 'Category is required'),
+  region: z.string().min(1, 'Region is required'),
+  status: z.string().min(1, 'Status is required'),
+  newVersion: z.string().min(1, 'New version is required'),
+  effectiveDate: z.string().optional().nullable(),
+  summary: z.string().max(1000).optional().nullable(),
+  content: z.string().max(50000).optional().nullable(),
+})
+
+type FormData = z.infer<typeof EditPolicySchema>
+
 export default function EditPolicyPage() {
   const router = useRouter()
   const { goBack } = useNavigationHistory()
@@ -57,53 +71,58 @@ export default function EditPolicyPage() {
 
   const [policy, setPolicy] = useState<Policy | null>(null)
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<FormData>({
+    resolver: zodResolver(EditPolicySchema),
+  })
 
   useEffect(() => {
     async function load() {
       try {
         const data = await PoliciesApi.get(id)
         setPolicy(data)
+        const versions = getNextVersions(data.version)
+        reset({
+          title: data.title,
+          category: data.category,
+          region: data.region,
+          status: data.status,
+          newVersion: versions.minor,
+          effectiveDate: data.effectiveDate?.split('T')[0],
+          summary: data.summary,
+          content: data.content,
+        })
       } catch (e: any) {
-        setError(e.message || 'Failed to load policy')
+        setLoadError(e.message)
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [id])
+  }, [id, reset])
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    const fd = new FormData(e.currentTarget)
-    const payload = Object.fromEntries(fd.entries()) as any
-
-    // Validate version bump is selected
-    if (!payload.newVersion) {
-      setError('You must select a new version when updating a policy')
-      setSubmitting(false)
-      return
-    }
-
+  const onSubmit = async (data: FormData) => {
     try {
       await PoliciesApi.update(id, {
-        title: String(payload.title),
-        category: String(payload.category),
-        region: String(payload.region),
-        status: String(payload.status),
-        version: String(payload.newVersion),
-        effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : undefined,
-        summary: payload.summary ? String(payload.summary) : undefined,
-        content: payload.content ? String(payload.content) : undefined,
+        title: data.title,
+        category: data.category,
+        region: data.region,
+        status: data.status,
+        version: data.newVersion,
+        effectiveDate: data.effectiveDate,
+        summary: data.summary,
+        content: data.content,
       })
       router.push(`/policies/${id}`)
     } catch (e: any) {
-      setError(e.message || 'Failed to update policy')
-    } finally {
-      setSubmitting(false)
+      setError('root', { message: e.message })
     }
   }
 
@@ -141,14 +160,14 @@ export default function EditPolicyPage() {
         />
         <div className="max-w-3xl">
           <Card padding="lg">
-            <Alert variant="error">{error || 'Policy not found'}</Alert>
+            <Alert variant="error">{loadError}</Alert>
           </Card>
         </div>
       </>
     )
   }
 
-  const effectiveDateFormatted = policy.effectiveDate ? policy.effectiveDate.split('T')[0] : ''
+  const versions = getNextVersions(policy.version)
 
   return (
     <>
@@ -161,109 +180,120 @@ export default function EditPolicyPage() {
 
       <div className="max-w-3xl">
         <Card padding="lg">
-          {error && (
-            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-              {error}
+          {errors.root && (
+            <Alert variant="error" className="mb-6" onDismiss={() => setError('root', { message: '' })}>
+              {errors.root.message}
             </Alert>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* Basic Info */}
-            <FormSection title="Policy Information">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Policy Information</h3>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <FormField
-                    label="Policy Title"
-                    name="title"
-                    required
-                    defaultValue={policy.title}
+                <div className="sm:col-span-2 space-y-2">
+                  <Label htmlFor="title">Policy Title <span className="text-destructive">*</span></Label>
+                  <Input
+                    {...register('title')}
+                    className={cn(errors.title && 'border-destructive')}
                   />
+                  {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
                 </div>
-                <SelectField
-                  label="Category"
-                  name="category"
-                  required
-                  options={categoryOptions}
-                  defaultValue={policy.category}
-                />
-                <SelectField
-                  label="Region"
-                  name="region"
-                  required
-                  options={regionOptions}
-                  defaultValue={policy.region}
-                />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue={policy.status}
-                />
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Current Version
-                  </label>
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('category')} className={cn(errors.category && 'border-destructive')}>
+                    {categoryOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="region">Region <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('region')} className={cn(errors.region && 'border-destructive')}>
+                    {regionOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('status')} className={cn(errors.status && 'border-destructive')}>
+                    {statusOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+                <div className="space-y-2">
+                  <Label>Current Version</Label>
                   <div className="px-3 py-2 bg-muted border border-border rounded-lg text-sm text-muted-foreground">
                     v{policy.version}
                   </div>
                 </div>
-                <SelectField
-                  label="New Version"
-                  name="newVersion"
-                  required
-                  options={[
-                    { value: getNextVersions(policy.version).minor, label: `v${getNextVersions(policy.version).minor} (Minor update)` },
-                    { value: getNextVersions(policy.version).major, label: `v${getNextVersions(policy.version).major} (Major update)` },
-                  ]}
-                  placeholder="Select new version..."
-                />
-                <FormField
-                  label="Effective Date"
-                  name="effectiveDate"
-                  type="date"
-                  defaultValue={effectiveDateFormatted}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="newVersion">New Version <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('newVersion')} className={cn(errors.newVersion && 'border-destructive')}>
+                    <option value="">Select new version...</option>
+                    <option value={versions.minor}>v{versions.minor} (Minor update)</option>
+                    <option value={versions.major}>v{versions.major} (Major update)</option>
+                  </NativeSelect>
+                  {errors.newVersion && <p className="text-xs text-destructive">{errors.newVersion.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="effectiveDate">Effective Date</Label>
+                  <Input {...register('effectiveDate')} type="date" />
+                </div>
               </div>
-            </FormSection>
+            </div>
 
             <CardDivider />
 
             {/* Summary */}
-            <FormSection title="Summary" description="Brief overview of the policy">
-              <TextareaField
-                label="Summary"
-                name="summary"
-                rows={3}
-                defaultValue={policy.summary || ''}
-                placeholder="A brief summary of what this policy covers..."
-                resizable={false}
-              />
-            </FormSection>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Summary</h3>
+                <p className="text-xs text-muted-foreground mt-1">Brief overview of the policy</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="summary">Summary</Label>
+                <Textarea
+                  {...register('summary')}
+                  rows={3}
+                  className="resize-none"
+                  placeholder="A brief summary of what this policy covers..."
+                />
+              </div>
+            </div>
 
             <CardDivider />
 
             {/* Content */}
-            <FormSection title="Policy Content" description="Full policy text">
-              <TextareaField
-                label="Content"
-                name="content"
-                rows={16}
-                monospace
-                defaultValue={policy.content || ''}
-                placeholder="Full policy content..."
-              />
-            </FormSection>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Policy Content</h3>
+                <p className="text-xs text-muted-foreground mt-1">Full policy text</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="content">Content</Label>
+                <Textarea
+                  {...register('content')}
+                  rows={16}
+                  className="font-mono"
+                  placeholder="Full policy content..."
+                />
+              </div>
+            </div>
 
             {/* Actions */}
-            <FormActions>
-              <Button variant="secondary" onClick={goBack}>
+            <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
+              <Button type="button" variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Changes'}
+              <Button type="submit" loading={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
-            </FormActions>
+            </div>
           </form>
         </Card>
       </div>

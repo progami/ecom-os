@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   ApiError,
   MeApi,
@@ -11,10 +14,10 @@ import {
 } from '@/lib/api-client';
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
-import { StatusBadge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
+import { StatusBadge } from '@/components/ui/badge';
 import { FormField, SelectField, TextareaField } from '@/components/ui/FormField';
 import { useNavigationHistory } from '@/lib/navigation-history';
 import {
@@ -23,14 +26,15 @@ import {
   getAllowedReviewPeriodTypes,
   inferReviewPeriodParts,
 } from '@/lib/review-period';
+import { UpdatePerformanceReviewSchema } from '@/lib/validations';
 
+type FormData = z.infer<typeof UpdatePerformanceReviewSchema>;
+
+// Simplified for small team (15-20 people)
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
   { value: 'QUARTERLY', label: 'Quarterly' },
-  { value: 'SEMI_ANNUAL', label: 'Semi-Annual' },
   { value: 'ANNUAL', label: 'Annual' },
-  { value: 'PROMOTION', label: 'Promotion' },
-  { value: 'PIP', label: 'Performance Improvement Plan' },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -50,19 +54,19 @@ const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
 }));
 
 function RatingInput({
-  name,
   label,
   value,
   onChange,
   required = false,
   disabled = false,
+  error,
 }: {
-  name: string;
   label: string;
   value: number;
   onChange: (v: number) => void;
   required?: boolean;
   disabled?: boolean;
+  error?: string;
 }) {
   return (
     <div>
@@ -88,7 +92,7 @@ function RatingInput({
         ))}
         <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
       </div>
-      <input type="hidden" name={name} value={value} />
+      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
     </div>
   );
 }
@@ -98,34 +102,55 @@ export default function EditReviewPage() {
   const params = useParams();
   const id = params.id as string;
   const { goBack } = useNavigationHistory();
+  const currentYear = new Date().getFullYear();
 
   const [review, setReview] = useState<PerformanceReview | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Rating states
-  const [overallRating, setOverallRating] = useState(3);
-  const [qualityOfWork, setQualityOfWork] = useState(3);
-  const [productivity, setProductivity] = useState(3);
-  const [communication, setCommunication] = useState(3);
-  const [teamwork, setTeamwork] = useState(3);
-  const [initiative, setInitiative] = useState(3);
-  const [attendance, setAttendance] = useState(3);
-  const currentYear = new Date().getFullYear();
   const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map(
     (y) => ({
       value: String(y),
       label: String(y),
     }),
   );
-  const [reviewType, setReviewType] = useState('ANNUAL');
-  const [periodType, setPeriodType] = useState('ANNUAL');
-  const [periodYear, setPeriodYear] = useState(String(currentYear));
-  const [roleTitle, setRoleTitle] = useState('');
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting: isSaving },
+  } = useForm<FormData>({
+    resolver: zodResolver(UpdatePerformanceReviewSchema),
+    defaultValues: {
+      reviewType: 'ANNUAL',
+      periodType: 'ANNUAL',
+      periodYear: currentYear,
+      overallRating: 3,
+      qualityOfWork: 3,
+      productivity: 3,
+      communication: 3,
+      teamwork: 3,
+      initiative: 3,
+      attendance: 3,
+    },
+  });
+
+  const reviewType = watch('reviewType') ?? 'ANNUAL';
+  const periodType = watch('periodType') ?? 'ANNUAL';
+  const overallRating = watch('overallRating') ?? 3;
+  const qualityOfWork = watch('qualityOfWork') ?? 3;
+  const productivity = watch('productivity') ?? 3;
+  const communication = watch('communication') ?? 3;
+  const teamwork = watch('teamwork') ?? 3;
+  const initiative = watch('initiative') ?? 3;
+  const attendance = watch('attendance') ?? 3;
+  const roleTitle = watch('roleTitle') ?? '';
 
   useEffect(() => {
     async function load() {
@@ -137,14 +162,30 @@ export default function EditReviewPage() {
         setReview(data);
         setMe(meData);
 
-        // Initialize rating states from loaded data
-        setOverallRating(data.overallRating || 3);
-        setQualityOfWork(data.qualityOfWork || 3);
-        setProductivity(data.productivity || 3);
-        setCommunication(data.communication || 3);
-        setTeamwork(data.teamwork || 3);
-        setInitiative(data.initiative || 3);
-        setAttendance(data.attendance || 3);
+        // Infer period parts from review
+        const inferredPeriod = inferReviewPeriodParts(data.reviewPeriod);
+        const formPeriodType = data.periodType || inferredPeriod.periodType || 'ANNUAL';
+        const formPeriodYear = data.periodYear ?? inferredPeriod.periodYear ?? currentYear;
+
+        // Reset form with loaded data
+        reset({
+          reviewType: (data.reviewType || 'ANNUAL') as 'PROBATION' | 'QUARTERLY' | 'ANNUAL',
+          periodType: formPeriodType as any,
+          periodYear: formPeriodYear,
+          reviewDate: data.reviewDate ? new Date(data.reviewDate).toISOString().split('T')[0] : '',
+          roleTitle: data.roleTitle || data.employee?.position || '',
+          overallRating: data.overallRating || 3,
+          qualityOfWork: data.qualityOfWork || 3,
+          productivity: data.productivity || 3,
+          communication: data.communication || 3,
+          teamwork: data.teamwork || 3,
+          initiative: data.initiative || 3,
+          attendance: data.attendance || 3,
+          strengths: data.strengths || '',
+          areasToImprove: data.areasToImprove || '',
+          goals: data.goals || '',
+          comments: data.comments || '',
+        });
 
         // Auto-start review if NOT_STARTED
         if (data.status === 'NOT_STARTED') {
@@ -154,7 +195,6 @@ export default function EditReviewPage() {
             setSuccessMessage('Review started. Fill in the ratings and feedback below.');
           } catch (e: any) {
             console.error('Failed to auto-start review:', e);
-            // Non-fatal - continue with editing
           }
         }
       } catch (e: any) {
@@ -164,63 +204,52 @@ export default function EditReviewPage() {
       }
     }
     load();
-  }, [id]);
+  }, [id, currentYear, reset]);
 
+  // Update periodType when reviewType changes
   useEffect(() => {
-    if (!review) return;
-    setReviewType(review.reviewType);
-
-    const inferredPeriod = inferReviewPeriodParts(review.reviewPeriod);
-    const nextPeriodType = review.periodType || inferredPeriod.periodType || 'ANNUAL';
-    const nextPeriodYear = review.periodYear ?? inferredPeriod.periodYear ?? currentYear;
-    setPeriodType(nextPeriodType);
-    setPeriodYear(String(nextPeriodYear));
-    setRoleTitle(review.roleTitle || review.employee?.position || '');
-  }, [currentYear, review]);
+    const allowedTypes = getAllowedReviewPeriodTypes(reviewType);
+    if (!allowedTypes.includes(periodType as any)) {
+      setValue('periodType', allowedTypes[0] as any);
+    }
+  }, [reviewType, periodType, setValue]);
 
   const isDraft = Boolean(
     review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status),
   );
   const isHrOrAdmin = Boolean(me?.isHR || me?.isSuperAdmin);
-
-  // Managers can edit draft/in-progress reviews; HR/Admin can edit metadata in later stages.
   const canEditMeta = Boolean(review) && (isDraft || isHrOrAdmin);
   const canEditContent = isDraft;
 
-  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function onSave(data: FormData) {
     if (!review || !canEditMeta) return;
 
-    setSaving(true);
     setError(null);
     setSuccessMessage(null);
-
-    const fd = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(fd.entries()) as any;
 
     try {
       const update: Record<string, unknown> = {};
 
       if (canEditMeta) {
-        update.reviewType = String(payload.reviewType);
-        update.periodType = String(payload.periodType);
-        update.periodYear = parseInt(String(payload.periodYear), 10);
-        update.reviewDate = String(payload.reviewDate);
-        update.roleTitle = String(payload.roleTitle);
+        update.reviewType = data.reviewType;
+        update.periodType = data.periodType;
+        update.periodYear = data.periodYear;
+        update.reviewDate = data.reviewDate;
+        update.roleTitle = data.roleTitle;
       }
 
       if (canEditContent) {
-        update.overallRating = parseInt(payload.overallRating, 10);
-        update.qualityOfWork = parseInt(payload.qualityOfWork, 10);
-        update.productivity = parseInt(payload.productivity, 10);
-        update.communication = parseInt(payload.communication, 10);
-        update.teamwork = parseInt(payload.teamwork, 10);
-        update.initiative = parseInt(payload.initiative, 10);
-        update.attendance = parseInt(payload.attendance, 10);
-        update.strengths = payload.strengths || null;
-        update.areasToImprove = payload.areasToImprove || null;
-        update.goals = payload.goals || null;
-        update.comments = payload.comments || null;
+        update.overallRating = data.overallRating;
+        update.qualityOfWork = data.qualityOfWork;
+        update.productivity = data.productivity;
+        update.communication = data.communication;
+        update.teamwork = data.teamwork;
+        update.initiative = data.initiative;
+        update.attendance = data.attendance;
+        update.strengths = data.strengths || null;
+        update.areasToImprove = data.areasToImprove || null;
+        update.goals = data.goals || null;
+        update.comments = data.comments || null;
       }
 
       const updated = await PerformanceReviewsApi.update(id, update);
@@ -228,42 +257,36 @@ export default function EditReviewPage() {
       setSuccessMessage(canEditContent ? 'Review saved as draft' : 'Review metadata updated');
     } catch (e: any) {
       setError(e.message || 'Failed to save review');
-    } finally {
-      setSaving(false);
     }
   }
 
-  async function handleSubmit() {
+  async function handleSubmitForReview() {
     if (!review || !canEditContent) return;
-
-    // First save the current form state
-    const form = document.querySelector('form') as HTMLFormElement;
-    const fd = new FormData(form);
-    const payload = Object.fromEntries(fd.entries()) as any;
 
     setSubmitting(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      // Save first
+      // Save first using current form values
+      const formValues = watch();
       await PerformanceReviewsApi.update(id, {
-        reviewType: String(payload.reviewType),
-        periodType: String(payload.periodType),
-        periodYear: parseInt(String(payload.periodYear), 10),
-        reviewDate: String(payload.reviewDate),
-        roleTitle: String(payload.roleTitle),
-        overallRating: parseInt(payload.overallRating, 10),
-        qualityOfWork: parseInt(payload.qualityOfWork, 10),
-        productivity: parseInt(payload.productivity, 10),
-        communication: parseInt(payload.communication, 10),
-        teamwork: parseInt(payload.teamwork, 10),
-        initiative: parseInt(payload.initiative, 10),
-        attendance: parseInt(payload.attendance, 10),
-        strengths: payload.strengths || null,
-        areasToImprove: payload.areasToImprove || null,
-        goals: payload.goals || null,
-        comments: payload.comments || null,
+        reviewType: formValues.reviewType,
+        periodType: formValues.periodType,
+        periodYear: formValues.periodYear,
+        reviewDate: formValues.reviewDate,
+        roleTitle: formValues.roleTitle,
+        overallRating: formValues.overallRating,
+        qualityOfWork: formValues.qualityOfWork,
+        productivity: formValues.productivity,
+        communication: formValues.communication,
+        teamwork: formValues.teamwork,
+        initiative: formValues.initiative,
+        attendance: formValues.attendance,
+        strengths: formValues.strengths || null,
+        areasToImprove: formValues.areasToImprove || null,
+        goals: formValues.goals || null,
+        comments: formValues.comments || null,
       });
 
       // Then submit for review
@@ -279,18 +302,11 @@ export default function EditReviewPage() {
         );
         return;
       }
-
       setError(e.message || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }
   }
-
-  const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toISOString().split('T')[0];
-  };
 
   if (loading) {
     return (
@@ -333,7 +349,6 @@ export default function EditReviewPage() {
     );
   }
 
-  // Non-editable for current viewer - redirect to view page
   if (!canEditMeta) {
     router.replace(`/performance/reviews/${id}`);
     return null;
@@ -373,7 +388,7 @@ export default function EditReviewPage() {
           </Alert>
         )}
 
-        <form onSubmit={handleSave}>
+        <form onSubmit={handleSubmit(onSave)}>
           {/* Employee Info Card */}
           <Card padding="lg" className="mb-6">
             <div className="flex items-start justify-between mb-6">
@@ -391,53 +406,42 @@ export default function EditReviewPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SelectField
                 label="Review Type"
-                name="reviewType"
                 required
                 options={reviewTypeOptions}
-                value={reviewType}
-                onChange={(e) => {
-                  const nextReviewType = e.target.value;
-                  setReviewType(nextReviewType);
-                  const nextAllowed = getAllowedReviewPeriodTypes(nextReviewType);
-                  if (!nextAllowed.includes(periodType as any)) {
-                    setPeriodType(nextAllowed[0] ?? 'ANNUAL');
-                  }
-                }}
                 disabled={!canEditMeta}
+                error={errors.reviewType?.message}
+                {...register('reviewType')}
               />
               <SelectField
                 label="Review Period"
-                name="periodType"
                 required
                 options={periodTypeOptions}
-                value={periodType}
-                onChange={(e) => setPeriodType(e.target.value)}
                 disabled={!canEditMeta}
+                error={errors.periodType?.message}
+                {...register('periodType')}
               />
               <SelectField
                 label="Year"
-                name="periodYear"
                 required
                 options={periodYearOptions}
-                value={periodYear}
-                onChange={(e) => setPeriodYear(e.target.value)}
                 disabled={!canEditMeta}
+                error={errors.periodYear?.message}
+                {...register('periodYear')}
               />
               <FormField
                 label="Role"
-                name="roleTitle"
                 required
-                value={roleTitle}
-                onChange={(e) => setRoleTitle(e.target.value)}
                 disabled={!canEditMeta}
+                error={errors.roleTitle?.message}
+                {...register('roleTitle')}
               />
               <FormField
                 label="Review Date"
-                name="reviewDate"
                 type="date"
                 required
-                defaultValue={formatDateForInput(review.reviewDate)}
                 disabled={!canEditMeta}
+                error={errors.reviewDate?.message}
+                {...register('reviewDate')}
               />
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1.5">Manager</label>
@@ -460,64 +464,64 @@ export default function EditReviewPage() {
             {/* Overall Rating - Highlighted */}
             <div className="bg-warning-50 rounded-lg p-4 mb-6">
               <RatingInput
-                name="overallRating"
                 label="Overall Rating"
                 value={overallRating}
-                onChange={setOverallRating}
+                onChange={(v) => setValue('overallRating', v)}
                 required
                 disabled={!canEditContent}
+                error={errors.overallRating?.message}
               />
             </div>
 
             {/* Individual Ratings Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
               <RatingInput
-                name="qualityOfWork"
                 label="Quality of Work"
                 value={qualityOfWork}
-                onChange={setQualityOfWork}
+                onChange={(v) => setValue('qualityOfWork', v)}
                 required={review.reviewType === 'QUARTERLY'}
                 disabled={!canEditContent}
+                error={errors.qualityOfWork?.message}
               />
               <RatingInput
-                name="productivity"
                 label="Productivity"
                 value={productivity}
-                onChange={setProductivity}
+                onChange={(v) => setValue('productivity', v)}
                 required={review.reviewType === 'QUARTERLY'}
                 disabled={!canEditContent}
+                error={errors.productivity?.message}
               />
               <RatingInput
-                name="communication"
                 label="Communication"
                 value={communication}
-                onChange={setCommunication}
+                onChange={(v) => setValue('communication', v)}
                 required={review.reviewType === 'QUARTERLY'}
                 disabled={!canEditContent}
+                error={errors.communication?.message}
               />
               <RatingInput
-                name="teamwork"
                 label="Teamwork"
                 value={teamwork}
-                onChange={setTeamwork}
+                onChange={(v) => setValue('teamwork', v)}
                 required={review.reviewType === 'QUARTERLY'}
                 disabled={!canEditContent}
+                error={errors.teamwork?.message}
               />
               <RatingInput
-                name="initiative"
                 label="Initiative"
                 value={initiative}
-                onChange={setInitiative}
+                onChange={(v) => setValue('initiative', v)}
                 required={review.reviewType === 'QUARTERLY'}
                 disabled={!canEditContent}
+                error={errors.initiative?.message}
               />
               <RatingInput
-                name="attendance"
                 label="Attendance"
                 value={attendance}
-                onChange={setAttendance}
+                onChange={(v) => setValue('attendance', v)}
                 required={review.reviewType === 'QUARTERLY'}
                 disabled={!canEditContent}
+                error={errors.attendance?.message}
               />
             </div>
           </Card>
@@ -528,49 +532,49 @@ export default function EditReviewPage() {
             <div className="space-y-4">
               <TextareaField
                 label="Strengths"
-                name="strengths"
                 rows={3}
                 placeholder="Key strengths demonstrated..."
-                defaultValue={review.strengths || ''}
                 disabled={!canEditContent}
+                error={errors.strengths?.message}
+                {...register('strengths')}
               />
               <TextareaField
                 label="Areas to Improve"
-                name="areasToImprove"
                 rows={3}
                 placeholder="Areas that need development..."
-                defaultValue={review.areasToImprove || ''}
                 disabled={!canEditContent}
+                error={errors.areasToImprove?.message}
+                {...register('areasToImprove')}
               />
               <TextareaField
                 label="Goals for Next Period"
-                name="goals"
                 rows={3}
                 placeholder="Objectives and targets..."
-                defaultValue={review.goals || ''}
                 disabled={!canEditContent}
+                error={errors.goals?.message}
+                {...register('goals')}
               />
               <TextareaField
                 label="Additional Comments"
-                name="comments"
                 rows={3}
                 placeholder="Any other observations..."
-                defaultValue={review.comments || ''}
                 disabled={!canEditContent}
+                error={errors.comments?.message}
+                {...register('comments')}
               />
             </div>
           </Card>
 
           {/* Actions */}
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" onClick={goBack}>
+            <Button variant="secondary" type="button" onClick={goBack}>
               Cancel
             </Button>
-            <Button type="submit" variant="secondary" loading={saving}>
+            <Button type="submit" variant="secondary" loading={isSaving}>
               {canEditContent ? 'Save Draft' : 'Save Changes'}
             </Button>
             {canEditContent && (
-              <Button type="button" onClick={handleSubmit} loading={submitting}>
+              <Button type="button" onClick={handleSubmitForReview} loading={submitting}>
                 Submit for Review
               </Button>
             )}

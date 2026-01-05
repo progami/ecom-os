@@ -18,7 +18,6 @@ function statusLabel(status: string): string {
     IN_PROGRESS: 'In progress',
     DRAFT: 'Draft',
     PENDING_HR_REVIEW: 'Pending HR review',
-    PENDING_SUPER_ADMIN: 'Pending final approval',
     PENDING_ACKNOWLEDGMENT: 'Pending acknowledgement',
     ACKNOWLEDGED: 'Acknowledged',
     COMPLETED: 'Completed',
@@ -27,7 +26,9 @@ function statusLabel(status: string): string {
 }
 
 function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDTO['workflow'] {
-  const order = ['start', 'submit', 'hr', 'admin', 'ack']
+  // Simplified 4-stage workflow for small teams (15-20 people):
+  // Start -> Manager -> HR -> Acknowledgment
+  const order = ['start', 'submit', 'hr', 'ack']
   const currentStageId = (() => {
     switch (review.status) {
       case 'NOT_STARTED':
@@ -37,8 +38,6 @@ function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDT
         return 'submit'
       case 'PENDING_HR_REVIEW':
         return 'hr'
-      case 'PENDING_SUPER_ADMIN':
-        return 'admin'
       case 'PENDING_ACKNOWLEDGMENT':
         return 'ack'
       case 'ACKNOWLEDGED':
@@ -52,7 +51,7 @@ function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDT
   const dueAt = review.deadline ? review.deadline.toISOString() : undefined
   const dueMs = dueAt ? Date.parse(dueAt) : null
   const nowMs = Date.now()
-  const isOverdue = Boolean(dueMs && dueMs < nowMs && ['PENDING_HR_REVIEW', 'PENDING_SUPER_ADMIN', 'PENDING_ACKNOWLEDGMENT', 'IN_PROGRESS', 'DRAFT'].includes(review.status))
+  const isOverdue = Boolean(dueMs && dueMs < nowMs && ['PENDING_HR_REVIEW', 'PENDING_ACKNOWLEDGMENT', 'IN_PROGRESS', 'DRAFT'].includes(review.status))
   const overdueLabel = isOverdue ? `Overdue by ${Math.max(1, Math.ceil((nowMs - (dueMs ?? nowMs)) / 86_400_000))}d` : undefined
 
   return {
@@ -64,14 +63,11 @@ function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDT
           ? 'Manager submission'
           : currentStageId === 'hr'
             ? 'HR review'
-            : currentStageId === 'admin'
-              ? 'Final approval'
-              : 'Acknowledgement',
+            : 'Acknowledgement',
     stages: [
       { id: 'start', label: 'Start', status: stageStatus(order, currentStageId, 'start') },
       { id: 'submit', label: 'Manager', status: stageStatus(order, currentStageId, 'submit') },
       { id: 'hr', label: 'HR', status: stageStatus(order, currentStageId, 'hr') },
-      { id: 'admin', label: 'Final', status: stageStatus(order, currentStageId, 'admin') },
       { id: 'ack', label: 'Ack', status: stageStatus(order, currentStageId, 'ack') },
     ],
     statusBadge: { label: statusLabel(review.status), tone: toneForStatus(review.status) },

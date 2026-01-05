@@ -5,7 +5,6 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { SubmitAppealSchema, ResolveAppealSchema } from '@/lib/validations'
 import { canFinalApprove, canHRReview, getHREmployees, getSuperAdminEmployees, isHROrAbove, isManagerOf } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -121,19 +120,6 @@ export async function POST(req: Request, context: RouteContext) {
 	            })
 	          }
 
-          await writeAuditLog({
-            actorId: currentEmployeeId,
-            action: 'SUBMIT',
-            entityType: 'DISCIPLINARY_ACTION',
-            entityId: updated.id,
-            summary: `Forwarded appeal to Super Admin (${updated.employee.firstName} ${updated.employee.lastName})`,
-            metadata: {
-              stage: 'HR_REVIEW',
-              newStatus: updated.status,
-            },
-            req,
-          })
-
           return NextResponse.json({
             ...updated,
             message: 'Appeal forwarded to Super Admin for final decision',
@@ -229,19 +215,6 @@ export async function POST(req: Request, context: RouteContext) {
 	            },
 	          })
 	        }
-
-        await writeAuditLog({
-          actorId: currentEmployeeId,
-          action: 'APPROVE',
-          entityType: 'DISCIPLINARY_ACTION',
-          entityId: updated.id,
-          summary: `Appeal decided (${appealStatus})`,
-          metadata: {
-            appealStatus,
-            newStatus: updated.status,
-          },
-          req,
-        })
 
         return NextResponse.json({
           ...updated,
@@ -393,18 +366,6 @@ export async function POST(req: Request, context: RouteContext) {
 	          },
 	        })
 	      }
-
-      await writeAuditLog({
-        actorId: currentEmployeeId,
-        action: 'SUBMIT',
-        entityType: 'DISCIPLINARY_ACTION',
-        entityId: updated.id,
-        summary: 'Submitted appeal',
-        metadata: {
-          newStatus: updated.status,
-        },
-        req,
-      })
 
       return NextResponse.json({
         ...updated,

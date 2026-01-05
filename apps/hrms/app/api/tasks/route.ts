@@ -4,7 +4,6 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user';
 import { prisma } from '@/lib/prisma';
 import { isHROrAbove, isManagerOf } from '@/lib/permissions';
-import { writeAuditLog } from '@/lib/audit';
 
 const TaskStatusEnum = z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED']);
 const TaskCategoryEnum = z.enum(['GENERAL', 'CASE', 'POLICY']);
@@ -159,21 +158,6 @@ export async function POST(req: Request) {
         createdBy: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         case: { select: { id: true, caseNumber: true, title: true } },
       },
-    });
-
-    await writeAuditLog({
-      actorId: currentEmployeeId,
-      action: 'CREATE',
-      entityType: 'TASK',
-      entityId: task.id,
-      summary: `Created task "${task.title}"`,
-      metadata: {
-        assignedToId: task.assignedToId,
-        subjectEmployeeId: task.subjectEmployeeId,
-        caseId: task.caseId,
-        category: task.category,
-      },
-      req,
     });
 
     if (task.assignedToId && task.assignedToId !== currentEmployeeId) {

@@ -1,9 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Alert } from '@/components/ui/Alert'
-import { StatCard } from '@/components/ui/Card'
-import { BellIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@/components/ui/Icons'
+import { Alert } from '@/components/ui/alert'
+import { Card } from '@/components/ui/card'
 import type { WorkItemsResponse, WorkItemDTO } from '@/lib/contracts/work-items'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import { WorkItemList } from './WorkItemList'
@@ -29,59 +28,38 @@ export function WorkQueueDashboard({ data, loading, error, selectedId, onSelect,
   }, [items, selectedId])
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {error ? (
         <Alert variant="error">
           {error}
         </Alert>
       ) : null}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 stagger-children">
-        <StatCard
-          title="Total"
-          value={meta?.totalCount ?? 0}
-          subtitle="Pending items"
-          icon={<BellIcon className="h-5 w-5" />}
-          variant="primary"
-        />
-        <StatCard
-          title="Action Required"
-          value={meta?.actionRequiredCount ?? 0}
-          subtitle="Needs attention"
-          icon={<CheckCircleIcon className="h-5 w-5" />}
-          variant="accent"
-        />
-        <StatCard
-          title="Overdue"
-          value={meta?.overdueCount ?? 0}
-          subtitle="Past due date"
-          icon={<ExclamationTriangleIcon className="h-5 w-5" />}
-          variant={meta?.overdueCount ? "warning" : "default"}
-        />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card padding="md">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{meta?.totalCount ?? 0}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action Required</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{meta?.actionRequiredCount ?? 0}</p>
+        </Card>
+        <Card padding="md">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Overdue</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{meta?.overdueCount ?? 0}</p>
+        </Card>
       </div>
 
-      {/* Main Content */}
       {loading ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 rounded-xl bg-muted/50 animate-pulse" />
-            ))}
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
+            <div className="h-24 rounded-xl bg-muted animate-pulse" />
           </div>
           <div className="lg:col-span-2">
-            <div className="h-80 rounded-xl bg-muted/50 animate-pulse" />
+            <div className="h-80 rounded-xl bg-muted animate-pulse" />
           </div>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4">
-          <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-            <CheckCircleIcon className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-1">All caught up!</h3>
-          <p className="text-sm text-muted-foreground text-center max-w-sm">
-            You have no pending work items. Check back later for new tasks.
-          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

@@ -9,8 +9,8 @@ import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 import { executeAction } from '@/lib/actions/execute-action'
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { Alert } from '@/components/ui/Alert'
-import { Card } from '@/components/ui/Card'
+import { Alert } from '@/components/ui/alert'
+import { Card } from '@/components/ui/card'
 
 export default function PolicyWorkflowPage() {
   const params = useParams()

@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
-import { ActionButton } from '@/components/ui/ActionButton';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { WorkflowTimeline } from '@/components/workflow/WorkflowTimeline';
 import { ArrowLeftIcon } from '@/components/ui/Icons';
 import type { ActionId } from '@/lib/contracts/action-ids';
@@ -177,57 +177,42 @@ export function WorkflowRecordLayout({
             <div className="shrink-0 flex flex-wrap items-start justify-end gap-2">
               {headerActions ?? null}
               {actions.primary ? (
-                <ActionButton
-                  label={actions.primary.label}
+                <Button
                   variant={actionVariantToButtonVariant(actions.primary.variant)}
                   disabled={actions.primary.disabled}
-                  disabledReason={actions.primary.disabledReason}
                   onClick={() => {
-                    if (!onAction) {
-                      // eslint-disable-next-line no-console
-                      console.warn(
-                        '[WorkflowRecordLayout] onAction not provided for',
-                        actions.primary?.id,
-                      );
-                      return;
-                    }
-                    void onAction(actions.primary!.id);
+                    if (onAction) void onAction(actions.primary!.id);
                   }}
-                />
+                >
+                  {actions.primary.label}
+                </Button>
               ) : null}
 
               {actions.secondary.map((action) => (
-                <ActionButton
+                <Button
                   key={action.id}
-                  label={action.label}
                   variant={actionVariantToButtonVariant(action.variant)}
                   disabled={action.disabled}
-                  disabledReason={action.disabledReason}
                   onClick={() => {
-                    if (!onAction) {
-                      // eslint-disable-next-line no-console
-                      console.warn('[WorkflowRecordLayout] onAction not provided for', action.id);
-                      return;
-                    }
-                    void onAction(action.id);
+                    if (onAction) void onAction(action.id);
                   }}
-                />
+                >
+                  {action.label}
+                </Button>
               ))}
 
               {actions.more.length ? (
                 <details className="relative">
                   <summary className="list-none">
-                    <ActionButton label="More" variant="secondary" />
+                    <Button variant="secondary">More</Button>
                   </summary>
                   <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-card shadow-lg p-2 z-10">
                     {actions.more.map((action) => (
-                      <button
+                      <Button
                         key={action.id}
-                        className={
-                          action.variant === 'danger'
-                            ? 'w-full text-left px-3 py-2 text-sm rounded-md text-danger-700 hover:bg-danger-50'
-                            : 'w-full text-left px-3 py-2 text-sm rounded-md text-foreground hover:bg-muted/50'
-                        }
+                        variant={action.variant === 'danger' ? 'danger' : 'ghost'}
+                        size="sm"
+                        className="w-full justify-start"
                         onClick={() => {
                           if (!onAction) {
                             // eslint-disable-next-line no-console
@@ -241,7 +226,7 @@ export function WorkflowRecordLayout({
                         }}
                       >
                         {action.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </details>

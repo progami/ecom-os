@@ -1,5 +1,4 @@
 import {
-  CasesApi,
   LeavesApi,
   PerformanceReviewsApi,
   PolicyAcknowledgementsApi,
@@ -35,6 +34,7 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
   return payload as T;
 }
 
+// Simplified action executor for small teams (no super admin actions)
 export async function executeAction(actionId: ActionId, entity: WorkItemEntity): Promise<void> {
   switch (actionId) {
     case 'policy.acknowledge': {
@@ -75,29 +75,9 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       return;
     }
 
-    case 'review.adminApprove': {
+    case 'review.acknowledge': {
       if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add final approval notes.', '') ?? '';
-      await postJson(
-        `/api/performance-reviews/${encodeURIComponent(entity.id)}/super-admin-approve`,
-        {
-          approved: true,
-          notes: notes.trim() || null,
-        },
-      );
-      return;
-    }
-
-    case 'review.adminReject': {
-      if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add rejection notes.', '') ?? '';
-      await postJson(
-        `/api/performance-reviews/${encodeURIComponent(entity.id)}/super-admin-approve`,
-        {
-          approved: false,
-          notes: notes.trim() || null,
-        },
-      );
+      await PerformanceReviewsApi.acknowledge(entity.id);
       return;
     }
 
@@ -139,39 +119,6 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       return;
     }
 
-    case 'case.setStatus': {
-      if (entity.type !== 'CASE') throw new Error('Invalid action target');
-      const nextStatus = (
-        window.prompt(
-          'New status: OPEN, IN_REVIEW, ON_HOLD, RESOLVED, CLOSED, DISMISSED',
-          'IN_REVIEW',
-        ) ?? ''
-      )
-        .trim()
-        .toUpperCase();
-      const allowed = new Set(['OPEN', 'IN_REVIEW', 'ON_HOLD', 'RESOLVED', 'CLOSED', 'DISMISSED']);
-      if (!allowed.has(nextStatus)) throw new Error('Invalid status.');
-
-      let statusNote: string | null = null;
-      if (['RESOLVED', 'CLOSED', 'DISMISSED'].includes(nextStatus)) {
-        const note = window.prompt('Status note (required for resolve/close/dismiss).', '') ?? '';
-        if (!note.trim()) throw new Error('Status note is required for this status.');
-        statusNote = note.trim();
-      }
-
-      await CasesApi.update(entity.id, {
-        status: nextStatus,
-        statusNote,
-      });
-      return;
-    }
-
-    case 'review.acknowledge': {
-      if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      await PerformanceReviewsApi.acknowledge(entity.id);
-      return;
-    }
-
     case 'disciplinary.hrApprove': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
       const notes = window.prompt('Optional: add HR review notes.', '') ?? '';
@@ -192,32 +139,6 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       return;
     }
 
-    case 'disciplinary.adminApprove': {
-      if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add final approval notes.', '') ?? '';
-      await postJson(
-        `/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-approve`,
-        {
-          approved: true,
-          notes: notes.trim() || null,
-        },
-      );
-      return;
-    }
-
-    case 'disciplinary.adminReject': {
-      if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
-      await postJson(
-        `/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-approve`,
-        {
-          approved: false,
-          notes: notes.trim() || null,
-        },
-      );
-      return;
-    }
-
     case 'disciplinary.acknowledge': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/acknowledge`);
@@ -235,19 +156,8 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       return;
     }
 
-    case 'disciplinary.appeal.hrForward': {
-      if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add HR notes for the Super Admin.', '') ?? '';
-      await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/appeal`, {
-        hrReview: {
-          forwardToSuperAdmin: true,
-          notes: notes.trim() || null,
-        },
-      });
-      return;
-    }
-
-    case 'disciplinary.appeal.adminDecide': {
+    case 'disciplinary.appeal.hrDecide': {
+      // HR makes final appeal decision (simplified for small teams)
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
       const decision = (
         window.prompt('Appeal decision: UPHELD, MODIFIED, or OVERTURNED', 'UPHELD') ?? ''
@@ -261,7 +171,7 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       if (!explanation.trim()) throw new Error('Decision explanation is required.');
 
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/appeal`, {
-        superAdminDecision: true,
+        hrDecision: true,
         appealStatus: decision,
         appealResolution: explanation.trim(),
       });

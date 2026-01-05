@@ -1,74 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  flexRender,
+  type ColumnDef,
+} from '@tanstack/react-table'
 import { AdminApi, type EmployeeAccess } from '@/lib/api-client'
 import { LockClosedIcon, SearchIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Alert } from '@/components/ui/Alert'
-
-function ToggleSwitch({
-  checked,
-  onChange,
-  disabled,
-  label,
-}: {
-  checked: boolean
-  onChange: (checked: boolean) => void
-  disabled?: boolean
-  label: string
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`
-        relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
-        transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
-        ${checked ? 'bg-primary' : 'bg-muted'}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-      `}
-    >
-      <span
-        className={`
-          pointer-events-none inline-block h-5 w-5 transform rounded-full bg-card shadow ring-0
-          transition duration-200 ease-in-out
-          ${checked ? 'translate-x-5' : 'translate-x-0'}
-        `}
-      />
-    </button>
-  )
-}
-
-function Avatar({ src, name }: { src?: string | null; name: string }) {
-  const initials = name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className="h-10 w-10 rounded-full object-cover"
-      />
-    )
-  }
-
-  return (
-    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-      <span className="text-sm font-medium text-muted-foreground">{initials}</span>
-    </div>
-  )
-}
+import { Card } from '@/components/ui/card'
+import { Alert } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { Avatar } from '@/components/ui/avatar'
+import { RoleBadge } from '@/components/ui/role-badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export default function AccessManagementPage() {
   const router = useRouter()
@@ -76,7 +33,7 @@ export default function AccessManagementPage() {
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [globalFilter, setGlobalFilter] = useState('')
   const [updating, setUpdating] = useState<string | null>(null)
 
   useEffect(() => {
@@ -110,7 +67,6 @@ export default function AccessManagementPage() {
     setError(null)
     try {
       await AdminApi.updateAccess(employeeId, { [field]: newValue })
-      // Update local state
       setEmployees((prev) =>
         prev.map((emp) =>
           emp.id === employeeId ? { ...emp, [field]: newValue } : emp
@@ -126,16 +82,112 @@ export default function AccessManagementPage() {
     }
   }
 
-  const filteredEmployees = employees.filter((emp) => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      emp.firstName.toLowerCase().includes(query) ||
-      emp.lastName.toLowerCase().includes(query) ||
-      emp.email.toLowerCase().includes(query) ||
-      emp.department?.toLowerCase().includes(query) ||
-      emp.position.toLowerCase().includes(query)
-    )
+  const columns = useMemo<ColumnDef<EmployeeAccess>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: 'Employee',
+        accessorFn: (row) => `${row.firstName} ${row.lastName}`,
+        cell: ({ row }) => {
+          const emp = row.original
+          const fullName = `${emp.firstName} ${emp.lastName}`
+          const isCurrentUser = emp.id === currentUserId
+          return (
+            <div className="flex items-center gap-3">
+              <Avatar src={emp.avatar} alt={fullName} size="md" />
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  {fullName}
+                  {isCurrentUser && (
+                    <span className="ml-2 text-xs text-accent">(You)</span>
+                  )}
+                </div>
+                <div className="text-sm text-muted-foreground">{emp.position}</div>
+              </div>
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: 'department',
+        header: 'Department',
+        cell: ({ getValue }) => (
+          <span className="text-sm text-muted-foreground">
+            {(getValue() as string) || '-'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'isSuperAdmin',
+        header: () => (
+          <div className="flex justify-center">
+            <RoleBadge role="SUPER_ADMIN" />
+          </div>
+        ),
+        cell: ({ row }) => {
+          const emp = row.original
+          const isCurrentUser = emp.id === currentUserId
+          const cannotRemoveOwn = isCurrentUser && emp.isSuperAdmin
+          return (
+            <div className="flex flex-col items-center gap-1">
+              <Switch
+                checked={emp.isSuperAdmin}
+                onCheckedChange={(checked) =>
+                  handleToggle(emp.id, 'isSuperAdmin', checked)
+                }
+                disabled={updating === emp.id || cannotRemoveOwn}
+                aria-label={`Toggle Super Admin for ${emp.firstName} ${emp.lastName}`}
+              />
+              {cannotRemoveOwn && (
+                <span className="text-xs text-muted-foreground">Cannot remove own</span>
+              )}
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: 'isHR',
+        header: () => (
+          <div className="flex justify-center">
+            <RoleBadge role="HR" />
+          </div>
+        ),
+        cell: ({ row }) => {
+          const emp = row.original
+          return (
+            <div className="flex justify-center">
+              <Switch
+                checked={emp.isHR}
+                onCheckedChange={(checked) => handleToggle(emp.id, 'isHR', checked)}
+                disabled={updating === emp.id}
+                aria-label={`Toggle HR for ${emp.firstName} ${emp.lastName}`}
+              />
+            </div>
+          )
+        },
+      },
+    ],
+    [currentUserId, updating]
+  )
+
+  const table = useReactTable({
+    data: employees,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: { globalFilter },
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = filterValue.toLowerCase()
+      const emp = row.original
+      return (
+        emp.firstName.toLowerCase().includes(search) ||
+        emp.lastName.toLowerCase().includes(search) ||
+        emp.email.toLowerCase().includes(search) ||
+        emp.department?.toLowerCase().includes(search) ||
+        emp.position.toLowerCase().includes(search)
+      )
+    },
   })
 
   if (loading) {
@@ -174,9 +226,7 @@ export default function AccessManagementPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                Super Admin
-              </span>
+              <RoleBadge role="SUPER_ADMIN" />
               <span className="text-xs text-muted-foreground">System owner</span>
             </div>
             <p className="text-sm text-foreground">
@@ -185,9 +235,7 @@ export default function AccessManagementPage() {
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-100 text-warning-800">
-                HR
-              </span>
+              <RoleBadge role="HR" />
               <span className="text-xs text-muted-foreground">People ops</span>
             </div>
             <p className="text-sm text-foreground">
@@ -198,107 +246,62 @@ export default function AccessManagementPage() {
       </Card>
 
       <Card padding="lg">
-        {/* Search */}
         <div className="mb-6">
           <div className="relative max-w-md">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search employees..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="pl-10"
             />
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead>
-              <tr className="bg-muted">
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Employee
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Department
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                    Super Admin
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-warning-100 text-warning-800">
-                    HR
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-card divide-y divide-border">
-              {filteredEmployees.map((emp) => {
-                const isCurrentUser = emp.id === currentUserId
-                const fullName = `${emp.firstName} ${emp.lastName}`
-
-                return (
-                  <tr
-                    key={emp.id}
-                    className={`hover:bg-muted ${isCurrentUser ? 'bg-accent/5' : ''}`}
-                  >
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <Avatar src={emp.avatar} name={fullName} />
-                        <div>
-                          <div className="text-sm font-medium text-foreground">
-                            {fullName}
-                            {isCurrentUser && (
-                              <span className="ml-2 text-xs text-accent">(You)</span>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{emp.position}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {emp.department || '-'}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center">
-                        <ToggleSwitch
-                          checked={emp.isSuperAdmin}
-                          onChange={(checked) => handleToggle(emp.id, 'isSuperAdmin', checked)}
-                          disabled={updating === emp.id || (isCurrentUser && emp.isSuperAdmin)}
-                          label={`Toggle Super Admin for ${fullName}`}
-                        />
-                      </div>
-                      {isCurrentUser && emp.isSuperAdmin && (
-                        <div className="text-xs text-muted-foreground mt-1">Cannot remove own</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center">
-                        <ToggleSwitch
-                          checked={emp.isHR}
-                          onChange={(checked) => handleToggle(emp.id, 'isHR', checked)}
-                          disabled={updating === emp.id}
-                          label={`Toggle HR for ${fullName}`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => {
+                  const isCurrentUser = row.original.id === currentUserId
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className={isCurrentUser ? 'bg-accent/5' : undefined}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    {globalFilter ? 'No employees match your search' : 'No employees found'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
 
-        {filteredEmployees.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            {searchQuery ? 'No employees match your search' : 'No employees found'}
-          </div>
-        )}
-
-        {/* Summary */}
         <div className="mt-6 pt-4 border-t border-border text-sm text-muted-foreground">
           <div className="flex gap-6">
             <span>

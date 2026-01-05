@@ -4,7 +4,6 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -180,22 +179,6 @@ export async function PATCH(req: Request, context: RouteContext) {
     })
 
     const assignmentChanged = data.assignedToId !== undefined && data.assignedToId !== existing.assignedToId
-    const action = data.status === 'DONE' && existing.status !== 'DONE'
-      ? 'COMPLETE'
-      : assignmentChanged
-        ? 'ASSIGN'
-        : 'UPDATE'
-    await writeAuditLog({
-      actorId,
-      action,
-      entityType: 'TASK',
-      entityId: updated.id,
-      summary: `Updated task "${updated.title}"`,
-      metadata: {
-        changed: Object.keys(updates),
-      },
-      req,
-    })
 
     if (assignmentChanged && updated.assignedToId && updated.assignedToId !== actorId) {
       await prisma.notification.create({
@@ -248,15 +231,6 @@ export async function DELETE(req: Request, context: RouteContext) {
     }
 
     await prisma.task.delete({ where: { id } })
-
-    await writeAuditLog({
-      actorId,
-      action: 'DELETE',
-      entityType: 'TASK',
-      entityId: id,
-      summary: `Deleted task "${task.title}"`,
-      req,
-    })
 
     return NextResponse.json({ ok: true })
   } catch (e) {

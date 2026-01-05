@@ -26,17 +26,14 @@ function computeSla(action: DisciplinaryWorkflowRecordInput): WorkflowRecordDTO[
     return { dueAt, isOverdue, overdueLabel, tone: isOverdue ? 'danger' : 'none' }
   }
 
+  // Simplified SLA for small teams (no super admin stage)
   switch (action.status) {
     case 'PENDING_HR_REVIEW':
       return maybe(addDaysIso(action.reportedDate, 3))
-    case 'PENDING_SUPER_ADMIN':
-      return maybe(addDaysIso(action.hrReviewedAt ?? action.reportedDate, 2))
     case 'PENDING_ACKNOWLEDGMENT':
-      return maybe(addDaysIso(action.superAdminApprovedAt ?? action.hrReviewedAt ?? action.reportedDate, 5))
+      return maybe(addDaysIso(action.hrReviewedAt ?? action.reportedDate, 5))
     case 'APPEAL_PENDING_HR':
       return maybe(addDaysIso(action.appealedAt ?? action.reportedDate, 3))
-    case 'APPEAL_PENDING_SUPER_ADMIN':
-      return maybe(addDaysIso(action.appealHrReviewedAt ?? action.appealedAt ?? action.reportedDate, 2))
     default:
       return { isOverdue: false, tone: 'none' }
   }
@@ -59,11 +56,9 @@ function severityTone(severity: string): WorkflowTone {
 function statusLabel(status: string): string {
   const map: Record<string, string> = {
     PENDING_HR_REVIEW: 'Pending HR review',
-    PENDING_SUPER_ADMIN: 'Pending final approval',
     PENDING_ACKNOWLEDGMENT: 'Pending acknowledgement',
     ACTIVE: 'Active',
-    APPEAL_PENDING_HR: 'Appeal pending HR',
-    APPEAL_PENDING_SUPER_ADMIN: 'Appeal pending final decision',
+    APPEAL_PENDING_HR: 'Appeal pending HR decision',
     APPEALED: 'Appealed',
     CLOSED: 'Closed',
     DISMISSED: 'Dismissed',
@@ -75,29 +70,24 @@ function statusLabel(status: string): string {
 }
 
 function buildWorkflow(action: DisciplinaryWorkflowRecordInput): WorkflowRecordDTO['workflow'] {
-  const isAppeal = ['APPEAL_PENDING_HR', 'APPEAL_PENDING_SUPER_ADMIN', 'APPEALED'].includes(action.status) || Boolean(action.appealedAt)
+  // Simplified workflow for small teams (15-20 people)
+  // No super admin stage - HR makes final decisions
+  const isAppeal = ['APPEAL_PENDING_HR', 'APPEALED'].includes(action.status) || Boolean(action.appealedAt)
 
   if (isAppeal) {
-    const order = ['appeal_submitted', 'appeal_hr', 'appeal_admin']
+    // Simplified appeal: Appeal -> HR Decision
+    const order = ['appeal_submitted', 'appeal_hr']
     const currentStageId =
-      action.status === 'APPEAL_PENDING_SUPER_ADMIN'
-        ? 'appeal_admin'
-        : action.status === 'APPEAL_PENDING_HR' || action.status === 'APPEALED'
-          ? 'appeal_hr'
-          : 'appeal_submitted'
+      action.status === 'APPEAL_PENDING_HR' || action.status === 'APPEALED'
+        ? 'appeal_hr'
+        : 'appeal_submitted'
 
     return {
       currentStageId,
-      currentStageLabel:
-        currentStageId === 'appeal_hr'
-          ? 'HR review'
-          : currentStageId === 'appeal_admin'
-            ? 'Final decision'
-            : 'Appeal submitted',
+      currentStageLabel: currentStageId === 'appeal_hr' ? 'HR decision' : 'Appeal submitted',
       stages: [
-        { id: 'appeal_submitted', label: 'Appeal submitted', status: stageStatus(order, currentStageId, 'appeal_submitted') },
-        { id: 'appeal_hr', label: 'HR review', status: stageStatus(order, currentStageId, 'appeal_hr') },
-        { id: 'appeal_admin', label: 'Final decision', status: stageStatus(order, currentStageId, 'appeal_admin') },
+        { id: 'appeal_submitted', label: 'Appeal', status: stageStatus(order, currentStageId, 'appeal_submitted') },
+        { id: 'appeal_hr', label: 'HR decision', status: stageStatus(order, currentStageId, 'appeal_hr') },
       ],
       statusBadge: { label: statusLabel(action.status), tone: toneForStatus(action.status) },
       severity: { label: action.severity.replaceAll('_', ' '), tone: severityTone(action.severity) },
@@ -105,31 +95,27 @@ function buildWorkflow(action: DisciplinaryWorkflowRecordInput): WorkflowRecordD
     }
   }
 
-  const order = ['raised', 'hr_review', 'admin', 'ack']
+  // Normal flow: Raised -> HR Review -> Acknowledgment
+  const order = ['raised', 'hr_review', 'ack']
   const currentStageId =
-    action.status === 'PENDING_SUPER_ADMIN'
-      ? 'admin'
-      : action.status === 'PENDING_ACKNOWLEDGMENT'
-        ? 'ack'
-        : action.status === 'PENDING_HR_REVIEW'
-          ? 'hr_review'
-          : 'raised'
+    action.status === 'PENDING_ACKNOWLEDGMENT'
+      ? 'ack'
+      : action.status === 'PENDING_HR_REVIEW'
+        ? 'hr_review'
+        : 'raised'
 
   return {
     currentStageId,
     currentStageLabel:
       currentStageId === 'hr_review'
         ? 'HR review'
-        : currentStageId === 'admin'
-          ? 'Final approval'
-          : currentStageId === 'ack'
-            ? 'Acknowledgement'
-            : 'Raised',
+        : currentStageId === 'ack'
+          ? 'Acknowledgement'
+          : 'Raised',
     stages: [
       { id: 'raised', label: 'Raised', status: stageStatus(order, currentStageId, 'raised') },
-      { id: 'hr_review', label: 'HR review', status: stageStatus(order, currentStageId, 'hr_review') },
-      { id: 'admin', label: 'Final approval', status: stageStatus(order, currentStageId, 'admin') },
-      { id: 'ack', label: 'Acknowledgement', status: stageStatus(order, currentStageId, 'ack') },
+      { id: 'hr_review', label: 'HR', status: stageStatus(order, currentStageId, 'hr_review') },
+      { id: 'ack', label: 'Ack', status: stageStatus(order, currentStageId, 'ack') },
     ],
     statusBadge: { label: statusLabel(action.status), tone: toneForStatus(action.status) },
     severity: { label: action.severity.replaceAll('_', ' '), tone: severityTone(action.severity) },

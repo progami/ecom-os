@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getApiBase } from '@/lib/api-client'
 
 type SearchResult = {
-  type: 'EMPLOYEE' | 'CASE' | 'REVIEW' | 'TASK' | 'POLICY'
+  type: 'EMPLOYEE' | 'REVIEW' | 'TASK' | 'POLICY'
   id: string
   title: string
   subtitle?: string
@@ -16,8 +16,6 @@ function groupLabel(type: SearchResult['type']): string {
   switch (type) {
     case 'EMPLOYEE':
       return 'Employees'
-    case 'CASE':
-      return 'Cases'
     case 'REVIEW':
       return 'Performance reviews'
     case 'TASK':
@@ -33,8 +31,6 @@ function typeBadge(type: SearchResult['type']): string {
   switch (type) {
     case 'EMPLOYEE':
       return 'EMP'
-    case 'CASE':
-      return 'CASE'
     case 'REVIEW':
       return 'REV'
     case 'TASK':
@@ -66,7 +62,7 @@ export function CommandPalette() {
       groups.set(r.type, list)
     }
 
-    const order: SearchResult['type'][] = ['EMPLOYEE', 'CASE', 'TASK', 'REVIEW', 'POLICY']
+    const order: SearchResult['type'][] = ['EMPLOYEE', 'TASK', 'REVIEW', 'POLICY']
     return order
       .map((t) => ({ type: t, items: groups.get(t) ?? [] }))
       .filter((g) => g.items.length > 0)
@@ -204,7 +200,7 @@ export function CommandPalette() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground">Search</div>
-                <div className="text-xs text-muted-foreground">Type to search employees, cases, tasks, reviews, and policies.</div>
+                <div className="text-xs text-muted-foreground">Type to search employees, tasks, reviews, and policies.</div>
               </div>
               <div className="text-xs text-muted-foreground shrink-0">Esc to close</div>
             </div>

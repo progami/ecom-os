@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
-import { writeAuditLog } from '@/lib/audit'
 
 type PolicyRouteContext = { params: Promise<{ id: string }> }
 
@@ -134,19 +133,6 @@ export async function POST(req: Request, context: PolicyRouteContext) {
         policyVersion: policy.version,
       },
       update: {},
-    })
-
-    await writeAuditLog({
-      actorId: employeeId,
-      action: 'ACKNOWLEDGE',
-      entityType: 'POLICY_ACKNOWLEDGEMENT',
-      entityId: ack.id,
-      summary: `Acknowledged policy "${policy.title}" v${policy.version}`,
-      metadata: {
-        policyId: policy.id,
-        policyVersion: policy.version,
-      },
-      req,
     })
 
     return NextResponse.json({
