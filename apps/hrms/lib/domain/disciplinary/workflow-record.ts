@@ -128,7 +128,7 @@ export async function disciplinaryToWorkflowRecordDTO(
   viewer: DisciplinaryViewerContext & { canView: boolean }
 ): Promise<WorkflowRecordDTO> {
   if (!viewer.canView) {
-    const href = action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`
+    const href = `/performance/disciplinary/${action.id}`
     return {
       identity: { title: 'Violation record', recordId: action.id, href },
       subject: { displayName: 'Restricted' },
@@ -146,7 +146,7 @@ export async function disciplinaryToWorkflowRecordDTO(
     identity: {
       title: 'Violation record',
       recordId: action.id,
-      href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
+      href: `/performance/disciplinary/${action.id}`,
     },
     subject: {
       displayName: `${action.employee.firstName} ${action.employee.lastName}`.trim(),
