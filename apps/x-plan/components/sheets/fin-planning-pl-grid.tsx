@@ -163,6 +163,7 @@ function computeSelectionStats(
 
 export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps) {
   const columnHelper = useMemo(() => createColumnHelper<WeeklyRow>(), [])
+  const SECTION_TITLE = 'Weekly P&L'
 
   const [data, setData] = useState<WeeklyRow[]>(() => weekly.map((row) => ({ ...row })))
   useEffect(() => {
@@ -457,15 +458,21 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
   }, [data, columnKeys, selection])
 
   return (
-    <div className="p-4">
+    <section className="space-y-4">
+      <div className="space-y-1">
+        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+          {SECTION_TITLE}
+        </h2>
+      </div>
+
       <div
-        className="relative overflow-hidden rounded-lg border bg-card"
+        className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
         <div
           ref={scrollRef}
           tabIndex={0}
-          className="h-full overflow-auto outline-none"
+          className="h-full overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           onKeyDown={handleKeyDown}
           onCopy={handleCopy}
           onPaste={handlePaste}
@@ -481,11 +488,11 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
             </colgroup>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                {columnConfig.map((config, index) => (
+                {columnConfig.map((config) => (
                   <TableHead
                     key={config.key}
                     className={cn(
-                      'sticky top-0 z-20 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold',
+                      'sticky top-0 z-20 h-10 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80',
                       config.sticky && 'z-30'
                     )}
                     style={{
@@ -599,6 +606,6 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
         <SelectionStatsBar stats={selectionStats} />
       </div>
-    </div>
+    </section>
   )
 }

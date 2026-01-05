@@ -215,9 +215,9 @@ export function POProfitabilitySection({
 
   if (data.length === 0) {
     return (
-      <Card>
+      <Card className="rounded-xl shadow-sm dark:border-white/10">
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -283,9 +283,9 @@ export function POProfitabilitySection({
       </div>
 
       {/* Chart Card */}
-      <Card>
+      <Card className="rounded-xl shadow-sm dark:border-white/10">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Margin Trends</CardTitle>
+          <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Margin Trends</CardTitle>
           <CardDescription>Performance across purchase orders by arrival date</CardDescription>
         </CardHeader>
         <CardContent>
@@ -367,11 +367,11 @@ export function POProfitabilitySection({
       </Card>
 
       {/* P&L Table */}
-      <Card>
+      <Card className="rounded-xl shadow-sm dark:border-white/10">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">P&L Breakdown</CardTitle>
+              <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">P&L Breakdown</CardTitle>
               <CardDescription>
                 {skuFilter !== 'ALL' ? 'Filtered by SKU' : 'Aggregated by purchase order'}
               </CardDescription>
@@ -385,33 +385,33 @@ export function POProfitabilitySection({
         <CardContent>
           <Table className="table-fixed w-full">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[180px]">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[180px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton field="orderCode" current={sortField} direction={sortDirection} onClick={handleSort}>
                     PO Code
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[90px]">Status</TableHead>
-                <TableHead className="w-[80px] text-right">Units</TableHead>
-                <TableHead className="w-[100px] text-right">
+                <TableHead className="w-[90px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">Status</TableHead>
+                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">Units</TableHead>
+                <TableHead className="w-[100px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton field="grossRevenue" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
                     Revenue
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[90px] text-right">COGS</TableHead>
-                <TableHead className="w-[90px] text-right">Amz Fees</TableHead>
-                <TableHead className="w-[80px] text-right">PPC</TableHead>
-                <TableHead className="w-[100px] text-right">
+                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">COGS</TableHead>
+                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">Amz Fees</TableHead>
+                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">PPC</TableHead>
+                <TableHead className="w-[100px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton field="netProfit" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
                     Net Profit
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[80px] text-right">
+                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton field="netMarginPercent" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
                     Margin
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[70px] text-right">
+                <TableHead className="w-[70px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton field="roi" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
                     ROI
                   </SortButton>
