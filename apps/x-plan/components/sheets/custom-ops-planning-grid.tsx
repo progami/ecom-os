@@ -7,7 +7,9 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ClipboardEvent,
   type KeyboardEvent,
+  type PointerEvent,
 } from 'react'
 import { toast } from 'sonner'
 import Flatpickr from 'react-flatpickr'
@@ -24,7 +26,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import { withAppBasePath } from '@/lib/base-path'
+import type { SelectionStats } from '@/lib/selection-stats'
 
 export type OpsInputRow = {
   id: string
@@ -318,6 +322,65 @@ const COLUMNS: ColumnDef[] = [
 
 type StageMode = 'weeks' | 'dates'
 
+type CellCoords = { row: number; col: number }
+type CellRange = { from: CellCoords; to: CellCoords }
+
+function normalizeRange(range: CellRange): { top: number; bottom: number; left: number; right: number } {
+  return {
+    top: Math.min(range.from.row, range.to.row),
+    bottom: Math.max(range.from.row, range.to.row),
+    left: Math.min(range.from.col, range.to.col),
+    right: Math.max(range.from.col, range.to.col),
+  }
+}
+
+function parseNumericCandidate(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+  const raw = value.trim()
+  if (!raw) return null
+  const normalized = raw.replace(/[$,%\s]/g, '').replace(/,/g, '')
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function computeSelectionStats(
+  rows: OpsInputRow[],
+  range: CellRange | null
+): SelectionStats | null {
+  if (!range) return null
+  const { top, bottom, left, right } = normalizeRange(range)
+  if (top < 0 || left < 0) return null
+
+  let cellCount = 0
+  let numericCount = 0
+  let sum = 0
+
+  for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+    const row = rows[rowIndex]
+    if (!row) continue
+    for (let colIndex = left; colIndex <= right; colIndex += 1) {
+      const column = COLUMNS[colIndex]
+      if (!column) continue
+      cellCount += 1
+      const numeric = parseNumericCandidate(row[column.key])
+      if (numeric != null) {
+        numericCount += 1
+        sum += numeric
+      }
+    }
+  }
+
+  if (cellCount === 0) return null
+  return {
+    rangeCount: 1,
+    cellCount,
+    numericCount,
+    sum,
+    average: numericCount > 0 ? sum / numericCount : null,
+  }
+}
+
 const CELL_ID_PREFIX = 'xplan-ops-po'
 
 function sanitizeDomId(value: string): string {
@@ -367,6 +430,7 @@ type CustomOpsPlanningRowProps = {
   editingColKey: keyof OpsInputRow | null
   editValue: string
   isDatePickerOpen: boolean
+  selection: CellRange | null
   inputRef: { current: HTMLInputElement | null }
   onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void
   onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void
@@ -374,6 +438,9 @@ type CustomOpsPlanningRowProps = {
   onCommitEdit?: (nextValue?: string) => void
   onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
   setIsDatePickerOpen: (open: boolean) => void
+  onPointerDown?: (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => void
+  onPointerMove?: (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => void
+  onPointerUp?: () => void
 }
 
 const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
@@ -385,6 +452,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   editingColKey,
   editValue,
   isDatePickerOpen,
+  selection,
   inputRef,
   onSelectCell,
   onStartEditing,
@@ -392,8 +460,18 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   onCommitEdit,
   onInputKeyDown,
   setIsDatePickerOpen,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
 }: CustomOpsPlanningRowProps) {
   const isEvenRow = rowIndex % 2 === 1
+
+  // Check if this cell is in selection range
+  const isCellInSelection = (colIndex: number): boolean => {
+    if (!selection) return false
+    const { top, bottom, left, right } = normalizeRange(selection)
+    return rowIndex >= top && rowIndex <= bottom && colIndex >= left && colIndex <= right
+  }
 
   return (
     <TableRow
@@ -411,12 +489,14 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
           column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')
 
         const isCurrentCell = activeColKey === column.key
+        const isSelected = isCellInSelection(colIndex)
 
         const cellClassName = cn(
           'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
           colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
           isNumericCell && 'text-right',
           isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+          isSelected && 'bg-accent',
           (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-ring',
           colIndex === COLUMNS.length - 1 && 'border-r-0'
         )
@@ -494,10 +574,9 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             className={cellClassName}
             style={{ width: column.width, minWidth: column.width }}
             title={showPlaceholder ? undefined : formattedValue}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSelectCell(row.id, column.key)
-            }}
+            onPointerDown={(e) => onPointerDown?.(e, rowIndex, colIndex)}
+            onPointerMove={(e) => onPointerMove?.(e, rowIndex, colIndex)}
+            onPointerUp={onPointerUp}
             onDoubleClick={(event) => {
               event.stopPropagation()
               if (!isEditable) return
@@ -538,6 +617,9 @@ export function CustomOpsPlanningGrid({
   const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const [selection, setSelection] = useState<CellRange | null>(null)
+  const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null)
+  const selectionAnchorRef = useRef<CellCoords | null>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -1045,6 +1127,143 @@ export function CustomOpsPlanningGrid({
     }
   }
 
+  // Pointer event handlers for drag selection
+  const handlePointerDown = useCallback(
+    (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (editingCell) return
+      e.currentTarget.setPointerCapture(e.pointerId)
+      const coords = { row: rowIndex, col: colIndex }
+      selectionAnchorRef.current = coords
+      setSelection({ from: coords, to: coords })
+      setSelectionStats(computeSelectionStats(rows, { from: coords, to: coords }))
+      // Also update activeCell to match
+      const row = rows[rowIndex]
+      const column = COLUMNS[colIndex]
+      if (row && column) {
+        setActiveCell({ rowId: row.id, colKey: column.key })
+        onSelectOrder?.(row.id)
+      }
+    },
+    [editingCell, rows, onSelectOrder]
+  )
+
+  const handlePointerMove = useCallback(
+    (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (!selectionAnchorRef.current) return
+      const newRange = { from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } }
+      setSelection(newRange)
+      setSelectionStats(computeSelectionStats(rows, newRange))
+    },
+    [rows]
+  )
+
+  const handlePointerUp = useCallback(() => {
+    selectionAnchorRef.current = null
+  }, [])
+
+  // Copy handler
+  const handleCopy = useCallback(
+    (e: ClipboardEvent<HTMLDivElement>) => {
+      if (!selection) return
+      e.preventDefault()
+      const { top, bottom, left, right } = normalizeRange(selection)
+      const lines: string[] = []
+      for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+        const row = rows[rowIndex]
+        if (!row) continue
+        const cells: string[] = []
+        for (let colIndex = left; colIndex <= right; colIndex += 1) {
+          const column = COLUMNS[colIndex]
+          if (!column) continue
+          cells.push(row[column.key] ?? '')
+        }
+        lines.push(cells.join('\t'))
+      }
+      e.clipboardData.setData('text/plain', lines.join('\n'))
+    },
+    [rows, selection]
+  )
+
+  // Paste handler
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLDivElement>) => {
+      if (!activeCell) return
+      const text = e.clipboardData.getData('text/plain')
+      if (!text) return
+      e.preventDefault()
+
+      const pasteRows = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'))
+
+      if (pasteRows.length === 0) return
+
+      const startRowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
+      const startColIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
+      if (startRowIndex < 0 || startColIndex < 0) return
+
+      const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = []
+
+      for (let r = 0; r < pasteRows.length; r += 1) {
+        for (let c = 0; c < pasteRows[r]!.length; c += 1) {
+          const targetRowIndex = startRowIndex + r
+          const targetColIndex = startColIndex + c
+          if (targetRowIndex >= rows.length) continue
+          if (targetColIndex >= COLUMNS.length) continue
+
+          const column = COLUMNS[targetColIndex]
+          if (!column || column.editable === false) continue
+
+          const row = rows[targetRowIndex]
+          if (!row) continue
+
+          updates.push({
+            rowId: row.id,
+            colKey: column.key,
+            value: pasteRows[r]![c] ?? '',
+          })
+        }
+      }
+
+      if (updates.length === 0) return
+
+      // Apply updates
+      let updatedRows = [...rows]
+      for (const update of updates) {
+        const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId)
+        if (rowIndex < 0) continue
+
+        const column = COLUMNS.find((c) => c.key === update.colKey)
+        if (!column) continue
+
+        let finalValue = update.value
+
+        // Normalize numeric values
+        if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
+          const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2
+          finalValue = normalizeNumeric(finalValue, precision)
+        }
+
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue }
+
+        // Queue for API update
+        if (!pendingRef.current.has(update.rowId)) {
+          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} })
+        }
+        const entry = pendingRef.current.get(update.rowId)!
+        entry.values[update.colKey] = finalValue
+      }
+
+      onRowsChange?.(updatedRows)
+      scheduleFlush()
+      toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`)
+    },
+    [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange]
+  )
+
   const getHeaderLabel = (column: ColumnDef): string => {
     if (column.type === 'stage') {
       return stageMode === 'weeks'
@@ -1132,11 +1351,13 @@ export function CustomOpsPlanningGrid({
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+      <div className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
         <div
           ref={tableScrollRef}
           tabIndex={0}
           onKeyDown={handleTableKeyDown}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
           className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Table className="table-fixed border-collapse">
@@ -1164,6 +1385,7 @@ export function CustomOpsPlanningGrid({
                       editingColKey={isEditingRow ? editingCell!.colKey : null}
                       editValue={isEditingRow ? editValue : ''}
                       isDatePickerOpen={isEditingRow ? isDatePickerOpen : false}
+                      selection={selection}
                       inputRef={inputRef}
                       onSelectCell={selectCell}
                       onStartEditing={startEditing}
@@ -1171,6 +1393,9 @@ export function CustomOpsPlanningGrid({
                       onCommitEdit={isEditingRow ? commitEdit : undefined}
                       onInputKeyDown={isEditingRow ? handleKeyDown : undefined}
                       setIsDatePickerOpen={setIsDatePickerOpen}
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
                     />
                   )
                 })
@@ -1178,6 +1403,8 @@ export function CustomOpsPlanningGrid({
             </TableBody>
           </Table>
         </div>
+
+        <SelectionStatsBar stats={selectionStats} />
       </div>
     </section>
   )
