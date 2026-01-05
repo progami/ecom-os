@@ -1760,7 +1760,7 @@ export function SalesPlanningGrid({
   return (
     <div className="p-4">
       <div
-        className="relative overflow-hidden rounded-lg border bg-card"
+        className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
         <textarea
