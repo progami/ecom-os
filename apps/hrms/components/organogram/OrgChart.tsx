@@ -3,7 +3,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { HierarchyEmployee } from '@/lib/api-client'
-import { Avatar } from '@/components/ui/Avatar'
+import { Avatar } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { ChevronDownIcon, ChevronUpIcon, MinusIcon, PlusIcon } from '@/components/ui/Icons'
 
 type OrgNode = HierarchyEmployee & {
@@ -273,20 +274,14 @@ export function OrgChart({ employees, currentEmployeeId, managerChainIds, direct
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex items-center justify-end gap-2">
-        <button
-          onClick={expandAll}
-          className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
-        >
+        <Button variant="ghost" size="sm" onClick={expandAll}>
           <PlusIcon className="h-4 w-4" />
           Expand All
-        </button>
-        <button
-          onClick={collapseAll}
-          className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
-        >
+        </Button>
+        <Button variant="ghost" size="sm" onClick={collapseAll}>
           <MinusIcon className="h-4 w-4" />
           Collapse All
-        </button>
+        </Button>
       </div>
 
       {/* Chart container - horizontal scroll for overflow */}

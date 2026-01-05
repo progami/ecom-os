@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowLeftIcon } from './Icons'
+import { Button } from './button'
 import { useNavigationHistory } from '@/lib/navigation-history'
 import { cn } from '@/lib/utils'
 
@@ -28,25 +29,22 @@ export function PageHeader({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           {showBackButton && (
-            <button
-              onClick={goBack}
-              className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card hover:bg-muted transition-all duration-200 shadow-[var(--shadow-sm)]"
-            >
+            <Button variant="outline" size="icon" onClick={goBack} className="h-11 w-11">
               <ArrowLeftIcon className="h-5 w-5 text-muted-foreground" />
-            </button>
+            </Button>
           )}
           {icon && (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(207,100%,20%)] shadow-lg shadow-[hsl(var(--primary))]/20">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-md">
               {icon}
             </div>
           )}
           <div>
             {description && (
-              <p className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--accent))] mb-0.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-0.5">
                 {description}
               </p>
             )}
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">{title}</h1>
+            <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
           </div>
         </div>
         {actions && <div className="flex items-center gap-3">{actions}</div>}
@@ -72,14 +70,14 @@ export function ListPageHeader({
   return (
     <header className="mb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {icon && (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(var(--primary))] to-[hsl(207,100%,20%)] shadow-lg shadow-[hsl(var(--primary))]/20">
+            <div className="p-2.5 rounded-xl bg-primary shadow-md">
               {icon}
             </div>
           )}
           <div>
-            <h1 className="text-2xl font-semibold text-foreground tracking-tight">{title}</h1>
+            <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
             {description && (
               <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
             )}

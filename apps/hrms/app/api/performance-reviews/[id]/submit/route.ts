@@ -3,8 +3,6 @@ import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canManageEmployee, getHREmployees } from '@/lib/permissions'
-import { updateCycleStats } from '@/lib/quarterly-review-automation'
-import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -120,11 +118,6 @@ export async function POST(req: Request, context: RouteContext) {
       },
     })
 
-    // Update cycle stats if this is a quarterly review
-    if (review.quarterlyCycleId) {
-      await updateCycleStats(review.quarterlyCycleId)
-    }
-
     // Notify HR about new review to process
     const hrEmployees = await getHREmployees()
     for (const hr of hrEmployees) {
@@ -142,19 +135,6 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     console.log(`[Performance Review] Review ${id} submitted by ${currentEmployeeId} for ${review.employee.firstName} ${review.employee.lastName}`)
-
-    await writeAuditLog({
-      actorId: currentEmployeeId,
-      action: 'SUBMIT',
-      entityType: 'PERFORMANCE_REVIEW',
-      entityId: id,
-      summary: 'Submitted performance review for HR review',
-      metadata: {
-        employeeId: review.employeeId,
-        newStatus: updated.status,
-      },
-      req,
-    })
 
     return NextResponse.json({
       ...updated,

@@ -24,7 +24,6 @@ const RELATED_TYPE_CATEGORY: Record<string, string> = {
   TASK: 'Task',
   RESOURCE: 'Resource',
   EMPLOYEE: 'Org',
-  STANDING: 'Standing',
   CASE: 'Case',
 }
 
@@ -44,7 +43,6 @@ const TYPE_RULES: Record<
   // Profile / org
   PROFILE_INCOMPLETE: { category: 'Profile', actionRequired: true, isReminder: true },
   HIERARCHY_CHANGED: { category: 'Org', actionRequired: false },
-  STANDING_CHANGED: { category: 'Standing', actionRequired: false },
 
   // Performance reviews
   REVIEW_SUBMITTED: { category: 'Performance Review', actionRequired: false },

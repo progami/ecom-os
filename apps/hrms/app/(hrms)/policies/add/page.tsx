@@ -2,20 +2,24 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { PoliciesApi } from '@/lib/api-client'
 import { DocumentIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Alert } from '@/components/ui/Alert'
-import {
-  FormField,
-  SelectField,
-  TextareaField,
-  FormSection,
-  FormActions,
-} from '@/components/ui/FormField'
+import { Card, CardDivider } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { NativeSelect } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import { useNavigationHistory } from '@/lib/navigation-history'
+import { CreatePolicySchema } from '@/lib/validations'
+
+type FormData = z.infer<typeof CreatePolicySchema>
 
 const categoryOptions = [
   { value: 'LEAVE', label: 'Leave' },
@@ -41,32 +45,27 @@ const statusOptions = [
 export default function AddPolicyPage() {
   const router = useRouter()
   const { goBack } = useNavigationHistory()
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-    const fd = new FormData(e.currentTarget)
-    const payload = Object.fromEntries(fd.entries()) as any
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(CreatePolicySchema),
+    defaultValues: {
+      version: '1.0',
+      status: 'DRAFT',
+    },
+  })
 
+  const onSubmit = async (data: FormData) => {
+    setSubmitError(null)
     try {
-      await PoliciesApi.create({
-        title: String(payload.title),
-        category: String(payload.category),
-        region: String(payload.region),
-        status: String(payload.status || 'DRAFT'),
-        version: payload.version ? String(payload.version) : undefined,
-        effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : undefined,
-        summary: payload.summary ? String(payload.summary) : undefined,
-        content: payload.content ? String(payload.content) : undefined,
-      })
+      await PoliciesApi.create(data)
       router.push('/policies')
     } catch (e: any) {
-      setError(e.message || 'Failed to create policy')
-    } finally {
-      setSubmitting(false)
+      setSubmitError(e.message || 'Failed to create policy')
     }
   }
 
@@ -81,82 +80,122 @@ export default function AddPolicyPage() {
 
       <div className="max-w-3xl">
         <Card padding="lg">
-          {error && (
-            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-              {error}
+          {submitError && (
+            <Alert variant="error" className="mb-6" onDismiss={() => setSubmitError(null)}>
+              {submitError}
             </Alert>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* Basic Info */}
-            <FormSection title="Policy Information" description="Enter the basic details for this policy">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <FormField
-                    label="Policy Title"
-                    name="title"
-                    required
-                    placeholder="e.g., Annual Leave Policy"
-                  />
-                </div>
-                <SelectField
-                  label="Category"
-                  name="category"
-                  required
-                  options={categoryOptions}
-                  placeholder="Select category..."
-                />
-                <SelectField
-                  label="Region"
-                  name="region"
-                  required
-                  options={regionOptions}
-                  placeholder="Select region..."
-                />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue="DRAFT"
-                />
-                <FormField
-                  label="Version"
-                  name="version"
-                  defaultValue="1.0"
-                  placeholder="e.g., 1.0"
-                />
-                <FormField
-                  label="Effective Date"
-                  name="effectiveDate"
-                  type="date"
-                />
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Policy Information</h3>
+                <p className="text-xs text-muted-foreground mt-1">Enter the basic details for this policy</p>
               </div>
-            </FormSection>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2 space-y-2">
+                  <Label htmlFor="title">Policy Title <span className="text-destructive">*</span></Label>
+                  <Input
+                    {...register('title')}
+                    placeholder="e.g., Annual Leave Policy"
+                    className={cn(errors.title && 'border-destructive')}
+                  />
+                  {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('category')} className={cn(errors.category && 'border-destructive')}>
+                    <option value="">Select category...</option>
+                    {categoryOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.category && <p className="text-xs text-destructive">{errors.category.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="region">Region <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('region')} className={cn(errors.region && 'border-destructive')}>
+                    <option value="">Select region...</option>
+                    {regionOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.region && <p className="text-xs text-destructive">{errors.region.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
+                  <NativeSelect {...register('status')} className={cn(errors.status && 'border-destructive')}>
+                    {statusOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="version">Version</Label>
+                  <Input
+                    {...register('version')}
+                    placeholder="e.g., 1.0"
+                    className={cn(errors.version && 'border-destructive')}
+                  />
+                  {errors.version && <p className="text-xs text-destructive">{errors.version.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="effectiveDate">Effective Date</Label>
+                  <Input
+                    {...register('effectiveDate')}
+                    type="date"
+                    className={cn(errors.effectiveDate && 'border-destructive')}
+                  />
+                  {errors.effectiveDate && <p className="text-xs text-destructive">{errors.effectiveDate.message}</p>}
+                </div>
+              </div>
+            </div>
 
             <CardDivider />
 
             {/* Summary */}
-            <FormSection title="Summary" description="Brief overview of the policy (1-2 sentences)">
-              <TextareaField
-                label="Summary"
-                name="summary"
-                rows={3}
-                placeholder="A brief summary of what this policy covers..."
-                resizable={false}
-              />
-            </FormSection>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Summary</h3>
+                <p className="text-xs text-muted-foreground mt-1">Brief overview of the policy (1-2 sentences)</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="summary">Summary</Label>
+                <Textarea
+                  {...register('summary')}
+                  rows={3}
+                  placeholder="A brief summary of what this policy covers..."
+                  className={cn('resize-none', errors.summary && 'border-destructive')}
+                />
+                {errors.summary && <p className="text-xs text-destructive">{errors.summary.message}</p>}
+              </div>
+            </div>
 
             <CardDivider />
 
             {/* Content */}
-            <FormSection title="Policy Content" description="Full policy text. You can use markdown formatting.">
-              <TextareaField
-                label="Content"
-                name="content"
-                rows={16}
-                monospace
-                placeholder={`# Policy Title
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Policy Content</h3>
+                <p className="text-xs text-muted-foreground mt-1">Full policy text. You can use markdown formatting.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="content">Content</Label>
+                <Textarea
+                  {...register('content')}
+                  rows={16}
+                  className={cn('font-mono', errors.content && 'border-destructive')}
+                  placeholder={`# Policy Title
 
 ## Purpose
 Describe the purpose of this policy...
@@ -172,18 +211,20 @@ Step-by-step procedures...
 
 ## Compliance
 Consequences of non-compliance...`}
-              />
-            </FormSection>
+                />
+                {errors.content && <p className="text-xs text-destructive">{errors.content.message}</p>}
+              </div>
+            </div>
 
             {/* Actions */}
-            <FormActions>
-              <Button variant="secondary" onClick={goBack}>
+            <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
+              <Button type="button" variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Policy'}
+              <Button type="submit" loading={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Policy'}
               </Button>
-            </FormActions>
+            </div>
           </form>
         </Card>
       </div>

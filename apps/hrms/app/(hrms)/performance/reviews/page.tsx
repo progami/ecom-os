@@ -6,21 +6,19 @@ import { ColumnDef } from '@tanstack/react-table'
 import { PerformanceReviewsApi, type PerformanceReview } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, PlusIcon, StarFilledIcon, ClockIcon, ExclamationTriangleIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/Badge'
-import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/button'
+import { StatusBadge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable } from '@/components/ui/DataTable'
-import { ResultsCount } from '@/components/ui/Table'
+import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
 
+// Simplified for small team (15-20 people)
 const REVIEW_TYPE_LABELS: Record<string, string> = {
   PROBATION: 'Probation',
   QUARTERLY: 'Quarterly',
-  SEMI_ANNUAL: 'Semi-Annual',
   ANNUAL: 'Annual',
-  PROMOTION: 'Promotion',
-  PIP: 'PIP',
 }
 
 const STATUS_LABELS: Record<string, string> = {

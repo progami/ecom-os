@@ -1,18 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { LeavesApi } from '@/lib/api-client'
-import { Button } from '@/components/ui/Button'
-import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { SelectField } from '@/components/ui/FormField'
+import { cn } from '@/lib/utils'
+import { CreateLeaveRequestSchema } from '@/lib/validations'
 
+// Simplified leave types for small team
 const LEAVE_TYPES = [
   { value: 'PTO', label: 'PTO (Paid Time Off)' },
-  { value: 'MATERNITY', label: 'Maternity Leave' },
-  { value: 'PATERNITY', label: 'Paternity Leave' },
   { value: 'PARENTAL', label: 'Parental Leave' },
-  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement (Immediate Family)' },
-  { value: 'BEREAVEMENT_EXTENDED', label: 'Bereavement (Extended Family)' },
-  { value: 'JURY_DUTY', label: 'Jury Duty' },
+  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement' },
   { value: 'UNPAID', label: 'Unpaid Leave' },
 ]
 
@@ -35,6 +40,8 @@ function calculateBusinessDays(startDate: string, endDate: string): number {
   return count
 }
 
+type FormData = z.infer<typeof CreateLeaveRequestSchema>
+
 type LeaveRequestFormProps = {
   employeeId: string
   onSuccess?: () => void
@@ -42,91 +49,76 @@ type LeaveRequestFormProps = {
 }
 
 export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveRequestFormProps) {
-  const [leaveType, setLeaveType] = useState('PTO')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [reason, setReason] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors, isSubmitting },
+    setError,
+  } = useForm<FormData>({
+    resolver: zodResolver(CreateLeaveRequestSchema),
+    defaultValues: {
+      leaveType: 'PTO',
+      startDate: '',
+      endDate: '',
+      reason: '',
+    },
+  })
 
+  const startDate = watch('startDate')
+  const endDate = watch('endDate')
   const totalDays = calculateBusinessDays(startDate, endDate)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!startDate || !endDate) {
-      setError('Please select start and end dates')
-      return
-    }
+  const onSubmit = async (data: FormData) => {
     if (totalDays <= 0) {
-      setError('End date must be after start date')
+      setError('endDate', { message: 'End date must be after start date' })
       return
     }
 
     try {
-      setLoading(true)
-      setError(null)
       await LeavesApi.create({
         employeeId,
-        leaveType,
-        startDate,
-        endDate,
+        leaveType: data.leaveType,
+        startDate: data.startDate,
+        endDate: data.endDate,
         totalDays,
-        reason: reason || undefined,
+        reason: data.reason ?? undefined,
       })
       onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit leave request')
-    } finally {
-      setLoading(false)
+      setError('root', { message: err instanceof Error ? err.message : 'Failed to submit leave request' })
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && <Alert variant="error">{error}</Alert>}
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {errors.root && <Alert variant="error">{errors.root.message}</Alert>}
 
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1">
-          Leave Type
-        </label>
-        <select
-          value={leaveType}
-          onChange={(e) => setLeaveType(e.target.value)}
-          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-        >
-          {LEAVE_TYPES.map((type) => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SelectField
+        label="Leave Type"
+        options={LEAVE_TYPES}
+        {...register('leaveType')}
+      />
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
-            Start Date
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="startDate">Start Date</Label>
+          <Input
+            {...register('startDate')}
             type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-            required
+            className={cn(errors.startDate && 'border-destructive')}
           />
+          {errors.startDate && <p className="text-xs text-destructive">{errors.startDate.message}</p>}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
-            End Date
-          </label>
-          <input
+        <div className="space-y-2">
+          <Label htmlFor="endDate">End Date</Label>
+          <Input
+            {...register('endDate')}
             type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
             min={startDate}
-            className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-            required
+            className={cn(errors.endDate && 'border-destructive')}
           />
+          {errors.endDate && <p className="text-xs text-destructive">{errors.endDate.message}</p>}
         </div>
       </div>
 
@@ -136,27 +128,24 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1">
-          Reason (optional)
-        </label>
-        <textarea
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
+      <div className="space-y-2">
+        <Label htmlFor="reason">Reason (optional)</Label>
+        <Textarea
+          {...register('reason')}
           rows={3}
-          className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
+          className="resize-none"
           placeholder="Briefly describe the reason for your leave..."
         />
       </div>
 
-      <div className="flex gap-3 justify-end">
+      <div className="flex gap-3 justify-end pt-4">
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={loading || totalDays <= 0}>
-          {loading ? 'Submitting...' : 'Submit Request'}
+        <Button type="submit" loading={isSubmitting} disabled={totalDays <= 0}>
+          Submit Request
         </Button>
       </div>
     </form>

@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
   TableSkeleton,
-} from './Table'
+} from './table'
 import { ChevronUpIcon, ChevronDownIcon } from './Icons'
 
 interface DataTableProps<TData, TValue> {

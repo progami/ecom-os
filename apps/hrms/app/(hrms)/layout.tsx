@@ -5,7 +5,6 @@ import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
-  FolderIcon,
   DocumentIcon,
   CalendarIcon,
   CalendarDaysIcon,
@@ -18,9 +17,9 @@ import {
   OrgChartIcon,
   UsersIcon,
   LockClosedIcon,
-  ChartBarIcon,
 } from '@/components/ui/Icons';
 import { NotificationBell } from '@/components/ui/NotificationBell';
+import { Button } from '@/components/ui/button';
 import { NavigationHistoryProvider } from '@/lib/navigation-history';
 import { MeApi } from '@/lib/api-client';
 import { CommandPalette } from '@/components/search/CommandPalette';
@@ -57,15 +56,14 @@ const navigation: NavSection[] = [
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
-      { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
+      { name: 'Violations', href: '/performance/disciplinary', icon: ExclamationTriangleIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
-      { name: 'Resources', href: '/resources', icon: FolderIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     ],
   },
   {
     title: 'Admin',
-    requireHR: true,
+    requireSuperAdmin: true,
     items: [
       {
         name: 'Access Management',
@@ -73,8 +71,6 @@ const navigation: NavSection[] = [
         icon: LockClosedIcon,
         requireSuperAdmin: true,
       },
-      { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
-      { name: 'Ops Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
     ],
   },
 ];
@@ -97,6 +93,7 @@ function Sidebar({
 
   const canSeeHR = isSuperAdmin || isHR;
 
+  // Filter navigation based on permissions
   const filteredNavigation = navigation
     .filter((section) => !section.requireSuperAdmin || isSuperAdmin)
     .filter((section) => !section.requireHR || canSeeHR)
@@ -111,93 +108,65 @@ function Sidebar({
     .filter((section) => section.items.length > 0);
 
   return (
-    <div className="flex grow flex-col overflow-y-auto bg-[hsl(var(--sidebar))]">
-      {/* Logo Section */}
-      <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-white/5">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(var(--sidebar-accent))] to-[hsl(176,100%,28%)] shadow-lg shadow-[hsl(var(--sidebar-accent))]/20 transition-transform group-hover:scale-105">
-            <span className="text-sm font-bold text-white tracking-tight">HR</span>
+    <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-border bg-card px-6 pb-4">
+      <div className="flex h-16 shrink-0 items-center justify-between">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md">
+            <span className="text-sm font-bold text-primary-foreground">HR</span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-base font-semibold text-white tracking-tight">HRMS</span>
-            <span className="text-[10px] text-[hsl(var(--sidebar-foreground))]/50 uppercase tracking-widest">Enterprise</span>
-          </div>
+          <span className="text-lg font-semibold text-foreground">HRMS</span>
         </Link>
         <div className="flex items-center gap-2">
           <div className="hidden md:block">
-            <NotificationBell variant="dark" />
+            <NotificationBell />
           </div>
           {onClose && (
-            <button onClick={onClose} className="md:hidden p-2 hover:bg-white/5 rounded-lg transition-colors">
-              <XIcon className="h-5 w-5 text-[hsl(var(--sidebar-foreground))]/70" />
-            </button>
+            <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden">
+              <XIcon className="h-5 w-5 text-muted-foreground" />
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-6">
-        <ul role="list" className="flex flex-col gap-y-8">
+      <nav className="flex flex-1 flex-col">
+        <ul role="list" className="flex flex-1 flex-col gap-y-6">
           {filteredNavigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {section.title && (
-                <div className="px-3 pb-3 text-[11px] font-medium text-[hsl(var(--sidebar-foreground))]/40 uppercase tracking-[0.15em]">
+                <div className="px-3 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   {section.title}
                 </div>
               )}
               <ul role="list" className="space-y-1">
-                {section.items.map((item) => {
-                  const isActive = matchesPath(item.href);
-                  return (
-                    <li key={item.name}>
-                      <Link
-                        href={item.href}
-                        onClick={onClose}
+                {section.items.map((item) => (
+                  <li key={item.name}>
+                    <Link
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        matchesPath(item.href)
+                          ? 'bg-accent/10 text-accent border-l-4 border-accent -ml-px'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                        'group flex gap-x-3 rounded-lg py-3 px-3 text-sm font-medium transition-colors',
+                      )}
+                    >
+                      <item.icon
                         className={cn(
-                          'group relative flex items-center gap-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
-                          isActive
-                            ? 'nav-active text-white'
-                            : 'text-[hsl(var(--sidebar-foreground))]/70 hover:text-white hover:bg-white/5'
+                          matchesPath(item.href)
+                            ? 'text-accent'
+                            : 'text-muted-foreground group-hover:text-foreground',
+                          'h-5 w-5 shrink-0 transition-colors',
                         )}
-                      >
-                        <item.icon
-                          className={cn(
-                            'h-[18px] w-[18px] shrink-0 transition-colors',
-                            isActive
-                              ? 'text-[hsl(var(--sidebar-accent))]'
-                              : 'text-[hsl(var(--sidebar-foreground))]/50 group-hover:text-[hsl(var(--sidebar-foreground))]/80'
-                          )}
-                        />
-                        <span className="truncate">{item.name}</span>
-                        {isActive && (
-                          <div className="absolute right-3 h-1.5 w-1.5 rounded-full bg-[hsl(var(--sidebar-accent))]" />
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
+                      />
+                      {item.name}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </li>
           ))}
         </ul>
       </nav>
-
-      {/* Bottom section */}
-      <div className="mt-auto px-4 py-4 border-t border-white/5">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/5">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[hsl(var(--sidebar-accent))]/30 to-[hsl(var(--sidebar-accent))]/10 flex items-center justify-center">
-            <span className="text-xs font-semibold text-[hsl(var(--sidebar-accent))]">
-              {isSuperAdmin ? 'SA' : isHR ? 'HR' : 'U'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-white truncate">
-              {isSuperAdmin ? 'Super Admin' : isHR ? 'HR Admin' : 'Employee'}
-            </p>
-            <p className="text-[10px] text-[hsl(var(--sidebar-foreground))]/40">Active</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -217,12 +186,14 @@ function MobileNav({
 
   return (
     <div className="relative z-50 md:hidden">
-      <div
-        className="fixed inset-0 bg-[hsl(var(--sidebar))]/90 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-      <div className="fixed inset-y-0 left-0 flex w-full max-w-[280px]">
-        <div className="relative flex w-full flex-col shadow-2xl">
+      <div className="fixed inset-0 bg-foreground/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 flex">
+        <div className="relative mr-16 flex w-full max-w-xs flex-1">
+          <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <XIcon className="h-6 w-6 text-primary-foreground" />
+            </Button>
+          </div>
           <Sidebar onClose={onClose} isSuperAdmin={isSuperAdmin} isHR={isHR} />
         </div>
       </div>
@@ -247,19 +218,13 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex items-center gap-x-4 glass border-b border-border px-4 py-4 sm:px-6 md:hidden">
-      <button
-        type="button"
-        className="-m-2 p-2.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted"
-        onClick={onMenuClick}
-      >
-        <MenuIcon className="h-5 w-5" />
-      </button>
-      <div className="flex-1">
-        <h1 className="text-base font-semibold text-foreground">{getCurrentPageName()}</h1>
-      </div>
+    <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-card px-4 py-4 border-b border-border sm:px-6 md:hidden">
+      <Button variant="ghost" size="icon" onClick={onMenuClick} className="-m-2">
+        <MenuIcon className="h-6 w-6" />
+      </Button>
+      <div className="flex-1 text-base font-semibold text-foreground">{getCurrentPageName()}</div>
       <NotificationBell />
-    </header>
+    </div>
   );
 }
 
@@ -291,6 +256,7 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Fetch current user permissions for navigation; refresh when roles change.
   useEffect(() => {
     fetchUserPermissions();
 
@@ -322,24 +288,22 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
       />
 
       {/* Main Content */}
-      <div className="md:pl-64 min-h-screen flex flex-col bg-gradient-subtle">
+      <div className="md:pl-64 min-h-screen flex flex-col bg-background">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
         <main className="flex-1">
-          <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto animate-fade-in">
-            {children}
-          </div>
+          <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">{children}</div>
         </main>
 
-        <footer className="mt-auto py-6">
-          <div className="px-4 sm:px-6 lg:px-8">
-            <p className="text-xs text-muted-foreground/60 text-center">
+        <footer className="border-t border-border bg-card mt-auto">
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
+            <p className="text-xs text-muted-foreground text-center">
               HRMS{' '}
               <a
                 href={versionHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:text-muted-foreground transition-colors"
+                className="underline hover:text-foreground transition-colors"
               >
                 v{version}
               </a>

@@ -3,16 +3,13 @@
 import { useEffect, useState } from 'react'
 import { HRCalendarApi, type HRCalendarEvent } from '@/lib/api-client'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
+import { Card } from '@/components/ui/card'
 import { CalendarIcon, SpinnerIcon } from '@/components/ui/Icons'
 
+// Simplified for small team (15-20 people)
 const EVENT_TYPE_LABELS: Record<string, string> = {
   PERFORMANCE_REVIEW: 'Performance Review',
   PROBATION_END: 'Probation End',
-  PIP_REVIEW: 'PIP Review',
-  DISCIPLINARY_HEARING: 'Disciplinary Hearing',
-  INTERVIEW: 'Interview',
-  TRAINING: 'Training',
   COMPANY_EVENT: 'Company Event',
   HOLIDAY: 'Holiday',
   OTHER: 'Other',
@@ -21,10 +18,6 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 const EVENT_TYPE_COLORS: Record<string, string> = {
   PERFORMANCE_REVIEW: 'bg-accent/10 text-accent border-accent/20',
   PROBATION_END: 'bg-warning-100 text-warning-700 border-warning-200',
-  PIP_REVIEW: 'bg-orange-100 text-orange-700 border-orange-200',
-  DISCIPLINARY_HEARING: 'bg-danger-100 text-danger-700 border-danger-200',
-  INTERVIEW: 'bg-purple-100 text-purple-700 border-purple-200',
-  TRAINING: 'bg-accent/10 text-accent border-accent/20',
   COMPANY_EVENT: 'bg-indigo-100 text-indigo-700 border-indigo-200',
   HOLIDAY: 'bg-success-100 text-success-700 border-success-200',
   OTHER: 'bg-muted text-foreground border-border',

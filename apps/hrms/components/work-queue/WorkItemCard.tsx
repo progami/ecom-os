@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge } from '@/components/ui/Badge'
+import { Badge } from '@/components/ui/badge'
 import type { WorkItemDTO } from '@/lib/contracts/work-items'
 import { getWorkItemDueLabel } from './work-item-utils'
 

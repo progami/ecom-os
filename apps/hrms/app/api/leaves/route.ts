@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 import { getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
 
@@ -321,22 +320,6 @@ export async function POST(req: Request) {
         })
       }
     }
-
-    await writeAuditLog({
-      actorId: currentEmployeeId,
-      action: 'CREATE',
-      entityType: 'LEAVE_REQUEST',
-      entityId: leaveRequest.id,
-      summary: 'Created leave request',
-      metadata: {
-        employeeId,
-        leaveType,
-        startDate: start.toISOString(),
-        endDate: end.toISOString(),
-        totalDays: computedTotalDays,
-      },
-      req,
-    })
 
     return NextResponse.json(leaveRequest, { status: 201 })
   } catch (e) {

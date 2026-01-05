@@ -1,4 +1,5 @@
 import { CheckCircleIcon, ExclamationCircleIcon, XIcon } from './Icons'
+import { Button } from './button'
 import { cn } from '@/lib/utils'
 
 type AlertVariant = 'success' | 'error' | 'warning' | 'info'
@@ -52,12 +53,9 @@ export function Alert({
           <div className="text-sm">{children}</div>
         </div>
         {onDismiss && (
-          <button
-            onClick={onDismiss}
-            className="hover:opacity-70 transition-opacity"
-          >
+          <Button variant="ghost" size="icon" onClick={onDismiss} className="h-7 w-7 hover:opacity-70">
             <XIcon className="h-5 w-5" />
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -20,7 +20,6 @@ export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarPro
   const [imgError, setImgError] = useState(false)
   const sizeClass = sizeClasses[size]
 
-  // Get initials from alt text
   const initials = alt
     .split(' ')
     .map((word) => word[0])

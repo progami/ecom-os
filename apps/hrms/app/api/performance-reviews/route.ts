@@ -10,8 +10,6 @@ import {
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees, getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
-import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
-import { writeAuditLog } from '@/lib/audit'
 import { formatReviewPeriod, type ReviewPeriodType } from '@/lib/review-period'
 
 export async function GET(req: Request) {
@@ -206,29 +204,7 @@ export async function POST(req: Request) {
 
     const reviewerName = `${assignedReviewer.firstName} ${assignedReviewer.lastName}`
 
-    // Calculate values score if values-based ratings are provided
-    let valuesScore: number | null = null
-    let valuesVetoApplied = false
-    let valuesVetoReason: string | null = null
-
-    if (data.ratingPrecision || data.ratingTransparency || data.ratingReliability || data.ratingInitiative) {
-      const weights = await getReviewWeights(data.employeeId)
-      const rawScore = calculateValuesScore({
-        ratingPrecision: data.ratingPrecision,
-        ratingTransparency: data.ratingTransparency,
-        ratingReliability: data.ratingReliability,
-        ratingInitiative: data.ratingInitiative,
-      }, weights)
-
-      if (rawScore !== null) {
-        const vetoResult = applyValuesVeto(rawScore, data.ratingTransparency, data.ratingReliability)
-        valuesScore = vetoResult.score
-        valuesVetoApplied = vetoResult.vetoApplied
-        valuesVetoReason = vetoResult.reason || null
-      }
-    }
-
-	    const item = await prisma.performanceReview.create({
+    const item = await prisma.performanceReview.create({
 	      data: {
 	        employeeId: data.employeeId,
 	        reviewType: data.reviewType,
@@ -256,10 +232,10 @@ export async function POST(req: Request) {
         selfRatingTransparency: data.selfRatingTransparency ?? null,
         selfRatingReliability: data.selfRatingReliability ?? null,
         selfRatingInitiative: data.selfRatingInitiative ?? null,
-        // Computed values
-        valuesScore,
-        valuesVetoApplied,
-        valuesVetoReason,
+        // Computed values (values-based scoring removed - enterprise feature)
+        valuesScore: null,
+        valuesVetoApplied: false,
+        valuesVetoReason: null,
         // Justifications
         lowHonestyJustification: data.lowHonestyJustification ?? null,
         lowIntegrityJustification: data.lowIntegrityJustification ?? null,
@@ -280,20 +256,6 @@ export async function POST(req: Request) {
           },
         },
       },
-    })
-
-    await writeAuditLog({
-      actorId: currentEmployeeId,
-      action: 'CREATE',
-      entityType: 'PERFORMANCE_REVIEW',
-      entityId: item.id,
-      summary: `Created performance review (${item.reviewType.toLowerCase()})`,
-      metadata: {
-        employeeId: item.employeeId,
-        reviewType: item.reviewType,
-        status: item.status,
-      },
-      req,
     })
 
 	    // Notify HR if review is submitted for approval

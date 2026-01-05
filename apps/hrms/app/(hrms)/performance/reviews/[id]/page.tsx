@@ -7,9 +7,9 @@ import type { ActionId } from '@/lib/contracts/action-ids';
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record';
 import { executeAction } from '@/lib/actions/execute-action';
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout';
-import { Alert } from '@/components/ui/Alert';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { StarFilledIcon } from '@/components/ui/Icons';
 
 function formatDate(value: string | null | undefined): string {

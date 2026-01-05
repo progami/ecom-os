@@ -19,14 +19,14 @@ import {
   ClockIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Alert } from '@/components/ui/Alert'
-import { StatusBadge } from '@/components/ui/Badge'
-import { Avatar } from '@/components/ui/Avatar'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { StatusBadge } from '@/components/ui/badge'
+import { Avatar } from '@/components/ui/avatar'
 import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable } from '@/components/ui/DataTable'
-import { ResultsCount } from '@/components/ui/Table'
+import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
 import { TabButton } from '@/components/ui/TabButton'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
@@ -34,20 +34,12 @@ import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 
 type Tab = 'my-leave' | 'team'
 
+// Simplified leave types for small team (15-20 people)
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   PTO: 'PTO',
-  ANNUAL: 'Annual Leave',
-  SICK: 'Sick Leave',
-  PERSONAL: 'Personal Leave',
-  MATERNITY: 'Maternity',
-  PATERNITY: 'Paternity',
-  PARENTAL: 'Parental',
-  BEREAVEMENT_IMMEDIATE: 'Bereavement (Immediate)',
-  BEREAVEMENT_EXTENDED: 'Bereavement (Extended)',
-  BEREAVEMENT: 'Bereavement',
-  JURY_DUTY: 'Jury Duty',
-  UNPAID: 'Unpaid',
-  COMP_TIME: 'Comp Time',
+  PARENTAL: 'Parental Leave',
+  BEREAVEMENT_IMMEDIATE: 'Bereavement',
+  UNPAID: 'Unpaid Leave',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -345,12 +337,9 @@ function RequestLeavePanel({
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">Request Leave</h2>
-              <button
-                onClick={onClose}
-                className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-              >
+              <Button variant="ghost" size="icon" onClick={onClose}>
                 <XIcon className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
 
             {/* Content */}
@@ -561,14 +550,16 @@ function LeavePageContent() {
         cell: ({ row }) => {
           if (row.original.status === 'PENDING') {
             return (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => handleCancelLeave(row.original.id)}
                 disabled={processingId === row.original.id}
-                className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 title="Cancel request"
               >
                 <XIcon className="h-4 w-4" />
-              </button>
+              </Button>
             )
           }
           if (row.original.status === 'APPROVED' && row.original.reviewedBy) {

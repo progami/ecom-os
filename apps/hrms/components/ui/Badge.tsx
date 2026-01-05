@@ -36,7 +36,6 @@ function Badge({ className, variant, ...props }: BadgeProps) {
   )
 }
 
-// Helper to get variant from status string
 type BadgeVariant = "success" | "warning" | "error" | "info" | "default"
 
 function getStatusVariant(status: unknown): BadgeVariant {
@@ -53,7 +52,6 @@ function getStatusVariant(status: unknown): BadgeVariant {
   return "info"
 }
 
-// Convenience component for status badges
 interface StatusBadgeProps {
   status: unknown
   className?: string

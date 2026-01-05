@@ -3,18 +3,16 @@ import { PermissionLevel } from '@/lib/permissions'
 import type { WorkItemAction, WorkItemDTO, WorkItemPriority, WorkItemsResponse } from '@/lib/contracts/work-items'
 import { rankWorkItems } from '@/lib/domain/work-items/rank'
 
+// Simplified work item types for small teams (no super admin stage)
 export type WorkItemType =
   | 'TASK_ASSIGNED'
   | 'POLICY_ACK_REQUIRED'
   | 'LEAVE_APPROVAL_REQUIRED'
   | 'REVIEW_DUE'
   | 'REVIEW_PENDING_HR'
-  | 'REVIEW_PENDING_SUPER_ADMIN'
   | 'REVIEW_ACK_REQUIRED'
   | 'VIOLATION_PENDING_HR'
-  | 'VIOLATION_PENDING_SUPER_ADMIN'
   | 'VIOLATION_ACK_REQUIRED'
-  | 'CASE_ASSIGNED'
 
 const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
 
@@ -70,12 +68,9 @@ function toTypeLabel(type: WorkItemType): string {
     LEAVE_APPROVAL_REQUIRED: 'Leave',
     REVIEW_DUE: 'Review',
     REVIEW_PENDING_HR: 'Review',
-    REVIEW_PENDING_SUPER_ADMIN: 'Review',
     REVIEW_ACK_REQUIRED: 'Review',
     VIOLATION_PENDING_HR: 'Violation',
-    VIOLATION_PENDING_SUPER_ADMIN: 'Violation',
     VIOLATION_ACK_REQUIRED: 'Violation',
-    CASE_ASSIGNED: 'Case',
   }
   return map[type] ?? type
 }
@@ -93,12 +88,9 @@ function toStageLabel(type: WorkItemType, options?: { status?: string }): string
     LEAVE_APPROVAL_REQUIRED: 'Approval required',
     REVIEW_DUE: 'Due',
     REVIEW_PENDING_HR: 'HR review required',
-    REVIEW_PENDING_SUPER_ADMIN: 'Final approval required',
     REVIEW_ACK_REQUIRED: 'Acknowledgement required',
     VIOLATION_PENDING_HR: 'HR review required',
-    VIOLATION_PENDING_SUPER_ADMIN: 'Final approval required',
     VIOLATION_ACK_REQUIRED: 'Acknowledgement required',
-    CASE_ASSIGNED: 'Assigned to you',
   }
 
   return map[type] ?? type
@@ -342,7 +334,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       take: 50,
       select: {
         id: true,
-        caseId: true,
         createdAt: true,
         reportedDate: true,
         severity: true,
@@ -360,7 +351,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         typeLabel: toTypeLabel('VIOLATION_PENDING_HR'),
         title: 'Violation pending HR review',
         description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
-        href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
+        href: `/performance/disciplinary/${action.id}`,
         entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
         stageLabel: toStageLabel('VIOLATION_PENDING_HR'),
         createdAt,
@@ -377,100 +368,23 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     }
   }
 
-  if (actor.isSuperAdmin) {
-    const pendingAdminReviews = await prisma.performanceReview.findMany({
-      where: { status: 'PENDING_SUPER_ADMIN' },
-      orderBy: [{ hrReviewedAt: 'desc' }, { createdAt: 'desc' }],
-      take: 50,
-      select: {
-        id: true,
-        createdAt: true,
-        hrReviewedAt: true,
-        employee: { select: { firstName: true, lastName: true } },
-      },
-    })
-
-    for (const review of pendingAdminReviews) {
-      const createdAt = iso(review.hrReviewedAt ?? review.createdAt)
-      const baseScore = 95
-      const score = baseScore
-      items.push({
-        id: `REVIEW_PENDING_SUPER_ADMIN:${review.id}`,
-        type: 'REVIEW_PENDING_SUPER_ADMIN',
-        typeLabel: toTypeLabel('REVIEW_PENDING_SUPER_ADMIN'),
-        title: 'Review pending final approval',
-        description: `Review for ${review.employee.firstName} ${review.employee.lastName}`,
-        href: `/performance/reviews/${review.id}`,
-        entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
-        stageLabel: toStageLabel('REVIEW_PENDING_SUPER_ADMIN'),
-        createdAt,
-        dueAt: null,
-        isOverdue: false,
-        overdueDays: null,
-        priority: priorityFromScore(score, false),
-        isActionRequired: true,
-        primaryAction: createWorkItemAction({ id: 'review.adminApprove', label: 'Final approve', disabled: false }),
-        secondaryActions: [
-          createWorkItemAction({ id: 'review.adminReject', label: 'Reject', disabled: false }),
-        ],
-      })
-    }
-
-    const pendingAdminViolations = await prisma.disciplinaryAction.findMany({
-      where: { status: 'PENDING_SUPER_ADMIN' },
-      orderBy: [{ hrReviewedAt: 'desc' }, { createdAt: 'desc' }],
-      take: 50,
-      select: {
-        id: true,
-        caseId: true,
-        createdAt: true,
-        hrReviewedAt: true,
-        severity: true,
-        employee: { select: { firstName: true, lastName: true } },
-      },
-    })
-
-    for (const action of pendingAdminViolations) {
-      const createdAt = iso(action.hrReviewedAt ?? action.createdAt)
-      const baseScore = 98
-      const score = baseScore
-      items.push({
-        id: `VIOLATION_PENDING_SUPER_ADMIN:${action.id}`,
-        type: 'VIOLATION_PENDING_SUPER_ADMIN',
-        typeLabel: toTypeLabel('VIOLATION_PENDING_SUPER_ADMIN'),
-        title: 'Violation pending final approval',
-        description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
-        href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
-        entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
-        stageLabel: toStageLabel('VIOLATION_PENDING_SUPER_ADMIN'),
-        createdAt,
-        dueAt: null,
-        isOverdue: false,
-        overdueDays: null,
-        priority: priorityFromScore(score, false),
-        isActionRequired: true,
-        primaryAction: createWorkItemAction({ id: 'disciplinary.adminApprove', label: 'Final approve', disabled: false }),
-        secondaryActions: [
-          createWorkItemAction({ id: 'disciplinary.adminReject', label: 'Reject', disabled: false }),
-        ],
-      })
-    }
-  }
+  // Super admin work items removed - simplified workflow for small teams
+  // HR approval goes directly to employee acknowledgement
 
   // Employee acknowledgements
   const pendingReviewAcks = await prisma.performanceReview.findMany({
     where: { employeeId, status: 'PENDING_ACKNOWLEDGMENT' },
-    orderBy: [{ superAdminApprovedAt: 'desc' }, { createdAt: 'desc' }],
+    orderBy: [{ hrReviewedAt: 'desc' }, { createdAt: 'desc' }],
     take: 50,
     select: {
       id: true,
       createdAt: true,
-      superAdminApprovedAt: true,
+      hrReviewedAt: true,
     },
   })
 
   for (const review of pendingReviewAcks) {
-    const createdAt = iso(review.superAdminApprovedAt ?? review.createdAt)
+    const createdAt = iso(review.hrReviewedAt ?? review.createdAt)
     const baseScore = 88
     const score = baseScore
     items.push({
@@ -501,13 +415,12 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         { employee: { reportsToId: employeeId } },
       ],
     },
-    orderBy: [{ superAdminApprovedAt: 'desc' }, { createdAt: 'desc' }],
+    orderBy: [{ hrReviewedAt: 'desc' }, { createdAt: 'desc' }],
     take: 50,
     select: {
       id: true,
-      caseId: true,
       createdAt: true,
-      superAdminApprovedAt: true,
+      hrReviewedAt: true,
       employeeId: true,
       employeeAcknowledged: true,
       managerAcknowledged: true,
@@ -523,7 +436,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     if (isManager && action.managerAcknowledged) continue
 
     const who = isEmployee ? 'your' : `${action.employee.firstName} ${action.employee.lastName}'s`
-    const createdAt = iso(action.superAdminApprovedAt ?? action.createdAt)
+    const createdAt = iso(action.hrReviewedAt ?? action.createdAt)
     const baseScore = 92
     const score = baseScore
     items.push({
@@ -532,7 +445,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       typeLabel: toTypeLabel('VIOLATION_ACK_REQUIRED'),
       title: 'Violation acknowledgment required',
       description: `Acknowledge ${who} violation record`,
-      href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
+      href: `/performance/disciplinary/${action.id}`,
       entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
       stageLabel: toStageLabel('VIOLATION_ACK_REQUIRED'),
       createdAt,
@@ -545,46 +458,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       secondaryActions: isEmployee
         ? [createWorkItemAction({ id: 'disciplinary.appeal', label: 'Appeal', disabled: false })]
         : [],
-    })
-  }
-
-  // Assigned cases
-  const assignedCases = await prisma.case.findMany({
-    where: {
-      assignedToId: employeeId,
-      status: { in: ['OPEN', 'IN_REVIEW', 'ON_HOLD'] },
-    },
-    orderBy: [{ updatedAt: 'desc' }],
-    take: 50,
-    select: {
-      id: true,
-      caseNumber: true,
-      title: true,
-      updatedAt: true,
-    },
-  })
-
-  for (const c of assignedCases) {
-    const createdAt = iso(c.updatedAt)
-    const baseScore = 75
-    const score = baseScore
-    items.push({
-      id: `CASE_ASSIGNED:${c.id}`,
-      type: 'CASE_ASSIGNED',
-      typeLabel: toTypeLabel('CASE_ASSIGNED'),
-      title: `Case #${c.caseNumber} assigned`,
-      description: c.title,
-      href: `/cases/${c.id}`,
-      entity: { type: 'CASE', id: c.id },
-      stageLabel: toStageLabel('CASE_ASSIGNED'),
-      createdAt,
-      dueAt: null,
-      isOverdue: false,
-      overdueDays: null,
-      priority: priorityFromScore(score, false),
-      isActionRequired: true,
-      primaryAction: null,
-      secondaryActions: [],
     })
   }
 

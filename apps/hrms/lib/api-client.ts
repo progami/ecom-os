@@ -35,18 +35,6 @@ export type EmployeeProjectMembership = {
   }
 }
 
-export type Resource = {
-  id: string
-  name: string
-  category: string
-  subcategory?: string | null
-  description?: string | null
-  email?: string | null
-  phone?: string | null
-  website?: string | null
-  rating?: number | null
-}
-
 export type Policy = {
   id: string
   title: string
@@ -200,27 +188,6 @@ export const EmployeesApi = {
     return request<{ items: { id: string; employeeId: string; firstName: string; lastName: string; position: string }[]; total: number }>(
       `/api/employees/${encodeURIComponent(employeeId)}/authorized-reporters`
     )
-  },
-}
-
-// Resources
-export const ResourcesApi = {
-  list(params: { q?: string; take?: number; skip?: number; category?: string; subcategories?: string[] } = {}) {
-    const qp = new URLSearchParams()
-    if (params.q) qp.set('q', params.q)
-    if (params.take != null) qp.set('take', String(params.take))
-    if (params.skip != null) qp.set('skip', String(params.skip))
-    if (params.category) qp.set('category', params.category)
-    if (params.subcategories?.length) qp.set('subcategories', params.subcategories.join(','))
-    const qs = qp.toString()
-    return request<{ items: Resource[]; total: number }>(`/api/resources${qs ? `?${qs}` : ''}`)
-  },
-  create(payload: Partial<Resource> & { name: string; category: string }) {
-    return request<Resource>(`/api/resources`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
   },
 }
 
@@ -403,30 +370,6 @@ export const DashboardApi = {
   get() {
     return request<DashboardData>(`/api/dashboard`)
   },
-}
-
-// Calendar
-export type CalendarEvent = {
-  id?: string
-  summary?: string
-  description?: string
-  location?: string
-  start?: { dateTime?: string; timeZone?: string }
-  end?: { dateTime?: string; timeZone?: string }
-  htmlLink?: string
-}
-
-export const CalendarApi = {
-  list() {
-    return request<{ items: CalendarEvent[] }>(`/api/calendar/events`)
-  },
-  create(input: { summary: string; description?: string; location?: string; start: { dateTime: string; timeZone?: string }; end: { dateTime: string; timeZone?: string } }) {
-    return request<CalendarEvent>(`/api/calendar/events`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
-    })
-  }
 }
 
 // Performance Reviews
@@ -775,29 +718,6 @@ export const HRCalendarApi = {
     return request<{ ok: boolean }>(`/api/hr-calendar/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
-  },
-}
-
-// Google Admin Users
-export type GoogleAdminUser = {
-  googleId: string
-  email: string
-  firstName: string
-  lastName: string
-  fullName: string
-  department: string | null
-  position: string | null
-  phone: string | null
-  orgUnit: string
-  isAdmin: boolean
-  createdAt: string
-  lastLogin: string
-  photoUrl: string | null
-}
-
-export const GoogleAdminApi = {
-  listUsers() {
-    return request<{ items: GoogleAdminUser[]; total: number }>(`/api/google-admin/users`)
   },
 }
 
@@ -1154,24 +1074,6 @@ export const MeApi = {
   },
 }
 
-// Standing
-export type CulturalHealth = {
-  greenPercentage: number
-  yellowPercentage: number
-  redPercentage: number
-  totalEmployees: number
-  redAlerts: { id: string; firstName: string; lastName: string; reason: string }[]
-}
-
-export const StandingApi = {
-  getCulturalHealth() {
-    return request<CulturalHealth>('/api/standing')
-  },
-  getEmployeeStanding(employeeId: string) {
-    return request<any>(`/api/standing?employeeId=${encodeURIComponent(employeeId)}`)
-  },
-}
-
 // Work Items
 export type WorkItem = WorkItemDTO
 
@@ -1314,205 +1216,6 @@ export const TasksApi = {
   },
 }
 
-// Cases
-export type CasePerson = {
-  id: string
-  employeeId?: string
-  firstName: string
-  lastName: string
-  avatar?: string | null
-}
-
-export type CaseParticipant = {
-  id: string
-  role: string
-  addedAt: string
-  employee: CasePerson
-}
-
-export type CaseNote = {
-  id: string
-  caseId: string
-  authorId: string
-  visibility: string
-  body: string
-  createdAt: string
-  updatedAt: string
-  author: CasePerson
-}
-
-export type CaseAttachment = {
-  id: string
-  caseId: string
-  uploadedById: string
-  title?: string | null
-  fileName?: string | null
-  contentType?: string | null
-  size?: number | null
-  visibility?: string
-  createdAt: string
-  uploadedBy: CasePerson
-}
-
-export type CaseCounts = {
-  notes: number
-  tasks: number
-  attachments: number
-}
-
-export type Case = {
-  id: string
-  caseNumber: number
-  caseType: string
-  title: string
-  description?: string | null
-  status: string
-  severity: string
-  subjectEmployeeId?: string | null
-  createdById: string
-  assignedToId?: string | null
-  openedAt: string
-  closedAt?: string | null
-  createdAt: string
-  updatedAt: string
-  subjectEmployee?: CasePerson | null
-  createdBy?: CasePerson
-  assignedTo?: CasePerson | null
-  participants?: CaseParticipant[]
-  notes?: CaseNote[]
-  attachments?: CaseAttachment[]
-  tasks?: Task[]
-  _count?: CaseCounts
-}
-
-export const CasesApi = {
-  list(params: {
-    q?: string
-    take?: number
-    skip?: number
-    status?: string
-    caseType?: string
-    assignedToId?: string
-    subjectEmployeeId?: string
-  } = {}) {
-    const qp = new URLSearchParams()
-    if (params.q) qp.set('q', params.q)
-    if (params.take != null) qp.set('take', String(params.take))
-    if (params.skip != null) qp.set('skip', String(params.skip))
-    if (params.status) qp.set('status', params.status)
-    if (params.caseType) qp.set('caseType', params.caseType)
-    if (params.assignedToId) qp.set('assignedToId', params.assignedToId)
-    if (params.subjectEmployeeId) qp.set('subjectEmployeeId', params.subjectEmployeeId)
-    const qs = qp.toString()
-    return request<{ items: Case[]; total: number }>(`/api/cases${qs ? `?${qs}` : ''}`)
-  },
-  get(id: string) {
-    return request<Case>(`/api/cases/${encodeURIComponent(id)}`)
-  },
-  getWorkflowRecord(id: string) {
-    return request<WorkflowRecordDTO>(`/api/cases/${encodeURIComponent(id)}?format=workflow`)
-  },
-  getLinkedDisciplinary(id: string) {
-    return request<{ disciplinaryActionId: string | null }>(`/api/cases/${encodeURIComponent(id)}/disciplinary`)
-  },
-  create(payload: {
-    caseType: string
-    title: string
-    description?: string | null
-    severity?: string
-    subjectEmployeeId?: string | null
-    assignedToId?: string | null
-  }) {
-    return request<Case>(`/api/cases`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
-  update(id: string, payload: Partial<{
-    title: string
-    description: string | null
-    status: string
-    statusNote: string | null
-    severity: string
-    caseType: string
-    assignedToId: string | null
-  }>) {
-    return request<Case>(`/api/cases/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
-  addParticipant(id: string, payload: { employeeId: string; role: string }) {
-    return request<CaseParticipant>(`/api/cases/${encodeURIComponent(id)}/participants`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
-  updateParticipant(id: string, participantId: string, payload: { role: string }) {
-    return request<CaseParticipant>(`/api/cases/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
-  removeParticipant(id: string, participantId: string) {
-    return request<{ ok: boolean }>(`/api/cases/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`, {
-      method: 'DELETE',
-    })
-  },
-  listNotes(id: string) {
-    return request<{ items: CaseNote[]; total: number }>(`/api/cases/${encodeURIComponent(id)}/notes`)
-  },
-  addNote(id: string, payload: { body: string; visibility?: string }) {
-    return request<CaseNote>(`/api/cases/${encodeURIComponent(id)}/notes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
-  listAttachments(id: string) {
-    return request<{ items: CaseAttachment[]; total: number }>(`/api/cases/${encodeURIComponent(id)}/attachments`)
-  },
-}
-
-// Audit Logs
-export type AuditLog = {
-  id: string
-  actorId?: string | null
-  action: string
-  entityType: string
-  entityId: string
-  summary?: string | null
-  metadata?: any
-  ip?: string | null
-  userAgent?: string | null
-  createdAt: string
-  actor?: {
-    id: string
-    employeeId: string
-    firstName: string
-    lastName: string
-    avatar?: string | null
-  } | null
-}
-
-export const AuditLogsApi = {
-  list(params: { take?: number; skip?: number; entityType?: string; entityId?: string; action?: string; actorId?: string } = {}) {
-    const qp = new URLSearchParams()
-    if (params.take != null) qp.set('take', String(params.take))
-    if (params.skip != null) qp.set('skip', String(params.skip))
-    if (params.entityType) qp.set('entityType', params.entityType)
-    if (params.entityId) qp.set('entityId', params.entityId)
-    if (params.action) qp.set('action', params.action)
-    if (params.actorId) qp.set('actorId', params.actorId)
-    const qs = qp.toString()
-    return request<{ items: AuditLog[]; total: number }>(`/api/audit-logs${qs ? `?${qs}` : ''}`)
-  },
-}
-
 // Employee Timeline
 export type TimelineEvent = {
   id: string
@@ -1573,73 +1276,5 @@ export const EmployeeFilesApi = {
     return request<{ url: string }>(
       `/api/employees/${encodeURIComponent(employeeId)}/files/${encodeURIComponent(fileId)}/download`
     )
-  },
-}
-
-export const CaseAttachmentsApi = {
-  getDownloadUrl(caseId: string, attachmentId: string) {
-    return request<{ url: string }>(
-      `/api/cases/${encodeURIComponent(caseId)}/attachments/${encodeURIComponent(attachmentId)}/download`
-    )
-  },
-}
-
-// Ops dashboards (Admin)
-export type HrOpsDashboardWorkItem = {
-  id: string
-  href: string
-  title: string
-  subtitle: string
-  createdAt?: string | null
-  dueAt?: string | null
-}
-
-export type HrOpsDashboardSnapshot = {
-  generatedAt: string
-  overdue: {
-    leaves: { count: number; items: HrOpsDashboardWorkItem[] }
-    reviews: { count: number; items: HrOpsDashboardWorkItem[] }
-    violations: { count: number; items: HrOpsDashboardWorkItem[] }
-    acknowledgements: { count: number; items: HrOpsDashboardWorkItem[] }
-  }
-  cases: {
-    byStatus: Record<string, number>
-    bySeverity: Record<string, number>
-  }
-}
-
-export type ComplianceDepartmentSummary = {
-  department: string
-  applicableCount: number
-  acknowledgedCount: number
-  pendingCount: number
-  compliancePct: number
-}
-
-export type CompliancePolicySummary = {
-  policyId: string
-  title: string
-  category: string
-  region: string
-  version: string
-  effectiveDate: string | null
-  applicableCount: number
-  acknowledgedCount: number
-  pendingCount: number
-  compliancePct: number
-  byDepartment: ComplianceDepartmentSummary[]
-}
-
-export type ComplianceDashboardSnapshot = {
-  generatedAt: string
-  policies: CompliancePolicySummary[]
-}
-
-export const OpsDashboardsApi = {
-  getHrOps() {
-    return request<HrOpsDashboardSnapshot>('/api/dashboards/hr-ops')
-  },
-  getCompliance() {
-    return request<ComplianceDashboardSnapshot>('/api/dashboards/compliance')
   },
 }

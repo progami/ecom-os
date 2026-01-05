@@ -6,17 +6,12 @@ import { isHROrAbove } from '@/lib/permissions'
 
 type SearchResult =
   | { type: 'EMPLOYEE'; id: string; title: string; subtitle?: string; href: string }
-  | { type: 'CASE'; id: string; title: string; subtitle?: string; href: string }
   | { type: 'REVIEW'; id: string; title: string; subtitle?: string; href: string }
   | { type: 'TASK'; id: string; title: string; subtitle?: string; href: string }
   | { type: 'POLICY'; id: string; title: string; subtitle?: string; href: string }
 
 function normalizeQuery(value: string | null | undefined): string {
   return (value ?? '').trim().replace(/\s+/g, ' ')
-}
-
-function isNumeric(value: string): boolean {
-  return /^[0-9]+$/.test(value)
 }
 
 export async function GET(req: Request) {
@@ -60,30 +55,6 @@ export async function GET(req: Request) {
                 { lastName: { contains: q, mode: 'insensitive' as const } },
                 { email: { contains: q, mode: 'insensitive' as const } },
                 { employeeId: { contains: q, mode: 'insensitive' as const } },
-              ],
-            },
-          ],
-        }
-
-    const caseWhere = isHR
-      ? {
-          OR: [
-            { title: { contains: q, mode: 'insensitive' as const } },
-            ...(isNumeric(qRaw) ? [{ caseNumber: Number.parseInt(qRaw, 10) }] : []),
-          ],
-        }
-      : {
-          OR: [
-            { createdById: actorId },
-            { assignedToId: actorId },
-            { subjectEmployeeId: actorId },
-            { participants: { some: { employeeId: actorId } } },
-          ],
-          AND: [
-            {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' as const } },
-                ...(isNumeric(qRaw) ? [{ caseNumber: Number.parseInt(qRaw, 10) }] : []),
               ],
             },
           ],
@@ -144,18 +115,12 @@ export async function GET(req: Request) {
       ],
     }
 
-    const [employees, cases, tasks, reviews, policies] = await Promise.all([
+    const [employees, tasks, reviews, policies] = await Promise.all([
       prisma.employee.findMany({
         where: employeeWhere as any,
         take,
         orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
         select: { id: true, employeeId: true, firstName: true, lastName: true, department: true, position: true },
-      }),
-      prisma.case.findMany({
-        where: caseWhere as any,
-        take,
-        orderBy: { updatedAt: 'desc' },
-        select: { id: true, caseNumber: true, title: true, status: true, severity: true, caseType: true },
       }),
       prisma.task.findMany({
         where: taskWhere as any,
@@ -189,13 +154,6 @@ export async function GET(req: Request) {
         title: `${e.firstName} ${e.lastName}`.trim(),
         subtitle: `${e.employeeId} • ${e.department} • ${e.position}`,
         href: `/employees/${e.id}`,
-      })),
-      ...cases.map((c) => ({
-        type: 'CASE' as const,
-        id: c.id,
-        title: `#${c.caseNumber} • ${c.title}`,
-        subtitle: `${c.caseType} • ${c.status} • ${c.severity}`,
-        href: `/cases/${c.id}`,
       })),
       ...tasks.map((t) => ({
         type: 'TASK' as const,

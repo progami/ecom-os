@@ -132,27 +132,8 @@ export function buildPerformanceReviewNextActions(
       }
       return actions;
 
-    case 'PENDING_SUPER_ADMIN':
-      if (viewer.isSuperAdmin) {
-        actions.primary = {
-          id: 'review.adminApprove',
-          label: 'Final approve',
-          variant: 'primary',
-          disabled: false,
-        };
-        actions.secondary = [
-          { id: 'review.adminReject', label: 'Reject', variant: 'danger', disabled: false },
-        ];
-      } else {
-        actions.primary = {
-          id: 'review.adminApprove',
-          label: 'Waiting for final approval',
-          variant: 'primary',
-          disabled: true,
-          disabledReason: 'Super Admin must approve before acknowledgement.',
-        };
-      }
-      return actions;
+    // PENDING_SUPER_ADMIN removed - simplified workflow for small teams
+    // HR approval goes directly to PENDING_ACKNOWLEDGMENT
 
     case 'PENDING_ACKNOWLEDGMENT':
       if (isEmployee) {

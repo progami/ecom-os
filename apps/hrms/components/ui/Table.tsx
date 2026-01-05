@@ -135,7 +135,6 @@ const TableCaption = React.forwardRef<
 ))
 TableCaption.displayName = "TableCaption"
 
-// Loading skeleton for table rows
 interface TableSkeletonProps {
   rows?: number
   columns: number
@@ -157,7 +156,6 @@ function TableSkeleton({ rows = 5, columns }: TableSkeletonProps) {
   )
 }
 
-// Results count display
 interface ResultsCountProps {
   count: number
   singular: string

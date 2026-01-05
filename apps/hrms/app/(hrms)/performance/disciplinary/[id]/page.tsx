@@ -1,109 +1,269 @@
-import { redirect } from 'next/navigation'
-import { writeAuditLog } from '@/lib/audit'
-import { getCurrentEmployeeId } from '@/lib/current-user'
-import { getHREmployees } from '@/lib/permissions'
-import { prisma } from '@/lib/prisma'
+'use client'
 
-export const dynamic = 'force-dynamic'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
+import { DisciplinaryActionsApi, MeApi, type DisciplinaryAction, type Me } from '@/lib/api-client'
+import { ExclamationTriangleIcon, PencilIcon, UserIcon } from '@/components/ui/Icons'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card, CardDivider } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { StatusBadge } from '@/components/ui/badge'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
-function toCaseSeverity(severity: string): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-  switch (severity) {
-    case 'CRITICAL':
-      return 'CRITICAL'
-    case 'MAJOR':
-      return 'HIGH'
-    case 'MODERATE':
-      return 'MEDIUM'
-    case 'MINOR':
-    default:
-      return 'LOW'
-  }
+const SEVERITY_LABELS: Record<string, string> = {
+  MINOR: 'Minor',
+  MODERATE: 'Moderate',
+  MAJOR: 'Major',
+  CRITICAL: 'Critical',
 }
 
-export default async function DisciplinaryDetailRedirectPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  if (!id || id.length > 100) {
-    redirect('/cases?caseType=VIOLATION')
-  }
+const STATUS_LABELS: Record<string, string> = {
+  REPORTED: 'Reported',
+  UNDER_REVIEW: 'Under Review',
+  PENDING_HR_REVIEW: 'Pending HR Review',
+  PENDING_SUPER_ADMIN: 'Pending Admin Approval',
+  PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
+  ACKNOWLEDGED: 'Acknowledged',
+  RESOLVED: 'Resolved',
+  CLOSED: 'Closed',
+}
 
-  const record = await prisma.disciplinaryAction.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      caseId: true,
-      employeeId: true,
-      severity: true,
-      employee: { select: { firstName: true, lastName: true } },
-    },
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   })
+}
 
-  if (!record) {
-    redirect('/cases?caseType=VIOLATION')
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:justify-between py-2">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-foreground sm:text-right">{value}</span>
+    </div>
+  )
+}
+
+export default function DisciplinaryDetailPage() {
+  const { goBack } = useNavigationHistory()
+  const params = useParams()
+  const id = params.id as string
+
+  const [action, setAction] = useState<DisciplinaryAction | null>(null)
+  const [me, setMe] = useState<Me | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [data, meData] = await Promise.all([
+          DisciplinaryActionsApi.get(id),
+          MeApi.get().catch(() => null),
+        ])
+        setAction(data)
+        setMe(meData)
+      } catch (e: any) {
+        setError(e.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [id])
+
+  const canEdit = Boolean(me?.isHR || me?.isSuperAdmin)
+
+  if (loading) {
+    return (
+      <>
+        <PageHeader
+          title="Violation Details"
+          description="Loading..."
+          icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
+          showBack
+        />
+        <div className="max-w-3xl">
+          <Card padding="lg">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
+              <div className="h-4 bg-muted rounded w-1/4" />
+              <div className="h-10 bg-muted rounded" />
+            </div>
+          </Card>
+        </div>
+      </>
+    )
   }
 
-  if (record.caseId) {
-    redirect(`/cases/${record.caseId}`)
+  if (!action) {
+    return (
+      <>
+        <PageHeader
+          title="Violation Details"
+          description="Not Found"
+          icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
+          showBack
+        />
+        <div className="max-w-3xl">
+          <Card padding="lg">
+            <Alert variant="error">{error ?? 'Violation not found'}</Alert>
+          </Card>
+        </div>
+      </>
+    )
   }
 
-  const actorId = await getCurrentEmployeeId()
-  if (!actorId) {
-    redirect('/cases?caseType=VIOLATION')
-  }
+  return (
+    <>
+      <PageHeader
+        title="Violation Details"
+        description={`${action.employee?.firstName} ${action.employee?.lastName}`}
+        icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
+        showBack
+        actions={
+          canEdit ? (
+            <Button href={`/performance/disciplinary/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
+              Edit
+            </Button>
+          ) : undefined
+        }
+      />
 
-  const hrEmployees = await getHREmployees()
-  const assignedToId = hrEmployees[0]?.id ?? null
-  const employeeName = `${record.employee.firstName ?? ''} ${record.employee.lastName ?? ''}`.trim()
+      <div className="max-w-3xl space-y-6">
+        {/* Employee & Status */}
+        <Card padding="lg">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <UserIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <Link
+                  href={`/employees/${action.employeeId}`}
+                  className="text-lg font-semibold text-foreground hover:text-accent transition-colors"
+                >
+                  {action.employee?.firstName} {action.employee?.lastName}
+                </Link>
+                <p className="text-sm text-muted-foreground">
+                  {action.employee?.position} • {action.employee?.department}
+                </p>
+              </div>
+            </div>
+            <StatusBadge status={STATUS_LABELS[action.status] ?? action.status} />
+          </div>
 
-  const { caseId } = await prisma.$transaction(async (tx) => {
-    const createdCase = await tx.case.create({
-      data: {
-        caseType: 'VIOLATION',
-        title: employeeName ? `Violation • ${employeeName}` : `Violation • ${record.employeeId}`,
-        description: 'Violation record created. Use the linked violation workflow to review and proceed.',
-        severity: toCaseSeverity(record.severity),
-        subjectEmployeeId: record.employeeId,
-        createdById: actorId,
-        assignedToId,
-      },
-      select: { id: true, caseNumber: true },
-    })
+          <CardDivider />
 
-    await tx.caseParticipant.createMany({
-      data: [
-        { caseId: createdCase.id, employeeId: record.employeeId, role: 'SUBJECT' },
-        { caseId: createdCase.id, employeeId: actorId, role: 'REPORTER' },
-      ],
-      skipDuplicates: true,
-    })
+          <div className="space-y-1 mt-4">
+            <InfoRow label="Violation Type" value={action.violationType} />
+            <InfoRow label="Reason" value={action.violationReason} />
+            <InfoRow label="Severity" value={SEVERITY_LABELS[action.severity] ?? action.severity} />
+            <InfoRow label="Incident Date" value={formatDate(action.incidentDate)} />
+            <InfoRow label="Reported Date" value={formatDate(action.reportedDate)} />
+            <InfoRow label="Reported By" value={action.reportedBy} />
+          </div>
+        </Card>
 
-    await tx.disciplinaryAction.update({
-      where: { id: record.id },
-      data: { caseId: createdCase.id },
-      select: { id: true },
-    })
+        {/* Description */}
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Description</h3>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{action.description}</p>
+        </Card>
 
-    await writeAuditLog({
-      actorId,
-      action: 'CREATE',
-      entityType: 'CASE',
-      entityId: createdCase.id,
-      summary: `Backfilled violation case #${createdCase.caseNumber}`,
-      metadata: { caseType: 'VIOLATION', disciplinaryActionId: record.id },
-      client: tx,
-    })
+        {/* Values Breached */}
+        {action.valuesBreached && action.valuesBreached.length > 0 && (
+          <Card padding="lg">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Values Breached</h3>
+            <div className="flex flex-wrap gap-2">
+              {action.valuesBreached.map((value) => (
+                <span
+                  key={value}
+                  className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-danger-100 text-danger-800"
+                >
+                  {value}
+                </span>
+              ))}
+            </div>
+          </Card>
+        )}
 
-    await writeAuditLog({
-      actorId,
-      action: 'UPDATE',
-      entityType: 'DISCIPLINARY_ACTION',
-      entityId: record.id,
-      summary: `Linked disciplinary action to case #${createdCase.caseNumber}`,
-      metadata: { caseId: createdCase.id },
-      client: tx,
-    })
+        {/* Evidence & Witnesses */}
+        {(action.witnesses || action.evidence) && (
+          <Card padding="lg">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Evidence & Witnesses</h3>
+            <div className="space-y-3">
+              {action.witnesses && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Witnesses</p>
+                  <p className="text-sm text-foreground">{action.witnesses}</p>
+                </div>
+              )}
+              {action.evidence && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Evidence</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{action.evidence}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
-    return { caseId: createdCase.id }
-  })
+        {/* Action Taken */}
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Action Taken</h3>
+          <div className="space-y-1">
+            <InfoRow label="Action" value={action.actionTaken} />
+            {action.actionDate && <InfoRow label="Action Date" value={formatDate(action.actionDate)} />}
+            {action.actionDetails && (
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-1">Details</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{action.actionDetails}</p>
+              </div>
+            )}
+          </div>
+        </Card>
 
-  redirect(`/cases/${caseId}`)
+        {/* Follow-up */}
+        {(action.followUpDate || action.followUpNotes) && (
+          <Card padding="lg">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Follow-up</h3>
+            <div className="space-y-1">
+              {action.followUpDate && <InfoRow label="Follow-up Date" value={formatDate(action.followUpDate)} />}
+              {action.followUpNotes && (
+                <div className="pt-2">
+                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{action.followUpNotes}</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Resolution */}
+        {action.resolution && (
+          <Card padding="lg">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Resolution</h3>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{action.resolution}</p>
+          </Card>
+        )}
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" onClick={goBack}>
+            Back
+          </Button>
+          {canEdit && (
+            <Button href={`/performance/disciplinary/${id}/edit`}>
+              Edit Violation
+            </Button>
+          )}
+        </div>
+      </div>
+    </>
+  )
 }
