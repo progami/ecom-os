@@ -5,6 +5,8 @@ import { ThemeProvider as NextThemeProvider, useTheme } from 'next-themes'
 import { Toaster } from 'sonner'
 import { useState, type ComponentProps, type ReactNode } from 'react'
 
+import { TooltipProvider } from '@/components/ui/tooltip'
+
 type ProvidersProps = {
   // Accept any React tree so we can bridge the React 18/19 type mismatch in this workspace
   children?: ComponentProps<typeof QueryClientProvider>['children'] | ReactNode | null | undefined | any
@@ -36,8 +38,10 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <NextThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <QueryClientProvider client={queryClient}>
-        {children}
-        <ThemedToaster />
+        <TooltipProvider delayDuration={100}>
+          {children}
+          <ThemedToaster />
+        </TooltipProvider>
       </QueryClientProvider>
     </NextThemeProvider>
   )
