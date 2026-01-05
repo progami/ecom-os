@@ -46,6 +46,7 @@ import {
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { usePersistentState } from '@/hooks/usePersistentState'
+import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo'
 import { withAppBasePath } from '@/lib/base-path'
 import type { SelectionStats } from '@/lib/selection-stats'
 import { formatDateDisplay } from '@/lib/utils/dates'
@@ -920,6 +921,89 @@ export function SalesPlanningGrid({
     [pendingRef, scheduleFlush]
   )
 
+  // Undo/redo functionality
+  // For SalesGrid, rowKey is `${visibleRowIndex}-${columnId}` format
+  const applyUndoRedoEdits = useCallback(
+    (edits: CellEdit<string>[]) => {
+      const editsByColumnId = new Map<string, { visibleRowIndex: number; columnId: string; value: string }>()
+
+      for (const edit of edits) {
+        // rowKey format: `${visibleRowIndex}-${columnId}`
+        const dashIndex = edit.rowKey.indexOf('-')
+        if (dashIndex === -1) continue
+        const visibleRowIndex = Number(edit.rowKey.slice(0, dashIndex))
+        const columnId = edit.rowKey.slice(dashIndex + 1)
+
+        if (!Number.isFinite(visibleRowIndex)) continue
+
+        editsByColumnId.set(`${visibleRowIndex}-${columnId}`, {
+          visibleRowIndex,
+          columnId,
+          value: edit.newValue,
+        })
+      }
+
+      if (editsByColumnId.size === 0) return
+
+      const absoluteEditsByProduct = new Map<string, { minRow: number; items: Array<{ absoluteRowIndex: number; columnId: string; value: string }> }>()
+      const queued: Array<{ productId: string; weekNumber: number; field: string; value: string }> = []
+
+      setData((prev) => {
+        let next = prev.slice()
+
+        for (const [, edit] of editsByColumnId) {
+          const absoluteRowIndex = visibleRowIndices[edit.visibleRowIndex]
+          const row = prev[absoluteRowIndex]
+          if (!row) continue
+
+          const colMeta = columnMeta[edit.columnId]
+          if (!colMeta || !isEditableMetric(colMeta.field)) continue
+
+          const weekNumber = Number(row.weekNumber)
+          if (!Number.isFinite(weekNumber)) continue
+
+          // Update local state
+          const current = next[absoluteRowIndex] ?? { ...row }
+          current[edit.columnId] = edit.value
+          next[absoluteRowIndex] = current
+
+          // Track for derived field recalculation
+          const existing = absoluteEditsByProduct.get(colMeta.productId)
+          if (!existing) {
+            absoluteEditsByProduct.set(colMeta.productId, { minRow: absoluteRowIndex, items: [{ absoluteRowIndex, columnId: edit.columnId, value: edit.value }] })
+          } else {
+            existing.items.push({ absoluteRowIndex, columnId: edit.columnId, value: edit.value })
+            existing.minRow = Math.min(existing.minRow, absoluteRowIndex)
+          }
+
+          // Queue API update
+          queued.push({
+            productId: colMeta.productId,
+            weekNumber,
+            field: colMeta.field,
+            value: edit.value,
+          })
+        }
+
+        // Recompute derived fields
+        for (const [productId, payload] of absoluteEditsByProduct.entries()) {
+          next = recomputeDerivedForProduct(productId, next, payload.minRow)
+        }
+
+        return next
+      })
+
+      // Queue API updates
+      queued.forEach((item) => queueUpdate(item.productId, item.weekNumber, item.field, item.value))
+    },
+    [columnMeta, visibleRowIndices, recomputeDerivedForProduct, queueUpdate]
+  )
+
+  const { recordEdits, undo, redo } = useGridUndoRedo<string>({
+    maxHistory: 50,
+    onApplyEdits: applyUndoRedoEdits,
+  })
+
   const applyEdits = useCallback(
     (edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }>) => {
       if (edits.length === 0) return
@@ -967,6 +1051,21 @@ export function SalesPlanningGrid({
 
       if (queued.length === 0) return
 
+      // Record edits for undo/redo before applying
+      const undoEdits: CellEdit<string>[] = normalizedEdits.map((edit) => {
+        const absoluteRowIndex = visibleRowIndices[edit.visibleRowIndex]
+        const currentValue = data[absoluteRowIndex]?.[edit.columnId] ?? ''
+        return {
+          rowKey: `${edit.visibleRowIndex}-${edit.columnId}`,
+          field: edit.columnId,
+          oldValue: typeof currentValue === 'string' ? currentValue : '',
+          newValue: edit.value,
+        }
+      })
+      if (undoEdits.length > 0) {
+        recordEdits(undoEdits)
+      }
+
       setData((prev) => {
         let next = prev.slice()
 
@@ -994,7 +1093,7 @@ export function SalesPlanningGrid({
 
       queued.forEach((item) => queueUpdate(item.productId, item.weekNumber, item.field, item.value))
     },
-    [columnMeta, data, queueUpdate, recomputeDerivedForProduct, visibleRowIndices]
+    [columnMeta, data, queueUpdate, recomputeDerivedForProduct, visibleRowIndices, recordEdits]
   )
 
   const startEditing = useCallback(
@@ -1193,6 +1292,24 @@ export function SalesPlanningGrid({
         return
       }
 
+      // Handle Ctrl+Z for undo and Ctrl+Shift+Z / Ctrl+Y for redo (even without active cell)
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) {
+          redo()
+        } else {
+          undo()
+        }
+        return
+      }
+
+      // Handle Ctrl+Y for redo (Windows convention)
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'y') {
+        event.preventDefault()
+        redo()
+        return
+      }
+
       if (!activeCell) return
 
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
@@ -1301,6 +1418,8 @@ export function SalesPlanningGrid({
       startEditing,
       updateActiveSelection,
       visibleRows.length,
+      undo,
+      redo,
     ]
   )
 
