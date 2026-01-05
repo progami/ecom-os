@@ -1,27 +1,25 @@
-import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { withXPlanAuth } from '@/lib/api/auth'
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/prisma';
+import { withXPlanAuth } from '@/lib/api/auth';
 import {
   areStrategyAssignmentFieldsAvailable,
   buildStrategyAccessWhere,
   getStrategyActor,
   isStrategyAssignmentFieldsMissingError,
   markStrategyAssignmentFieldsUnavailable,
-  resolveAllowedXPlanAssigneeById,
-} from '@/lib/strategy-access'
+  resolveAllowedXPlanAssigneeByIdWithCookie,
+} from '@/lib/strategy-access';
 
 // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
-const prismaAny = prisma as unknown as Record<string, any>
-
-const DEFAULT_STRATEGY_ID = 'default-strategy'
+const prismaAny = prisma as unknown as Record<string, any>;
 
 const createSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   region: z.enum(['US', 'UK']).optional(),
   assigneeId: z.string().min(1).optional(),
-})
+});
 
 const updateSchema = z.object({
   id: z.string().min(1),
@@ -30,17 +28,17 @@ const updateSchema = z.object({
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
   region: z.enum(['US', 'UK']).optional(),
   assigneeId: z.string().min(1).optional(),
-})
+});
 
 const deleteSchema = z.object({
   id: z.string().min(1),
-})
+});
 
 const countsSelect = {
   products: true,
   purchaseOrders: true,
   salesWeeks: true,
-}
+};
 
 const listSelect = {
   id: true,
@@ -56,7 +54,7 @@ const listSelect = {
   createdAt: true,
   updatedAt: true,
   _count: { select: countsSelect },
-}
+};
 
 const legacyListSelect = {
   id: true,
@@ -68,7 +66,7 @@ const legacyListSelect = {
   createdAt: true,
   updatedAt: true,
   _count: { select: countsSelect },
-}
+};
 
 const writeSelect = {
   id: true,
@@ -83,7 +81,7 @@ const writeSelect = {
   assigneeEmail: true,
   createdAt: true,
   updatedAt: true,
-}
+};
 
 const legacyWriteSelect = {
   id: true,
@@ -94,80 +92,72 @@ const legacyWriteSelect = {
   isDefault: true,
   createdAt: true,
   updatedAt: true,
-}
+};
 
 export const GET = withXPlanAuth(async (_request, session) => {
-  const actor = getStrategyActor(session)
-  const orderBy = [{ isDefault: 'desc' }, { updatedAt: 'desc' }]
+  const actor = getStrategyActor(session);
+  const orderBy = [{ updatedAt: 'desc' }];
 
-  let strategies: any[]
+  let strategies: any[];
   if (areStrategyAssignmentFieldsAvailable()) {
     try {
       strategies = await prismaAny.strategy.findMany({
         where: buildStrategyAccessWhere(actor),
         orderBy,
         select: listSelect,
-      })
+      });
     } catch (error) {
       if (!isStrategyAssignmentFieldsMissingError(error)) {
-        throw error
+        throw error;
       }
-      markStrategyAssignmentFieldsUnavailable()
+      markStrategyAssignmentFieldsUnavailable();
       strategies = await prismaAny.strategy.findMany({
         orderBy,
         select: legacyListSelect,
-      })
+      });
     }
   } else {
     strategies = await prismaAny.strategy.findMany({
       orderBy,
       select: legacyListSelect,
-    })
+    });
   }
 
-  const hasCanonicalDefault = strategies.some((strategy: any) => strategy.id === DEFAULT_STRATEGY_ID)
-  const normalized = strategies.map((strategy: any) => ({
-    ...strategy,
-    isDefault: hasCanonicalDefault ? strategy.id === DEFAULT_STRATEGY_ID : strategy.isDefault,
-  }))
-
-  normalized.sort((a: any, b: any) => {
-    const aDefault = a.id === DEFAULT_STRATEGY_ID
-    const bDefault = b.id === DEFAULT_STRATEGY_ID
-    if (aDefault !== bDefault) return aDefault ? -1 : 1
-    const aUpdated = typeof a.updatedAt === 'string' ? a.updatedAt : a.updatedAt?.toISOString?.() ?? ''
-    const bUpdated = typeof b.updatedAt === 'string' ? b.updatedAt : b.updatedAt?.toISOString?.() ?? ''
-    return bUpdated.localeCompare(aUpdated)
-  })
-
-  return NextResponse.json({ strategies: normalized })
-})
+  return NextResponse.json({ strategies });
+});
 
 export const POST = withXPlanAuth(async (request: Request, session) => {
-  const body = await request.json().catch(() => null)
-  const parsed = createSchema.safeParse(body)
+  const cookieHeader = request.headers.get('cookie');
+  const body = await request.json().catch(() => null);
+  const parsed = createSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  const actor = getStrategyActor(session)
+  const actor = getStrategyActor(session);
   if (!actor.id || !actor.email) {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const requestedAssigneeId = parsed.data.assigneeId ?? actor.id
-  let assigneeEmail = actor.email
+  const requestedAssigneeId = parsed.data.assigneeId ?? actor.id;
+  let assigneeEmail = actor.email;
 
   if (areStrategyAssignmentFieldsAvailable() && requestedAssigneeId !== actor.id) {
-    const allowed = await resolveAllowedXPlanAssigneeById(requestedAssigneeId)
+    const allowed = await resolveAllowedXPlanAssigneeByIdWithCookie(
+      requestedAssigneeId,
+      cookieHeader,
+    );
     if (!allowed) {
-      return NextResponse.json({ error: 'Assignee must be an allowed X-Plan user' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Assignee must be an allowed X-Plan user' },
+        { status: 400 },
+      );
     }
-    assigneeEmail = allowed.email.trim().toLowerCase()
+    assigneeEmail = allowed.email.trim().toLowerCase();
   }
 
-  let strategy: any
+  let strategy: any;
   if (areStrategyAssignmentFieldsAvailable()) {
     try {
       strategy = await prismaAny.strategy.create({
@@ -183,12 +173,12 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
           assigneeEmail,
         },
         select: writeSelect,
-      })
+      });
     } catch (error) {
       if (!isStrategyAssignmentFieldsMissingError(error)) {
-        throw error
+        throw error;
       }
-      markStrategyAssignmentFieldsUnavailable()
+      markStrategyAssignmentFieldsUnavailable();
       strategy = await prismaAny.strategy.create({
         data: {
           name: parsed.data.name.trim(),
@@ -198,7 +188,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
           status: 'DRAFT',
         },
         select: legacyWriteSelect,
-      })
+      });
     }
   } else {
     strategy = await prismaAny.strategy.create({
@@ -210,29 +200,30 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
         status: 'DRAFT',
       },
       select: legacyWriteSelect,
-    })
+    });
   }
 
-  return NextResponse.json({ strategy })
-})
+  return NextResponse.json({ strategy });
+});
 
 export const PUT = withXPlanAuth(async (request: Request, session) => {
-  const body = await request.json().catch(() => null)
+  const cookieHeader = request.headers.get('cookie');
+  const body = await request.json().catch(() => null);
 
   if (body && typeof body === 'object' && 'isDefault' in body) {
-    return NextResponse.json({ error: 'Default strategy cannot be changed' }, { status: 400 })
+    return NextResponse.json({ error: 'Default strategy cannot be changed' }, { status: 400 });
   }
 
-  const parsed = updateSchema.safeParse(body)
+  const parsed = updateSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  const { id, ...data } = parsed.data
-  const { assigneeId: requestedAssigneeId, ...strategyUpdates } = data
+  const { id, ...data } = parsed.data;
+  const { assigneeId: requestedAssigneeId, ...strategyUpdates } = data;
 
-  const actor = getStrategyActor(session)
+  const actor = getStrategyActor(session);
 
   if (!areStrategyAssignmentFieldsAvailable()) {
     // Legacy behavior when assignment fields are missing (migration not deployed).
@@ -240,24 +231,26 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
       await prismaAny.strategy.updateMany({
         where: { status: 'ACTIVE', id: { not: id } },
         data: { status: 'DRAFT' },
-      })
+      });
     }
 
     const strategy = await prismaAny.strategy.update({
       where: { id },
       data: {
         ...(strategyUpdates.name && { name: strategyUpdates.name.trim() }),
-        ...(strategyUpdates.description !== undefined && { description: strategyUpdates.description?.trim() }),
+        ...(strategyUpdates.description !== undefined && {
+          description: strategyUpdates.description?.trim(),
+        }),
         ...(strategyUpdates.status && { status: strategyUpdates.status }),
         ...(strategyUpdates.region && { region: strategyUpdates.region }),
       },
       select: legacyWriteSelect,
-    })
+    });
 
-    return NextResponse.json({ strategy })
+    return NextResponse.json({ strategy });
   }
 
-  let existing: any
+  let existing: any;
   try {
     existing = await prismaAny.strategy.findUnique({
       where: { id },
@@ -268,67 +261,79 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
         assigneeId: true,
         assigneeEmail: true,
       },
-    })
+    });
   } catch (error) {
     if (!isStrategyAssignmentFieldsMissingError(error)) {
-      throw error
+      throw error;
     }
-    markStrategyAssignmentFieldsUnavailable()
+    markStrategyAssignmentFieldsUnavailable();
 
     if (strategyUpdates.status === 'ACTIVE') {
       await prismaAny.strategy.updateMany({
         where: { status: 'ACTIVE', id: { not: id } },
         data: { status: 'DRAFT' },
-      })
+      });
     }
 
     const strategy = await prismaAny.strategy.update({
       where: { id },
       data: {
         ...(strategyUpdates.name && { name: strategyUpdates.name.trim() }),
-        ...(strategyUpdates.description !== undefined && { description: strategyUpdates.description?.trim() }),
+        ...(strategyUpdates.description !== undefined && {
+          description: strategyUpdates.description?.trim(),
+        }),
         ...(strategyUpdates.status && { status: strategyUpdates.status }),
         ...(strategyUpdates.region && { region: strategyUpdates.region }),
       },
       select: legacyWriteSelect,
-    })
+    });
 
-    return NextResponse.json({ strategy })
+    return NextResponse.json({ strategy });
   }
 
   if (!existing) {
-    return NextResponse.json({ error: 'Strategy not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
   }
 
   const actorCanAccess =
     actor.isSuperAdmin ||
     (actor.id != null && (existing.createdById === actor.id || existing.assigneeId === actor.id)) ||
-    (actor.email != null && (existing.createdByEmail === actor.email || existing.assigneeEmail === actor.email))
+    (actor.email != null &&
+      (existing.createdByEmail === actor.email || existing.assigneeEmail === actor.email));
 
   if (!actorCanAccess) {
-    return NextResponse.json({ error: 'No access to strategy' }, { status: 403 })
+    return NextResponse.json({ error: 'No access to strategy' }, { status: 403 });
   }
 
-  let resolvedAssigneeId: string | undefined
-  let resolvedAssigneeEmail: string | undefined
+  let resolvedAssigneeId: string | undefined;
+  let resolvedAssigneeEmail: string | undefined;
 
   if (requestedAssigneeId) {
     const actorCanAssign =
       actor.isSuperAdmin ||
       (actor.id != null && existing.createdById === actor.id) ||
-      (actor.email != null && existing.createdByEmail === actor.email)
+      (actor.email != null && existing.createdByEmail === actor.email);
 
     if (!actorCanAssign) {
-      return NextResponse.json({ error: 'Only the strategy creator can assign an assignee' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Only the strategy creator can assign an assignee' },
+        { status: 403 },
+      );
     }
 
-    const allowed = await resolveAllowedXPlanAssigneeById(requestedAssigneeId)
+    const allowed = await resolveAllowedXPlanAssigneeByIdWithCookie(
+      requestedAssigneeId,
+      cookieHeader,
+    );
     if (!allowed) {
-      return NextResponse.json({ error: 'Assignee must be an allowed X-Plan user' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Assignee must be an allowed X-Plan user' },
+        { status: 400 },
+      );
     }
 
-    resolvedAssigneeId = allowed.id
-    resolvedAssigneeEmail = allowed.email.trim().toLowerCase()
+    resolvedAssigneeId = allowed.id;
+    resolvedAssigneeEmail = allowed.email.trim().toLowerCase();
   }
 
   // If setting this as ACTIVE, set others to DRAFT
@@ -336,80 +341,83 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
     await prismaAny.strategy.updateMany({
       where: { status: 'ACTIVE', id: { not: id } },
       data: { status: 'DRAFT' },
-    })
+    });
   }
 
   const updateData: Record<string, unknown> = {
     ...(strategyUpdates.name && { name: strategyUpdates.name.trim() }),
-    ...(strategyUpdates.description !== undefined && { description: strategyUpdates.description?.trim() }),
+    ...(strategyUpdates.description !== undefined && {
+      description: strategyUpdates.description?.trim(),
+    }),
     ...(strategyUpdates.status && { status: strategyUpdates.status }),
     ...(strategyUpdates.region && { region: strategyUpdates.region }),
     ...(resolvedAssigneeId && { assigneeId: resolvedAssigneeId }),
     ...(resolvedAssigneeEmail && { assigneeEmail: resolvedAssigneeEmail }),
-  }
+  };
 
   const strategy = await prismaAny.strategy.update({
     where: { id },
     data: updateData,
     select: writeSelect,
-  })
+  });
 
-  return NextResponse.json({ strategy })
-})
+  return NextResponse.json({ strategy });
+});
 
 export const DELETE = withXPlanAuth(async (request: Request, session) => {
-  const body = await request.json().catch(() => null)
-  const parsed = deleteSchema.safeParse(body)
+  const body = await request.json().catch(() => null);
+  const parsed = deleteSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  const { id } = parsed.data
+  const { id } = parsed.data;
 
-  // Don't allow deleting the default strategy for existing data.
-  if (id === DEFAULT_STRATEGY_ID) {
-    return NextResponse.json({ error: 'Cannot delete the default strategy' }, { status: 400 })
-  }
-
-  const actor = getStrategyActor(session)
-
+  const actor = getStrategyActor(session);
 
   if (!areStrategyAssignmentFieldsAvailable()) {
-    await prismaAny.strategy.delete({ where: { id } })
-    return NextResponse.json({ ok: true })
+    await prismaAny.strategy.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
   }
 
-  let existing: any
+  let existing: any;
   try {
     existing = await prismaAny.strategy.findUnique({
       where: { id },
-      select: { id: true, createdById: true, createdByEmail: true, assigneeId: true, assigneeEmail: true },
-    })
+      select: {
+        id: true,
+        createdById: true,
+        createdByEmail: true,
+        assigneeId: true,
+        assigneeEmail: true,
+      },
+    });
   } catch (error) {
     if (!isStrategyAssignmentFieldsMissingError(error)) {
-      throw error
+      throw error;
     }
-    markStrategyAssignmentFieldsUnavailable()
-    await prismaAny.strategy.delete({ where: { id } })
-    return NextResponse.json({ ok: true })
+    markStrategyAssignmentFieldsUnavailable();
+    await prismaAny.strategy.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
   }
 
   if (!existing) {
-    return NextResponse.json({ error: 'Strategy not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
   }
 
   const actorCanAccess =
     actor.isSuperAdmin ||
     (actor.id != null && (existing.createdById === actor.id || existing.assigneeId === actor.id)) ||
-    (actor.email != null && (existing.createdByEmail === actor.email || existing.assigneeEmail === actor.email))
+    (actor.email != null &&
+      (existing.createdByEmail === actor.email || existing.assigneeEmail === actor.email));
 
   if (!actorCanAccess) {
-    return NextResponse.json({ error: 'No access to strategy' }, { status: 403 })
+    return NextResponse.json({ error: 'No access to strategy' }, { status: 403 });
   }
 
   // Cascade delete is handled by Prisma schema
-  await prismaAny.strategy.delete({ where: { id } })
+  await prismaAny.strategy.delete({ where: { id } });
 
-  return NextResponse.json({ ok: true })
-})
+  return NextResponse.json({ ok: true });
+});
