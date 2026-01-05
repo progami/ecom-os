@@ -1956,10 +1956,16 @@ export function SalesPlanningGrid({
                   columnIds.map((columnId) => {
                     const meta = columnMeta[columnId]
                     const field = meta?.field ?? ''
+                    const isInputColumn = field === 'actualSales' || field === 'forecastSales'
                     return (
                       <TableHead
                         key={`${product.id}:${columnId}`}
-                        className="sticky top-9 z-20 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold"
+                        className={cn(
+                          'sticky top-9 z-20 h-9 whitespace-nowrap border-b border-r px-2 text-center text-xs font-semibold',
+                          isInputColumn
+                            ? 'bg-cyan-100/90 dark:bg-cyan-900/40'
+                            : 'bg-muted'
+                        )}
                       >
                         {renderMetricHeader(field)}
                       </TableHead>
@@ -2052,7 +2058,7 @@ export function SalesPlanningGrid({
                           meta?.sticky && 'sticky z-10',
                           colIndex === 2 && 'border-r-2',
                           presentation.isEditable && 'cursor-text font-medium',
-                          presentation.isEditable && presentation.highlight === 'none' && 'bg-accent/50',
+                          presentation.isEditable && presentation.highlight === 'none' && 'bg-cyan-50/80 dark:bg-cyan-950/40',
                           presentation.highlight === 'warning' && 'bg-danger-100/90 dark:bg-danger-900/35',
                           presentation.isWarning && 'text-destructive',
                           presentation.highlight === 'reorder' && 'bg-warning-100/95 dark:bg-warning-900/35',
