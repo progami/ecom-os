@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma'
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 import { loadPlanningCalendar } from '@/lib/planning'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 import { weekStartsOnForRegion } from '@/lib/strategy-region'
 
 const editableFields = ['amazonPayout', 'inventorySpend', 'fixedCosts'] as const
@@ -27,7 +28,7 @@ function parseNumber(value: string | null | undefined) {
   return parsed
 }
 
-export const PUT = withXPlanAuth(async (request: Request) => {
+export const PUT = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
 
@@ -35,8 +36,12 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  const { strategyId } = parsed.data
+  const { response } = await requireXPlanStrategyAccess(strategyId, session)
+  if (response) return response
+
   const strategyRow = await (prisma as unknown as Record<string, any>).strategy?.findUnique?.({
-    where: { id: parsed.data.strategyId },
+    where: { id: strategyId },
     select: { region: true },
   })
   const weekStartsOn = weekStartsOnForRegion(strategyRow?.region === 'UK' ? 'UK' : 'US')
@@ -54,8 +59,6 @@ export const PUT = withXPlanAuth(async (request: Request) => {
       { status: 400 },
     )
   }
-
-  const { strategyId } = parsed.data
 
   try {
     await prisma.$transaction(async (tx: Prisma.TransactionClient) => {

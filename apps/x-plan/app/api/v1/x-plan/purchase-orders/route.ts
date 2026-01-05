@@ -4,6 +4,7 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 import { loadPlanningCalendar } from '@/lib/planning'
 import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar'
 import { weekStartsOnForRegion } from '@/lib/strategy-region'
@@ -194,7 +195,7 @@ function resolveStageDefaultWeeks(map: StageDefaultsMap, label: string): number 
   return 1
 }
 
-export const PUT = withXPlanAuth(async (request: Request) => {
+export const PUT = withXPlanAuth(async (request: Request, session) => {
   const debug = process.env.NODE_ENV !== 'production'
   const body = await request.json().catch(() => null)
   if (debug) {
@@ -224,8 +225,14 @@ export const PUT = withXPlanAuth(async (request: Request) => {
   try {
     const orderMeta = await prisma.purchaseOrder.findMany({
       where: { id: { in: parsed.data.updates.map(({ id }) => id) } },
-      select: { id: true, strategy: { select: { region: true } } },
+      select: { id: true, strategyId: true, strategy: { select: { region: true } } },
     })
+
+    const { response } = await requireXPlanStrategiesAccess(
+      orderMeta.map((order) => order.strategyId),
+      session,
+    )
+    if (response) return response
 
     const weekStartsOnByOrder = new Map<string, 0 | 1>()
     const weekStartsOnSet = new Set<0 | 1>()
@@ -415,7 +422,7 @@ async function resolveOrderCode(strategyId: string, requested?: string) {
   return { error: 'Unable to generate a unique purchase order code. Try again.', status: 503 as const }
 }
 
-export const POST = withXPlanAuth(async (request: Request) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
 
@@ -425,9 +432,18 @@ export const POST = withXPlanAuth(async (request: Request) => {
 
   const { strategyId, productId, orderCode, quantity, poDate } = parsed.data
 
-  const productExists = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
-  if (!productExists) {
+  const { response } = await requireXPlanStrategyAccess(strategyId, session)
+  if (response) return response
+
+  const productRow = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { id: true, strategyId: true },
+  })
+  if (!productRow) {
     return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  }
+  if (productRow.strategyId !== strategyId) {
+    return NextResponse.json({ error: 'Product does not belong to strategy' }, { status: 400 })
   }
 
   const orderCodeResult = await resolveOrderCode(strategyId, orderCode)
@@ -495,7 +511,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
   }
 })
 
-export const DELETE = withXPlanAuth(async (request: Request) => {
+export const DELETE = withXPlanAuth(async (request: Request, session) => {
   const body = await request.json().catch(() => null)
   const parsed = deleteSchema.safeParse(body)
 
@@ -506,6 +522,17 @@ export const DELETE = withXPlanAuth(async (request: Request) => {
   const { id } = parsed.data
 
   try {
+    const existing = await prisma.purchaseOrder.findUnique({
+      where: { id },
+      select: { id: true, strategyId: true },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
+    }
+
+    const { response } = await requireXPlanStrategyAccess(existing.strategyId, session)
+    if (response) return response
+
     await prisma.purchaseOrder.delete({ where: { id } })
   } catch (error) {
     return NextResponse.json({ error: 'Unable to delete purchase order' }, { status: 400 })

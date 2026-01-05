@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
 import { parseNumber, parsePercent } from '@/lib/utils/numbers'
 
 const SUPPLIER_SPLIT_LABELS = [
@@ -50,7 +51,7 @@ type CreatePayload = {
   valueText?: string
 }
 
-export const POST = withXPlanAuth(async (request: Request) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   try {
     const body = await request.json()
     const payload = body as CreatePayload
@@ -58,6 +59,9 @@ export const POST = withXPlanAuth(async (request: Request) => {
     if (!payload?.strategyId) {
       return NextResponse.json({ error: 'strategyId is required' }, { status: 400 })
     }
+
+    const { response } = await requireXPlanStrategyAccess(payload.strategyId, session)
+    if (response) return response
 
     if (!payload?.label) {
       return NextResponse.json({ error: 'Label is required' }, { status: 400 })
@@ -115,7 +119,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
   }
 })
 
-export const PUT = withXPlanAuth(async (request: Request) => {
+export const PUT = withXPlanAuth(async (request: Request, session) => {
   try {
     const body = await request.json()
     const updates = Array.isArray(body?.updates) ? (body.updates as UpdatePayload[]) : []
@@ -129,6 +133,13 @@ export const PUT = withXPlanAuth(async (request: Request) => {
         where: { id: { in: ids } },
         select: { id: true, strategyId: true, label: true },
       })
+
+      const { response } = await requireXPlanStrategiesAccess(
+        existing.map((record) => record.strategyId).filter((strategyId): strategyId is string => typeof strategyId === 'string' && strategyId.length > 0),
+        session,
+      )
+      if (response) return response
+
       const recordById = new Map(existing.map((record) => [record.id, record]))
 
       const strategiesToValidate = new Set<string>()
