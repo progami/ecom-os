@@ -27,9 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import { withAppBasePath } from '@/lib/base-path'
-import type { SelectionStats } from '@/lib/selection-stats'
 
 export type OpsInputRow = {
   id: string
@@ -345,43 +343,6 @@ function parseNumericCandidate(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function computeSelectionStats(
-  rows: OpsInputRow[],
-  range: CellRange | null
-): SelectionStats | null {
-  if (!range) return null
-  const { top, bottom, left, right } = normalizeRange(range)
-  if (top < 0 || left < 0) return null
-
-  let cellCount = 0
-  let numericCount = 0
-  let sum = 0
-
-  for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
-    const row = rows[rowIndex]
-    if (!row) continue
-    for (let colIndex = left; colIndex <= right; colIndex += 1) {
-      const column = COLUMNS[colIndex]
-      if (!column) continue
-      cellCount += 1
-      const numeric = parseNumericCandidate(row[column.key])
-      if (numeric != null) {
-        numericCount += 1
-        sum += numeric
-      }
-    }
-  }
-
-  if (cellCount === 0) return null
-  return {
-    rangeCount: 1,
-    cellCount,
-    numericCount,
-    sum,
-    average: numericCount > 0 ? sum / numericCount : null,
-  }
-}
-
 const CELL_ID_PREFIX = 'xplan-ops-po'
 
 function sanitizeDomId(value: string): string {
@@ -619,7 +580,6 @@ export function CustomOpsPlanningGrid({
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const [selection, setSelection] = useState<CellRange | null>(null)
-  const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null)
   const selectionAnchorRef = useRef<CellCoords | null>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -1130,7 +1090,6 @@ export function CustomOpsPlanningGrid({
       const coords = { row: rowIndex, col: colIndex }
       selectionAnchorRef.current = coords
       setSelection({ from: coords, to: coords })
-      setSelectionStats(computeSelectionStats(rows, { from: coords, to: coords }))
       // Also update activeCell to match
       const row = rows[rowIndex]
       const column = COLUMNS[colIndex]
@@ -1147,9 +1106,8 @@ export function CustomOpsPlanningGrid({
       if (!selectionAnchorRef.current) return
       const newRange = { from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } }
       setSelection(newRange)
-      setSelectionStats(computeSelectionStats(rows, newRange))
     },
-    [rows]
+    []
   )
 
   const handlePointerUp = useCallback(() => {
@@ -1571,7 +1529,6 @@ export function CustomOpsPlanningGrid({
           </Table>
         </div>
 
-        <SelectionStatsBar stats={selectionStats} />
       </div>
     </section>
   )
