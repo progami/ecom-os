@@ -286,7 +286,6 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return
       if (editingCell) return
       if (!activeCell) return
 
@@ -425,6 +424,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
       if (editingCell) return
+      scrollRef.current?.focus()
       e.currentTarget.setPointerCapture(e.pointerId)
       const coords = { row: rowIndex, col: colIndex }
       selectionAnchorRef.current = coords
