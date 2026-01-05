@@ -4,7 +4,7 @@ import { DisciplinaryStatus } from '@ecom-os/prisma-hrms'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { SubmitAppealSchema, ResolveAppealSchema } from '@/lib/validations'
-import { canFinalApprove, canHRReview, getHREmployees, getSuperAdminEmployees, isHROrAbove, isManagerOf } from '@/lib/permissions'
+import { canHRReview, getHREmployees, isHROrAbove, isManagerOf } from '@/lib/permissions'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -56,10 +56,9 @@ export async function POST(req: Request, context: RouteContext) {
     const isEmployee = currentEmployeeId === action.employeeId
 
     // Determine if this is an appeal submission or resolution
-    if (body.appealStatus || body.hrReview || body.superAdminDecision) {
+    if (body.appealStatus || body.hrReview) {
       // Check current status to determine which stage we're at
       const isHRReviewStage = action.status === 'APPEAL_PENDING_HR'
-      const isSuperAdminStage = action.status === 'APPEAL_PENDING_SUPER_ADMIN'
 
       if (!action.appealedAt) {
         return NextResponse.json(
@@ -68,77 +67,12 @@ export async function POST(req: Request, context: RouteContext) {
         )
       }
 
-      // HR Review stage: HR reviews and forwards to Super Admin
-      if (body.hrReview && isHRReviewStage) {
+      // HR Review stage: HR makes final appeal decision (simplified workflow)
+      if (body.appealStatus && isHRReviewStage) {
         const hrPermission = await canHRReview(currentEmployeeId)
         if (!hrPermission.allowed) {
           return NextResponse.json(
             { error: `Permission denied: ${hrPermission.reason}` },
-            { status: 403 }
-          )
-        }
-
-        const { notes, forwardToSuperAdmin } = body.hrReview
-
-        if (forwardToSuperAdmin) {
-          // Forward to Super Admin for final decision
-	          const updated = await prisma.disciplinaryAction.update({
-	            where: { id },
-	            data: {
-	              status: 'APPEAL_PENDING_SUPER_ADMIN',
-              appealHrReviewedAt: new Date(),
-              appealHrReviewedById: currentEmployeeId,
-              appealHrNotes: notes ?? null,
-            },
-            include: {
-              employee: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  employeeId: true,
-                },
-              },
-	            },
-	          })
-
-          const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
-
-	          // Notify Super Admins
-	          const superAdmins = await getSuperAdminEmployees()
-	          for (const admin of superAdmins) {
-	            await prisma.notification.create({
-	              data: {
-	                type: 'APPEAL_PENDING_ADMIN',
-	                title: 'Appeal Pending Final Decision',
-	                message: `An appeal from ${updated.employee.firstName} ${updated.employee.lastName} has been reviewed by HR and needs your final decision.`,
-	                link: recordLink,
-	                employeeId: admin.id,
-	                relatedId: id,
-	                relatedType: 'DISCIPLINARY',
-	              },
-	            })
-	          }
-
-          return NextResponse.json({
-            ...updated,
-            message: 'Appeal forwarded to Super Admin for final decision',
-          })
-        } else {
-          // HR rejects appeal outright (rare case)
-          return NextResponse.json(
-            { error: 'HR must forward appeals to Super Admin for final decision' },
-            { status: 400 }
-          )
-        }
-      }
-
-      // Super Admin Decision stage: Final decision
-      if ((body.superAdminDecision || body.appealStatus) && isSuperAdminStage) {
-        const superAdminPermission = await canFinalApprove(currentEmployeeId)
-        if (!superAdminPermission.allowed) {
-          return NextResponse.json(
-            { error: `Permission denied: ${superAdminPermission.reason}` },
             { status: 403 }
           )
         }
@@ -158,16 +92,16 @@ export async function POST(req: Request, context: RouteContext) {
           newStatus = DisciplinaryStatus.CLOSED
         }
 
-	        const updated = await prisma.disciplinaryAction.update({
-	          where: { id },
-	          data: {
+        const updated = await prisma.disciplinaryAction.update({
+          where: { id },
+          data: {
             appealStatus,
             appealResolution,
             appealResolvedAt: new Date(),
             appealResolvedById: currentEmployeeId,
-            appealSuperAdminDecidedAt: new Date(),
-            appealSuperAdminDecidedById: currentEmployeeId,
-            appealSuperAdminNotes: appealResolution,
+            appealHrReviewedAt: new Date(),
+            appealHrReviewedById: currentEmployeeId,
+            appealHrNotes: appealResolution,
             status: newStatus,
           },
           include: {
@@ -182,43 +116,27 @@ export async function POST(req: Request, context: RouteContext) {
                 email: true,
               },
             },
-	          },
-	        })
+          },
+        })
 
-        const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+        const recordLink = `/performance/disciplinary/${id}`
 
-	        // Notify employee of appeal decision
-	        await prisma.notification.create({
-	          data: {
-	            type: 'APPEAL_DECIDED',
-	            title: `Appeal ${appealStatus.charAt(0) + appealStatus.slice(1).toLowerCase()}`,
-	            message: `Your appeal has been ${appealStatus.toLowerCase()}. ${appealResolution ?? ''}`,
-	            link: recordLink,
-	            employeeId: action.employeeId,
-	            relatedId: id,
-	            relatedType: 'DISCIPLINARY',
-	          },
-	        })
-
-        // Also notify HR
-        const hrEmployees = await getHREmployees()
-	        for (const hr of hrEmployees) {
-	          await prisma.notification.create({
-	            data: {
-	              type: 'APPEAL_DECIDED',
-	              title: 'Appeal Decision Made',
-	              message: `Super Admin has ${appealStatus.toLowerCase()} the appeal for ${updated.employee.firstName} ${updated.employee.lastName}.`,
-	              link: recordLink,
-	              employeeId: hr.id,
-	              relatedId: id,
-	              relatedType: 'DISCIPLINARY',
-	            },
-	          })
-	        }
+        // Notify employee of appeal decision
+        await prisma.notification.create({
+          data: {
+            type: 'APPEAL_DECIDED',
+            title: `Appeal ${appealStatus.charAt(0) + appealStatus.slice(1).toLowerCase()}`,
+            message: `Your appeal has been ${appealStatus.toLowerCase()}. ${appealResolution ?? ''}`,
+            link: recordLink,
+            employeeId: action.employeeId,
+            relatedId: id,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
 
         return NextResponse.json({
           ...updated,
-          message: `Appeal ${appealStatus.toLowerCase()} by Super Admin`,
+          message: `Appeal ${appealStatus.toLowerCase()} by HR`,
         })
       }
 
@@ -433,22 +351,19 @@ export async function GET(req: Request, context: RouteContext) {
       !action.appealedAt
 
     const hrPermission = await canHRReview(currentEmployeeId)
-    const superAdminPermission = await canFinalApprove(currentEmployeeId)
 
+    // HR makes final appeal decisions in simplified workflow
     const canReviewAsHR = Boolean(action.appealedAt) &&
       action.status === 'APPEAL_PENDING_HR' &&
       hrPermission.allowed
 
-    const canDecideAsSuperAdmin = Boolean(action.appealedAt) &&
-      action.status === 'APPEAL_PENDING_SUPER_ADMIN' &&
-      superAdminPermission.allowed
-
+    // Legacy support for old APPEALED status
     const canResolveLegacy = Boolean(action.appealedAt) &&
       action.status === 'APPEALED' &&
       canResolve &&
       !action.appealResolvedAt
 
-    const canResolveAppeal = canReviewAsHR || canDecideAsSuperAdmin || canResolveLegacy
+    const canResolveAppeal = canReviewAsHR || canResolveLegacy
 
     return NextResponse.json({
       appealReason: action.appealReason,
@@ -459,7 +374,6 @@ export async function GET(req: Request, context: RouteContext) {
       canAppeal,
       canResolveAppeal,
       canReviewAsHR,
-      canDecideAsSuperAdmin,
       hasAppealed: Boolean(action.appealedAt),
       appealResolved: Boolean(action.appealResolvedAt),
       status: action.status,

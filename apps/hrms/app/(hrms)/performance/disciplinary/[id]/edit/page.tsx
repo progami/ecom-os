@@ -48,7 +48,6 @@ const statusOptions = [
   { value: 'REPORTED', label: 'Reported' },
   { value: 'UNDER_REVIEW', label: 'Under Review' },
   { value: 'PENDING_HR_REVIEW', label: 'Pending HR Review' },
-  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Admin Approval' },
   { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Acknowledgment' },
   { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
   { value: 'RESOLVED', label: 'Resolved' },
