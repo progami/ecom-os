@@ -218,7 +218,7 @@ export async function GET(req: Request, context: RouteContext) {
         title,
         description,
         occurredAt: iso(occurredAt),
-        href: violation.caseId ? `/cases/${violation.caseId}` : `/performance/disciplinary/${violation.id}`,
+        href: `/performance/disciplinary/${violation.id}`,
       })
     }
 
@@ -233,16 +233,7 @@ export async function GET(req: Request, context: RouteContext) {
       })
     }
 
-    for (const c of cases) {
-      events.push({
-        id: `CASE:${c.id}`,
-        type: 'CASE',
-        title: `Case #${c.caseNumber} (${c.caseType.toLowerCase()})`,
-        description: `${c.title} • ${c.status.replaceAll('_', ' ').toLowerCase()}`,
-        occurredAt: iso(c.createdAt),
-        href: `/cases/${c.id}`,
-      })
-    }
+    // Note: Case events removed - Cases UI was deprecated in favor of standalone violations
 
     for (const task of tasks) {
       const occurredAt = task.completedAt ?? task.createdAt
