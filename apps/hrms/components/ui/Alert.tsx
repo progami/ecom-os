@@ -12,17 +12,17 @@ type AlertProps = {
 }
 
 const variantStyles: Record<AlertVariant, string> = {
-  success: 'bg-success-50 border-success-200 text-success-800',
-  error: 'bg-danger-50 border-danger-200 text-danger-800',
-  warning: 'bg-warning-50 border-warning-200 text-warning-800',
-  info: 'bg-brand-navy-50 border-brand-navy-200 text-brand-navy-800',
+  success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+  error: 'bg-red-50 border-red-200 text-red-800',
+  warning: 'bg-amber-50 border-amber-200 text-amber-800',
+  info: 'bg-[hsl(var(--primary))]/5 border-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]',
 }
 
 const iconStyles: Record<AlertVariant, string> = {
-  success: 'text-success-600',
-  error: 'text-danger-600',
-  warning: 'text-warning-600',
-  info: 'text-brand-navy-600',
+  success: 'text-emerald-600',
+  error: 'text-red-600',
+  warning: 'text-amber-600',
+  info: 'text-[hsl(var(--primary))]',
 }
 
 const variantIcons: Record<AlertVariant, React.ReactNode> = {
@@ -40,14 +40,14 @@ export function Alert({
   className = '',
 }: AlertProps) {
   return (
-    <div className={cn('border rounded-lg p-4', variantStyles[variant], className)}>
+    <div className={cn('border rounded-xl p-4', variantStyles[variant], className)}>
       <div className="flex gap-3">
         <div className={iconStyles[variant]}>
           {variantIcons[variant]}
         </div>
         <div className="flex-1 min-w-0">
           {title && (
-            <h3 className="text-sm font-medium mb-1">{title}</h3>
+            <h3 className="text-sm font-semibold mb-1">{title}</h3>
           )}
           <div className="text-sm">{children}</div>
         </div>
