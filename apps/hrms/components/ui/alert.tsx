@@ -13,17 +13,17 @@ type AlertProps = {
 }
 
 const variantStyles: Record<AlertVariant, string> = {
-  success: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-  error: 'bg-red-50 border-red-200 text-red-800',
-  warning: 'bg-amber-50 border-amber-200 text-amber-800',
-  info: 'bg-[hsl(var(--primary))]/5 border-[hsl(var(--primary))]/20 text-[hsl(var(--primary))]',
+  success: 'bg-success-50 border-success-200 text-success-800',
+  error: 'bg-danger-50 border-danger-200 text-danger-800',
+  warning: 'bg-warning-50 border-warning-200 text-warning-800',
+  info: 'bg-primary/5 border-primary/20 text-primary',
 }
 
 const iconStyles: Record<AlertVariant, string> = {
-  success: 'text-emerald-600',
-  error: 'text-red-600',
-  warning: 'text-amber-600',
-  info: 'text-[hsl(var(--primary))]',
+  success: 'text-success-600',
+  error: 'text-danger-600',
+  warning: 'text-warning-600',
+  info: 'text-primary',
 }
 
 const variantIcons: Record<AlertVariant, React.ReactNode> = {
