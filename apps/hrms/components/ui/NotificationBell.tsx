@@ -32,7 +32,7 @@ function getNotificationIcon(type: string) {
   }
 }
 
-export function NotificationBell() {
+export function NotificationBell({ variant = 'light' }: { variant?: 'light' | 'dark' }) {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -219,11 +219,15 @@ export function NotificationBell() {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+        className={`relative p-2 rounded-lg transition-colors ${
+          variant === 'dark'
+            ? 'text-[hsl(var(--sidebar-foreground))]/70 hover:text-white hover:bg-white/10'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        }`}
       >
-        <BellIcon className="h-6 w-6" />
+        <BellIcon className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-danger-500 text-[10px] font-medium text-white">
+          <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[hsl(var(--destructive))] text-[10px] font-semibold text-white badge-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
