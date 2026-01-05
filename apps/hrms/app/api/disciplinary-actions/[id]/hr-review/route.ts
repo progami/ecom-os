@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canHRReview, getSuperAdminEmployees } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
+import { canHRReview } from '@/lib/permissions'
 
 /**
  * HR Review endpoint for disciplinary actions
- * Workflow: Manager raises -> HR reviews -> Super Admin approves
+ * Simplified workflow for small teams (15-20 people):
+ * Manager raises -> HR reviews -> Employee acknowledges
  */
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -69,11 +69,11 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     if (approved) {
-      // HR approves - move to PENDING_SUPER_ADMIN
+      // HR approves - skip super admin, go directly to PENDING_ACKNOWLEDGMENT
       const updated = await prisma.disciplinaryAction.update({
         where: { id },
         data: {
-          status: 'PENDING_SUPER_ADMIN',
+          status: 'PENDING_ACKNOWLEDGMENT',
           hrReviewedAt: new Date(),
           hrReviewedById: currentEmployeeId,
           hrReviewNotes: notes ?? null,
@@ -91,40 +91,24 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+      const recordLink = `/performance/disciplinary/${id}`
 
-      // Notify Super Admins
-      const superAdmins = await getSuperAdminEmployees()
-      for (const admin of superAdmins) {
-        await prisma.notification.create({
-          data: {
-            type: 'VIOLATION_PENDING_ADMIN',
-            title: 'Violation Pending Final Approval',
-            message: `A violation for ${updated.employee.firstName} ${updated.employee.lastName} has been reviewed by HR and needs your final approval.`,
-            link: recordLink,
-            employeeId: admin.id,
-            relatedId: id,
-            relatedType: 'DISCIPLINARY',
-          },
-        })
-      }
-
-      await writeAuditLog({
-        actorId: currentEmployeeId,
-        action: 'APPROVE',
-        entityType: 'DISCIPLINARY_ACTION',
-        entityId: updated.id,
-        summary: `HR approved violation for ${updated.employee.firstName} ${updated.employee.lastName}`,
-        metadata: {
-          hrNotes: Boolean(notes),
-          newStatus: updated.status,
+      // Notify employee to acknowledge
+      await prisma.notification.create({
+        data: {
+          type: 'VIOLATION_APPROVED',
+          title: 'Disciplinary Action Requires Acknowledgment',
+          message: `A disciplinary action has been issued to you. Please review and acknowledge.`,
+          link: recordLink,
+          employeeId: updated.employee.id,
+          relatedId: id,
+          relatedType: 'DISCIPLINARY',
         },
-        req,
       })
 
       return NextResponse.json({
         success: true,
-        message: 'Violation approved by HR, sent to Super Admin for final approval',
+        message: 'Violation approved by HR, sent to employee for acknowledgment',
         action: updated,
       })
     } else {
@@ -151,7 +135,7 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+      const recordLink = `/performance/disciplinary/${id}`
 
       // Notify the manager who raised it (reportedBy field contains their name, but we need to find by reportsToId)
       if (action.employee.reportsToId) {
@@ -167,19 +151,6 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
-
-      await writeAuditLog({
-        actorId: currentEmployeeId,
-        action: 'REJECT',
-        entityType: 'DISCIPLINARY_ACTION',
-        entityId: updated.id,
-        summary: `HR rejected violation for ${updated.employee.firstName} ${updated.employee.lastName}`,
-        metadata: {
-          hrNotes: Boolean(notes),
-          newStatus: updated.status,
-        },
-        req,
-      })
 
       return NextResponse.json({
         success: true,

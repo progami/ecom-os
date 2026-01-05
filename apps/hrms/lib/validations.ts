@@ -9,9 +9,23 @@ export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 
 export const EmployeeStatusEnum = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED', 'RESIGNED'])
 export const EmployeeRegionEnum = z.enum(['PAKISTAN', 'KANSAS_USA'])
 
-// Leave schemas
-export const LeaveTypeEnum = z.enum(['PTO', 'MATERNITY', 'PATERNITY', 'PARENTAL', 'BEREAVEMENT_IMMEDIATE', 'BEREAVEMENT_EXTENDED', 'JURY_DUTY', 'UNPAID'])
+// Leave schemas - simplified for small team (15-20 people)
+export const LeaveTypeEnum = z.enum(['PTO', 'PARENTAL', 'BEREAVEMENT_IMMEDIATE', 'UNPAID'])
 export const LeaveStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'])
+
+export const CreateLeaveRequestSchema = z.object({
+  leaveType: LeaveTypeEnum,
+  startDate: z.string().min(1, 'Start date is required'),
+  endDate: z.string().min(1, 'End date is required'),
+  reason: z.string().max(2000).optional().nullable(),
+}).refine((data) => {
+  const start = new Date(data.startDate)
+  const end = new Date(data.endDate)
+  return end >= start
+}, {
+  message: 'End date must be after start date',
+  path: ['endDate'],
+})
 
 export const CreateEmployeeSchema = z.object({
   employeeId: z.string().min(1).max(50).trim().optional(),
@@ -67,31 +81,6 @@ export const UpdateEmployeeSchema = z.object({
   region: EmployeeRegionEnum.optional(),
 })
 
-// Resource schemas
-export const ResourceCategoryEnum = z.enum(['ACCOUNTING', 'LEGAL', 'DESIGN', 'MARKETING', 'IT', 'HR', 'OTHER'])
-
-export const CreateResourceSchema = z.object({
-  name: z.string().min(1).max(200).trim(),
-  category: ResourceCategoryEnum,
-  subcategory: z.string().max(100).trim().optional().nullable(),
-  email: z.string().email().max(255).trim().optional().nullable(),
-  phone: z.string().max(50).trim().optional().nullable(),
-  website: z.string().url().max(500).optional().nullable(),
-  description: z.string().max(2000).trim().optional().nullable(),
-  rating: z.number().min(0).max(5).optional().nullable(),
-})
-
-export const UpdateResourceSchema = z.object({
-  name: z.string().min(1).max(200).trim().optional(),
-  category: ResourceCategoryEnum.optional(),
-  subcategory: z.string().max(100).trim().optional().nullable(),
-  email: z.string().email().max(255).trim().optional().nullable(),
-  phone: z.string().max(50).trim().optional().nullable(),
-  website: z.string().url().max(500).optional().nullable(),
-  description: z.string().max(2000).trim().optional().nullable(),
-  rating: z.number().min(0).max(5).optional().nullable(),
-})
-
 // Policy schemas
 export const PolicyCategoryEnum = z.enum(['LEAVE', 'PERFORMANCE', 'CONDUCT', 'SECURITY', 'COMPENSATION', 'OTHER'])
 export const PolicyStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED'])
@@ -140,34 +129,13 @@ export const UpdatePolicySchema = z.object({
   status: PolicyStatusEnum.optional(),
 })
 
-// Calendar event schema (Google Calendar format)
-export const CreateCalendarEventSchema = z.object({
-  summary: z.string().min(1).max(200).trim(),
-  description: z.string().max(2000).trim().optional(),
-  location: z.string().max(500).trim().optional(),
-  start: z.object({
-    dateTime: z.string(),
-    timeZone: z.string().optional(),
-  }),
-  end: z.object({
-    dateTime: z.string(),
-    timeZone: z.string().optional(),
-  }),
-})
-
 // ============ PERFORMANCE REVIEW SCHEMAS ============
-export const ReviewTypeEnum = z.enum(['PROBATION', 'QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL', 'PROMOTION', 'PIP'])
+// Simplified for small team (15-20 people)
+export const ReviewTypeEnum = z.enum(['PROBATION', 'QUARTERLY', 'ANNUAL'])
 export const ReviewStatusEnum = z.enum(['DRAFT', 'PENDING_REVIEW', 'COMPLETED', 'ACKNOWLEDGED'])
+// Simplified period types
 export const ReviewPeriodTypeEnum = z.enum([
-  'Q1',
-  'Q2',
-  'Q3',
-  'Q4',
-  'H1',
-  'H2',
-  'ANNUAL',
-  'PROBATION',
-  'CUSTOM',
+  'Q1', 'Q2', 'Q3', 'Q4', 'ANNUAL', 'PROBATION',
 ])
 
 const REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE: Record<
@@ -176,10 +144,7 @@ const REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE: Record<
 > = {
   PROBATION: ['PROBATION'],
   QUARTERLY: ['Q1', 'Q2', 'Q3', 'Q4'],
-  SEMI_ANNUAL: ['H1', 'H2'],
   ANNUAL: ['ANNUAL'],
-  PROMOTION: ['CUSTOM', 'ANNUAL'],
-  PIP: ['CUSTOM', 'ANNUAL'],
 }
 
 const RatingSchema = z.coerce.number().int().min(1).max(5)
@@ -286,30 +251,35 @@ export const UpdatePerformanceReviewSchema = z.object({
 })
 
 // ============ DISCIPLINARY ACTION SCHEMAS ============
+// Simplified for small team (15-20 people)
 export const ViolationTypeEnum = z.enum([
-  'ATTENDANCE', 'CONDUCT', 'PERFORMANCE', 'POLICY_VIOLATION', 'SAFETY',
-  'HARASSMENT', 'INSUBORDINATION', 'THEFT_FRAUD', 'SUBSTANCE_ABUSE', 'OTHER'
+  'ATTENDANCE', 'CONDUCT', 'PERFORMANCE', 'POLICY_VIOLATION', 'OTHER'
 ])
 
+// Simplified violation reasons mapped to violation types
 export const ViolationReasonEnum = z.enum([
-  'EXCESSIVE_ABSENCES', 'TARDINESS', 'UNAUTHORIZED_LEAVE', 'NO_CALL_NO_SHOW',
-  'UNPROFESSIONAL_BEHAVIOR', 'DISRUPTIVE_CONDUCT', 'INAPPROPRIATE_LANGUAGE', 'DRESS_CODE_VIOLATION',
-  'POOR_QUALITY_WORK', 'MISSED_DEADLINES', 'FAILURE_TO_FOLLOW_INSTRUCTIONS', 'NEGLIGENCE',
-  'CONFIDENTIALITY_BREACH', 'DATA_SECURITY_VIOLATION', 'EXPENSE_POLICY_VIOLATION', 'IT_POLICY_VIOLATION',
-  'SAFETY_PROTOCOL_VIOLATION', 'EQUIPMENT_MISUSE',
-  'HARASSMENT_DISCRIMINATION', 'WORKPLACE_VIOLENCE', 'THEFT', 'FRAUD', 'FALSIFICATION', 'SUBSTANCE_USE_AT_WORK',
+  // ATTENDANCE
+  'EXCESSIVE_ABSENCES', 'TARDINESS', 'NO_CALL_NO_SHOW',
+  // CONDUCT
+  'UNPROFESSIONAL_BEHAVIOR', 'INAPPROPRIATE_LANGUAGE',
+  // PERFORMANCE
+  'POOR_QUALITY_WORK', 'MISSED_DEADLINES', 'NEGLIGENCE',
+  // POLICY_VIOLATION
+  'CONFIDENTIALITY_BREACH', 'IT_POLICY_VIOLATION',
+  // OTHER
   'OTHER'
 ])
 
 export const ViolationSeverityEnum = z.enum(['MINOR', 'MODERATE', 'MAJOR', 'CRITICAL'])
 
+// Simplified disciplinary actions
 export const DisciplinaryActionTypeEnum = z.enum([
-  'VERBAL_WARNING', 'WRITTEN_WARNING', 'FINAL_WARNING', 'SUSPENSION',
-  'DEMOTION', 'TERMINATION', 'PIP', 'TRAINING_REQUIRED', 'NO_ACTION'
+  'VERBAL_WARNING', 'WRITTEN_WARNING', 'FINAL_WARNING', 'SUSPENSION', 'TERMINATION'
 ])
 
+// Simplified statuses
 export const DisciplinaryStatusEnum = z.enum([
-  'OPEN', 'UNDER_INVESTIGATION', 'ACTION_TAKEN', 'APPEALED', 'CLOSED', 'DISMISSED'
+  'OPEN', 'ACTION_TAKEN', 'CLOSED'
 ])
 
 export const AppealStatusEnum = z.enum([
@@ -372,9 +342,9 @@ export const UpdateDisciplinaryActionSchema = z.object({
 })
 
 // ============ HR CALENDAR EVENT SCHEMAS ============
+// Simplified for small team (15-20 people)
 export const HREventTypeEnum = z.enum([
-  'PERFORMANCE_REVIEW', 'PROBATION_END', 'PIP_REVIEW', 'DISCIPLINARY_HEARING',
-  'INTERVIEW', 'TRAINING', 'COMPANY_EVENT', 'HOLIDAY', 'OTHER'
+  'PERFORMANCE_REVIEW', 'PROBATION_END', 'COMPANY_EVENT', 'HOLIDAY', 'OTHER'
 ])
 
 export const CreateHRCalendarEventSchema = z.object({
@@ -411,9 +381,6 @@ export const PaginationSchema = z.object({
 // Type exports
 export type CreateEmployeeInput = z.infer<typeof CreateEmployeeSchema>
 export type UpdateEmployeeInput = z.infer<typeof UpdateEmployeeSchema>
-export type CreateResourceInput = z.infer<typeof CreateResourceSchema>
-export type UpdateResourceInput = z.infer<typeof UpdateResourceSchema>
 export type CreatePolicyInput = z.infer<typeof CreatePolicySchema>
 export type UpdatePolicyInput = z.infer<typeof UpdatePolicySchema>
-export type CreateCalendarEventInput = z.infer<typeof CreateCalendarEventSchema>
 export type PaginationInput = z.infer<typeof PaginationSchema>

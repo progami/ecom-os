@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canHRReview, getSuperAdminEmployees } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
+import { canHRReview } from '@/lib/permissions'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 /**
  * HR Review endpoint for performance reviews
- * Workflow: Manager creates -> HR reviews -> Super Admin approves
+ * Simplified workflow for small teams (15-20 people):
+ * Manager creates -> HR reviews -> Employee acknowledges
  */
 export async function POST(req: Request, context: RouteContext) {
   const rateLimitError = withRateLimit(req)
@@ -69,11 +69,11 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     if (approved) {
-      // HR approves - move to PENDING_SUPER_ADMIN
+      // HR approves - skip super admin, go directly to PENDING_ACKNOWLEDGMENT
       const updated = await prisma.performanceReview.update({
         where: { id },
         data: {
-          status: 'PENDING_SUPER_ADMIN',
+          status: 'PENDING_ACKNOWLEDGMENT',
           hrReviewedAt: new Date(),
           hrReviewedById: currentEmployeeId,
           hrReviewNotes: notes ?? null,
@@ -91,38 +91,22 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      // Notify Super Admins
-      const superAdmins = await getSuperAdminEmployees()
-      for (const admin of superAdmins) {
-        await prisma.notification.create({
-          data: {
-            type: 'REVIEW_PENDING_ADMIN',
-            title: 'Review Pending Final Approval',
-            message: `A performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been reviewed by HR and needs your final approval.`,
-            link: `/performance/reviews/${id}`,
-            employeeId: admin.id,
-            relatedId: id,
-            relatedType: 'REVIEW',
-          },
-        })
-      }
-
-      await writeAuditLog({
-        actorId: currentEmployeeId,
-        action: 'APPROVE',
-        entityType: 'PERFORMANCE_REVIEW',
-        entityId: updated.id,
-        summary: `HR approved review for ${updated.employee.firstName} ${updated.employee.lastName}`,
-        metadata: {
-          hrNotes: Boolean(notes),
-          newStatus: updated.status,
+      // Notify employee to acknowledge
+      await prisma.notification.create({
+        data: {
+          type: 'REVIEW_APPROVED',
+          title: 'Performance Review Ready',
+          message: `Your performance review is ready for acknowledgment.`,
+          link: `/performance/reviews/${id}`,
+          employeeId: updated.employee.id,
+          relatedId: id,
+          relatedType: 'REVIEW',
         },
-        req,
       })
 
       return NextResponse.json({
         success: true,
-        message: 'Review approved by HR, sent to Super Admin for final approval',
+        message: 'Review approved by HR, sent to employee for acknowledgment',
         review: updated,
       })
     } else {
@@ -162,19 +146,6 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
-
-      await writeAuditLog({
-        actorId: currentEmployeeId,
-        action: 'REJECT',
-        entityType: 'PERFORMANCE_REVIEW',
-        entityId: updated.id,
-        summary: `HR returned review for ${updated.employee.firstName} ${updated.employee.lastName}`,
-        metadata: {
-          hrNotes: Boolean(notes),
-          newStatus: updated.status,
-        },
-        req,
-      })
 
       return NextResponse.json({
         success: true,

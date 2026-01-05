@@ -4,7 +4,6 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
-import { writeAuditLog } from '@/lib/audit'
 import { EmployeeFileVisibility } from '@/lib/hrms-prisma-types'
 
 const TargetSchema = z.object({
@@ -86,22 +85,6 @@ export async function POST(req: Request) {
         },
       })
 
-      await writeAuditLog({
-        actorId,
-        action: 'ATTACH',
-        entityType: 'EMPLOYEE_FILE',
-        entityId: created.id,
-        summary: 'Added employee document',
-        metadata: {
-          employeeId: data.target.id,
-          key: data.key,
-          contentType: data.contentType,
-          size: data.size,
-          visibility,
-        },
-        req,
-      })
-
       // Notify the employee only if the document is visible to them.
       if (visibility === 'EMPLOYEE_AND_HR' && actorId !== data.target.id) {
         await prisma.notification.create({
@@ -154,22 +137,6 @@ export async function POST(req: Request) {
         visibility,
       },
       include: { uploadedBy: { select: { id: true, firstName: true, lastName: true } } },
-    })
-
-    await writeAuditLog({
-      actorId,
-      action: 'ATTACH',
-      entityType: 'CASE_ATTACHMENT',
-      entityId: created.id,
-      summary: 'Added case attachment',
-      metadata: {
-        caseId: data.target.id,
-        key: data.key,
-        contentType: data.contentType,
-        size: data.size,
-        visibility,
-      },
-      req,
     })
 
     return NextResponse.json(

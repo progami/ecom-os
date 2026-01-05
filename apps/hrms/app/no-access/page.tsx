@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { getApiBase } from '@/lib/api-client'
 
 type MeSnapshot = {
@@ -71,14 +72,9 @@ export default function NoAccessPage() {
               Request sent. Check your email for updates and revisit HRMS once access is granted.
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={requestAccess}
-              disabled={requesting}
-              className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60"
-            >
+            <Button onClick={requestAccess} disabled={requesting} className="w-full">
               {requesting ? 'Requesting access…' : 'Request access'}
-            </button>
+            </Button>
           )}
 
           {error ? (

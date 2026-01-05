@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/current-user'
 import { getHREmployees, getSuperAdminEmployees } from '@/lib/permissions'
 import { safeErrorResponse, validateBody, withRateLimit } from '@/lib/api-helpers'
-import { writeAuditLog } from '@/lib/audit'
 
 const CreateAccessRequestSchema = z.object({
   reason: z.string().max(100).optional(),
@@ -139,16 +138,6 @@ export async function POST(req: Request) {
         })
       }
     }
-
-    await writeAuditLog({
-      actorId: employee.id,
-      action: 'CREATE',
-      entityType: 'TASK',
-      entityId: task.id,
-      summary: 'Requested HRMS access',
-      metadata: { reason },
-      req,
-    })
 
     return NextResponse.json({ ok: true, requestTaskId: task.id })
   } catch (e) {

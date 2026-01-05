@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import { ActionButton } from '@/components/ui/ActionButton'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkItemDTO } from '@/lib/contracts/work-items'
 import { formatWorkItemWhen, getWorkItemDueLabel } from './work-item-utils'
@@ -56,13 +56,11 @@ export function WorkItemPreviewPane({ item, onAction }: WorkItemPreviewPaneProps
         </div>
 
         <div className="shrink-0 flex flex-col items-end gap-2">
-          <ActionButton label="Open record" href={item.href} variant="secondary" />
+          <Button variant="secondary" href={item.href}>Open record</Button>
 
           {item.primaryAction ? (
-            <ActionButton
-              label={item.primaryAction.label}
+            <Button
               disabled={item.primaryAction.disabled || acting === item.primaryAction.id}
-              disabledReason={item.primaryAction.disabledReason}
               loading={acting === item.primaryAction.id}
               onClick={async () => {
                 setActing(item.primaryAction!.id)
@@ -72,16 +70,16 @@ export function WorkItemPreviewPane({ item, onAction }: WorkItemPreviewPaneProps
                   setActing(null)
                 }
               }}
-            />
+            >
+              {item.primaryAction.label}
+            </Button>
           ) : null}
 
           {item.secondaryActions.map((action) => (
-            <ActionButton
+            <Button
               key={action.id}
-              label={action.label}
               variant="secondary"
               disabled={action.disabled || acting === action.id}
-              disabledReason={action.disabledReason}
               loading={acting === action.id}
               onClick={async () => {
                 setActing(action.id)
@@ -91,11 +89,12 @@ export function WorkItemPreviewPane({ item, onAction }: WorkItemPreviewPaneProps
                   setActing(null)
                 }
               }}
-            />
+            >
+              {action.label}
+            </Button>
           ))}
         </div>
       </div>
     </Card>
   )
 }
-

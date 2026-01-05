@@ -51,27 +51,8 @@ export function buildDisciplinaryNextActions(
     return actions
   }
 
-  if (action.status === 'PENDING_SUPER_ADMIN') {
-    if (viewer.isSuperAdmin) {
-      actions.primary = {
-        id: 'disciplinary.adminApprove',
-        label: 'Final approve',
-        variant: 'primary',
-        disabled: false,
-      }
-      actions.secondary = [{ id: 'disciplinary.adminReject', label: 'Reject', variant: 'danger', disabled: false }]
-      return actions
-    }
-
-    actions.primary = {
-      id: 'disciplinary.adminApprove',
-      label: 'Waiting for final approval',
-      variant: 'primary',
-      disabled: true,
-      disabledReason: 'Super Admin must approve before acknowledgement is available.',
-    }
-    return actions
-  }
+  // PENDING_SUPER_ADMIN removed - simplified workflow for small teams
+  // HR approval goes directly to PENDING_ACKNOWLEDGMENT
 
   if (action.status === 'PENDING_ACKNOWLEDGMENT') {
     const needsEmployeeAck = !action.employeeAcknowledged
@@ -115,10 +96,11 @@ export function buildDisciplinaryNextActions(
   }
 
   if (action.status === 'APPEAL_PENDING_HR') {
+    // Simplified: HR makes final appeal decision (no super admin stage)
     if (viewer.isHR || viewer.isSuperAdmin) {
       actions.primary = {
-        id: 'disciplinary.appeal.hrForward',
-        label: 'Review appeal (HR)',
+        id: 'disciplinary.appeal.hrDecide',
+        label: 'Decide appeal (HR)',
         variant: 'primary',
         disabled: false,
       }
@@ -126,35 +108,16 @@ export function buildDisciplinaryNextActions(
     }
 
     actions.primary = {
-      id: 'disciplinary.appeal.hrForward',
-      label: 'Waiting for HR appeal review',
+      id: 'disciplinary.appeal.hrDecide',
+      label: 'Waiting for HR appeal decision',
       variant: 'primary',
       disabled: true,
-      disabledReason: 'HR must review the appeal before a final decision is made.',
+      disabledReason: 'HR will make the final decision on this appeal.',
     }
     return actions
   }
 
-  if (action.status === 'APPEAL_PENDING_SUPER_ADMIN') {
-    if (viewer.isSuperAdmin) {
-      actions.primary = {
-        id: 'disciplinary.appeal.adminDecide',
-        label: 'Decide appeal (Super Admin)',
-        variant: 'primary',
-        disabled: false,
-      }
-      return actions
-    }
-
-    actions.primary = {
-      id: 'disciplinary.appeal.adminDecide',
-      label: 'Waiting for appeal decision',
-      variant: 'primary',
-      disabled: true,
-      disabledReason: 'Super Admin must decide the appeal.',
-    }
-    return actions
-  }
+  // APPEAL_PENDING_SUPER_ADMIN removed - HR makes final appeal decisions
 
   return actions
 }

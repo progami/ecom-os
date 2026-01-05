@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
-  CasesApi,
   EmployeeFilesApi,
   EmployeeTimelineApi,
   EmployeesApi,
@@ -25,24 +24,28 @@ import {
   CalendarIcon,
   ClipboardDocumentCheckIcon,
   EnvelopeIcon,
-  ExclamationTriangleIcon,
   FolderIcon,
   PencilIcon,
   PhoneIcon,
   UsersIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Alert } from '@/components/ui/Alert'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { Alert } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
-import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
+import { StatusBadge } from '@/components/ui/badge'
 import { TabButton } from '@/components/ui/TabButton'
+import { SelectField } from '@/components/ui/FormField'
 import { employmentTypeLabels } from '@/lib/constants'
-import { StandingCard } from '@/components/employee/StandingCard'
 
-type Tab = 'overview' | 'job' | 'documents' | 'timeline' | 'performance' | 'timeoff' | 'cases'
+const visibilityOptions = [
+  { value: 'HR_ONLY', label: 'HR only' },
+  { value: 'EMPLOYEE_AND_HR', label: 'Employee + HR' },
+]
+
+type Tab = 'overview' | 'job' | 'documents' | 'timeline' | 'performance' | 'timeoff'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -81,8 +84,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     tabParam === 'documents' ||
     tabParam === 'timeline' ||
     tabParam === 'performance' ||
-    tabParam === 'timeoff' ||
-    tabParam === 'cases'
+    tabParam === 'timeoff'
       ? (tabParam as Tab)
       : 'overview'
 
@@ -104,9 +106,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
   const [timelineLoading, setTimelineLoading] = useState(false)
 
-  const [cases, setCases] = useState<any[]>([])
-  const [casesLoading, setCasesLoading] = useState(false)
-
   const [files, setFiles] = useState<EmployeeFile[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
@@ -122,7 +121,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const canViewTimeline = canViewSensitive
   const canViewPerformance = canViewSensitive
   const canViewTimeOff = canViewSensitive
-  const canViewCases = canViewSensitive
   const permissionsReady = Boolean(employee && me && permissions)
 
   useEffect(() => {
@@ -144,9 +142,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       { id: 'timeline' as Tab, label: 'Timeline', icon: CalendarIcon, visible: canViewTimeline },
       { id: 'performance' as Tab, label: 'Performance', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
       { id: 'timeoff' as Tab, label: 'Time off', icon: CalendarDaysIcon, visible: canViewTimeOff },
-      { id: 'cases' as Tab, label: 'Cases', icon: ExclamationTriangleIcon, visible: canViewCases },
     ],
-    [canViewDocuments, canViewTimeline, canViewPerformance, canViewTimeOff, canViewCases]
+    [canViewDocuments, canViewTimeline, canViewPerformance, canViewTimeOff]
   )
 
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible), [tabs])
@@ -261,23 +258,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     }
     loadTimeline()
   }, [activeTab, canViewTimeline, employee])
-
-  useEffect(() => {
-    async function loadCases() {
-      if (!employee || activeTab !== 'cases' || !canViewCases) return
-      try {
-        setCasesLoading(true)
-        const data = await CasesApi.list({ subjectEmployeeId: employee.id, take: 50 })
-        setCases(data.items || [])
-      } catch (e) {
-        console.error('Failed to load cases', e)
-        setCases([])
-      } finally {
-        setCasesLoading(false)
-      }
-    }
-    loadCases()
-  }, [activeTab, canViewCases, employee])
 
   useEffect(() => {
     async function loadFiles() {
@@ -438,7 +418,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
       {!canViewSensitive ? (
         <Alert variant="info" className="mb-6">
-          You have limited access to this profile. Sensitive records (time off, performance, cases, timeline) are visible only to managers and HR.
+          You have limited access to this profile. Sensitive records (time off, performance, timeline) are visible only to managers and HR.
         </Alert>
       ) : null}
 
@@ -464,8 +444,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                 <InfoRow icon={UsersIcon} label="Employee ID" value={employee.employeeId} />
               </div>
             </Card>
-
-            {canViewSensitive ? <StandingCard employeeId={employee.id} /> : null}
           </div>
 
           <div className="space-y-6">
@@ -553,16 +531,13 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                   />
                 </div>
                 <div className="sm:col-span-1">
-                  <label className="text-xs font-medium text-foreground">Visibility</label>
-                  <select
-                    className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground"
+                  <SelectField
+                    label="Visibility"
+                    options={visibilityOptions}
                     value={uploadVisibility}
                     onChange={(e) => setUploadVisibility(e.target.value as any)}
                     disabled={!isHR && isSelf}
-                  >
-                    <option value="HR_ONLY">HR only</option>
-                    <option value="EMPLOYEE_AND_HR">Employee + HR</option>
-                  </select>
+                  />
                   {!isHR && isSelf ? (
                     <p className="text-xs text-muted-foreground mt-1">Self uploads are visible to the employee and HR.</p>
                   ) : null}
@@ -730,52 +705,37 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
           <Card padding="md">
             <h3 className="text-sm font-semibold text-foreground">History</h3>
-            <div className="mt-4">
-              {leaveLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : <LeaveHistoryTable requests={leaveRequests} />}
-            </div>
+            {leaveLoading ? (
+              <p className="text-sm text-muted-foreground mt-4">Loading…</p>
+            ) : leaveRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground mt-4">No leave requests.</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {leaveRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="rounded-lg border border-border bg-card p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground truncate">
+                          {request.leaveType.replaceAll('_', ' ').toLowerCase()}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatDate(request.startDate)} — {formatDate(request.endDate)} · {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
+                        </div>
+                        {request.reason && (
+                          <div className="text-xs text-muted-foreground mt-1 truncate">{request.reason}</div>
+                        )}
+                      </div>
+                      <StatusBadge status={request.status} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
-      ) : null}
-
-      {activeTab === 'cases' && canViewCases ? (
-        <Card padding="md">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Cases</h2>
-              <p className="text-xs text-muted-foreground mt-1">Cases where this employee is the subject.</p>
-            </div>
-            {isHR ? (
-              <Button href={`/cases/add?subjectEmployeeId=${employee.id}`} icon={<ExclamationTriangleIcon className="h-4 w-4" />}>
-                New case
-              </Button>
-            ) : null}
-          </div>
-
-          {casesLoading ? (
-            <p className="text-sm text-muted-foreground mt-4">Loading…</p>
-          ) : cases.length === 0 ? (
-            <p className="text-sm text-muted-foreground mt-4">No cases found.</p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {cases.map((c) => (
-                <Link key={c.id} href={`/cases/${c.id}`} className="block rounded-lg border border-border bg-card p-4 hover:border-input">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-foreground truncate">
-                        #{c.caseNumber} • {c.title}
-                      </div>
-                      <div className="text-sm text-muted-foreground">{c.caseType.replaceAll('_', ' ').toLowerCase()}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {c.status.replaceAll('_', ' ').toLowerCase()} • {String(c.severity).toLowerCase()}
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground shrink-0">{formatDate(c.createdAt)}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </Card>
       ) : null}
     </>
   )

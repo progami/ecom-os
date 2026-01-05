@@ -1,16 +1,30 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { EmployeesApi, MeApi, TasksApi, type Employee, type Me, type Task } from '@/lib/api-client';
 import { CheckCircleIcon, TrashIcon } from '@/components/ui/Icons';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Alert } from '@/components/ui/Alert';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
 import { FormField, FormSection, SelectField, TextareaField } from '@/components/ui/FormField';
-import { StatusBadge } from '@/components/ui/Badge';
+import { StatusBadge } from '@/components/ui/badge';
+
+const TaskFormSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().max(2000).optional().nullable(),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED']),
+  category: z.enum(['GENERAL', 'POLICY']),
+  dueDate: z.string().optional().nullable(),
+  assignedToId: z.string().optional().nullable(),
+  subjectEmployeeId: z.string().optional().nullable(),
+});
+
+type TaskFormData = z.infer<typeof TaskFormSchema>;
 
 const statusOptions = [
   { value: 'OPEN', label: 'Open' },
@@ -19,9 +33,8 @@ const statusOptions = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const baseCategoryOptions = [
+const categoryOptions = [
   { value: 'GENERAL', label: 'General' },
-  { value: 'CASE', label: 'Case' },
   { value: 'POLICY', label: 'Policy' },
 ];
 
@@ -48,7 +61,27 @@ export default function TaskDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const categoryOptions = baseCategoryOptions;
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<TaskFormData>({
+    resolver: zodResolver(TaskFormSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      status: 'OPEN',
+      category: 'GENERAL',
+      dueDate: '',
+      assignedToId: '',
+      subjectEmployeeId: '',
+    },
+  });
+
+  const formStatus = watch('status');
 
   const canEdit = useMemo(() => {
     if (!me || !task) return false;
@@ -99,16 +132,6 @@ export default function TaskDetailPage() {
     return options;
   }, [employees, me, task]);
 
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    status: 'OPEN',
-    category: 'GENERAL',
-    dueDate: '',
-    assignedToId: '',
-    subjectEmployeeId: '',
-  });
-
   useEffect(() => {
     async function load() {
       if (!id) {
@@ -121,11 +144,13 @@ export default function TaskDetailPage() {
         const [taskData, meData] = await Promise.all([TasksApi.get(id), MeApi.get()]);
         setTask(taskData);
         setMe(meData);
-        setForm({
+
+        // Reset form with loaded data
+        reset({
           title: taskData.title,
           description: taskData.description ?? '',
-          status: taskData.status,
-          category: taskData.category,
+          status: taskData.status as 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED',
+          category: taskData.category as 'GENERAL' | 'POLICY',
           dueDate: taskData.dueDate ? taskData.dueDate.slice(0, 10) : '',
           assignedToId: taskData.assignedToId ?? '',
           subjectEmployeeId: taskData.subjectEmployeeId ?? '',
@@ -148,37 +173,47 @@ export default function TaskDetailPage() {
       }
     }
     load();
-  }, [id]);
+  }, [id, reset]);
 
-  async function save(patch: Partial<typeof form>) {
+  async function save(data: TaskFormData) {
     if (!task) return;
     setSaving(true);
     setError(null);
     try {
-      const next = { ...form, ...patch };
       const updated = await TasksApi.update(task.id, {
-        title: canEdit ? next.title : undefined,
-        description: canEdit ? (next.description ? next.description : null) : undefined,
-        status: canUpdateStatus ? next.status : undefined,
-        category: canEdit ? next.category : undefined,
-        dueDate: canEdit ? (next.dueDate ? next.dueDate : null) : undefined,
-        assignedToId: canEdit ? (next.assignedToId ? next.assignedToId : null) : undefined,
-        subjectEmployeeId: canEdit
-          ? next.subjectEmployeeId
-            ? next.subjectEmployeeId
-            : null
-          : undefined,
+        title: canEdit ? data.title : undefined,
+        description: canEdit ? (data.description ? data.description : null) : undefined,
+        status: canUpdateStatus ? data.status : undefined,
+        category: canEdit ? data.category : undefined,
+        dueDate: canEdit ? (data.dueDate ? data.dueDate : null) : undefined,
+        assignedToId: canEdit ? (data.assignedToId ? data.assignedToId : null) : undefined,
+        subjectEmployeeId: canEdit ? (data.subjectEmployeeId ? data.subjectEmployeeId : null) : undefined,
       });
       setTask(updated);
-      setForm({
+      reset({
         title: updated.title,
         description: updated.description ?? '',
-        status: updated.status,
-        category: updated.category,
+        status: updated.status as 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED',
+        category: updated.category as 'GENERAL' | 'POLICY',
         dueDate: updated.dueDate ? updated.dueDate.slice(0, 10) : '',
         assignedToId: updated.assignedToId ?? '',
         subjectEmployeeId: updated.subjectEmployeeId ?? '',
       });
+    } catch (e: any) {
+      setError(e.message || 'Failed to update task');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function quickStatusChange(newStatus: 'IN_PROGRESS' | 'DONE') {
+    if (!task) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await TasksApi.update(task.id, { status: newStatus });
+      setTask(updated);
+      setValue('status', newStatus);
     } catch (e: any) {
       setError(e.message || 'Failed to update task');
     } finally {
@@ -246,12 +281,12 @@ export default function TaskDetailPage() {
           <div className="flex gap-2">
             <Button
               variant="secondary"
-              onClick={() => save({ status: 'IN_PROGRESS' })}
+              onClick={() => quickStatusChange('IN_PROGRESS')}
               disabled={!canUpdateStatus || saving}
             >
               Start
             </Button>
-            <Button onClick={() => save({ status: 'DONE' })} disabled={!canUpdateStatus || saving}>
+            <Button onClick={() => quickStatusChange('DONE')} disabled={!canUpdateStatus || saving}>
               Mark Done
             </Button>
             <Button
@@ -301,43 +336,22 @@ export default function TaskDetailPage() {
             </div>
           </div>
 
-          {(task.subjectEmployee || task.case) && (
-            <div className="mt-4 pt-4 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {task.subjectEmployee && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                    Subject
-                  </p>
-                  <p className="text-sm text-foreground">
-                    {task.subjectEmployee.firstName} {task.subjectEmployee.lastName}
-                  </p>
-                </div>
-              )}
-              {task.case && (
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                    Case
-                  </p>
-                  <Link
-                    className="text-sm text-accent hover:text-primary"
-                    href={`/cases/${task.case.id}`}
-                  >
-                    Case #{task.case.caseNumber}: {task.case.title}
-                  </Link>
-                </div>
-              )}
+          {task.subjectEmployee && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Subject
+                </p>
+                <p className="text-sm text-foreground">
+                  {task.subjectEmployee.firstName} {task.subjectEmployee.lastName}
+                </p>
+              </div>
             </div>
           )}
         </Card>
 
         <Card padding="lg">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              save({});
-            }}
-            className="space-y-8"
-          >
+          <form onSubmit={handleSubmit(save)} className="space-y-8">
             <FormSection
               title="Edit Task"
               description={canEdit ? 'Update details and status.' : 'You can update status only.'}
@@ -346,10 +360,9 @@ export default function TaskDetailPage() {
                 <div className="sm:col-span-2">
                   <FormField
                     label="Title"
-                    name="title"
-                    value={form.title}
-                    onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
                     disabled={!canEdit}
+                    error={errors.title?.message}
+                    {...register('title')}
                   />
                 </div>
 
@@ -357,63 +370,55 @@ export default function TaskDetailPage() {
                   <>
                     <SelectField
                       label="Assigned To"
-                      name="assignedToId"
                       options={employeeOptions}
                       placeholder={loadingEmployees ? 'Loading employees...' : 'Unassigned'}
-                      value={form.assignedToId}
-                      onChange={(e) => setForm((p) => ({ ...p, assignedToId: e.target.value }))}
                       disabled={saving || !canEdit}
+                      error={errors.assignedToId?.message}
+                      {...register('assignedToId')}
                     />
 
                     <SelectField
                       label="Subject Employee (optional)"
-                      name="subjectEmployeeId"
                       options={employeeOptions}
                       placeholder={loadingEmployees ? 'Loading employees...' : 'None'}
-                      value={form.subjectEmployeeId}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, subjectEmployeeId: e.target.value }))
-                      }
                       disabled={saving || !canEdit}
+                      error={errors.subjectEmployeeId?.message}
+                      {...register('subjectEmployeeId')}
                     />
                   </>
                 )}
 
                 <SelectField
                   label="Status"
-                  name="status"
                   options={statusOptions}
-                  value={form.status}
-                  onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
                   disabled={!canUpdateStatus}
+                  error={errors.status?.message}
+                  {...register('status')}
                 />
 
                 <SelectField
                   label="Category"
-                  name="category"
                   options={categoryOptions}
-                  value={form.category}
-                  onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
                   disabled={!canEdit}
+                  error={errors.category?.message}
+                  {...register('category')}
                 />
 
                 <FormField
                   label="Due Date"
-                  name="dueDate"
                   type="date"
-                  value={form.dueDate}
-                  onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
                   disabled={!canEdit}
+                  error={errors.dueDate?.message}
+                  {...register('dueDate')}
                 />
 
                 <div className="sm:col-span-2">
                   <TextareaField
                     label="Description"
-                    name="description"
-                    value={form.description}
-                    onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                     rows={4}
                     disabled={!canEdit}
+                    error={errors.description?.message}
+                    {...register('description')}
                   />
                 </div>
               </div>

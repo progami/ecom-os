@@ -11,7 +11,6 @@ import {
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees, getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
 
 function toCaseSeverity(severity: string): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
   switch (severity) {
@@ -232,36 +231,6 @@ export async function POST(req: Request) {
       })
 
       return { item: created, caseId: caseRecord.id }
-    })
-
-    await writeAuditLog({
-      actorId: currentEmployeeId,
-      action: 'CREATE',
-      entityType: 'CASE',
-      entityId: caseId,
-      summary: `Opened violation case for ${item.employee.firstName} ${item.employee.lastName}`,
-      metadata: {
-        caseType: 'VIOLATION',
-        severity: item.severity,
-        disciplinaryActionId: item.id,
-      },
-      req,
-    })
-
-    await writeAuditLog({
-      actorId: currentEmployeeId,
-      action: 'CREATE',
-      entityType: 'DISCIPLINARY_ACTION',
-      entityId: item.id,
-      summary: `Raised violation (${item.severity.toLowerCase()})`,
-      metadata: {
-        employeeId: item.employeeId,
-        violationType: item.violationType,
-        violationReason: item.violationReason,
-        severity: item.severity,
-        status: item.status,
-      },
-      req,
     })
 
     // Notify HR about pending violation review

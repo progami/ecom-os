@@ -6,13 +6,13 @@ import { ColumnDef } from '@tanstack/react-table'
 import { MeApi, TasksApi, type Me, type Task } from '@/lib/api-client'
 import { CheckCircleIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
-import { Alert } from '@/components/ui/Alert'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Alert } from '@/components/ui/alert'
 import { DataTable } from '@/components/ui/DataTable'
-import { ResultsCount } from '@/components/ui/Table'
+import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
-import { StatusBadge } from '@/components/ui/Badge'
+import { StatusBadge } from '@/components/ui/badge'
 
 const CATEGORY_LABELS: Record<string, string> = {
   GENERAL: 'General',

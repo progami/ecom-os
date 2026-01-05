@@ -2,12 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { PerformanceReviewsApi, EmployeesApi, MeApi, type Employee, type Me } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Alert } from '@/components/ui/Alert'
+import { Card, CardDivider } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
 import {
   FormField,
   SelectField,
@@ -17,14 +20,15 @@ import {
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
 import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes } from '@/lib/review-period'
+import { CreatePerformanceReviewSchema } from '@/lib/validations'
 
+type FormData = z.infer<typeof CreatePerformanceReviewSchema>
+
+// Simplified for small team (15-20 people)
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
   { value: 'QUARTERLY', label: 'Quarterly' },
-  { value: 'SEMI_ANNUAL', label: 'Semi-Annual' },
   { value: 'ANNUAL', label: 'Annual' },
-  { value: 'PROMOTION', label: 'Promotion' },
-  { value: 'PIP', label: 'Performance Improvement Plan' },
 ]
 
 const statusOptions = [
@@ -39,7 +43,17 @@ const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
   label: REVIEW_PERIOD_TYPE_LABELS[value],
 }))
 
-function RatingInput({ name, label, value, onChange }: { name: string; label: string; value: number; onChange: (v: number) => void }) {
+function RatingInput({
+  label,
+  value,
+  onChange,
+  error,
+}: {
+  label: string
+  value: number
+  onChange: (v: number) => void
+  error?: string
+}) {
   return (
     <div>
       <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
@@ -60,7 +74,7 @@ function RatingInput({ name, label, value, onChange }: { name: string; label: st
         ))}
         <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
       </div>
-      <input type="hidden" name={name} value={value} />
+      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
     </div>
   )
 }
@@ -70,27 +84,51 @@ function AddReviewForm() {
   const { goBack } = useNavigationHistory()
   const searchParams = useSearchParams()
   const preselectedEmployeeId = searchParams.get('employeeId')
+  const currentYear = new Date().getFullYear()
 
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [me, setMe] = useState<Me | null>(null)
   const [loadingEmployees, setLoadingEmployees] = useState(true)
-  const [reviewType, setReviewType] = useState('ANNUAL')
-  const [periodType, setPeriodType] = useState('ANNUAL')
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(preselectedEmployeeId || '')
-  const [assignedReviewerId, setAssignedReviewerId] = useState('')
-  const [roleTitle, setRoleTitle] = useState('')
 
-  // Rating states
-  const [overallRating, setOverallRating] = useState(3)
-  const [qualityOfWork, setQualityOfWork] = useState(3)
-  const [productivity, setProductivity] = useState(3)
-  const [communication, setCommunication] = useState(3)
-  const [teamwork, setTeamwork] = useState(3)
-  const [initiative, setInitiative] = useState(3)
-  const [attendance, setAttendance] = useState(3)
-  const currentYear = new Date().getFullYear()
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
+    resolver: zodResolver(CreatePerformanceReviewSchema),
+    defaultValues: {
+      employeeId: preselectedEmployeeId || '',
+      reviewType: 'ANNUAL',
+      periodType: 'ANNUAL',
+      periodYear: currentYear,
+      reviewDate: new Date().toISOString().split('T')[0],
+      roleTitle: '',
+      assignedReviewerId: '',
+      overallRating: 3,
+      qualityOfWork: 3,
+      productivity: 3,
+      communication: 3,
+      teamwork: 3,
+      initiative: 3,
+      attendance: 3,
+      status: 'DRAFT',
+    },
+  })
+
+  const [error, setError] = useState<string | null>(null)
+  const reviewType = watch('reviewType')
+  const periodType = watch('periodType')
+  const selectedEmployeeId = watch('employeeId')
+  const overallRating = watch('overallRating') ?? 3
+  const qualityOfWork = watch('qualityOfWork') ?? 3
+  const productivity = watch('productivity') ?? 3
+  const communication = watch('communication') ?? 3
+  const teamwork = watch('teamwork') ?? 3
+  const initiative = watch('initiative') ?? 3
+  const attendance = watch('attendance') ?? 3
+
   const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map((y) => ({
     value: String(y),
     label: String(y),
@@ -99,7 +137,6 @@ function AddReviewForm() {
   useEffect(() => {
     async function loadEmployees() {
       try {
-        // Only load employees the current user can manage
         const [meData, data] = await Promise.all([
           MeApi.get(),
           EmployeesApi.listManageable(),
@@ -120,51 +157,30 @@ function AddReviewForm() {
       if (!selectedEmployeeId) return
       try {
         const e = await EmployeesApi.get(selectedEmployeeId)
-        setRoleTitle(e.position || '')
-        setAssignedReviewerId(e.reportsToId || '')
+        setValue('roleTitle', e.position || '')
+        setValue('assignedReviewerId', e.reportsToId || '')
       } catch (err) {
         console.error('Failed to load employee details:', err)
-        setRoleTitle('')
-        setAssignedReviewerId('')
       }
     }
     hydrateRoleAndManager()
-  }, [selectedEmployeeId])
+  }, [selectedEmployeeId, setValue])
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSubmitting(true)
+  // Update periodType when reviewType changes
+  useEffect(() => {
+    const allowedTypes = getAllowedReviewPeriodTypes(reviewType)
+    if (!allowedTypes.includes(periodType as any)) {
+      setValue('periodType', allowedTypes[0] as any)
+    }
+  }, [reviewType, periodType, setValue])
+
+  async function onSubmit(data: FormData) {
     setError(null)
-    const fd = new FormData(e.currentTarget)
-    const payload = Object.fromEntries(fd.entries()) as any
-
     try {
-      await PerformanceReviewsApi.create({
-        employeeId: String(payload.employeeId),
-        reviewType: String(payload.reviewType),
-        periodType: String(payload.periodType),
-        periodYear: parseInt(String(payload.periodYear), 10),
-        reviewDate: String(payload.reviewDate),
-        roleTitle: String(payload.roleTitle),
-        assignedReviewerId: String(payload.assignedReviewerId),
-        overallRating: parseInt(payload.overallRating, 10),
-        qualityOfWork: parseInt(payload.qualityOfWork, 10),
-        productivity: parseInt(payload.productivity, 10),
-        communication: parseInt(payload.communication, 10),
-        teamwork: parseInt(payload.teamwork, 10),
-        initiative: parseInt(payload.initiative, 10),
-        attendance: parseInt(payload.attendance, 10),
-        strengths: payload.strengths || null,
-        areasToImprove: payload.areasToImprove || null,
-        goals: payload.goals || null,
-        comments: payload.comments || null,
-        status: String(payload.status),
-      })
+      await PerformanceReviewsApi.create(data)
       router.push('/performance/reviews')
     } catch (e: any) {
       setError(e.message || 'Failed to create review')
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -191,78 +207,67 @@ function AddReviewForm() {
         </Alert>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         <FormSection title="Review Details">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
               <SelectField
                 label="Employee"
-                name="employeeId"
                 required
                 options={employeeOptions}
                 placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                value={selectedEmployeeId}
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                error={errors.employeeId?.message}
+                {...register('employeeId')}
               />
             </div>
             <FormField
               label="Role"
-              name="roleTitle"
               required
-              value={roleTitle}
-              onChange={(e) => setRoleTitle(e.target.value)}
+              error={errors.roleTitle?.message}
+              {...register('roleTitle')}
             />
             <SelectField
               label="Review Type"
-              name="reviewType"
               required
               options={reviewTypeOptions}
-              value={reviewType}
-              onChange={(e) => {
-                const nextReviewType = e.target.value
-                setReviewType(nextReviewType)
-                const nextAllowed = getAllowedReviewPeriodTypes(nextReviewType)
-                if (!nextAllowed.includes(periodType as any)) {
-                  setPeriodType(nextAllowed[0] ?? 'ANNUAL')
-                }
-              }}
+              error={errors.reviewType?.message}
+              {...register('reviewType')}
             />
             <SelectField
               label="Review Period"
-              name="periodType"
               required
               options={periodTypeOptions}
-              value={periodType}
-              onChange={(e) => setPeriodType(e.target.value)}
+              error={errors.periodType?.message}
+              {...register('periodType')}
             />
             <SelectField
               label="Year"
-              name="periodYear"
               required
               options={periodYearOptions}
-              defaultValue={String(currentYear)}
+              error={errors.periodYear?.message}
+              {...register('periodYear')}
             />
             <FormField
               label="Review Date"
-              name="reviewDate"
               type="date"
               required
+              error={errors.reviewDate?.message}
+              {...register('reviewDate')}
             />
             <SelectField
               label="Manager"
-              name="assignedReviewerId"
               required
               options={managerOptions}
               placeholder={loadingEmployees ? 'Loading employees...' : 'Select manager...'}
-              value={assignedReviewerId}
-              onChange={(e) => setAssignedReviewerId(e.target.value)}
+              error={errors.assignedReviewerId?.message}
+              {...register('assignedReviewerId')}
             />
             <SelectField
               label="Status"
-              name="status"
               required
               options={statusOptions}
-              defaultValue="DRAFT"
+              error={errors.status?.message}
+              {...register('status')}
             />
           </div>
         </FormSection>
@@ -272,14 +277,49 @@ function AddReviewForm() {
         <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="sm:col-span-2">
-              <RatingInput name="overallRating" label="Overall Rating" value={overallRating} onChange={setOverallRating} />
+              <RatingInput
+                label="Overall Rating"
+                value={overallRating}
+                onChange={(v) => setValue('overallRating', v)}
+                error={errors.overallRating?.message}
+              />
             </div>
-            <RatingInput name="qualityOfWork" label="Quality of Work" value={qualityOfWork} onChange={setQualityOfWork} />
-            <RatingInput name="productivity" label="Productivity" value={productivity} onChange={setProductivity} />
-            <RatingInput name="communication" label="Communication" value={communication} onChange={setCommunication} />
-            <RatingInput name="teamwork" label="Teamwork" value={teamwork} onChange={setTeamwork} />
-            <RatingInput name="initiative" label="Initiative" value={initiative} onChange={setInitiative} />
-            <RatingInput name="attendance" label="Attendance" value={attendance} onChange={setAttendance} />
+            <RatingInput
+              label="Quality of Work"
+              value={qualityOfWork}
+              onChange={(v) => setValue('qualityOfWork', v)}
+              error={errors.qualityOfWork?.message}
+            />
+            <RatingInput
+              label="Productivity"
+              value={productivity}
+              onChange={(v) => setValue('productivity', v)}
+              error={errors.productivity?.message}
+            />
+            <RatingInput
+              label="Communication"
+              value={communication}
+              onChange={(v) => setValue('communication', v)}
+              error={errors.communication?.message}
+            />
+            <RatingInput
+              label="Teamwork"
+              value={teamwork}
+              onChange={(v) => setValue('teamwork', v)}
+              error={errors.teamwork?.message}
+            />
+            <RatingInput
+              label="Initiative"
+              value={initiative}
+              onChange={(v) => setValue('initiative', v)}
+              error={errors.initiative?.message}
+            />
+            <RatingInput
+              label="Attendance"
+              value={attendance}
+              onChange={(v) => setValue('attendance', v)}
+              error={errors.attendance?.message}
+            />
           </div>
         </FormSection>
 
@@ -289,37 +329,41 @@ function AddReviewForm() {
           <div className="space-y-5">
             <TextareaField
               label="Strengths"
-              name="strengths"
               rows={3}
               placeholder="Key strengths demonstrated..."
+              error={errors.strengths?.message}
+              {...register('strengths')}
             />
             <TextareaField
               label="Areas to Improve"
-              name="areasToImprove"
               rows={3}
               placeholder="Areas that need development..."
+              error={errors.areasToImprove?.message}
+              {...register('areasToImprove')}
             />
             <TextareaField
               label="Goals for Next Period"
-              name="goals"
               rows={3}
               placeholder="Objectives and targets..."
+              error={errors.goals?.message}
+              {...register('goals')}
             />
             <TextareaField
               label="Additional Comments"
-              name="comments"
               rows={3}
               placeholder="Any other observations..."
+              error={errors.comments?.message}
+              {...register('comments')}
             />
           </div>
         </FormSection>
 
         <FormActions>
-          <Button variant="secondary" onClick={goBack}>
+          <Button variant="secondary" type="button" onClick={goBack}>
             Cancel
           </Button>
-          <Button type="submit" loading={submitting}>
-            {submitting ? 'Saving...' : 'Save Review'}
+          <Button type="submit" loading={isSubmitting}>
+            {isSubmitting ? 'Saving...' : 'Save Review'}
           </Button>
         </FormActions>
       </form>

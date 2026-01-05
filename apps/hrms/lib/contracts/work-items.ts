@@ -8,7 +8,6 @@ export type WorkItemEntity =
   | { type: 'LEAVE_REQUEST'; id: string }
   | { type: 'PERFORMANCE_REVIEW'; id: string }
   | { type: 'DISCIPLINARY_ACTION'; id: string }
-  | { type: 'CASE'; id: string }
 
 export type WorkItemAction = {
   id: ActionId
