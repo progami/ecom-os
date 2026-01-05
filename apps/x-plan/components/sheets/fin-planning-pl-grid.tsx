@@ -249,6 +249,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     const row = data[rowIndex]
     if (!row) {
       setEditingCell(null)
+      requestAnimationFrame(() => scrollRef.current?.focus())
       return
     }
 
@@ -270,10 +271,12 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     }
     scheduleFlush()
     setEditingCell(null)
+    requestAnimationFrame(() => scrollRef.current?.focus())
   }, [data, editingCell, pendingRef, scheduleFlush])
 
   const cancelEditing = useCallback(() => {
     setEditingCell(null)
+    requestAnimationFrame(() => scrollRef.current?.focus())
   }, [])
 
   const moveActiveCell = useCallback(

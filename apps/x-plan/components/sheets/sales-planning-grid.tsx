@@ -1029,9 +1029,13 @@ export function SalesPlanningGrid({
       },
     ])
     setEditingCell(null)
+    requestAnimationFrame(() => scrollRef.current?.focus())
   }, [applyEdits, editingCell])
 
-  const cancelEditing = useCallback(() => setEditingCell(null), [])
+  const cancelEditing = useCallback(() => {
+    setEditingCell(null)
+    requestAnimationFrame(() => scrollRef.current?.focus())
+  }, [])
 
   const ensureCellVisible = useCallback(
     (coords: CellCoords) => {
