@@ -1114,7 +1114,7 @@ export function CustomOpsPlanningGrid({
     selectionAnchorRef.current = null
   }, [])
 
-  // Copy handler - use resolved values for stage columns in dates mode
+  // Copy handler - use display values for clipboard (user-friendly format)
   const buildClipboardText = useCallback(
     (range: CellRange): string => {
       const { top, bottom, left, right } = normalizeRange(range)
@@ -1126,8 +1126,8 @@ export function CustomOpsPlanningGrid({
         for (let colIndex = left; colIndex <= right; colIndex += 1) {
           const column = COLUMNS[colIndex]
           if (!column) continue
-          // Use edit value for stage columns in dates mode to get resolved date
-          cells.push(getCellEditValue(row, column, stageMode))
+          // Use formatted display value for clipboard so dates show as "Feb 22 2026" not "2026-02-22"
+          cells.push(getCellFormattedValue(row, column, stageMode))
         }
         lines.push(cells.join('\t'))
       }
