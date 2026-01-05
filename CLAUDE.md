@@ -1,5 +1,9 @@
 # Claude Code Instructions
 
+## Testing
+
+All testing should be done via Chrome browser directly to `https://ecomos.targonglobal.com/<app>` (e.g., `https://ecomos.targonglobal.com/x-plan`). Do not test on localhost.
+
 ## Git Workflow
 
 Once work is complete:
