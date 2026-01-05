@@ -35,7 +35,7 @@ import {
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { withAppBasePath } from '@/lib/base-path'
-import type { HandsontableSelectionStats } from '@/lib/handsontable'
+import type { SelectionStats } from '@/lib/selection-stats'
 
 type WeeklyRow = {
   weekNumber: string
@@ -110,7 +110,7 @@ function computeSelectionStats(
   data: WeeklyRow[],
   columnKeys: (keyof WeeklyRow)[],
   range: CellRange | null
-): HandsontableSelectionStats | null {
+): SelectionStats | null {
   if (!range) return null
   const { top, bottom, left, right } = normalizeRange(range)
   if (top < 0 || left < 0) return null
@@ -198,7 +198,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const [selection, setSelection] = useState<CellRange | null>(null)
   const selectionAnchorRef = useRef<CellCoords | null>(null)
   const [activeCell, setActiveCell] = useState<CellCoords | null>(null)
-  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
+  const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null)
 
   const [editingCell, setEditingCell] = useState<{
     coords: CellCoords
@@ -341,6 +341,73 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
     [data, columnKeys, selection]
   )
 
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLDivElement>) => {
+      if (!activeCell) return
+      const text = e.clipboardData.getData('text/plain')
+      if (!text) return
+      e.preventDefault()
+
+      const rows = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'))
+
+      if (rows.length === 0) return
+
+      const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = []
+
+      for (let r = 0; r < rows.length; r += 1) {
+        for (let c = 0; c < rows[r]!.length; c += 1) {
+          const targetRow = activeCell.row + r
+          const targetCol = activeCell.col + c
+          if (targetRow >= data.length) continue
+          if (targetCol >= columnConfig.length) continue
+
+          const config = columnConfig[targetCol]
+          if (!config?.editable) continue
+
+          const row = data[targetRow]
+          if (!row) continue
+
+          updates.push({
+            rowIndex: targetRow,
+            key: config.key,
+            value: rows[r]![c] ?? '',
+          })
+        }
+      }
+
+      if (updates.length === 0) return
+
+      setData((prev) => {
+        const next = [...prev]
+        for (const update of updates) {
+          const formatted = formatNumericInput(update.value, 2)
+          next[update.rowIndex] = { ...next[update.rowIndex], [update.key]: formatted }
+
+          const row = next[update.rowIndex]
+          const weekNumber = Number(row?.weekNumber)
+          if (Number.isFinite(weekNumber)) {
+            if (!pendingRef.current.has(weekNumber)) {
+              pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+            }
+            const entry = pendingRef.current.get(weekNumber)
+            if (entry) {
+              entry.values[update.key] = formatted
+            }
+          }
+        }
+        return next
+      })
+
+      scheduleFlush()
+    },
+    [activeCell, data, pendingRef, scheduleFlush]
+  )
+
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
       if (editingCell) return
@@ -396,6 +463,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
           className="h-full overflow-auto outline-none"
           onKeyDown={handleKeyDown}
           onCopy={handleCopy}
+          onPaste={handlePaste}
         >
           <Table
             className="relative border-collapse w-full"
