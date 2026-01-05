@@ -1,4 +1,5 @@
 import { SearchIcon } from './Icons'
+import { cn } from '@/lib/utils'
 
 type SearchFormProps = {
   value: string
@@ -21,7 +22,7 @@ export function SearchForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className={`flex gap-3 ${className}`}>
+    <form onSubmit={handleSubmit} className={cn('flex gap-3', className)}>
       <div className="relative flex-1">
         <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
@@ -29,12 +30,12 @@ export function SearchForm({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-11 pr-4 py-3 border border-input rounded-lg text-sm bg-card placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+          className="w-full pl-11 pr-4 py-3 border border-border/60 rounded-xl text-sm bg-card placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] focus:border-transparent transition-all shadow-[var(--shadow-sm)]"
         />
       </div>
       <button
         type="submit"
-        className="h-11 px-5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+        className="h-[46px] px-6 bg-[hsl(var(--primary))] text-white rounded-xl text-sm font-medium hover:bg-[hsl(var(--primary))]/90 transition-all duration-200 shadow-md shadow-[hsl(var(--primary))]/20"
       >
         Search
       </button>
@@ -84,12 +85,12 @@ export function SearchWithFilters({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full pl-11 pr-4 py-3 border border-input rounded-lg text-sm bg-card placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+            className="w-full pl-11 pr-4 py-3 border border-border/60 rounded-xl text-sm bg-card placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] focus:border-transparent transition-all shadow-[var(--shadow-sm)]"
           />
         </div>
         <button
           type="submit"
-          className="h-11 px-5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="h-[46px] px-6 bg-[hsl(var(--primary))] text-white rounded-xl text-sm font-medium hover:bg-[hsl(var(--primary))]/90 transition-all duration-200 shadow-md shadow-[hsl(var(--primary))]/20"
         >
           Search
         </button>
@@ -101,7 +102,7 @@ export function SearchWithFilters({
               key={filter.name}
               value={filter.value}
               onChange={(e) => filter.onChange(e.target.value)}
-              className="px-4 py-3 border border-input rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+              className="px-4 py-3 border border-border/60 rounded-xl text-sm bg-card focus:outline-none focus:ring-2 focus:ring-[hsl(var(--accent))] focus:border-transparent transition-all shadow-[var(--shadow-sm)]"
             >
               {filter.placeholder && (
                 <option value="">{filter.placeholder}</option>

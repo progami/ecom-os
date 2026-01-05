@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 
 type AvatarProps = {
   src?: string | null
@@ -32,7 +33,7 @@ export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarPro
       <img
         src={src}
         alt={alt}
-        className={`${sizeClass} rounded-full object-cover ${className}`}
+        className={cn(sizeClass, 'rounded-full object-cover ring-2 ring-white shadow-sm', className)}
         onError={() => setImgError(true)}
         referrerPolicy="no-referrer"
       />
@@ -41,7 +42,11 @@ export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarPro
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-accent/10 flex items-center justify-center font-medium text-accent ${className}`}
+      className={cn(
+        sizeClass,
+        'rounded-full bg-gradient-to-br from-[hsl(var(--accent))]/20 to-[hsl(var(--accent))]/5 flex items-center justify-center font-semibold text-[hsl(var(--accent))] ring-2 ring-white shadow-sm',
+        className
+      )}
     >
       {initials || '?'}
     </div>

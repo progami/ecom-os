@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+
 type TabButtonProps = {
   active: boolean
   onClick: () => void
@@ -16,16 +18,22 @@ export function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+      className={cn(
+        'relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200',
         active
-          ? 'bg-accent/5 text-accent'
-          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-      }`}
+          ? 'bg-[hsl(var(--primary))] text-white shadow-md shadow-[hsl(var(--primary))]/20'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+      )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={cn('h-4 w-4', active && 'text-white/90')} />
       {children}
       {badge !== undefined && badge > 0 && (
-        <span className="px-1.5 py-0.5 text-xs font-semibold bg-warning-100 text-warning-700 rounded-full">
+        <span className={cn(
+          'px-1.5 py-0.5 text-xs font-semibold rounded-full',
+          active
+            ? 'bg-white/20 text-white'
+            : 'bg-[hsl(var(--warning))] text-white'
+        )}>
           {badge}
         </span>
       )}
