@@ -4,8 +4,8 @@ type Role = 'SUPER_ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE'
 
 const roleStyles: Record<Role, string> = {
   SUPER_ADMIN: 'bg-accent/10 text-accent border-accent/20',
-  HR: 'bg-amber-100 text-amber-800 border-amber-200',
-  MANAGER: 'bg-blue-100 text-blue-800 border-blue-200',
+  HR: 'bg-warning-100 text-warning-800 border-warning-200',
+  MANAGER: 'bg-primary/10 text-primary border-primary/20',
   EMPLOYEE: 'bg-muted text-muted-foreground border-border',
 }
 
