@@ -1,21 +1,22 @@
-import 'server-only'
+import 'server-only';
 
-import type { Session } from 'next-auth'
-import { getPortalAuthPrisma } from '@ecom-os/auth/server'
-import { Prisma } from '@ecom-os/prisma-x-plan'
-import prisma from '@/lib/prisma'
+import type { Session } from 'next-auth';
+import { buildPortalUrl } from '@ecom-os/auth';
+import { getPortalAuthPrisma } from '@ecom-os/auth/server';
+import { Prisma } from '@ecom-os/prisma-x-plan';
+import prisma from '@/lib/prisma';
 
 type StrategyActor = {
-  id: string | null
-  email: string | null
-  isSuperAdmin: boolean
-}
+  id: string | null;
+  email: string | null;
+  isSuperAdmin: boolean;
+};
 
 export type AllowedAssignee = {
-  id: string
-  email: string
-  fullName: string | null
-}
+  id: string;
+  email: string;
+  fullName: string | null;
+};
 
 function parseEmailSet(raw: string | undefined) {
   return new Set(
@@ -23,82 +24,85 @@ function parseEmailSet(raw: string | undefined) {
       .split(/[,\s]+/)
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
-  )
+  );
 }
 
-const DEFAULT_SUPER_ADMINS = new Set(['jarrar@targonglobal.com'])
+const DEFAULT_SUPER_ADMINS = new Set(['jarrar@targonglobal.com']);
 
-let strategyAssignmentFieldsAvailable = true
+let strategyAssignmentFieldsAvailable = true;
 
 function superAdminEmailSet() {
-  const configured = parseEmailSet(process.env.XPLAN_SUPER_ADMIN_EMAILS)
-  return configured.size > 0 ? configured : DEFAULT_SUPER_ADMINS
+  const configured = parseEmailSet(process.env.XPLAN_SUPER_ADMIN_EMAILS);
+  return configured.size > 0 ? configured : DEFAULT_SUPER_ADMINS;
 }
 
 export function isXPlanSuperAdmin(email: string | null | undefined) {
-  const normalized = email?.trim().toLowerCase()
-  if (!normalized) return false
-  return superAdminEmailSet().has(normalized)
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) return false;
+  return superAdminEmailSet().has(normalized);
 }
 
 export function markStrategyAssignmentFieldsUnavailable() {
-  strategyAssignmentFieldsAvailable = false
+  strategyAssignmentFieldsAvailable = false;
 }
 
 export function areStrategyAssignmentFieldsAvailable() {
-  return strategyAssignmentFieldsAvailable
+  return strategyAssignmentFieldsAvailable;
 }
 
 export function isStrategyAssignmentFieldsMissingError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2022') {
-    return true
+    return true;
   }
 
-  const message = error instanceof Error ? error.message : String(error)
+  const message = error instanceof Error ? error.message : String(error);
   return (
     message.includes('createdById') ||
     message.includes('createdByEmail') ||
     message.includes('assigneeId') ||
     message.includes('assigneeEmail')
-  )
+  );
 }
 
 export function getStrategyActor(session: Session | null): StrategyActor {
-  const user = session?.user as (Session['user'] & { id?: unknown }) | undefined
-  const id = typeof user?.id === 'string' ? user.id : null
-  const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : null
+  const user = session?.user as (Session['user'] & { id?: unknown }) | undefined;
+  const id = typeof user?.id === 'string' ? user.id : null;
+  const email = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : null;
 
   return {
     id,
     email,
     isSuperAdmin: isXPlanSuperAdmin(email),
-  }
+  };
 }
 
 export function buildStrategyAccessWhere(actor: StrategyActor) {
-  if (actor.isSuperAdmin || !strategyAssignmentFieldsAvailable) return {}
+  if (actor.isSuperAdmin || !strategyAssignmentFieldsAvailable) return {};
 
-  const or: Array<Record<string, unknown>> = []
+  const or: Array<Record<string, unknown>> = [];
   if (actor.id) {
-    or.push({ createdById: actor.id }, { assigneeId: actor.id })
+    or.push({ createdById: actor.id }, { assigneeId: actor.id });
   }
   if (actor.email) {
-    or.push({ createdByEmail: actor.email }, { assigneeEmail: actor.email })
+    or.push({ createdByEmail: actor.email }, { assigneeEmail: actor.email });
   }
 
   if (or.length === 0) {
-    return { id: '__forbidden__' }
+    return { id: '__forbidden__' };
   }
 
-  return { OR: or }
+  return { OR: or };
 }
 
-export async function canAccessStrategy(strategyId: string, actor: StrategyActor): Promise<boolean> {
-  if (actor.isSuperAdmin) return true
-  if (!strategyId) return false
-  if (!strategyAssignmentFieldsAvailable) return true
+export async function canAccessStrategy(
+  strategyId: string,
+  actor: StrategyActor,
+): Promise<boolean> {
+  if (actor.isSuperAdmin) return true;
+  if (!strategyId) return false;
+  if (!strategyAssignmentFieldsAvailable) return true;
 
-  const prismaAny = prisma as unknown as Record<string, any>
+  const prismaAny = prisma as unknown as Record<string, any>;
 
   try {
     const row = await prismaAny.strategy.findFirst({
@@ -107,85 +111,135 @@ export async function canAccessStrategy(strategyId: string, actor: StrategyActor
         ...buildStrategyAccessWhere(actor),
       },
       select: { id: true },
-    })
+    });
 
-    return Boolean(row)
+    return Boolean(row);
   } catch (error) {
     if (isStrategyAssignmentFieldsMissingError(error)) {
-      markStrategyAssignmentFieldsUnavailable()
-      return true
+      markStrategyAssignmentFieldsUnavailable();
+      return true;
     }
-    throw error
+    throw error;
   }
 }
 
-export async function requireStrategyAccess(strategyId: string, actor: StrategyActor): Promise<void> {
-  const ok = await canAccessStrategy(strategyId, actor)
+export async function requireStrategyAccess(
+  strategyId: string,
+  actor: StrategyActor,
+): Promise<void> {
+  const ok = await canAccessStrategy(strategyId, actor);
   if (!ok) {
-    throw new Error('StrategyAccessDenied')
+    throw new Error('StrategyAccessDenied');
   }
 }
 
 export async function listAllowedXPlanAssignees(): Promise<AllowedAssignee[]> {
-  if (!process.env.PORTAL_DB_URL) {
-    return []
-  }
+  return listAllowedXPlanAssigneesWithCookie(null);
+}
 
-  const authPrisma = getPortalAuthPrisma()
-  const users = await authPrisma.user.findMany({
-    where: {
-      isActive: true,
-      appAccess: {
-        some: {
-          app: { slug: 'x-plan' },
+export async function listAllowedXPlanAssigneesWithCookie(
+  cookieHeader: string | null,
+): Promise<AllowedAssignee[]> {
+  if (process.env.PORTAL_DB_URL) {
+    const authPrisma = getPortalAuthPrisma();
+    const users = await authPrisma.user.findMany({
+      where: {
+        isActive: true,
+        appAccess: {
+          some: {
+            app: { slug: 'x-plan' },
+          },
         },
       },
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-    },
-    orderBy: { email: 'asc' },
-  })
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+      orderBy: { email: 'asc' },
+    });
 
-  return users.map((user) => ({
-    id: user.id,
-    email: user.email,
-    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-  }))
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+    }));
+  }
+
+  if (!cookieHeader) {
+    return [];
+  }
+
+  try {
+    const url = buildPortalUrl('/api/v1/directory/x-plan-assignees');
+    const response = await fetch(url, {
+      headers: { cookie: cookieHeader },
+      cache: 'no-store',
+    });
+    const data = (await response.json().catch(() => null)) as { assignees?: unknown } | null;
+    if (!response.ok) {
+      return [];
+    }
+    if (!Array.isArray(data?.assignees)) {
+      return [];
+    }
+
+    return data.assignees
+      .filter(
+        (assignee): assignee is Record<string, unknown> =>
+          Boolean(assignee) && typeof assignee === 'object',
+      )
+      .filter((record) => typeof record.id === 'string' && typeof record.email === 'string')
+      .map((record) => ({
+        id: record.id as string,
+        email: record.email as string,
+        fullName: typeof record.fullName === 'string' ? record.fullName : null,
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export async function resolveAllowedXPlanAssigneeById(id: string): Promise<AllowedAssignee | null> {
-  if (!process.env.PORTAL_DB_URL) {
-    return null
-  }
+  return resolveAllowedXPlanAssigneeByIdWithCookie(id, null);
+}
 
-  const authPrisma = getPortalAuthPrisma()
-  const user = await authPrisma.user.findFirst({
-    where: {
-      id,
-      isActive: true,
-      appAccess: {
-        some: {
-          app: { slug: 'x-plan' },
+export async function resolveAllowedXPlanAssigneeByIdWithCookie(
+  id: string,
+  cookieHeader: string | null,
+): Promise<AllowedAssignee | null> {
+  if (!id) return null;
+
+  if (process.env.PORTAL_DB_URL) {
+    const authPrisma = getPortalAuthPrisma();
+    const user = await authPrisma.user.findFirst({
+      where: {
+        id,
+        isActive: true,
+        appAccess: {
+          some: {
+            app: { slug: 'x-plan' },
+          },
         },
       },
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-    },
-  })
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
 
-  if (!user) return null
+    if (!user) return null;
 
-  return {
-    id: user.id,
-    email: user.email,
-    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+    };
   }
+
+  const assignees = await listAllowedXPlanAssigneesWithCookie(cookieHeader);
+  return assignees.find((assignee) => assignee.id === id) ?? null;
 }

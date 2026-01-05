@@ -68,6 +68,7 @@ case "$app_key" in
     app_dir="$REPO_DIR/apps/x-plan"
     pm2_name="${PM2_PREFIX}-x-plan"
     prisma_cmd="pnpm --filter $workspace prisma:generate"
+    migrate_cmd="pnpm --filter $workspace prisma:migrate:deploy"
     build_cmd="pnpm --filter $workspace build"
     ;;
   hrms)

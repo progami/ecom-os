@@ -1,138 +1,149 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useState } from 'react'
-import { toast } from 'sonner'
-import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { withAppBasePath } from '@/lib/base-path'
-import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-
-const DEFAULT_STRATEGY_ID = 'default-strategy'
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { withAppBasePath } from '@/lib/base-path';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 type Assignee = {
-  id: string
-  email: string
-  fullName: string | null
-}
+  id: string;
+  email: string;
+  fullName: string | null;
+};
 
 type Strategy = {
-  id: string
-  name: string
-  description: string | null
-  region: 'US' | 'UK'
-  isDefault: boolean
-  createdById?: string | null
-  createdByEmail?: string | null
-  assigneeId?: string | null
-  assigneeEmail?: string | null
-  createdAt: string
-  updatedAt: string
+  id: string;
+  name: string;
+  description: string | null;
+  region: 'US' | 'UK';
+  isDefault: boolean;
+  createdById?: string | null;
+  createdByEmail?: string | null;
+  assigneeId?: string | null;
+  assigneeEmail?: string | null;
+  createdAt: string;
+  updatedAt: string;
   _count: {
-    products: number
-    purchaseOrders: number
-    salesWeeks: number
-  }
-}
+    products: number;
+    purchaseOrders: number;
+    salesWeeks: number;
+  };
+};
 
 interface StrategiesWorkspaceProps {
-  strategies: Strategy[]
-  activeStrategyId?: string | null
+  strategies: Strategy[];
+  activeStrategyId?: string | null;
   viewer: {
-    id: string | null
-    email: string | null
-    isSuperAdmin: boolean
-  }
+    id: string | null;
+    email: string | null;
+    isSuperAdmin: boolean;
+  };
 }
 
-export function StrategiesWorkspace({ strategies: initialStrategies, activeStrategyId, viewer }: StrategiesWorkspaceProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [strategies, setStrategies] = useState<Strategy[]>(initialStrategies)
-  const [isAdding, setIsAdding] = useState(false)
-  const [isCreating, setIsCreating] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDescription, setNewDescription] = useState('')
-  const [newRegion, setNewRegion] = useState<'US' | 'UK'>('US')
-  const [newAssigneeId, setNewAssigneeId] = useState<string>('')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editDescription, setEditDescription] = useState('')
-  const [editRegion, setEditRegion] = useState<'US' | 'UK'>('US')
-  const [editAssigneeId, setEditAssigneeId] = useState<string>('')
+export function StrategiesWorkspace({
+  strategies: initialStrategies,
+  activeStrategyId,
+  viewer,
+}: StrategiesWorkspaceProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [strategies, setStrategies] = useState<Strategy[]>(initialStrategies);
+  const [isAdding, setIsAdding] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newRegion, setNewRegion] = useState<'US' | 'UK'>('US');
+  const [newAssigneeId, setNewAssigneeId] = useState<string>('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editRegion, setEditRegion] = useState<'US' | 'UK'>('US');
+  const [editAssigneeId, setEditAssigneeId] = useState<string>('');
 
-  const [assignees, setAssignees] = useState<Assignee[]>([])
-  const [directoryConfigured, setDirectoryConfigured] = useState(true)
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+  const [directoryConfigured, setDirectoryConfigured] = useState(true);
 
-  const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
+  const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null;
 
   const canAssignByStrategyId = useMemo(() => {
-    const map = new Map<string, boolean>()
+    const map = new Map<string, boolean>();
     for (const strategy of strategies) {
       const canAssign =
         viewer.isSuperAdmin ||
         (viewer.id != null && strategy.createdById === viewer.id) ||
-        (viewer.email != null && strategy.createdByEmail?.toLowerCase() === viewer.email)
-      map.set(strategy.id, canAssign)
+        (viewer.email != null && strategy.createdByEmail?.toLowerCase() === viewer.email);
+      map.set(strategy.id, canAssign);
     }
-    return map
-  }, [strategies, viewer.email, viewer.id, viewer.isSuperAdmin])
+    return map;
+  }, [strategies, viewer.email, viewer.id, viewer.isSuperAdmin]);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function loadAssignees() {
       try {
-        const response = await fetch(withAppBasePath('/api/v1/x-plan/assignees'))
-        const data = (await response.json().catch(() => null)) as
-          | { assignees?: Assignee[]; directoryConfigured?: boolean; error?: string }
-          | null
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/assignees'));
+        const data = (await response.json().catch(() => null)) as {
+          assignees?: Assignee[];
+          directoryConfigured?: boolean;
+          error?: string;
+        } | null;
 
         if (!response.ok) {
-          const message = data?.error || 'Failed to load assignees'
-          throw new Error(message)
+          const message = data?.error || 'Failed to load assignees';
+          throw new Error(message);
         }
 
-        if (cancelled) return
-        setAssignees(Array.isArray(data?.assignees) ? data!.assignees : [])
-        setDirectoryConfigured(Boolean(data?.directoryConfigured))
+        if (cancelled) return;
+        setAssignees(Array.isArray(data?.assignees) ? data!.assignees : []);
+        setDirectoryConfigured(Boolean(data?.directoryConfigured));
       } catch (error) {
-        console.error(error)
+        console.error(error);
         if (!cancelled) {
-          setAssignees([])
-          setDirectoryConfigured(false)
+          setAssignees([]);
+          setDirectoryConfigured(false);
         }
       }
     }
 
-    void loadAssignees()
+    void loadAssignees();
 
     return () => {
-      cancelled = true
-    }
-  }, [])
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
-    if (!isAdding) return
+    if (!isAdding) return;
     if (!newAssigneeId && viewer.id) {
-      setNewAssigneeId(viewer.id)
+      setNewAssigneeId(viewer.id);
     }
-  }, [isAdding, newAssigneeId, viewer.id])
+  }, [isAdding, newAssigneeId, viewer.id]);
 
   const renderAssigneeLabel = (strategy: Strategy) => {
-    if (strategy.assigneeEmail) return strategy.assigneeEmail
-    return 'Unassigned'
-  }
+    if (strategy.assigneeEmail) return strategy.assigneeEmail;
+    return 'Unassigned';
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) {
-      toast.error('Enter a strategy name')
-      return
+      toast.error('Enter a strategy name');
+      return;
     }
 
-    setIsCreating(true)
+    setIsCreating(true);
     try {
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'POST',
@@ -143,11 +154,11 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
           region: newRegion,
           ...(newAssigneeId ? { assigneeId: newAssigneeId } : {}),
         }),
-      })
-      const data = await response.json().catch(() => null)
+      });
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const message = (data as any)?.error || 'Failed to create strategy'
-        throw new Error(message)
+        const message = (data as any)?.error || 'Failed to create strategy';
+        throw new Error(message);
       }
       setStrategies((prev) => [
         ...prev,
@@ -155,37 +166,33 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
           ...(data as any).strategy,
           _count: { products: 0, purchaseOrders: 0, salesWeeks: 0 },
         },
-      ])
-      setNewName('')
-      setNewDescription('')
-      setNewRegion('US')
-      setNewAssigneeId(viewer.id ?? '')
-      setIsAdding(false)
-      toast.success('Strategy created')
+      ]);
+      setNewName('');
+      setNewDescription('');
+      setNewRegion('US');
+      setNewAssigneeId(viewer.id ?? '');
+      setIsAdding(false);
+      toast.success('Strategy created');
     } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : 'Failed to create strategy')
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create strategy');
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   const handleUpdate = async (id: string) => {
-    const strategy = strategies.find((s) => s.id === id)
-    if (id === DEFAULT_STRATEGY_ID || strategy?.isDefault) {
-      toast.error('Default strategy cannot be edited')
-      return
-    }
+    const strategy = strategies.find((s) => s.id === id);
 
     if (!editName.trim()) {
-      toast.error('Enter a strategy name')
-      return
+      toast.error('Enter a strategy name');
+      return;
     }
 
     try {
-      const canAssign = Boolean(canAssignByStrategyId.get(id))
-      const currentAssigneeId = strategy?.assigneeId ?? ''
-      const assigneeChanged = editAssigneeId !== currentAssigneeId && editAssigneeId !== ''
+      const canAssign = Boolean(canAssignByStrategyId.get(id));
+      const currentAssigneeId = strategy?.assigneeId ?? '';
+      const assigneeChanged = editAssigneeId !== currentAssigneeId && editAssigneeId !== '';
 
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'PUT',
@@ -197,75 +204,68 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
           region: editRegion,
           ...(canAssign && assigneeChanged ? { assigneeId: editAssigneeId } : {}),
         }),
-      })
-      const data = await response.json().catch(() => null)
+      });
+      const data = await response.json().catch(() => null);
       if (!response.ok) {
-        const message = (data as any)?.error || 'Failed to update strategy'
-        throw new Error(message)
+        const message = (data as any)?.error || 'Failed to update strategy';
+        throw new Error(message);
       }
-      setStrategies((prev) => prev.map((s) => (s.id === id ? { ...s, ...(data as any).strategy } : s)))
-      setEditingId(null)
-      toast.success('Strategy updated')
+      setStrategies((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, ...(data as any).strategy } : s)),
+      );
+      setEditingId(null);
+      toast.success('Strategy updated');
     } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : 'Failed to update strategy')
+      console.error(error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update strategy');
     }
-  }
+  };
 
   const handleDelete = async (id: string) => {
-    const strategy = strategies.find((item) => item.id === id)
-    if (!strategy) return
-
-    if (id === DEFAULT_STRATEGY_ID || strategy.isDefault) {
-      toast.error('Cannot delete the default strategy for existing data')
-      return
-    }
+    const strategy = strategies.find((item) => item.id === id);
+    if (!strategy) return;
 
     try {
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
-      })
-      if (!response.ok) throw new Error('Failed to delete strategy')
-      setStrategies((prev) => prev.filter((s) => s.id !== id))
-      toast.success('Strategy deleted')
+      });
+      if (!response.ok) throw new Error('Failed to delete strategy');
+      setStrategies((prev) => prev.filter((s) => s.id !== id));
+      toast.success('Strategy deleted');
     } catch (error) {
-      console.error(error)
-      toast.error('Failed to delete strategy')
+      console.error(error);
+      toast.error('Failed to delete strategy');
     }
-  }
+  };
 
   const handleSelectStrategy = (id: string, name: string) => {
-    if (id === selectedStrategyId) return
-    const nextParams = new URLSearchParams(searchParams?.toString() ?? '')
-    nextParams.set('strategy', id)
-    router.push(`?${nextParams.toString()}`)
-    toast.success(`Switched to "${name}"`)
-  }
+    if (id === selectedStrategyId) return;
+    const nextParams = new URLSearchParams(searchParams?.toString() ?? '');
+    nextParams.set('strategy', id);
+    router.push(`?${nextParams.toString()}`);
+    toast.success(`Switched to "${name}"`);
+  };
 
   const startEdit = (strategy: Strategy) => {
-    if (strategy.id === DEFAULT_STRATEGY_ID || strategy.isDefault) {
-      toast.error('Default strategy cannot be edited')
-      return
-    }
-    setEditingId(strategy.id)
-    setEditName(strategy.name)
-    setEditDescription(strategy.description ?? '')
-    setEditRegion(strategy.region ?? 'US')
-    setEditAssigneeId(strategy.assigneeId ?? '')
-  }
+    setEditingId(strategy.id);
+    setEditName(strategy.name);
+    setEditDescription(strategy.description ?? '');
+    setEditRegion(strategy.region ?? 'US');
+    setEditAssigneeId(strategy.assigneeId ?? '');
+  };
 
   const cancelEdit = () => {
-    setEditingId(null)
-    setEditName('')
-    setEditDescription('')
-    setEditRegion('US')
-    setEditAssigneeId('')
-  }
+    setEditingId(null);
+    setEditName('');
+    setEditDescription('');
+    setEditRegion('US');
+    setEditAssigneeId('');
+  };
 
   const primaryActionClass =
-    'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10'
+    'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10';
 
   return (
     <section className="space-y-4">
@@ -275,7 +275,8 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
             Planning Strategies
           </h2>
           <p className="text-sm text-muted-foreground">
-            Click a row to switch strategies. Each strategy has its own products, orders, and forecasts.
+            Click a row to switch strategies. Each strategy has its own products, orders, and
+            forecasts.
           </p>
         </div>
         {!isAdding ? (
@@ -327,8 +328,8 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                         onChange={(e) => setNewDescription(e.target.value)}
                         placeholder="Description (optional)"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') void handleCreate()
-                          if (e.key === 'Escape') setIsAdding(false)
+                          if (e.key === 'Enter') void handleCreate();
+                          if (e.key === 'Escape') setIsAdding(false);
                         }}
                         className="h-8"
                       />
@@ -363,8 +364,12 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">-</TableCell>
-                  <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">-</TableCell>
+                  <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">
+                    -
+                  </TableCell>
+                  <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">
+                    -
+                  </TableCell>
                   <TableCell className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       <button
@@ -396,9 +401,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                 </TableRow>
               ) : (
                 strategies.map((strategy) => {
-                  const isActive = selectedStrategyId === strategy.id
-                  const isEditing = editingId === strategy.id
-                  const canAssign = Boolean(canAssignByStrategyId.get(strategy.id))
+                  const isActive = selectedStrategyId === strategy.id;
+                  const isEditing = editingId === strategy.id;
+                  const canAssign = Boolean(canAssignByStrategyId.get(strategy.id));
 
                   return (
                     <TableRow
@@ -414,14 +419,18 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                       <TableCell className="border-r px-4 py-3">
                         {isEditing ? (
                           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="h-8" />
+                            <Input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="h-8"
+                            />
                             <Input
                               value={editDescription}
                               onChange={(e) => setEditDescription(e.target.value)}
                               placeholder="Description"
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') void handleUpdate(strategy.id)
-                                if (e.key === 'Escape') cancelEdit()
+                                if (e.key === 'Enter') void handleUpdate(strategy.id);
+                                if (e.key === 'Escape') cancelEdit();
                               }}
                               className="h-8"
                             />
@@ -444,7 +453,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                                 <span
                                   className={cn(
                                     'text-sm font-medium',
-                                    isActive ? 'text-cyan-900 dark:text-cyan-100' : 'text-foreground',
+                                    isActive
+                                      ? 'text-cyan-900 dark:text-cyan-100'
+                                      : 'text-foreground',
                                   )}
                                 >
                                   {strategy.name}
@@ -457,16 +468,20 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                                     Active
                                   </Badge>
                                 ) : null}
-                                {strategy.isDefault ? <Badge variant="outline">Default</Badge> : null}
                               </div>
                               {strategy.description ? (
-                                <p className="mt-0.5 truncate text-xs text-muted-foreground">{strategy.description}</p>
+                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                  {strategy.description}
+                                </p>
                               ) : null}
                             </div>
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="border-r px-4 py-3" onClick={(e) => isEditing && e.stopPropagation()}>
+                      <TableCell
+                        className="border-r px-4 py-3"
+                        onClick={(e) => isEditing && e.stopPropagation()}
+                      >
                         {isEditing ? (
                           <select
                             value={editAssigneeId}
@@ -489,9 +504,13 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                           </select>
                         ) : (
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-sm text-foreground">{renderAssigneeLabel(strategy)}</span>
+                            <span className="text-sm text-foreground">
+                              {renderAssigneeLabel(strategy)}
+                            </span>
                             {!canAssign && strategy.createdByEmail ? (
-                              <span className="text-[11px] text-muted-foreground">Creator: {strategy.createdByEmail}</span>
+                              <span className="text-[11px] text-muted-foreground">
+                                Creator: {strategy.createdByEmail}
+                              </span>
                             ) : null}
                           </div>
                         )}
@@ -500,7 +519,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                         <span
                           className={cn(
                             'text-sm tabular-nums',
-                            isActive ? 'font-semibold text-cyan-700 dark:text-cyan-300' : 'text-muted-foreground',
+                            isActive
+                              ? 'font-semibold text-cyan-700 dark:text-cyan-300'
+                              : 'text-muted-foreground',
                           )}
                         >
                           {strategy._count.products}
@@ -510,7 +531,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                         <span
                           className={cn(
                             'text-sm tabular-nums',
-                            isActive ? 'font-semibold text-cyan-700 dark:text-cyan-300' : 'text-muted-foreground',
+                            isActive
+                              ? 'font-semibold text-cyan-700 dark:text-cyan-300'
+                              : 'text-muted-foreground',
                           )}
                         >
                           {strategy._count.purchaseOrders}
@@ -544,21 +567,19 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                               >
                                 <Pencil className="h-4 w-4" />
                               </button>
-                              {!strategy.isDefault && strategy.id !== DEFAULT_STRATEGY_ID ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleDelete(strategy.id)}
-                                  className="rounded p-1.5 text-muted-foreground transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(strategy.id)}
+                                className="rounded p-1.5 text-muted-foreground transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </>
                           )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  )
+                  );
                 })
               )}
             </TableBody>
@@ -566,5 +587,5 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
         </div>
       </div>
     </section>
-  )
+  );
 }
