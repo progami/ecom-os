@@ -286,21 +286,11 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
       if (editingCell) return
+      if (!activeCell) return
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        moveActiveCell(1, 0)
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        moveActiveCell(-1, 0)
-      } else if (e.key === 'ArrowRight' || e.key === 'Tab') {
-        e.preventDefault()
-        moveActiveCell(0, e.shiftKey ? -1 : 1)
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        moveActiveCell(0, -1)
-      } else if ((e.key === 'Enter' || e.key === 'F2') && activeCell) {
+      if (e.key === 'Enter' || e.key === 'F2') {
         e.preventDefault()
         const config = columnConfig[activeCell.col]
         if (config?.editable) {
@@ -313,7 +303,30 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
             })
           }
         }
-      } else if (e.key === 'Escape') {
+        return
+      }
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        moveActiveCell(1, 0)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        moveActiveCell(-1, 0)
+        return
+      }
+      if (e.key === 'ArrowRight' || e.key === 'Tab') {
+        e.preventDefault()
+        moveActiveCell(0, e.shiftKey ? -1 : 1)
+        return
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        moveActiveCell(0, -1)
+        return
+      }
+      if (e.key === 'Escape') {
         setSelection(null)
         setActiveCell(null)
       }
