@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Download } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -146,18 +145,6 @@ export function SalesPlanningVisual({
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => exportChart('sales-planning', selectedProductId)}
-          className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export
-        </button>
-      </div>
-
       {/* Chart Card */}
       <Card>
         <CardHeader className="pb-2">
@@ -327,17 +314,4 @@ export function SalesPlanningVisual({
       </Card>
     </div>
   );
-}
-
-function exportChart(name: string, productId: string) {
-  const chartElement = document.querySelector('.recharts-wrapper svg') as SVGElement;
-  if (!chartElement) return;
-  const data = new XMLSerializer().serializeToString(chartElement);
-  const blob = new Blob([data], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${name}-${productId}.svg`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
