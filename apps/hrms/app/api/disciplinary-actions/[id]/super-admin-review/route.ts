@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canHRReview } from '@/lib/permissions'
+import { isSuperAdmin } from '@/lib/permissions'
 
 /**
- * HR Review endpoint for disciplinary actions
+ * Super Admin Review endpoint for disciplinary actions
  * 3-tier workflow: Manager raises -> HR reviews -> Super Admin approves -> Employee acknowledges
  */
 type RouteContext = { params: Promise<{ id: string }> }
@@ -26,16 +26,16 @@ export async function POST(req: Request, context: RouteContext) {
       )
     }
 
-    // Check if current user is HR
+    // Check if current user is Super Admin
     const currentEmployeeId = await getCurrentEmployeeId()
     if (!currentEmployeeId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const permissionCheck = await canHRReview(currentEmployeeId)
-    if (!permissionCheck.allowed) {
+    const isAdmin = await isSuperAdmin(currentEmployeeId)
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: `Permission denied: ${permissionCheck.reason}` },
+        { error: 'Permission denied: Only Super Admin can give final approval' },
         { status: 403 }
       )
     }
@@ -59,24 +59,24 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Disciplinary action not found' }, { status: 404 })
     }
 
-    // Verify action is in correct state for HR review
-    if (action.status !== 'PENDING_HR_REVIEW') {
+    // Verify action is in correct state for Super Admin review
+    if (action.status !== 'PENDING_SUPER_ADMIN') {
       return NextResponse.json(
-        { error: `Cannot review: action is in ${action.status} status, expected PENDING_HR_REVIEW` },
+        { error: `Cannot review: action is in ${action.status} status, expected PENDING_SUPER_ADMIN` },
         { status: 400 }
       )
     }
 
     if (approved) {
-      // HR approves - move to PENDING_SUPER_ADMIN for final approval
+      // Super Admin approves - move to PENDING_ACKNOWLEDGMENT
       const updated = await prisma.disciplinaryAction.update({
         where: { id },
         data: {
-          status: 'PENDING_SUPER_ADMIN',
-          hrReviewedAt: new Date(),
-          hrReviewedById: currentEmployeeId,
-          hrReviewNotes: notes ?? null,
-          hrApproved: true,
+          status: 'PENDING_ACKNOWLEDGMENT',
+          superAdminApprovedAt: new Date(),
+          superAdminApprovedById: currentEmployeeId,
+          superAdminNotes: notes ?? null,
+          superAdminApproved: true,
         },
         include: {
           employee: {
@@ -92,44 +92,35 @@ export async function POST(req: Request, context: RouteContext) {
 
       const recordLink = `/performance/violations/${id}`
 
-      // Notify Super Admins for final approval
-      const superAdmins = await prisma.employee.findMany({
-        where: { isSuperAdmin: true, status: 'ACTIVE' },
-        select: { id: true },
+      // Notify employee to acknowledge
+      await prisma.notification.create({
+        data: {
+          type: 'VIOLATION_APPROVED',
+          title: 'Violation Requires Acknowledgment',
+          message: `A violation record has been issued to you. Please review and acknowledge.`,
+          link: recordLink,
+          employeeId: updated.employee.id,
+          relatedId: id,
+          relatedType: 'DISCIPLINARY',
+        },
       })
-
-      await Promise.all(
-        superAdmins.map((admin) =>
-          prisma.notification.create({
-            data: {
-              type: 'VIOLATION_PENDING_ADMIN',
-              title: 'Violation Pending Final Approval',
-              message: `A violation for ${updated.employee.firstName} ${updated.employee.lastName} has been approved by HR and requires your final approval.`,
-              link: recordLink,
-              employeeId: admin.id,
-              relatedId: id,
-              relatedType: 'DISCIPLINARY',
-            },
-          })
-        )
-      )
 
       return NextResponse.json({
         success: true,
-        message: 'Violation approved by HR, sent to Super Admin for final approval',
+        message: 'Violation approved by Super Admin, sent to employee for acknowledgment',
         action: updated,
       })
     } else {
-      // HR rejects - move to DISMISSED
+      // Super Admin rejects - move to DISMISSED
       const updated = await prisma.disciplinaryAction.update({
         where: { id },
         data: {
           status: 'DISMISSED',
-          hrReviewedAt: new Date(),
-          hrReviewedById: currentEmployeeId,
-          hrReviewNotes: notes ?? null,
-          hrApproved: false,
-          resolution: notes ?? 'Rejected by HR',
+          superAdminApprovedAt: new Date(),
+          superAdminApprovedById: currentEmployeeId,
+          superAdminNotes: notes ?? null,
+          superAdminApproved: false,
+          resolution: notes ?? 'Rejected by Super Admin',
         },
         include: {
           employee: {
@@ -145,13 +136,13 @@ export async function POST(req: Request, context: RouteContext) {
 
       const recordLink = `/performance/violations/${id}`
 
-      // Notify the manager who raised it (reportedBy field contains their name, but we need to find by reportsToId)
+      // Notify the manager who raised it
       if (action.employee.reportsToId) {
         await prisma.notification.create({
           data: {
             type: 'VIOLATION_REJECTED',
-            title: 'Violation Rejected by HR',
-            message: `The violation you raised for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by HR.`,
+            title: 'Violation Rejected by Super Admin',
+            message: `The violation you raised for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by Super Admin.`,
             link: recordLink,
             employeeId: action.employee.reportsToId,
             relatedId: id,
@@ -160,19 +151,34 @@ export async function POST(req: Request, context: RouteContext) {
         })
       }
 
+      // Notify HR who approved it
+      if (action.hrReviewedById) {
+        await prisma.notification.create({
+          data: {
+            type: 'VIOLATION_REJECTED',
+            title: 'Violation Rejected by Super Admin',
+            message: `The violation for ${updated.employee.firstName} ${updated.employee.lastName} that you approved has been rejected by Super Admin.`,
+            link: recordLink,
+            employeeId: action.hrReviewedById,
+            relatedId: id,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
+      }
+
       return NextResponse.json({
         success: true,
-        message: 'Violation rejected by HR',
+        message: 'Violation rejected by Super Admin',
         action: updated,
       })
     }
   } catch (e) {
-    return safeErrorResponse(e, 'Failed to process HR review')
+    return safeErrorResponse(e, 'Failed to process Super Admin review')
   }
 }
 
 /**
- * GET - Get HR review status for a disciplinary action
+ * GET - Get Super Admin review status for a disciplinary action
  */
 export async function GET(req: Request, context: RouteContext) {
   const rateLimitError = withRateLimit(req)
@@ -191,10 +197,10 @@ export async function GET(req: Request, context: RouteContext) {
       select: {
         id: true,
         status: true,
-        hrReviewedAt: true,
-        hrReviewedById: true,
-        hrReviewNotes: true,
-        hrApproved: true,
+        superAdminApprovedAt: true,
+        superAdminApprovedById: true,
+        superAdminNotes: true,
+        superAdminApproved: true,
       },
     })
 
@@ -202,18 +208,18 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Disciplinary action not found' }, { status: 404 })
     }
 
-    const permissionCheck = await canHRReview(currentEmployeeId)
+    const isAdmin = await isSuperAdmin(currentEmployeeId)
 
     return NextResponse.json({
-      canReview: action.status === 'PENDING_HR_REVIEW' && permissionCheck.allowed,
-      hrReview: {
-        reviewedAt: action.hrReviewedAt,
-        reviewedById: action.hrReviewedById,
-        notes: action.hrReviewNotes,
-        approved: action.hrApproved,
+      canReview: action.status === 'PENDING_SUPER_ADMIN' && isAdmin,
+      superAdminReview: {
+        approvedAt: action.superAdminApprovedAt,
+        approvedById: action.superAdminApprovedById,
+        notes: action.superAdminNotes,
+        approved: action.superAdminApproved,
       },
     })
   } catch (e) {
-    return safeErrorResponse(e, 'Failed to get HR review status')
+    return safeErrorResponse(e, 'Failed to get Super Admin review status')
   }
 }

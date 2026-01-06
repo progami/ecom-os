@@ -554,6 +554,8 @@ enum NotificationType {
 
   // Leave notifications
   LEAVE_REQUESTED             // Notify manager when employee requests leave
+  LEAVE_PENDING_HR            // Notify HR of leave pending HR approval
+  LEAVE_PENDING_SUPER_ADMIN   // Notify Super Admin of leave pending final approval
   LEAVE_APPROVED              // Notify employee when leave is approved
   LEAVE_REJECTED              // Notify employee when leave is rejected
   LEAVE_CANCELLED             // Notify manager when employee cancels leave
@@ -686,12 +688,27 @@ model LeaveRequest {
   endDate         DateTime
   totalDays       Float          // Can be 0.5 for half days
   reason          String?
-  status          LeaveStatus    @default(PENDING)
+  status          LeaveStatus    @default(PENDING_MANAGER)
 
-  // Approval tracking
+  // Legacy approval tracking (kept for backwards compatibility)
   reviewedById    String?
   reviewedAt      DateTime?
   reviewNotes     String?
+
+  // Manager approval (Level 1)
+  managerApprovedById   String?
+  managerApprovedAt     DateTime?
+  managerNotes          String?
+
+  // HR approval (Level 2)
+  hrApprovedById        String?
+  hrApprovedAt          DateTime?
+  hrNotes               String?
+
+  // Super Admin approval (Level 3)
+  superAdminApprovedById String?
+  superAdminApprovedAt   DateTime?
+  superAdminNotes        String?
 
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -714,10 +731,18 @@ enum LeaveType {
 }
 
 enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
+  // Approval chain statuses
+  PENDING_MANAGER       // Employee requested, waiting for manager
+  PENDING_HR            // Manager approved, waiting for HR
+  PENDING_SUPER_ADMIN   // HR approved, waiting for Super Admin
+
+  // Legacy status (kept for backwards compatibility)
+  PENDING               // Maps to PENDING_MANAGER for new requests
+
+  // Final statuses
+  APPROVED              // Super Admin approved
+  REJECTED              // Rejected at any stage
+  CANCELLED             // Employee cancelled
 }
 
 // ============ PERFORMANCE MANAGEMENT ============

@@ -20,6 +20,9 @@ const LEAVE_TYPE_LABELS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',
+  PENDING_MANAGER: 'Pending Manager',
+  PENDING_HR: 'Pending HR',
+  PENDING_SUPER_ADMIN: 'Pending Final Approval',
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
@@ -33,6 +36,111 @@ function formatDate(value: string | null | undefined): string {
     month: 'long',
     day: 'numeric',
   })
+}
+
+type ApprovalStep = {
+  level: number
+  label: string
+  status: 'pending' | 'approved' | 'current' | 'skipped'
+  approvedBy?: { firstName: string; lastName: string } | null
+  approvedAt?: string | null
+  notes?: string | null
+}
+
+function getApprovalSteps(leave: LeaveRequest): ApprovalStep[] {
+  const steps: ApprovalStep[] = []
+
+  // Manager approval (Level 1)
+  const managerApproved = !!leave.managerApprovedById
+  const isAtManager = leave.status === 'PENDING_MANAGER'
+  steps.push({
+    level: 1,
+    label: 'Manager',
+    status: managerApproved ? 'approved' : isAtManager ? 'current' : 'pending',
+    approvedBy: leave.managerApprovedBy,
+    approvedAt: leave.managerApprovedAt,
+    notes: leave.managerNotes,
+  })
+
+  // HR approval (Level 2)
+  const hrApproved = !!leave.hrApprovedById
+  const isAtHR = leave.status === 'PENDING_HR'
+  steps.push({
+    level: 2,
+    label: 'HR',
+    status: hrApproved ? 'approved' : isAtHR ? 'current' : 'pending',
+    approvedBy: leave.hrApprovedBy,
+    approvedAt: leave.hrApprovedAt,
+    notes: leave.hrNotes,
+  })
+
+  // Super Admin approval (Level 3)
+  const superAdminApproved = !!leave.superAdminApprovedById
+  const isAtSuperAdmin = leave.status === 'PENDING_SUPER_ADMIN'
+  steps.push({
+    level: 3,
+    label: 'Final Approval',
+    status: superAdminApproved ? 'approved' : isAtSuperAdmin ? 'current' : 'pending',
+    approvedBy: leave.superAdminApprovedBy,
+    approvedAt: leave.superAdminApprovedAt,
+    notes: leave.superAdminNotes,
+  })
+
+  return steps
+}
+
+function ApprovalChain({ steps }: { steps: ApprovalStep[] }) {
+  return (
+    <div className="space-y-3">
+      {steps.map((step, idx) => (
+        <div key={step.level} className="flex items-start gap-3">
+          {/* Step indicator */}
+          <div className="flex flex-col items-center">
+            <div
+              className={`
+                w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                ${step.status === 'approved'
+                  ? 'bg-success-100 text-success-700'
+                  : step.status === 'current'
+                    ? 'bg-warning-100 text-warning-700'
+                    : 'bg-muted text-muted-foreground'
+                }
+              `}
+            >
+              {step.status === 'approved' ? (
+                <CheckIcon className="w-4 h-4" />
+              ) : (
+                step.level
+              )}
+            </div>
+            {idx < steps.length - 1 && (
+              <div className={`w-0.5 h-8 ${step.status === 'approved' ? 'bg-success-200' : 'bg-border'}`} />
+            )}
+          </div>
+
+          {/* Step content */}
+          <div className="flex-1 pb-3">
+            <p className="text-sm font-medium text-foreground">{step.label}</p>
+            {step.status === 'approved' && step.approvedBy && (
+              <p className="text-sm text-muted-foreground">
+                Approved by {step.approvedBy.firstName} {step.approvedBy.lastName}
+                {step.approvedAt && ` on ${formatDate(step.approvedAt)}`}
+              </p>
+            )}
+            {step.status === 'current' && (
+              <p className="text-sm text-warning-600">Awaiting approval</p>
+            )}
+            {step.status === 'pending' && (
+              <p className="text-sm text-muted-foreground">Pending</p>
+            )}
+            {step.notes && (
+              <p className="text-sm text-muted-foreground mt-1 italic">"{step.notes}"</p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function LeaveDetailPage() {
@@ -73,14 +181,56 @@ export default function LeaveDetailPage() {
     void load()
   }, [load])
 
-  const handleAction = async (action: 'APPROVED' | 'REJECTED' | 'CANCELLED') => {
+  const handleCancel = async () => {
     setProcessing(true)
     setError(null)
     try {
-      await LeavesApi.update(id, { status: action })
+      await LeavesApi.update(id, { status: 'CANCELLED' })
       await load()
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to update leave request'
+      const message = e instanceof Error ? e.message : 'Failed to cancel leave request'
+      setError(message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleManagerApprove = async (approved: boolean) => {
+    setProcessing(true)
+    setError(null)
+    try {
+      await LeavesApi.managerApprove(id, { approved })
+      await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to process approval'
+      setError(message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleHRApprove = async (approved: boolean) => {
+    setProcessing(true)
+    setError(null)
+    try {
+      await LeavesApi.hrApprove(id, { approved })
+      await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to process approval'
+      setError(message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleSuperAdminApprove = async (approved: boolean) => {
+    setProcessing(true)
+    setError(null)
+    try {
+      await LeavesApi.superAdminApprove(id, { approved })
+      await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to process approval'
       setError(message)
     } finally {
       setProcessing(false)
@@ -117,9 +267,11 @@ export default function LeaveDetailPage() {
 
   const employee = leave.employee
   const isOwn = employee.id === currentEmployeeId
-  const canApproveReject = !isOwn && leave.status === 'PENDING'
-  const canCancel = isOwn && leave.status === 'PENDING'
   const employeeName = `${employee.firstName} ${employee.lastName}`
+  const permissions = leave.permissions
+  const isPending = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN'].includes(leave.status)
+  const isRejected = leave.status === 'REJECTED'
+  const approvalSteps = getApprovalSteps(leave)
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -158,10 +310,10 @@ export default function LeaveDetailPage() {
               </p>
             </div>
           </div>
-          {leave.status === 'PENDING' ? (
+          {isPending ? (
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-warning-100 text-warning-800">
               <ClockIcon className="h-4 w-4" />
-              Pending
+              {STATUS_LABELS[leave.status]}
             </span>
           ) : (
             <StatusBadge status={STATUS_LABELS[leave.status]} />
@@ -204,24 +356,18 @@ export default function LeaveDetailPage() {
           )}
         </div>
 
-        {/* Pending approval info */}
-        {leave.status === 'PENDING' && (
+        {/* Approval Chain */}
+        {(isPending || leave.status === 'APPROVED') && (
           <div className="py-6 border-t border-border">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Pending approval from</p>
-            <p className="text-base text-foreground">
-              {employee.reportsTo
-                ? `${employee.reportsTo.firstName} ${employee.reportsTo.lastName}`
-                : 'HR'}
-            </p>
+            <p className="text-sm font-medium text-foreground mb-4">Approval Chain</p>
+            <ApprovalChain steps={approvalSteps} />
           </div>
         )}
 
-        {/* Review info if reviewed */}
-        {leave.status !== 'PENDING' && leave.reviewedBy && (
+        {/* Rejection info */}
+        {isRejected && leave.reviewedBy && (
           <div className="py-6 border-t border-border">
-            <p className="text-sm font-medium text-muted-foreground mb-2">
-              {leave.status === 'APPROVED' ? 'Approved' : leave.status === 'REJECTED' ? 'Rejected' : 'Reviewed'} by
-            </p>
+            <p className="text-sm font-medium text-muted-foreground mb-2">Rejected by</p>
             <p className="text-base text-foreground">
               {leave.reviewedBy.firstName} {leave.reviewedBy.lastName}
               {leave.reviewedAt && (
@@ -230,43 +376,105 @@ export default function LeaveDetailPage() {
             </p>
             {leave.reviewNotes && (
               <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">
-                {leave.reviewNotes}
+                Reason: {leave.reviewNotes}
               </p>
             )}
           </div>
         )}
 
         {/* Actions */}
-        {(canApproveReject || canCancel) && (
-          <div className="pt-6 border-t border-border flex justify-end gap-3">
-            {canCancel && (
-              <Button
-                variant="danger"
-                onClick={() => handleAction('CANCELLED')}
-                disabled={processing}
-              >
-                <XIcon className="h-4 w-4 mr-2" />
-                Cancel Request
-              </Button>
+        {permissions && (
+          <div className="pt-6 border-t border-border space-y-4">
+            {/* Manager approval actions */}
+            {permissions.canManagerApprove && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">Manager Approval</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleManagerApprove(false)}
+                    disabled={processing}
+                    size="sm"
+                  >
+                    <XIcon className="h-4 w-4 mr-1" />
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() => handleManagerApprove(true)}
+                    disabled={processing}
+                    size="sm"
+                  >
+                    <CheckIcon className="h-4 w-4 mr-1" />
+                    Approve
+                  </Button>
+                </div>
+              </div>
             )}
-            {canApproveReject && (
-              <>
+
+            {/* HR approval actions */}
+            {permissions.canHRApprove && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">HR Approval</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleHRApprove(false)}
+                    disabled={processing}
+                    size="sm"
+                  >
+                    <XIcon className="h-4 w-4 mr-1" />
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() => handleHRApprove(true)}
+                    disabled={processing}
+                    size="sm"
+                  >
+                    <CheckIcon className="h-4 w-4 mr-1" />
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Super Admin approval actions */}
+            {permissions.canSuperAdminApprove && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-foreground">Final Approval</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleSuperAdminApprove(false)}
+                    disabled={processing}
+                    size="sm"
+                  >
+                    <XIcon className="h-4 w-4 mr-1" />
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() => handleSuperAdminApprove(true)}
+                    disabled={processing}
+                    size="sm"
+                  >
+                    <CheckIcon className="h-4 w-4 mr-1" />
+                    Approve
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Cancel action for owner */}
+            {permissions.canCancel && (
+              <div className="flex justify-end">
                 <Button
-                  variant="secondary"
-                  onClick={() => handleAction('REJECTED')}
+                  variant="danger"
+                  onClick={handleCancel}
                   disabled={processing}
                 >
                   <XIcon className="h-4 w-4 mr-2" />
-                  Reject
+                  Cancel Request
                 </Button>
-                <Button
-                  onClick={() => handleAction('APPROVED')}
-                  disabled={processing}
-                >
-                  <CheckIcon className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -281,4 +489,3 @@ export default function LeaveDetailPage() {
     </div>
   )
 }
-

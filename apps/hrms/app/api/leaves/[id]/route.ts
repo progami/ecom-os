@@ -3,14 +3,14 @@ import prisma from '../../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { z } from 'zod'
-import { isHROrAbove } from '@/lib/permissions'
+import { isHROrAbove, isSuperAdmin } from '@/lib/permissions'
 import { getViewerContext } from '@/lib/domain/workflow/viewer'
 import { leaveToWorkflowRecordDTO } from '@/lib/domain/leave/workflow-record'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 const UpdateLeaveRequestSchema = z.object({
-  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
+  status: z.enum(['CANCELLED']).optional(), // Only cancel allowed via PATCH now
   reviewNotes: z.string().max(2000).optional(),
   reason: z.string().max(2000).optional(),
 })
@@ -61,8 +61,10 @@ export async function GET(req: Request, context: RouteContext) {
     }
 
     const isHR = await isHROrAbove(currentEmployeeId)
-    const canView =
-      isHR || leaveRequest.employeeId === currentEmployeeId || leaveRequest.employee.reportsToId === currentEmployeeId
+    const isAdmin = await isSuperAdmin(currentEmployeeId)
+    const isOwner = leaveRequest.employeeId === currentEmployeeId
+    const isManager = leaveRequest.employee.reportsToId === currentEmployeeId
+    const canView = isHR || isOwner || isManager
 
     if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -84,11 +86,45 @@ export async function GET(req: Request, context: RouteContext) {
       reportsTo = manager
     }
 
+    // Fetch approvers info
+    const approverIds = [
+      leaveRequest.managerApprovedById,
+      leaveRequest.hrApprovedById,
+      leaveRequest.superAdminApprovedById,
+    ].filter((id): id is string => id !== null)
+
+    const approvers = approverIds.length > 0
+      ? await prisma.employee.findMany({
+          where: { id: { in: approverIds } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : []
+
+    const approverMap = Object.fromEntries(approvers.map(a => [a.id, a]))
+
+    // Determine permissions based on role and status
+    const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
+    const canCancel = isOwner && pendingStatuses.includes(leaveRequest.status)
+    const canManagerApprove = isManager && leaveRequest.status === 'PENDING_MANAGER'
+    const canHRApprove = isHR && leaveRequest.status === 'PENDING_HR'
+    const canSuperAdminApprove = isAdmin && leaveRequest.status === 'PENDING_SUPER_ADMIN'
+
     return NextResponse.json({
       ...leaveRequest,
       employee: {
         ...leaveRequest.employee,
         reportsTo,
+      },
+      // Approvers
+      managerApprovedBy: leaveRequest.managerApprovedById ? approverMap[leaveRequest.managerApprovedById] : null,
+      hrApprovedBy: leaveRequest.hrApprovedById ? approverMap[leaveRequest.hrApprovedById] : null,
+      superAdminApprovedBy: leaveRequest.superAdminApprovedById ? approverMap[leaveRequest.superAdminApprovedById] : null,
+      // Permissions
+      permissions: {
+        canCancel,
+        canManagerApprove,
+        canHRApprove,
+        canSuperAdminApprove,
       },
     })
   } catch (e) {
@@ -155,18 +191,10 @@ export async function PATCH(req: Request, context: RouteContext) {
       if (!isOwner && !isAdmin) {
         return NextResponse.json({ error: 'Only the requester can cancel' }, { status: 403 })
       }
-      // Can only cancel pending requests
-      if (leaveRequest.status !== 'PENDING') {
+      // Can only cancel pending requests (any pending status)
+      const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
+      if (!pendingStatuses.includes(leaveRequest.status)) {
         return NextResponse.json({ error: 'Can only cancel pending requests' }, { status: 400 })
-      }
-    } else if (status === 'APPROVED' || status === 'REJECTED') {
-      // Only manager or admin can approve/reject
-      if (!isManager && !isAdmin) {
-        return NextResponse.json({ error: 'Only manager or HR can approve/reject' }, { status: 403 })
-      }
-      // Can only approve/reject pending requests
-      if (leaveRequest.status !== 'PENDING') {
-        return NextResponse.json({ error: 'Can only approve/reject pending requests' }, { status: 400 })
       }
     }
 
@@ -175,11 +203,6 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (reason !== undefined) updateData.reason = reason
     if (status) {
       updateData.status = status
-      if (status === 'APPROVED' || status === 'REJECTED') {
-        updateData.reviewedById = currentEmployeeId
-        updateData.reviewedAt = new Date()
-        if (reviewNotes) updateData.reviewNotes = reviewNotes
-      }
     }
 
     // Update the request
@@ -200,80 +223,42 @@ export async function PATCH(req: Request, context: RouteContext) {
       },
     })
 
-    // Update leave balance based on status change
-    const year = new Date(leaveRequest.startDate).getFullYear()
-    const balance = await prisma.leaveBalance.findUnique({
-      where: {
-        employeeId_leaveType_year: {
-          employeeId: leaveRequest.employeeId,
-          leaveType: leaveRequest.leaveType,
-          year,
-        },
-      },
-    })
+    // Update leave balance based on status change (cancellation only now)
+    if (status === 'CANCELLED') {
+      const year = new Date(leaveRequest.startDate).getFullYear()
+      const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
 
-    if (balance) {
-      if (status === 'APPROVED' && leaveRequest.status === 'PENDING') {
-        // Move from pending to used
-        await prisma.leaveBalance.update({
-          where: { id: balance.id },
+      if (pendingStatuses.includes(leaveRequest.status)) {
+        // Remove from pending
+        await prisma.leaveBalance.updateMany({
+          where: {
+            employeeId: leaveRequest.employeeId,
+            leaveType: leaveRequest.leaveType,
+            year,
+          },
           data: {
             pending: { decrement: Math.ceil(leaveRequest.totalDays) },
-            used: { increment: Math.ceil(leaveRequest.totalDays) },
           },
         })
-      } else if (status === 'REJECTED' || status === 'CANCELLED') {
-        if (leaveRequest.status === 'PENDING') {
-          // Remove from pending
-          await prisma.leaveBalance.update({
-            where: { id: balance.id },
-            data: {
-              pending: { decrement: Math.ceil(leaveRequest.totalDays) },
-            },
-          })
-        } else if (leaveRequest.status === 'APPROVED' && status === 'CANCELLED') {
-          // Return to available (decrease used)
-          await prisma.leaveBalance.update({
-            where: { id: balance.id },
-            data: {
-              used: { decrement: Math.ceil(leaveRequest.totalDays) },
-            },
-          })
-        }
+      } else if (leaveRequest.status === 'APPROVED') {
+        // Return to available (decrease used)
+        await prisma.leaveBalance.updateMany({
+          where: {
+            employeeId: leaveRequest.employeeId,
+            leaveType: leaveRequest.leaveType,
+            year,
+          },
+          data: {
+            used: { decrement: Math.ceil(leaveRequest.totalDays) },
+          },
+        })
       }
     }
 
-    // Send notifications based on status change
-    const startDateStr = new Date(leaveRequest.startDate).toLocaleDateString()
-    const endDateStr = new Date(leaveRequest.endDate).toLocaleDateString()
-
-    if (status === 'APPROVED') {
-      // Notify the employee that their leave was approved
-      await prisma.notification.create({
-        data: {
-          type: 'LEAVE_APPROVED',
-          title: 'Leave Request Approved',
-          message: `Your ${leaveRequest.leaveType.replace(/_/g, ' ')} leave request from ${startDateStr} to ${endDateStr} has been approved.`,
-          link: `/leaves/${id}`,
-          employeeId: leaveRequest.employeeId,
-          relatedId: id,
-          relatedType: 'LEAVE',
-        },
-      })
-    } else if (status === 'REJECTED') {
-      // Notify the employee that their leave was rejected
-      await prisma.notification.create({
-        data: {
-          type: 'LEAVE_REJECTED',
-          title: 'Leave Request Rejected',
-          message: `Your ${leaveRequest.leaveType.replace(/_/g, ' ')} leave request from ${startDateStr} to ${endDateStr} has been rejected.${reviewNotes ? ` Reason: ${reviewNotes}` : ''}`,
-          link: `/leaves/${id}`,
-          employeeId: leaveRequest.employeeId,
-          relatedId: id,
-          relatedType: 'LEAVE',
-        },
-      })
-    } else if (status === 'CANCELLED' && leaveRequest.employee.reportsToId) {
+    // Send notifications based on status change (cancellation only)
+    if (status === 'CANCELLED' && leaveRequest.employee.reportsToId) {
+      const startDateStr = new Date(leaveRequest.startDate).toLocaleDateString()
+      const endDateStr = new Date(leaveRequest.endDate).toLocaleDateString()
       // Notify the manager that the employee cancelled their leave
       await prisma.notification.create({
         data: {
@@ -327,8 +312,9 @@ export async function DELETE(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    // Update balance if pending
-    if (leaveRequest.status === 'PENDING') {
+    // Update balance if pending (any pending status)
+    const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
+    if (pendingStatuses.includes(leaveRequest.status)) {
       const year = new Date(leaveRequest.startDate).getFullYear()
       await prisma.leaveBalance.updateMany({
         where: {
