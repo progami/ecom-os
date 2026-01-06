@@ -52,7 +52,7 @@ function getApprovalSteps(leave: LeaveRequest): ApprovalStep[] {
 
   // Manager approval (Level 1)
   const managerApproved = !!leave.managerApprovedById
-  const isAtManager = leave.status === 'PENDING_MANAGER'
+  const isAtManager = leave.status === 'PENDING_MANAGER' || leave.status === 'PENDING'
   steps.push({
     level: 1,
     label: 'Manager',
