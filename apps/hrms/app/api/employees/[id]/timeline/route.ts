@@ -218,7 +218,7 @@ export async function GET(req: Request, context: RouteContext) {
         title,
         description,
         occurredAt: iso(occurredAt),
-        href: `/performance/disciplinary/${violation.id}`,
+        href: `/performance/violations/${violation.id}`,
       })
     }
 

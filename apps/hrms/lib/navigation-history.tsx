@@ -71,23 +71,34 @@ function getDefaultBackPath(pathname: string): string | null {
     return '/performance/reviews'
   }
 
-  // Cases / Violations routes
-  if (/^\/cases\/violations\/add$/.test(path)) {
-    return '/cases?caseType=VIOLATION'
+  // Violations routes
+  if (/^\/performance\/violations\/add$/.test(path)) {
+    return '/performance/violations'
   }
-  if (/^\/cases\/violations\/[^/]+\/edit$/.test(path)) {
-    return '/cases?caseType=VIOLATION'
+  if (/^\/performance\/violations\/[^/]+\/edit$/.test(path)) {
+    return path.replace('/edit', '')
+  }
+  if (/^\/performance\/violations\/[^/]+$/.test(path)) {
+    return '/performance/violations'
   }
 
-  // Legacy disciplinary routes (redirected to Cases)
+  // Legacy cases / violations routes (Cases UI was deprecated)
+  if (/^\/cases\/violations\/add$/.test(path)) {
+    return '/performance/violations'
+  }
+  if (/^\/cases\/violations\/[^/]+\/edit$/.test(path)) {
+    return '/performance/violations'
+  }
+
+  // Legacy disciplinary routes (now redirected to Violations)
   if (/^\/performance\/disciplinary\/add$/.test(path)) {
-    return '/cases?caseType=VIOLATION'
+    return '/performance/violations'
   }
   if (/^\/performance\/disciplinary\/[^/]+$/.test(path)) {
-    return '/cases?caseType=VIOLATION'
+    return '/performance/violations'
   }
   if (/^\/performance\/disciplinary\/[^/]+\/edit$/.test(path)) {
-    return '/cases?caseType=VIOLATION'
+    return '/performance/violations'
   }
 
   // Resources routes

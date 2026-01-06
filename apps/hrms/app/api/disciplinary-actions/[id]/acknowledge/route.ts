@@ -174,7 +174,7 @@ export async function POST(req: Request, context: RouteContext) {
           })
         : updated
 
-      const recordLink = `/performance/disciplinary/${id}`
+      const recordLink = `/performance/violations/${id}`
 
       // Notify HR and manager that employee acknowledged
       const hrEmployees = await getHREmployees()
@@ -260,7 +260,7 @@ export async function POST(req: Request, context: RouteContext) {
           })
         : updated
 
-      const recordLink = `/performance/disciplinary/${id}`
+      const recordLink = `/performance/violations/${id}`
 
       // Notify HR that manager acknowledged
       const hrEmployees = await getHREmployees()
