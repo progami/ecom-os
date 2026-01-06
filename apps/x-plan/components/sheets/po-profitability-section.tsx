@@ -1,7 +1,7 @@
-"use client"
+'use client';
 
-import { useMemo, useState } from 'react'
-import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react'
+import { useMemo, useState } from 'react';
+import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -10,60 +10,75 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
+} from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar';
 
-export type POStatus = 'PLANNED' | 'PRODUCTION' | 'IN_TRANSIT' | 'ARRIVED' | 'CLOSED' | 'CANCELLED'
+export type POStatus = 'PLANNED' | 'PRODUCTION' | 'IN_TRANSIT' | 'ARRIVED' | 'CLOSED' | 'CANCELLED';
 
 // Each row represents a single product/batch within a PO
 export interface POProfitabilityData {
-  id: string
-  orderCode: string
-  batchCode: string | null
-  productId: string
-  productName: string
-  quantity: number
-  status: POStatus
-  sellingPrice: number
-  manufacturingCost: number
-  freightCost: number
-  tariffCost: number
-  landedUnitCost: number
-  supplierCostTotal: number
-  grossRevenue: number
-  fbaFee: number
-  amazonReferralRate: number
-  amazonFeesTotal: number
-  tacosPercent: number
-  ppcCost: number
-  grossProfit: number
-  grossMarginPercent: number
-  netProfit: number
-  netMarginPercent: number
-  roi: number
-  productionStart: Date | null
-  availableDate: Date | null
-  totalLeadDays: number
+  id: string;
+  orderCode: string;
+  batchCode: string | null;
+  productId: string;
+  productName: string;
+  quantity: number;
+  status: POStatus;
+  sellingPrice: number;
+  manufacturingCost: number;
+  freightCost: number;
+  tariffCost: number;
+  landedUnitCost: number;
+  supplierCostTotal: number;
+  grossRevenue: number;
+  fbaFee: number;
+  amazonReferralRate: number;
+  amazonFeesTotal: number;
+  tacosPercent: number;
+  ppcCost: number;
+  grossProfit: number;
+  grossMarginPercent: number;
+  netProfit: number;
+  netMarginPercent: number;
+  roi: number;
+  productionStart: Date | null;
+  availableDate: Date | null;
+  totalLeadDays: number;
 }
 
 interface POProfitabilitySectionProps {
-  data: POProfitabilityData[]
-  title?: string
-  description?: string
+  data: POProfitabilityData[];
+  title?: string;
+  description?: string;
 }
 
-type StatusFilter = 'ALL' | POStatus
-type SortField = 'orderCode' | 'grossRevenue' | 'netProfit' | 'netMarginPercent' | 'roi'
-type SortDirection = 'asc' | 'desc'
-type MetricKey = 'grossMarginPercent' | 'netMarginPercent' | 'roi'
+type StatusFilter = 'ALL' | POStatus;
+type SortField = 'orderCode' | 'grossRevenue' | 'netProfit' | 'netMarginPercent' | 'roi';
+type SortDirection = 'asc' | 'desc';
+type MetricKey = 'grossMarginPercent' | 'netMarginPercent' | 'roi';
 
 const metricConfig: Record<MetricKey, { label: string; color: string; gradientId: string }> = {
-  grossMarginPercent: { label: 'Gross Margin %', color: 'hsl(var(--chart-1))', gradientId: 'gradientGrossMargin' },
-  netMarginPercent: { label: 'Net Margin %', color: 'hsl(var(--chart-2))', gradientId: 'gradientNetMargin' },
+  grossMarginPercent: {
+    label: 'Gross Margin %',
+    color: 'hsl(var(--chart-1))',
+    gradientId: 'gradientGrossMargin',
+  },
+  netMarginPercent: {
+    label: 'Net Margin %',
+    color: 'hsl(var(--chart-2))',
+    gradientId: 'gradientNetMargin',
+  },
   roi: { label: 'ROI %', color: 'hsl(var(--chart-3))', gradientId: 'gradientROI' },
-}
+};
 
 const statusLabels: Record<POStatus, string> = {
   PLANNED: 'Planned',
@@ -72,109 +87,122 @@ const statusLabels: Record<POStatus, string> = {
   ARRIVED: 'Arrived',
   CLOSED: 'Closed',
   CANCELLED: 'Cancelled',
-}
+};
 
-const statusFilters: StatusFilter[] = ['ALL', 'PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED', 'CLOSED']
+const statusFilters: StatusFilter[] = [
+  'ALL',
+  'PLANNED',
+  'PRODUCTION',
+  'IN_TRANSIT',
+  'ARRIVED',
+  'CLOSED',
+];
 
 export function POProfitabilitySection({
   data,
   title = 'PO Profitability Analysis',
   description = 'Compare purchase order performance and profitability metrics',
 }: POProfitabilitySectionProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
-  const [skuFilter, setSkuFilter] = useState<string>('ALL')
-  const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>(['grossMarginPercent', 'netMarginPercent', 'roi'])
-  const [sortField, setSortField] = useState<SortField>('grossRevenue')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [skuFilter, setSkuFilter] = useState<string>('ALL');
+  const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>([
+    'grossMarginPercent',
+    'netMarginPercent',
+    'roi',
+  ]);
+  const [sortField, setSortField] = useState<SortField>('grossRevenue');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   // Get unique products for SKU dropdown
   const productOptions = useMemo(() => {
-    const productMap = new Map<string, string>()
+    const productMap = new Map<string, string>();
     data.forEach((row) => {
       if (!productMap.has(row.productId)) {
-        productMap.set(row.productId, row.productName)
+        productMap.set(row.productId, row.productName);
       }
-    })
-    return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }))
-  }, [data])
+    });
+    return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [data]);
 
   // When "All SKUs" selected, aggregate to per-PO view
   // When specific SKU selected, show per-batch view filtered to that SKU
   const filteredData = useMemo(() => {
-    let result = data
+    let result = data;
 
     // Apply status filter first
     if (statusFilter !== 'ALL') {
-      result = result.filter((row) => row.status === statusFilter)
+      result = result.filter((row) => row.status === statusFilter);
     }
 
     // If specific SKU selected, filter to that SKU (per-batch view)
     if (skuFilter !== 'ALL') {
-      result = result.filter((row) => row.productId === skuFilter)
+      result = result.filter((row) => row.productId === skuFilter);
       return [...result].sort((a, b) => {
-        const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
-        const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0
-        return dateA - dateB
-      })
+        const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0;
+        const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0;
+        return dateA - dateB;
+      });
     }
 
     // Aggregate to per-PO view when "All SKUs" selected
-    const poMap = new Map<string, POProfitabilityData>()
+    const poMap = new Map<string, POProfitabilityData>();
     result.forEach((row) => {
-      const existing = poMap.get(row.orderCode)
+      const existing = poMap.get(row.orderCode);
       if (existing) {
         // Aggregate values
-        existing.quantity += row.quantity
-        existing.grossRevenue += row.grossRevenue
-        existing.supplierCostTotal += row.supplierCostTotal
-        existing.amazonFeesTotal += row.amazonFeesTotal
-        existing.ppcCost += row.ppcCost
-        existing.grossProfit += row.grossProfit
-        existing.netProfit += row.netProfit
+        existing.quantity += row.quantity;
+        existing.grossRevenue += row.grossRevenue;
+        existing.supplierCostTotal += row.supplierCostTotal;
+        existing.amazonFeesTotal += row.amazonFeesTotal;
+        existing.ppcCost += row.ppcCost;
+        existing.grossProfit += row.grossProfit;
+        existing.netProfit += row.netProfit;
         // Recalculate percentages based on aggregated values
-        existing.grossMarginPercent = existing.grossRevenue > 0
-          ? (existing.grossProfit / existing.grossRevenue) * 100 : 0
-        existing.netMarginPercent = existing.grossRevenue > 0
-          ? (existing.netProfit / existing.grossRevenue) * 100 : 0
-        existing.roi = existing.supplierCostTotal > 0
-          ? (existing.netProfit / existing.supplierCostTotal) * 100 : 0
+        existing.grossMarginPercent =
+          existing.grossRevenue > 0 ? (existing.grossProfit / existing.grossRevenue) * 100 : 0;
+        existing.netMarginPercent =
+          existing.grossRevenue > 0 ? (existing.netProfit / existing.grossRevenue) * 100 : 0;
+        existing.roi =
+          existing.supplierCostTotal > 0
+            ? (existing.netProfit / existing.supplierCostTotal) * 100
+            : 0;
         // Combine product names
         if (!existing.productName.includes(row.productName)) {
-          existing.productName = existing.productName + ', ' + row.productName
+          existing.productName = existing.productName + ', ' + row.productName;
         }
       } else {
-        poMap.set(row.orderCode, { ...row })
+        poMap.set(row.orderCode, { ...row });
       }
-    })
+    });
 
     return Array.from(poMap.values()).sort((a, b) => {
-      const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
-      const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0
-      return dateA - dateB
-    })
-  }, [data, statusFilter, skuFilter])
+      const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0;
+      const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0;
+      return dateA - dateB;
+    });
+  }, [data, statusFilter, skuFilter]);
 
   const tableSortedData = useMemo(() => {
     return [...filteredData].sort((a, b) => {
-      const aVal = a[sortField]
-      const bVal = b[sortField]
+      const aVal = a[sortField];
+      const bVal = b[sortField];
       if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       }
-      const aNum = typeof aVal === 'number' ? aVal : 0
-      const bNum = typeof bVal === 'number' ? bVal : 0
-      return sortDirection === 'asc' ? aNum - bNum : bNum - aNum
-    })
-  }, [filteredData, sortField, sortDirection])
+      const aNum = typeof aVal === 'number' ? aVal : 0;
+      const bNum = typeof bVal === 'number' ? bVal : 0;
+      return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
+    });
+  }, [filteredData, sortField, sortDirection]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortField(field)
-      setSortDirection('desc')
+      setSortField(field);
+      setSortDirection('desc');
     }
-  }
+  };
 
   // Transform data for Recharts
   // filteredData is already aggregated by PO when "All SKUs" selected
@@ -184,34 +212,39 @@ export function POProfitabilitySection({
       grossMarginPercent: row.grossMarginPercent,
       netMarginPercent: row.netMarginPercent,
       roi: row.roi,
-    }))
-  }, [filteredData, skuFilter])
+    }));
+  }, [filteredData, skuFilter]);
 
   const toggleMetric = (key: MetricKey) => {
     setEnabledMetrics((prev) => {
       if (prev.includes(key)) {
-        if (prev.length <= 1) return prev
-        return prev.filter((k) => k !== key)
+        if (prev.length <= 1) return prev;
+        return prev.filter((k) => k !== key);
       }
-      return [...prev, key]
-    })
-  }
+      return [...prev, key];
+    });
+  };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-  }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
-  const formatPercent = (value: number) => `${value.toFixed(1)}%`
+  const formatPercent = (value: number) => `${value.toFixed(1)}%`;
 
   // Summary stats
   const summary = useMemo(() => {
-    if (filteredData.length === 0) return { totalRevenue: 0, totalProfit: 0, avgMargin: 0, avgROI: 0 }
-    const totalRevenue = filteredData.reduce((sum, row) => sum + row.grossRevenue, 0)
-    const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0)
-    const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0
-    const avgROI = filteredData.reduce((sum, row) => sum + row.roi, 0) / filteredData.length
-    return { totalRevenue, totalProfit, avgMargin, avgROI }
-  }, [filteredData])
+    if (filteredData.length === 0)
+      return { totalRevenue: 0, totalProfit: 0, avgMargin: 0, avgROI: 0 };
+    const totalRevenue = filteredData.reduce((sum, row) => sum + row.grossRevenue, 0);
+    const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0);
+    const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const avgROI = filteredData.reduce((sum, row) => sum + row.roi, 0) / filteredData.length;
+    return { totalRevenue, totalProfit, avgMargin, avgROI };
+  }, [filteredData]);
 
   if (data.length === 0) {
     return (
@@ -221,10 +254,12 @@ export function POProfitabilitySection({
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No purchase orders available for analysis.</p>
+          <p className="text-sm text-muted-foreground">
+            No purchase orders available for analysis.
+          </p>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -234,8 +269,8 @@ export function POProfitabilitySection({
         <div className={SHEET_TOOLBAR_GROUP}>
           <span className="text-xs font-medium text-muted-foreground">Status</span>
           {statusFilters.map((status) => {
-            const isActive = statusFilter === status
-            const label = status === 'ALL' ? 'All' : statusLabels[status]
+            const isActive = statusFilter === status;
+            const label = status === 'ALL' ? 'All' : statusLabels[status];
             return (
               <button
                 key={status}
@@ -250,7 +285,7 @@ export function POProfitabilitySection({
                 {isActive && <Check className="h-3 w-3" />}
                 {label}
               </button>
-            )
+            );
           })}
         </div>
 
@@ -292,10 +327,7 @@ export function POProfitabilitySection({
           {/* Chart */}
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={chartData}
-                margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
-              >
+              <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
                 {/* Gradient definitions */}
                 <defs>
                   <linearGradient id="gradientGrossMargin" x1="0" y1="0" x2="0" y2="1">
@@ -344,13 +376,18 @@ export function POProfitabilitySection({
                 />
                 <Tooltip
                   content={({ active, payload, label }) => {
-                    if (!active || !payload || payload.length === 0) return null
+                    if (!active || !payload || payload.length === 0) return null;
                     return (
                       <div className="rounded-xl border border-slate-200/50 bg-white/95 px-4 py-3 shadow-xl backdrop-blur-md dark:border-slate-700/50 dark:bg-slate-900/95">
-                        <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{label}</p>
+                        <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          {label}
+                        </p>
                         <div className="space-y-1.5">
                           {payload.map((entry) => (
-                            <div key={entry.dataKey} className="flex items-center justify-between gap-6">
+                            <div
+                              key={entry.dataKey}
+                              className="flex items-center justify-between gap-6"
+                            >
                               <div className="flex items-center gap-2">
                                 <div
                                   className="h-2 w-2 rounded-full"
@@ -360,14 +397,17 @@ export function POProfitabilitySection({
                                   {metricConfig[entry.dataKey as MetricKey]?.label}
                                 </span>
                               </div>
-                              <span className="text-xs font-semibold tabular-nums" style={{ color: entry.color }}>
+                              <span
+                                className="text-xs font-semibold tabular-nums"
+                                style={{ color: entry.color }}
+                              >
                                 {formatPercent(entry.value as number)}
                               </span>
                             </div>
                           ))}
                         </div>
                       </div>
-                    )
+                    );
                   }}
                   cursor={{
                     stroke: 'currentColor',
@@ -434,7 +474,7 @@ export function POProfitabilitySection({
           {/* Legend */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-6 border-t border-slate-200/60 pt-4 dark:border-slate-700/50">
             {(Object.keys(metricConfig) as MetricKey[]).map((key) => {
-              const isEnabled = enabledMetrics.includes(key)
+              const isEnabled = enabledMetrics.includes(key);
               return (
                 <button
                   key={key}
@@ -460,15 +500,17 @@ export function POProfitabilitySection({
                       />
                     )}
                   </div>
-                  <span className={`text-xs font-medium transition-colors duration-200 ${
-                    isEnabled
-                      ? 'text-slate-700 dark:text-slate-200'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}>
+                  <span
+                    className={`text-xs font-medium transition-colors duration-200 ${
+                      isEnabled
+                        ? 'text-slate-700 dark:text-slate-200'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}
+                  >
                     {metricConfig[key].label}
                   </span>
                 </button>
-              )
+              );
             })}
           </div>
         </CardContent>
@@ -485,8 +527,20 @@ export function POProfitabilitySection({
               </CardDescription>
             </div>
             <div className="text-right text-xs text-muted-foreground">
-              <div>Total Revenue: <span className="font-semibold text-foreground">{formatCurrency(summary.totalRevenue)}</span></div>
-              <div>Total Profit: <span className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(summary.totalProfit)}</span></div>
+              <div>
+                Total Revenue:{' '}
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(summary.totalRevenue)}
+                </span>
+              </div>
+              <div>
+                Total Profit:{' '}
+                <span
+                  className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                >
+                  {formatCurrency(summary.totalProfit)}
+                </span>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -495,32 +549,71 @@ export function POProfitabilitySection({
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[180px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                  <SortButton field="orderCode" current={sortField} direction={sortDirection} onClick={handleSort}>
+                  <SortButton
+                    field="orderCode"
+                    current={sortField}
+                    direction={sortDirection}
+                    onClick={handleSort}
+                  >
                     PO Code
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[90px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">Status</TableHead>
-                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">Units</TableHead>
+                <TableHead className="w-[90px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                  Status
+                </TableHead>
+                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                  Units
+                </TableHead>
                 <TableHead className="w-[100px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                  <SortButton field="grossRevenue" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
+                  <SortButton
+                    field="grossRevenue"
+                    current={sortField}
+                    direction={sortDirection}
+                    onClick={handleSort}
+                    align="right"
+                  >
                     Revenue
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">COGS</TableHead>
-                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">Amz Fees</TableHead>
-                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">PPC</TableHead>
+                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                  COGS
+                </TableHead>
+                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                  Amz Fees
+                </TableHead>
+                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                  PPC
+                </TableHead>
                 <TableHead className="w-[100px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                  <SortButton field="netProfit" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
+                  <SortButton
+                    field="netProfit"
+                    current={sortField}
+                    direction={sortDirection}
+                    onClick={handleSort}
+                    align="right"
+                  >
                     Net Profit
                   </SortButton>
                 </TableHead>
                 <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                  <SortButton field="netMarginPercent" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
+                  <SortButton
+                    field="netMarginPercent"
+                    current={sortField}
+                    direction={sortDirection}
+                    onClick={handleSort}
+                    align="right"
+                  >
                     Margin
                   </SortButton>
                 </TableHead>
                 <TableHead className="w-[70px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                  <SortButton field="roi" current={sortField} direction={sortDirection} onClick={handleSort} align="right">
+                  <SortButton
+                    field="roi"
+                    current={sortField}
+                    direction={sortDirection}
+                    onClick={handleSort}
+                    align="right"
+                  >
                     ROI
                   </SortButton>
                 </TableHead>
@@ -531,39 +624,64 @@ export function POProfitabilitySection({
                 <TableRow key={row.id}>
                   <TableCell>
                     <div className="font-medium">{row.orderCode}</div>
-                    <div className="truncate text-xs text-muted-foreground max-w-[160px]" title={row.productName}>
+                    <div
+                      className="truncate text-xs text-muted-foreground max-w-[160px]"
+                      title={row.productName}
+                    >
                       {row.productName}
                     </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={row.status} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{row.quantity.toLocaleString()}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCurrency(row.grossRevenue)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  <TableCell className="text-right tabular-nums">
+                    {row.quantity.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(row.grossRevenue)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {formatCurrency(row.supplierCostTotal)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {formatCurrency(row.amazonFeesTotal)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {formatCurrency(row.ppcCost)}
+                  </TableCell>
+                  <TableCell
+                    className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                  >
                     {formatCurrency(row.netProfit)}
                   </TableCell>
-                  <TableCell className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                  <TableCell
+                    className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                  >
                     {formatPercent(row.netMarginPercent)}
                   </TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                  <TableCell
+                    className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                  >
                     {formatPercent(row.roi)}
                   </TableCell>
                 </TableRow>
               ))}
               {/* Total row */}
               <TableRow className="bg-muted/50">
-                <TableCell className="font-semibold">Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})</TableCell>
+                <TableCell className="font-semibold">
+                  Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})
+                </TableCell>
                 <TableCell />
                 <TableCell className="text-right tabular-nums font-semibold">
                   {filteredData.reduce((sum, row) => sum + row.quantity, 0).toLocaleString()}
                 </TableCell>
-                <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(summary.totalRevenue)}</TableCell>
+                <TableCell className="text-right tabular-nums font-semibold">
+                  {formatCurrency(summary.totalRevenue)}
+                </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.supplierCostTotal, 0))}
+                  {formatCurrency(
+                    filteredData.reduce((sum, row) => sum + row.supplierCostTotal, 0),
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.amazonFeesTotal, 0))}
@@ -571,13 +689,19 @@ export function POProfitabilitySection({
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcCost, 0))}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                <TableCell
+                  className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                >
                   {formatCurrency(summary.totalProfit)}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                <TableCell
+                  className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                >
                   {formatPercent(summary.avgMargin)}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
+                <TableCell
+                  className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                >
                   {formatPercent(summary.avgROI)}
                 </TableCell>
               </TableRow>
@@ -586,7 +710,7 @@ export function POProfitabilitySection({
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 
 function SortButton({
@@ -597,14 +721,14 @@ function SortButton({
   children,
   align = 'left',
 }: {
-  field: SortField
-  current: SortField
-  direction: SortDirection
-  onClick: (field: SortField) => void
-  children: React.ReactNode
-  align?: 'left' | 'right'
+  field: SortField;
+  current: SortField;
+  direction: SortDirection;
+  onClick: (field: SortField) => void;
+  children: React.ReactNode;
+  align?: 'left' | 'right';
 }) {
-  const isActive = current === field
+  const isActive = current === field;
   return (
     <button
       type="button"
@@ -612,9 +736,14 @@ function SortButton({
       className={`inline-flex items-center gap-1 hover:text-foreground ${align === 'right' ? 'justify-end w-full' : ''}`}
     >
       {children}
-      {isActive && (direction === 'asc' ? <ChevronUp className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />)}
+      {isActive &&
+        (direction === 'asc' ? (
+          <ChevronUp className="h-3 w-3 shrink-0" />
+        ) : (
+          <ChevronDown className="h-3 w-3 shrink-0" />
+        ))}
     </button>
-  )
+  );
 }
 
 function StatusBadge({ status }: { status: POStatus }) {
@@ -625,23 +754,23 @@ function StatusBadge({ status }: { status: POStatus }) {
     PRODUCTION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     PLANNED: 'bg-slate-100 text-slate-600 dark:bg-slate-700/30 dark:text-slate-300',
     CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  }
+  };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
       {statusLabels[status]}
     </span>
-  )
+  );
 }
 
 function exportChart(name: string, filter: string) {
-  const chartElement = document.querySelector('.recharts-wrapper svg') as SVGElement
-  if (!chartElement) return
-  const data = new XMLSerializer().serializeToString(chartElement)
-  const blob = new Blob([data], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${name}-${filter.toLowerCase()}.svg`
-  a.click()
-  URL.revokeObjectURL(url)
+  const chartElement = document.querySelector('.recharts-wrapper svg') as SVGElement;
+  if (!chartElement) return;
+  const data = new XMLSerializer().serializeToString(chartElement);
+  const blob = new Blob([data], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name}-${filter.toLowerCase()}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

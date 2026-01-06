@@ -1,13 +1,13 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import 'flatpickr/dist/themes/light.css'
-import { Providers } from '@/components/providers'
-import { clsx } from 'clsx'
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import 'flatpickr/dist/themes/light.css';
+import { Providers } from '@/components/providers';
+import { clsx } from 'clsx';
 
-const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
+const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: 'X-Plan | Ecom OS',
@@ -16,23 +16,26 @@ export const metadata: Metadata = {
   icons: {
     icon: `${appBasePath || ''}/favicon.ico`,
   },
-}
+};
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
-  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
-  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
-  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
-  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
-  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
+  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined;
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined;
+  const commitUrl = commitSha
+    ? `https://github.com/progami/ecom-os/commit/${commitSha}`
+    : undefined;
+  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`;
+  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl;
 
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={clsx('min-h-screen bg-slate-50 font-sans antialiased dark:bg-slate-950', inter.variable)}>
+      <body
+        className={clsx(
+          'min-h-screen bg-slate-50 font-sans antialiased dark:bg-slate-950',
+          inter.variable,
+        )}
+      >
         <Providers>{children}</Providers>
         <a
           href={versionHref}
@@ -45,5 +48,5 @@ export default function RootLayout({
         </a>
       </body>
     </html>
-  )
+  );
 }

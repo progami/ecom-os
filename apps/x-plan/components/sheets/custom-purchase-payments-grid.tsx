@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   useCallback,
@@ -7,22 +7,23 @@ import {
   useRef,
   useState,
   type ChangeEvent,
+  type ClipboardEvent,
   type KeyboardEvent,
-} from 'react'
-import { toast } from 'sonner'
-import Flatpickr from 'react-flatpickr'
-import { useMutationQueue } from '@/hooks/useMutationQueue'
-import { usePersistentState } from '@/hooks/usePersistentState'
-import { usePersistentScroll } from '@/hooks/usePersistentScroll'
-import { cn } from '@/lib/utils'
+} from 'react';
+import { toast } from 'sonner';
+import Flatpickr from 'react-flatpickr';
+import { useMutationQueue } from '@/hooks/useMutationQueue';
+import { usePersistentState } from '@/hooks/usePersistentState';
+import { usePersistentScroll } from '@/hooks/usePersistentScroll';
+import { cn } from '@/lib/utils';
 import {
   planningWeekDateIsoForWeekNumber,
   weekLabelForIsoDate,
   weekNumberForYearWeekLabel,
   type PlanningWeekConfig,
-} from '@/lib/calculations/planning-week'
-import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
-import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+} from '@/lib/calculations/planning-week';
+import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates';
+import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
 import {
   Table,
   TableBody,
@@ -30,68 +31,68 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { withAppBasePath } from '@/lib/base-path'
+} from '@/components/ui/table';
+import { withAppBasePath } from '@/lib/base-path';
 
 export type PurchasePaymentRow = {
-  id: string
-  purchaseOrderId: string
-  orderCode: string
-  category: string
-  label: string
-  weekNumber: string
-  paymentIndex: number
-  dueDate: string
-  dueDateValue?: Date | null
-  dueDateIso: string | null
-  dueDateDefault: string
-  dueDateDefaultIso: string | null
-  dueDateSource: 'SYSTEM' | 'USER'
-  percentage: string
-  amountExpected: string
-  amountPaid: string
-}
+  id: string;
+  purchaseOrderId: string;
+  orderCode: string;
+  category: string;
+  label: string;
+  weekNumber: string;
+  paymentIndex: number;
+  dueDate: string;
+  dueDateValue?: Date | null;
+  dueDateIso: string | null;
+  dueDateDefault: string;
+  dueDateDefaultIso: string | null;
+  dueDateSource: 'SYSTEM' | 'USER';
+  percentage: string;
+  amountExpected: string;
+  amountPaid: string;
+};
 
 type PaymentUpdate = {
-  id: string
-  values: Partial<Record<string, string>>
-}
+  id: string;
+  values: Partial<Record<string, string>>;
+};
 
 export interface PaymentSummary {
-  plannedAmount: number
-  plannedPercent: number
-  actualAmount: number
-  actualPercent: number
-  remainingAmount: number
-  remainingPercent: number
+  plannedAmount: number;
+  plannedPercent: number;
+  actualAmount: number;
+  actualPercent: number;
+  remainingAmount: number;
+  remainingPercent: number;
 }
 
 interface CustomPurchasePaymentsGridProps {
-  payments: PurchasePaymentRow[]
-  activeOrderId?: string | null
-  activeYear?: number | null
-  planningWeekConfig?: PlanningWeekConfig | null
-  scrollKey?: string | null
-  onSelectOrder?: (orderId: string) => void
-  onAddPayment?: () => void
-  onRemovePayment?: (paymentId: string) => Promise<void> | void
-  onRowsChange?: (rows: PurchasePaymentRow[]) => void
-  onSynced?: () => void
-  isLoading?: boolean
-  orderSummaries?: Map<string, PaymentSummary>
-  summaryLine?: string | null
+  payments: PurchasePaymentRow[];
+  activeOrderId?: string | null;
+  activeYear?: number | null;
+  planningWeekConfig?: PlanningWeekConfig | null;
+  scrollKey?: string | null;
+  onSelectOrder?: (orderId: string) => void;
+  onAddPayment?: () => void;
+  onRemovePayment?: (paymentId: string) => Promise<void> | void;
+  onRowsChange?: (rows: PurchasePaymentRow[]) => void;
+  onSynced?: () => void;
+  isLoading?: boolean;
+  orderSummaries?: Map<string, PaymentSummary>;
+  summaryLine?: string | null;
 }
 
 type ColumnDef = {
-  key: keyof PurchasePaymentRow
-  header: string
-  headerWeeks?: string
-  headerDates?: string
-  width: number
-  type: 'text' | 'numeric' | 'percent' | 'date' | 'currency' | 'schedule'
-  editable: boolean
-  precision?: number
-}
+  key: keyof PurchasePaymentRow;
+  header: string;
+  headerWeeks?: string;
+  headerDates?: string;
+  width: number;
+  type: 'text' | 'numeric' | 'percent' | 'date' | 'currency' | 'schedule';
+  editable: boolean;
+  precision?: number;
+};
 
 const COLUMNS: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 120, type: 'text', editable: false },
@@ -105,68 +106,93 @@ const COLUMNS: ColumnDef[] = [
     type: 'schedule',
     editable: true,
   },
-  { key: 'percentage', header: 'Percent', width: 90, type: 'percent', editable: false, precision: 2 },
-  { key: 'amountExpected', header: 'Expected $', width: 110, type: 'currency', editable: false, precision: 2 },
-  { key: 'amountPaid', header: 'Paid $', width: 110, type: 'currency', editable: true, precision: 2 },
-]
+  {
+    key: 'percentage',
+    header: 'Percent',
+    width: 90,
+    type: 'percent',
+    editable: false,
+    precision: 2,
+  },
+  {
+    key: 'amountExpected',
+    header: 'Expected $',
+    width: 110,
+    type: 'currency',
+    editable: false,
+    precision: 2,
+  },
+  {
+    key: 'amountPaid',
+    header: 'Paid $',
+    width: 110,
+    type: 'currency',
+    editable: true,
+    precision: 2,
+  },
+];
 
-type ScheduleMode = 'weeks' | 'dates'
+type ScheduleMode = 'weeks' | 'dates';
 
-const CELL_ID_PREFIX = 'xplan-ops-payments'
+const CELL_ID_PREFIX = 'xplan-ops-payments';
 
 function sanitizeDomId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 function cellDomId(rowId: string, colKey: keyof PurchasePaymentRow): string {
-  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`
+  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`;
 }
 
 function normalizeNumeric(value: unknown, fractionDigits = 2): string {
-  return formatNumericInput(value, fractionDigits)
+  return formatNumericInput(value, fractionDigits);
 }
 
 function validateNumeric(value: string): boolean {
-  if (!value || value.trim() === '') return true
-  const parsed = sanitizeNumeric(value)
-  return !Number.isNaN(parsed)
+  if (!value || value.trim() === '') return true;
+  const parsed = sanitizeNumeric(value);
+  return !Number.isNaN(parsed);
 }
 
 function parseNumericInput(value: string | null | undefined): number | null {
-  if (!value) return null
-  const cleaned = value.replace(/[$,%]/g, '').trim()
-  const num = parseFloat(cleaned)
-  return Number.isNaN(num) ? null : num
+  if (!value) return null;
+  const cleaned = value.replace(/[$,%]/g, '').trim();
+  const num = parseFloat(cleaned);
+  return Number.isNaN(num) ? null : num;
 }
 
 function parseWeekNumber(value: string): number | null {
-  if (!value || value.trim() === '') return null
-  const parsed = Number.parseInt(value, 10)
-  if (Number.isNaN(parsed) || parsed <= 0) return null
-  return parsed
+  if (!value || value.trim() === '') return null;
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed <= 0) return null;
+  return parsed;
 }
 
 function getHeaderLabel(column: ColumnDef, scheduleMode: ScheduleMode): string {
   if (column.type === 'schedule') {
     return scheduleMode === 'weeks'
-      ? column.headerWeeks ?? column.header
-      : column.headerDates ?? column.header
+      ? (column.headerWeeks ?? column.header)
+      : (column.headerDates ?? column.header);
   }
-  return column.header
+  return column.header;
 }
 
-function getCellEditValue(row: PurchasePaymentRow, column: ColumnDef, scheduleMode: ScheduleMode): string {
+function getCellEditValue(
+  row: PurchasePaymentRow,
+  column: ColumnDef,
+  scheduleMode: ScheduleMode,
+): string {
   if (column.type === 'schedule') {
-    return scheduleMode === 'weeks' ? row.weekNumber : row.dueDateIso ?? ''
+    return scheduleMode === 'weeks' ? row.weekNumber : (row.dueDateIso ?? '');
   }
 
   if (column.type === 'date') {
-    const raw = row[column.key]
-    return raw === null || raw === undefined ? '' : String(raw)
+    const raw = row[column.key];
+    return raw === null || raw === undefined ? '' : String(raw);
   }
 
-  const raw = row[column.key]
-  return raw === null || raw === undefined ? '' : String(raw)
+  const raw = row[column.key];
+  return raw === null || raw === undefined ? '' : String(raw);
 }
 
 export function CustomPurchasePaymentsGrid({
@@ -186,516 +212,831 @@ export function CustomPurchasePaymentsGrid({
 }: CustomPurchasePaymentsGridProps) {
   const [scheduleMode, setScheduleMode] = usePersistentState<ScheduleMode>(
     'xplan:ops:payments-schedule-mode',
-    'dates'
-  )
-  const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
-  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
-  const [editValue, setEditValue] = useState<string>('')
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
-  const [isRemoving, setIsRemoving] = useState(false)
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
-  const tableScrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const rowsRef = useRef<PurchasePaymentRow[]>(payments)
+    'dates',
+  );
+  const [editingCell, setEditingCell] = useState<{
+    rowId: string;
+    colKey: keyof PurchasePaymentRow;
+  } | null>(null);
+  const [activeCell, setActiveCell] = useState<{
+    rowId: string;
+    colKey: keyof PurchasePaymentRow;
+  } | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const rowsRef = useRef<PurchasePaymentRow[]>(payments);
+  const clipboardRef = useRef<HTMLTextAreaElement | null>(null);
+  const pasteStartRef = useRef<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null);
 
-  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
+  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current);
 
   useEffect(() => {
-    rowsRef.current = payments
-  }, [payments])
+    rowsRef.current = payments;
+  }, [payments]);
 
   const handleFlush = useCallback(
     async (payload: PaymentUpdate[]) => {
-      if (payload.length === 0) return
+      if (payload.length === 0) return;
       // Filter out items that no longer exist in the current payments
-      const existingIds = new Set(payments.map((p) => p.id))
-      const validPayload = payload.filter((item) => existingIds.has(item.id))
-      if (validPayload.length === 0) return
+      const existingIds = new Set(payments.map((p) => p.id));
+      const validPayload = payload.filter((item) => existingIds.has(item.id));
+      if (validPayload.length === 0) return;
       try {
         const res = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: validPayload }),
-        })
-        if (!res.ok) throw new Error('Failed to update payments')
-        toast.success('Payment schedule updated', { id: 'payment-updated' })
-        onSynced?.()
+        });
+        if (!res.ok) throw new Error('Failed to update payments');
+        toast.success('Payment schedule updated', { id: 'payment-updated' });
+        onSynced?.();
       } catch (error) {
-        console.error(error)
-        toast.error('Unable to update payment schedule', { id: 'payment-error' })
+        console.error(error);
+        toast.error('Unable to update payment schedule', { id: 'payment-error' });
       }
     },
-    [onSynced, payments]
-  )
+    [onSynced, payments],
+  );
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<string, PaymentUpdate>({
     debounceMs: 400,
     onFlush: handleFlush,
-  })
+  });
 
-  const flushNowRef = useRef(flushNow)
+  const flushNowRef = useRef(flushNow);
   useEffect(() => {
-    flushNowRef.current = flushNow
-  }, [flushNow])
+    flushNowRef.current = flushNow;
+  }, [flushNow]);
 
   useEffect(() => {
     return () => {
-      flushNowRef.current().catch(() => {})
-    }
-  }, []) // Only run cleanup on unmount
+      flushNowRef.current().catch(() => {});
+    };
+  }, []); // Only run cleanup on unmount
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-  }, [editingCell])
+  }, [editingCell]);
 
   useEffect(() => {
-    setSelectedPaymentId(null)
-    setActiveCell(null)
-  }, [activeOrderId])
+    setSelectedPaymentId(null);
+    setActiveCell(null);
+  }, [activeOrderId]);
 
   useEffect(() => {
-    if (!selectedPaymentId) return
-    const stillExists = payments.some((payment) => payment.id === selectedPaymentId)
-    if (!stillExists) setSelectedPaymentId(null)
-  }, [payments, selectedPaymentId])
+    if (!selectedPaymentId) return;
+    const stillExists = payments.some((payment) => payment.id === selectedPaymentId);
+    if (!stillExists) setSelectedPaymentId(null);
+  }, [payments, selectedPaymentId]);
 
   // Scoped data based on active order
   const data = useMemo(() => {
-    return activeOrderId ? payments.filter((p) => p.purchaseOrderId === activeOrderId) : payments
-  }, [activeOrderId, payments])
+    return activeOrderId ? payments.filter((p) => p.purchaseOrderId === activeOrderId) : payments;
+  }, [activeOrderId, payments]);
 
-  const summary = activeOrderId ? orderSummaries?.get(activeOrderId) : undefined
+  const summary = activeOrderId ? orderSummaries?.get(activeOrderId) : undefined;
 
   const computedSummaryLine = useMemo(() => {
-    if (!summary) return null
-    const parts: string[] = []
-    parts.push(`Plan ${summary.plannedAmount.toFixed(2)}`)
+    if (!summary) return null;
+    const parts: string[] = [];
+    parts.push(`Plan ${summary.plannedAmount.toFixed(2)}`);
     if (summary.plannedAmount > 0) {
-      const paidPercent = Math.max(summary.actualPercent * 100, 0).toFixed(1)
-      parts.push(`Paid ${summary.actualAmount.toFixed(2)} (${paidPercent}%)`)
+      const paidPercent = Math.max(summary.actualPercent * 100, 0).toFixed(1);
+      parts.push(`Paid ${summary.actualAmount.toFixed(2)} (${paidPercent}%)`);
       if (summary.remainingAmount > 0.01) {
-        parts.push(`Remaining ${summary.remainingAmount.toFixed(2)}`)
+        parts.push(`Remaining ${summary.remainingAmount.toFixed(2)}`);
       } else if (summary.remainingAmount < -0.01) {
-        parts.push(`Cleared (+$${Math.abs(summary.remainingAmount).toFixed(2)})`)
+        parts.push(`Cleared (+$${Math.abs(summary.remainingAmount).toFixed(2)})`);
       } else {
-        parts.push('Cleared')
+        parts.push('Cleared');
       }
     } else {
-      parts.push(`Paid ${summary.actualAmount.toFixed(2)}`)
+      parts.push(`Paid ${summary.actualAmount.toFixed(2)}`);
     }
-    return parts.join(' • ')
-  }, [summary])
+    return parts.join(' • ');
+  }, [summary]);
 
-  const summaryText = summaryLine ?? computedSummaryLine
+  const summaryText = summaryLine ?? computedSummaryLine;
 
   const toggleScheduleMode = useCallback(() => {
-    setIsDatePickerOpen(false)
-    setEditingCell(null)
-    setActiveCell(null)
-    setEditValue('')
-    setScheduleMode((previous) => (previous === 'weeks' ? 'dates' : 'weeks'))
-  }, [setScheduleMode])
+    setIsDatePickerOpen(false);
+    setEditingCell(null);
+    setActiveCell(null);
+    setEditValue('');
+    setScheduleMode((previous) => (previous === 'weeks' ? 'dates' : 'weeks'));
+  }, [setScheduleMode]);
 
   const startEditing = (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
-    setIsDatePickerOpen(false)
-    setActiveCell({ rowId, colKey })
-    setEditingCell({ rowId, colKey })
-    setEditValue(currentValue)
-  }
+    setIsDatePickerOpen(false);
+    setActiveCell({ rowId, colKey });
+    setEditingCell({ rowId, colKey });
+    setEditValue(currentValue);
+  };
 
   const selectCell = useCallback(
     (row: PurchasePaymentRow, column: ColumnDef) => {
-      onSelectOrder?.(row.purchaseOrderId)
-      setSelectedPaymentId(row.id)
-      tableScrollRef.current?.focus()
-      setActiveCell({ rowId: row.id, colKey: column.key })
+      onSelectOrder?.(row.purchaseOrderId);
+      setSelectedPaymentId(row.id);
+      tableScrollRef.current?.focus();
+      setActiveCell({ rowId: row.id, colKey: column.key });
     },
-    [onSelectOrder]
-  )
+    [onSelectOrder],
+  );
 
   const cancelEditing = () => {
-    setIsDatePickerOpen(false)
-    setEditingCell(null)
-    setEditValue('')
+    setIsDatePickerOpen(false);
+    setEditingCell(null);
+    setEditValue('');
     requestAnimationFrame(() => {
-      tableScrollRef.current?.focus()
-    })
-  }
+      tableScrollRef.current?.focus();
+    });
+  };
 
-  const commitEdit = useCallback((nextValue?: string) => {
-    if (!editingCell) return
+  const commitEdit = useCallback(
+    (nextValue?: string) => {
+      if (!editingCell) return;
 
-    const { rowId, colKey } = editingCell
-    const row = rowsRef.current.find((r) => r.id === rowId)
-    if (!row) {
-      cancelEditing()
-      return
-    }
-
-    const column = COLUMNS.find((c) => c.key === colKey)
-    if (!column) {
-      cancelEditing()
-      return
-    }
-
-    let finalValue = nextValue ?? editValue
-
-    // Validate and normalize based on column type
-    if (column.type === 'currency') {
-      if (!validateNumeric(finalValue)) {
-        toast.error('Invalid number')
-        cancelEditing()
-        return
+      const { rowId, colKey } = editingCell;
+      const row = rowsRef.current.find((r) => r.id === rowId);
+      if (!row) {
+        cancelEditing();
+        return;
       }
-      finalValue = normalizeNumeric(finalValue, column.precision ?? 2)
-    } else if (column.type === 'schedule') {
-      if (scheduleMode === 'dates') {
-        if (!finalValue || finalValue.trim() === '') {
-          finalValue = ''
+
+      const column = COLUMNS.find((c) => c.key === colKey);
+      if (!column) {
+        cancelEditing();
+        return;
+      }
+
+      let finalValue = nextValue ?? editValue;
+
+      // Validate and normalize based on column type
+      if (column.type === 'currency') {
+        if (!validateNumeric(finalValue)) {
+          toast.error('Invalid number');
+          cancelEditing();
+          return;
+        }
+        finalValue = normalizeNumeric(finalValue, column.precision ?? 2);
+      } else if (column.type === 'schedule') {
+        if (scheduleMode === 'dates') {
+          if (!finalValue || finalValue.trim() === '') {
+            finalValue = '';
+          } else {
+            const iso = toIsoDate(finalValue);
+            if (!iso) {
+              toast.error('Invalid date');
+              cancelEditing();
+              return;
+            }
+            finalValue = iso;
+          }
         } else {
-          const iso = toIsoDate(finalValue)
-          if (!iso) {
-            toast.error('Invalid date')
-            cancelEditing()
-            return
+          if (!finalValue || finalValue.trim() === '') {
+            finalValue = '';
+          } else {
+            const weekNumber = parseWeekNumber(finalValue);
+            if (!weekNumber || weekNumber > 53) {
+              toast.error('Invalid week number');
+              cancelEditing();
+              return;
+            }
+            finalValue = String(weekNumber);
           }
-          finalValue = iso
         }
-      } else {
-        if (!finalValue || finalValue.trim() === '') {
-          finalValue = ''
+      }
+
+      // Get the current value for comparison
+      const currentValueStr =
+        colKey === 'weekNumber' && column.type === 'schedule'
+          ? scheduleMode === 'dates'
+            ? (row.dueDateIso ?? '')
+            : (row.weekNumber ?? '')
+          : row[colKey] === null || row[colKey] === undefined
+            ? ''
+            : String(row[colKey]);
+
+      // Don't update if value hasn't changed
+      if (currentValueStr === finalValue) {
+        cancelEditing();
+        return;
+      }
+
+      // Prepare mutation entry
+      if (!pendingRef.current.has(rowId)) {
+        pendingRef.current.set(rowId, { id: rowId, values: {} });
+      }
+      const entry = pendingRef.current.get(rowId)!;
+
+      // Create updated row
+      const updatedRow = { ...row };
+
+      if (colKey === 'weekNumber') {
+        if (scheduleMode === 'dates') {
+          const iso = finalValue;
+          entry.values.dueDate = iso;
+          entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM';
+          updatedRow.dueDateIso = iso || null;
+          updatedRow.dueDate = iso ? formatDateDisplay(iso) : '';
+          updatedRow.dueDateSource = iso ? 'USER' : 'SYSTEM';
+          updatedRow.weekNumber = planningWeekConfig
+            ? weekLabelForIsoDate(iso, planningWeekConfig)
+            : (row.weekNumber ?? '');
         } else {
-          const weekNumber = parseWeekNumber(finalValue)
-          if (!weekNumber || weekNumber > 53) {
-            toast.error('Invalid week number')
-            cancelEditing()
-            return
+          if (!finalValue || finalValue.trim() === '') {
+            entry.values.dueDate = '';
+            entry.values.dueDateSource = 'SYSTEM';
+            updatedRow.dueDateIso = null;
+            updatedRow.dueDate = '';
+            updatedRow.dueDateSource = 'SYSTEM';
+            updatedRow.weekNumber = '';
+          } else {
+            if (!planningWeekConfig) {
+              toast.error('Planning calendar unavailable');
+              cancelEditing();
+              return;
+            }
+            const year = activeYear ?? new Date().getFullYear();
+            const weekLabel = parseWeekNumber(finalValue);
+            const globalWeekNumber = weekNumberForYearWeekLabel(
+              year,
+              weekLabel,
+              planningWeekConfig,
+            );
+            const iso = planningWeekDateIsoForWeekNumber(globalWeekNumber, planningWeekConfig);
+            if (!iso) {
+              toast.error('Invalid week number for selected year');
+              cancelEditing();
+              return;
+            }
+            entry.values.dueDate = iso;
+            entry.values.dueDateSource = 'USER';
+            updatedRow.dueDateIso = iso;
+            updatedRow.dueDate = formatDateDisplay(iso);
+            updatedRow.dueDateSource = 'USER';
+            updatedRow.weekNumber = finalValue;
           }
-          finalValue = String(weekNumber)
         }
-      }
-    }
+      } else if (colKey === 'amountPaid') {
+        // Validate that amount doesn't exceed planned
+        const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0;
+        const numericAmount = parseNumericInput(finalValue) ?? 0;
 
-    // Get the current value for comparison
-    const currentValueStr =
-      colKey === 'weekNumber' && column.type === 'schedule'
-        ? scheduleMode === 'dates'
-          ? row.dueDateIso ?? ''
-          : row.weekNumber ?? ''
-        : row[colKey] === null || row[colKey] === undefined
-          ? ''
-          : String(row[colKey])
+        if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
+          const amountTolerance = Math.max(plannedAmount * 0.001, 0.01);
+          const otherPayments = rowsRef.current
+            .filter((r) => r.purchaseOrderId === row.purchaseOrderId && r.id !== rowId)
+            .reduce((sum, r) => sum + (parseNumericInput(r.amountPaid) ?? 0), 0);
+          const totalAmount = otherPayments + numericAmount;
 
-    // Don't update if value hasn't changed
-    if (currentValueStr === finalValue) {
-      cancelEditing()
-      return
-    }
-
-    // Prepare mutation entry
-    if (!pendingRef.current.has(rowId)) {
-      pendingRef.current.set(rowId, { id: rowId, values: {} })
-    }
-    const entry = pendingRef.current.get(rowId)!
-
-    // Create updated row
-    const updatedRow = { ...row }
-
-    if (colKey === 'weekNumber') {
-      if (scheduleMode === 'dates') {
-        const iso = finalValue
-        entry.values.dueDate = iso
-        entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM'
-        updatedRow.dueDateIso = iso || null
-        updatedRow.dueDate = iso ? formatDateDisplay(iso) : ''
-        updatedRow.dueDateSource = iso ? 'USER' : 'SYSTEM'
-        updatedRow.weekNumber = planningWeekConfig
-          ? weekLabelForIsoDate(iso, planningWeekConfig)
-          : row.weekNumber ?? ''
-      } else {
-        if (!finalValue || finalValue.trim() === '') {
-          entry.values.dueDate = ''
-          entry.values.dueDateSource = 'SYSTEM'
-          updatedRow.dueDateIso = null
-          updatedRow.dueDate = ''
-          updatedRow.dueDateSource = 'SYSTEM'
-          updatedRow.weekNumber = ''
-        } else {
-          if (!planningWeekConfig) {
-            toast.error('Planning calendar unavailable')
-            cancelEditing()
-            return
+          if (totalAmount > plannedAmount + amountTolerance) {
+            toast.error(
+              'Amount paid exceeds the expected total. Adjust the values before continuing.',
+            );
+            cancelEditing();
+            return;
           }
-          const year = activeYear ?? new Date().getFullYear()
-          const weekLabel = parseWeekNumber(finalValue)
-          const globalWeekNumber = weekNumberForYearWeekLabel(year, weekLabel, planningWeekConfig)
-          const iso = planningWeekDateIsoForWeekNumber(globalWeekNumber, planningWeekConfig)
-          if (!iso) {
-            toast.error('Invalid week number for selected year')
-            cancelEditing()
-            return
-          }
-          entry.values.dueDate = iso
-          entry.values.dueDateSource = 'USER'
-          updatedRow.dueDateIso = iso
-          updatedRow.dueDate = formatDateDisplay(iso)
-          updatedRow.dueDateSource = 'USER'
-          updatedRow.weekNumber = finalValue
-        }
-      }
-    } else if (colKey === 'amountPaid') {
-      // Validate that amount doesn't exceed planned
-      const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0
-      const numericAmount = parseNumericInput(finalValue) ?? 0
 
-      if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
-        const amountTolerance = Math.max(plannedAmount * 0.001, 0.01)
-        const otherPayments = rowsRef.current
-          .filter((r) => r.purchaseOrderId === row.purchaseOrderId && r.id !== rowId)
-          .reduce((sum, r) => sum + (parseNumericInput(r.amountPaid) ?? 0), 0)
-        const totalAmount = otherPayments + numericAmount
-
-        if (totalAmount > plannedAmount + amountTolerance) {
-          toast.error('Amount paid exceeds the expected total. Adjust the values before continuing.')
-          cancelEditing()
-          return
+          // Derive percentage from amount
+          const derivedPercent = numericAmount / plannedAmount;
+          const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%';
+          entry.values.percentage = String(derivedPercent);
+          updatedRow.percentage = normalizedPercent;
         }
 
-        // Derive percentage from amount
-        const derivedPercent = numericAmount / plannedAmount
-        const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%'
-        entry.values.percentage = String(derivedPercent)
-        updatedRow.percentage = normalizedPercent
+        entry.values.amountPaid = finalValue;
+        updatedRow.amountPaid = finalValue;
       }
 
-      entry.values.amountPaid = finalValue
-      updatedRow.amountPaid = finalValue
-    }
+      // Update rows
+      const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r));
+      rowsRef.current = updatedRows;
+      onRowsChange?.(updatedRows);
 
-    // Update rows
-    const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r))
-    rowsRef.current = updatedRows
-    onRowsChange?.(updatedRows)
-
-    scheduleFlush()
-    cancelEditing()
-  }, [
-    activeYear,
-    editingCell,
-    editValue,
-    pendingRef,
-    scheduleFlush,
-    onRowsChange,
-    orderSummaries,
-    planningWeekConfig,
-    scheduleMode,
-  ])
+      scheduleFlush();
+      cancelEditing();
+    },
+    [
+      activeYear,
+      editingCell,
+      editValue,
+      pendingRef,
+      scheduleFlush,
+      onRowsChange,
+      orderSummaries,
+      planningWeekConfig,
+      scheduleMode,
+    ],
+  );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault()
-      commitEdit()
-      moveSelection(1, 0)
+      e.preventDefault();
+      commitEdit();
+      moveSelection(1, 0);
       requestAnimationFrame(() => {
-        tableScrollRef.current?.focus()
-      })
+        tableScrollRef.current?.focus();
+      });
     } else if (e.key === 'Escape') {
-      e.preventDefault()
-      cancelEditing()
+      e.preventDefault();
+      cancelEditing();
       requestAnimationFrame(() => {
-        tableScrollRef.current?.focus()
-      })
+        tableScrollRef.current?.focus();
+      });
     } else if (e.key === 'Tab') {
-      e.preventDefault()
-      commitEdit()
-      moveSelectionTab(e.shiftKey ? -1 : 1)
+      e.preventDefault();
+      commitEdit();
+      moveSelectionTab(e.shiftKey ? -1 : 1);
       requestAnimationFrame(() => {
-        tableScrollRef.current?.focus()
-      })
+        tableScrollRef.current?.focus();
+      });
     }
-  }
+  };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value)
-  }
+    setEditValue(e.target.value);
+  };
 
   const handleCellClick = (row: PurchasePaymentRow, column: ColumnDef) => {
-    selectCell(row, column)
-  }
+    selectCell(row, column);
+  };
 
   const handleCellBlur = () => {
-    commitEdit()
-  }
+    commitEdit();
+  };
 
   const scrollToCell = useCallback((rowId: string, colKey: keyof PurchasePaymentRow) => {
     requestAnimationFrame(() => {
-      const node = document.getElementById(cellDomId(rowId, colKey))
-      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    })
-  }, [])
+      const node = document.getElementById(cellDomId(rowId, colKey));
+      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }, []);
 
   const moveSelection = useCallback(
     (deltaRow: number, deltaCol: number) => {
-      if (!activeCell) return
+      if (!activeCell) return;
 
-      const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId)
-      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
-      if (currentRowIndex < 0 || currentColIndex < 0) return
+      const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId);
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey);
+      if (currentRowIndex < 0 || currentColIndex < 0) return;
 
-      const nextRowIndex = Math.max(0, Math.min(data.length - 1, currentRowIndex + deltaRow))
-      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol))
+      const nextRowIndex = Math.max(0, Math.min(data.length - 1, currentRowIndex + deltaRow));
+      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol));
 
-      const nextRow = data[nextRowIndex]
-      const nextColKey = COLUMNS[nextColIndex]?.key
-      if (!nextRow || !nextColKey) return
+      const nextRow = data[nextRowIndex];
+      const nextColKey = COLUMNS[nextColIndex]?.key;
+      if (!nextRow || !nextColKey) return;
 
-      onSelectOrder?.(nextRow.purchaseOrderId)
-      setSelectedPaymentId(nextRow.id)
-      setActiveCell({ rowId: nextRow.id, colKey: nextColKey })
-      scrollToCell(nextRow.id, nextColKey)
+      onSelectOrder?.(nextRow.purchaseOrderId);
+      setSelectedPaymentId(nextRow.id);
+      setActiveCell({ rowId: nextRow.id, colKey: nextColKey });
+      scrollToCell(nextRow.id, nextColKey);
     },
-    [activeCell, data, onSelectOrder, scrollToCell]
-  )
+    [activeCell, data, onSelectOrder, scrollToCell],
+  );
 
   const moveSelectionTab = useCallback(
     (direction: 1 | -1) => {
-      if (!activeCell) return
+      if (!activeCell) return;
 
-      const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId)
-      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
-      if (currentRowIndex < 0 || currentColIndex < 0) return
+      const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId);
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey);
+      if (currentRowIndex < 0 || currentColIndex < 0) return;
 
-      let nextRowIndex = currentRowIndex
-      let nextColIndex = currentColIndex + direction
+      let nextRowIndex = currentRowIndex;
+      let nextColIndex = currentColIndex + direction;
 
       if (nextColIndex >= COLUMNS.length) {
-        nextColIndex = 0
-        nextRowIndex = Math.min(data.length - 1, currentRowIndex + 1)
+        nextColIndex = 0;
+        nextRowIndex = Math.min(data.length - 1, currentRowIndex + 1);
       } else if (nextColIndex < 0) {
-        nextColIndex = COLUMNS.length - 1
-        nextRowIndex = Math.max(0, currentRowIndex - 1)
+        nextColIndex = COLUMNS.length - 1;
+        nextRowIndex = Math.max(0, currentRowIndex - 1);
       }
 
-      const nextRow = data[nextRowIndex]
-      const nextColKey = COLUMNS[nextColIndex]?.key
-      if (!nextRow || !nextColKey) return
+      const nextRow = data[nextRowIndex];
+      const nextColKey = COLUMNS[nextColIndex]?.key;
+      if (!nextRow || !nextColKey) return;
 
-      onSelectOrder?.(nextRow.purchaseOrderId)
-      setSelectedPaymentId(nextRow.id)
-      setActiveCell({ rowId: nextRow.id, colKey: nextColKey })
-      scrollToCell(nextRow.id, nextColKey)
+      onSelectOrder?.(nextRow.purchaseOrderId);
+      setSelectedPaymentId(nextRow.id);
+      setActiveCell({ rowId: nextRow.id, colKey: nextColKey });
+      scrollToCell(nextRow.id, nextColKey);
     },
-    [activeCell, data, onSelectOrder, scrollToCell]
-  )
+    [activeCell, data, onSelectOrder, scrollToCell],
+  );
 
   const startEditingActiveCell = useCallback(() => {
-    if (!activeCell) return
-    const row = data.find((r) => r.id === activeCell.rowId)
-    const column = COLUMNS.find((c) => c.key === activeCell.colKey)
-    if (!row || !column) return
-    if (!column.editable) return
-    startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
-  }, [activeCell, data, scheduleMode])
+    if (!activeCell) return;
+    const row = data.find((r) => r.id === activeCell.rowId);
+    const column = COLUMNS.find((c) => c.key === activeCell.colKey);
+    if (!row || !column) return;
+    if (!column.editable) return;
+    startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode));
+  }, [activeCell, data, scheduleMode]);
 
-  const handleTableKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return
-      if (editingCell) return
-      if (!activeCell) return
+  const buildClipboardText = useCallback(() => {
+    if (!activeCell) return '';
+    const row = rowsRef.current.find((item) => item.id === activeCell.rowId);
+    if (!row) return '';
+    const column = COLUMNS.find((item) => item.key === activeCell.colKey);
+    if (!column) return '';
+    return getCellEditValue(row, column, scheduleMode);
+  }, [activeCell, scheduleMode]);
+
+  const copySelectionToClipboard = useCallback(() => {
+    const text = buildClipboardText();
+    if (!text) return;
+
+    const clipboard = clipboardRef.current;
+    if (!clipboard) {
+      if (navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
+      return;
+    }
+
+    clipboard.value = text;
+    clipboard.focus();
+    clipboard.select();
+
+    try {
+      const didCopy = document.execCommand('copy');
+      if (!didCopy && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
+    } finally {
+      clipboard.value = '';
+      requestAnimationFrame(() => tableScrollRef.current?.focus());
+    }
+  }, [buildClipboardText]);
+
+  const applyPastedText = useCallback(
+    (text: string, start: { rowId: string; colKey: keyof PurchasePaymentRow }) => {
+      const startRowIndex = data.findIndex((row) => row.id === start.rowId);
+      const startColIndex = COLUMNS.findIndex((column) => column.key === start.colKey);
+      if (startRowIndex < 0 || startColIndex < 0) return;
+
+      const matrix = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (matrix.length === 0) return;
+
+      let updatedRows = [...rowsRef.current];
+      const indexById = new Map(updatedRows.map((row, idx) => [row.id, idx]));
+      let applied = 0;
+      let skipped = 0;
+
+      for (let r = 0; r < matrix.length; r += 1) {
+        for (let c = 0; c < matrix[r]!.length; c += 1) {
+          const targetRow = data[startRowIndex + r];
+          if (!targetRow) continue;
+
+          const column = COLUMNS[startColIndex + c];
+          if (!column?.editable) continue;
+
+          const rowIndex = indexById.get(targetRow.id);
+          if (rowIndex == null) continue;
+
+          const row = updatedRows[rowIndex];
+          if (!row) continue;
+
+          const rawValue = matrix[r]![c] ?? '';
+          let finalValue = rawValue;
+
+          if (column.type === 'currency') {
+            if (!validateNumeric(finalValue)) {
+              skipped += 1;
+              continue;
+            }
+            finalValue = normalizeNumeric(finalValue, column.precision ?? 2);
+          } else if (column.type === 'schedule') {
+            if (scheduleMode === 'dates') {
+              if (!finalValue || finalValue.trim() === '') {
+                finalValue = '';
+              } else {
+                const iso = toIsoDate(finalValue);
+                if (!iso) {
+                  skipped += 1;
+                  continue;
+                }
+                finalValue = iso;
+              }
+            } else {
+              if (!finalValue || finalValue.trim() === '') {
+                finalValue = '';
+              } else {
+                const weekNumber = parseWeekNumber(finalValue);
+                if (!weekNumber || weekNumber > 53) {
+                  skipped += 1;
+                  continue;
+                }
+                finalValue = String(weekNumber);
+              }
+            }
+          }
+
+          const currentValueStr =
+            column.key === 'weekNumber' && column.type === 'schedule'
+              ? scheduleMode === 'dates'
+                ? (row.dueDateIso ?? '')
+                : (row.weekNumber ?? '')
+              : row[column.key] === null || row[column.key] === undefined
+                ? ''
+                : String(row[column.key]);
+
+          if (currentValueStr === finalValue) continue;
+
+          if (!pendingRef.current.has(row.id)) {
+            pendingRef.current.set(row.id, { id: row.id, values: {} });
+          }
+          const entry = pendingRef.current.get(row.id)!;
+
+          const nextRow = { ...row };
+
+          if (column.key === 'weekNumber') {
+            if (scheduleMode === 'dates') {
+              const iso = finalValue;
+              entry.values.dueDate = iso;
+              entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM';
+              nextRow.dueDateIso = iso || null;
+              nextRow.dueDate = iso ? formatDateDisplay(iso) : '';
+              nextRow.dueDateSource = iso ? 'USER' : 'SYSTEM';
+              nextRow.weekNumber = iso
+                ? planningWeekConfig
+                  ? weekLabelForIsoDate(iso, planningWeekConfig)
+                  : (row.weekNumber ?? '')
+                : '';
+            } else {
+              if (!finalValue || finalValue.trim() === '') {
+                entry.values.dueDate = '';
+                entry.values.dueDateSource = 'SYSTEM';
+                nextRow.dueDateIso = null;
+                nextRow.dueDate = '';
+                nextRow.dueDateSource = 'SYSTEM';
+                nextRow.weekNumber = '';
+              } else {
+                if (!planningWeekConfig) {
+                  skipped += 1;
+                  continue;
+                }
+                const year = activeYear ?? new Date().getFullYear();
+                const weekLabel = parseWeekNumber(finalValue);
+                const globalWeekNumber = weekNumberForYearWeekLabel(
+                  year,
+                  weekLabel,
+                  planningWeekConfig,
+                );
+                const iso = planningWeekDateIsoForWeekNumber(globalWeekNumber, planningWeekConfig);
+                if (!iso) {
+                  skipped += 1;
+                  continue;
+                }
+                entry.values.dueDate = iso;
+                entry.values.dueDateSource = 'USER';
+                nextRow.dueDateIso = iso;
+                nextRow.dueDate = formatDateDisplay(iso);
+                nextRow.dueDateSource = 'USER';
+                nextRow.weekNumber = finalValue;
+              }
+            }
+          } else if (column.key === 'amountPaid') {
+            const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0;
+            const numericAmount = parseNumericInput(finalValue) ?? 0;
+
+            if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
+              const amountTolerance = Math.max(plannedAmount * 0.001, 0.01);
+              const otherPayments = updatedRows
+                .filter(
+                  (item) => item.purchaseOrderId === row.purchaseOrderId && item.id !== row.id,
+                )
+                .reduce((sum, item) => sum + (parseNumericInput(item.amountPaid) ?? 0), 0);
+              const totalAmount = otherPayments + numericAmount;
+
+              if (totalAmount > plannedAmount + amountTolerance) {
+                skipped += 1;
+                continue;
+              }
+
+              const derivedPercent = numericAmount / plannedAmount;
+              const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%';
+              entry.values.percentage = String(derivedPercent);
+              nextRow.percentage = normalizedPercent;
+            }
+
+            entry.values.amountPaid = finalValue;
+            nextRow.amountPaid = finalValue;
+          }
+
+          updatedRows[rowIndex] = nextRow;
+          applied += 1;
+        }
+      }
+
+      if (applied === 0) return;
+
+      rowsRef.current = updatedRows;
+      onRowsChange?.(updatedRows);
+      scheduleFlush();
+
+      toast.success(`Pasted ${applied} cell${applied === 1 ? '' : 's'}`);
+      if (skipped > 0) {
+        toast.warning(`Skipped ${skipped} cell${skipped === 1 ? '' : 's'}`, {
+          description: 'Some values could not be applied.',
+        });
+      }
+    },
+    [
+      activeYear,
+      data,
+      onRowsChange,
+      orderSummaries,
+      pendingRef,
+      planningWeekConfig,
+      scheduleFlush,
+      scheduleMode,
+    ],
+  );
+
+  const handleCopy = useCallback(
+    (event: ClipboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      const text = buildClipboardText();
+      if (!text) return;
+      event.preventDefault();
+      event.clipboardData.setData('text/plain', text);
+    },
+    [buildClipboardText],
+  );
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLElement>) => {
+      if (event.target !== event.currentTarget) return;
+      const clipboard = clipboardRef.current;
+      const shouldRefocus = Boolean(clipboard && event.currentTarget === clipboard);
+      const refocus = () => {
+        if (!shouldRefocus) return;
+        if (clipboard) clipboard.value = '';
+        requestAnimationFrame(() => tableScrollRef.current?.focus());
+      };
+
+      const start = pasteStartRef.current ?? activeCell;
+      pasteStartRef.current = null;
+      if (!start) {
+        refocus();
+        return;
+      }
+
+      const text = event.clipboardData.getData('text/plain');
+      event.preventDefault();
+      if (!text) {
+        refocus();
+        return;
+      }
+
+      applyPastedText(text, start);
+      refocus();
+    },
+    [activeCell, applyPastedText],
+  );
+
+  const handleGridKeyDown = useCallback(
+    (event: {
+      key: string;
+      ctrlKey: boolean;
+      metaKey: boolean;
+      shiftKey: boolean;
+      preventDefault: () => void;
+    }) => {
+      if (editingCell) return;
+      if (!activeCell) return;
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault();
+        copySelectionToClipboard();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = activeCell;
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            tableScrollRef.current?.focus();
+          }
+        }, 250);
+        return;
+      }
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
-        event.preventDefault()
+        event.preventDefault();
 
-        const { rowId, colKey } = activeCell
-        const row = rowsRef.current.find((r) => r.id === rowId)
-        const column = COLUMNS.find((c) => c.key === colKey)
-        if (!row || !column || !column.editable) return
+        const { rowId, colKey } = activeCell;
+        const row = rowsRef.current.find((r) => r.id === rowId);
+        const column = COLUMNS.find((c) => c.key === colKey);
+        if (!row || !column || !column.editable) return;
 
         const currentValue =
           colKey === 'weekNumber' && column.type === 'schedule'
             ? scheduleMode === 'dates'
-              ? row.dueDateIso ?? ''
-              : row.weekNumber ?? ''
+              ? (row.dueDateIso ?? '')
+              : (row.weekNumber ?? '')
             : row[colKey] === null || row[colKey] === undefined
               ? ''
-              : String(row[colKey])
+              : String(row[colKey]);
 
-        if (currentValue === '') return
+        if (currentValue === '') return;
 
         if (!pendingRef.current.has(rowId)) {
-          pendingRef.current.set(rowId, { id: rowId, values: {} })
+          pendingRef.current.set(rowId, { id: rowId, values: {} });
         }
-        const entry = pendingRef.current.get(rowId)!
+        const entry = pendingRef.current.get(rowId)!;
 
-        const updatedRow = { ...row }
+        const updatedRow = { ...row };
 
         if (colKey === 'weekNumber') {
-          entry.values.dueDate = ''
-          entry.values.dueDateSource = 'SYSTEM'
-          updatedRow.dueDateIso = null
-          updatedRow.dueDate = ''
-          updatedRow.dueDateSource = 'SYSTEM'
-          updatedRow.weekNumber = ''
+          entry.values.dueDate = '';
+          entry.values.dueDateSource = 'SYSTEM';
+          updatedRow.dueDateIso = null;
+          updatedRow.dueDate = '';
+          updatedRow.dueDateSource = 'SYSTEM';
+          updatedRow.weekNumber = '';
         } else if (colKey === 'amountPaid') {
-          const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0
-          const numericAmount = 0
+          const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0;
+          const numericAmount = 0;
 
           if (plannedAmount > 0) {
-            const derivedPercent = numericAmount / plannedAmount
-            const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%'
-            entry.values.percentage = String(derivedPercent)
-            updatedRow.percentage = normalizedPercent
+            const derivedPercent = numericAmount / plannedAmount;
+            const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%';
+            entry.values.percentage = String(derivedPercent);
+            updatedRow.percentage = normalizedPercent;
           }
 
-          entry.values.amountPaid = ''
-          updatedRow.amountPaid = ''
+          entry.values.amountPaid = '';
+          updatedRow.amountPaid = '';
         }
 
-        const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r))
-        rowsRef.current = updatedRows
-        onRowsChange?.(updatedRows)
-        scheduleFlush()
-        return
+        const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r));
+        rowsRef.current = updatedRows;
+        onRowsChange?.(updatedRows);
+        scheduleFlush();
+        return;
       }
 
       if (event.key === 'Enter' || event.key === 'F2') {
-        event.preventDefault()
-        startEditingActiveCell()
-        return
+        event.preventDefault();
+        startEditingActiveCell();
+        return;
       }
 
       if (event.key === 'Tab') {
-        event.preventDefault()
-        moveSelectionTab(event.shiftKey ? -1 : 1)
-        return
+        event.preventDefault();
+        moveSelectionTab(event.shiftKey ? -1 : 1);
+        return;
       }
 
       if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        moveSelection(1, 0)
-        return
+        event.preventDefault();
+        moveSelection(1, 0);
+        return;
       }
       if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        moveSelection(-1, 0)
-        return
+        event.preventDefault();
+        moveSelection(-1, 0);
+        return;
       }
       if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        moveSelection(0, 1)
-        return
+        event.preventDefault();
+        moveSelection(0, 1);
+        return;
       }
       if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        moveSelection(0, -1)
-        return
+        event.preventDefault();
+        moveSelection(0, -1);
+        return;
       }
     },
     [
       activeCell,
+      copySelectionToClipboard,
       editingCell,
       moveSelection,
       moveSelectionTab,
@@ -705,64 +1046,74 @@ export function CustomPurchasePaymentsGrid({
       scheduleFlush,
       scheduleMode,
       startEditingActiveCell,
-    ]
-  )
+    ],
+  );
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      handleGridKeyDown(event);
+    },
+    [handleGridKeyDown],
+  );
 
   const formatDisplayValue = (row: PurchasePaymentRow, column: ColumnDef): string => {
     if (column.type === 'schedule') {
       if (scheduleMode === 'dates') {
-        return row.dueDateIso ? formatDateDisplay(row.dueDateIso) : ''
+        return row.dueDateIso ? formatDateDisplay(row.dueDateIso) : '';
       }
-      return row.weekNumber ?? ''
+      return row.weekNumber ?? '';
     }
 
-    const value = row[column.key]
-    if (value === null || value === undefined || value === '') return ''
+    const value = row[column.key];
+    if (value === null || value === undefined || value === '') return '';
 
     if (column.type === 'date') {
-      const isoValue = typeof value === 'string' ? value : null
-      return isoValue ? formatDateDisplay(isoValue) : ''
+      const isoValue = typeof value === 'string' ? value : null;
+      return isoValue ? formatDateDisplay(isoValue) : '';
     }
 
     if (column.type === 'currency') {
-      const num = sanitizeNumeric(String(value))
-      if (Number.isNaN(num)) return String(value)
-      return `$${num.toFixed(column.precision ?? 2)}`
+      const num = sanitizeNumeric(String(value));
+      if (Number.isNaN(num)) return String(value);
+      return `$${num.toFixed(column.precision ?? 2)}`;
     }
 
     if (column.type === 'percent') {
-      const num = sanitizeNumeric(String(value))
-      if (Number.isNaN(num)) return String(value)
-      return `${(num * 100).toFixed(column.precision ?? 2)}%`
+      const num = sanitizeNumeric(String(value));
+      if (Number.isNaN(num)) return String(value);
+      return `${(num * 100).toFixed(column.precision ?? 2)}%`;
     }
 
-    return String(value)
-  }
+    return String(value);
+  };
 
   const renderCell = (row: PurchasePaymentRow, column: ColumnDef, colIndex: number) => {
-    const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
-    const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key
-    const displayValue = formatDisplayValue(row, column)
-    const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates'
-    const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks'
-    const isNumericCell = column.type === 'currency' || column.type === 'percent'
-    const rowSelected = isRowActive(row)
+    const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key;
+    const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key;
+    const displayValue = formatDisplayValue(row, column);
+    const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates';
+    const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks';
+    const isNumericCell = column.type === 'currency' || column.type === 'percent';
+    const rowSelected = isRowActive(row);
 
     const cellClassName = cn(
       'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
       colIndex === 0 && rowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
       isNumericCell && 'text-right',
       isWeekLabel && 'text-center',
-      column.editable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+      column.editable
+        ? 'cursor-text bg-accent/50 font-medium'
+        : 'bg-muted/50 text-muted-foreground',
       (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
-      colIndex === COLUMNS.length - 1 && 'border-r-0'
-    )
+      colIndex === COLUMNS.length - 1 && 'border-r-0',
+    );
 
     const inputClassName = cn(
       'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
       isNumericCell && 'text-right',
-      isWeekLabel && 'text-center'
-    )
+      isWeekLabel && 'text-center',
+    );
 
     if (isEditing) {
       return (
@@ -781,18 +1132,18 @@ export function CustomPurchasePaymentsGrid({
                 disableMobile: true,
                 onOpen: () => setIsDatePickerOpen(true),
                 onClose: (_dates: Date[], dateStr: string) => {
-                  setIsDatePickerOpen(false)
-                  commitEdit(dateStr || editValue)
+                  setIsDatePickerOpen(false);
+                  commitEdit(dateStr || editValue);
                 },
               }}
               onChange={(_dates: Date[], dateStr: string) => {
-                setEditValue(dateStr)
+                setEditValue(dateStr);
               }}
               render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
                 <input
                   ref={(node) => {
-                    handleNodeChange(node)
-                    inputRef.current = node as HTMLInputElement | null
+                    handleNodeChange(node);
+                    inputRef.current = node as HTMLInputElement | null;
                   }}
                   type="text"
                   value={editValue}
@@ -800,7 +1151,7 @@ export function CustomPurchasePaymentsGrid({
                   onKeyDown={handleKeyDown}
                   onBlur={() => {
                     if (!isDatePickerOpen) {
-                      handleCellBlur()
+                      handleCellBlur();
                     }
                   }}
                   className={inputClassName}
@@ -820,10 +1171,10 @@ export function CustomPurchasePaymentsGrid({
             />
           )}
         </TableCell>
-      )
+      );
     }
 
-    const showPlaceholder = (column.type === 'date' || isScheduleDate) && !displayValue
+    const showPlaceholder = (column.type === 'date' || isScheduleDate) && !displayValue;
 
     return (
       <TableCell
@@ -833,20 +1184,20 @@ export function CustomPurchasePaymentsGrid({
         style={{ width: column.width, minWidth: column.width }}
         title={showPlaceholder ? undefined : displayValue || undefined}
         onClick={(event) => {
-          event.stopPropagation()
-          handleCellClick(row, column)
+          event.stopPropagation();
+          handleCellClick(row, column);
         }}
         onDoubleClick={(event) => {
-          event.stopPropagation()
-          if (!column.editable) return
-          startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
+          event.stopPropagation();
+          if (!column.editable) return;
+          startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode));
         }}
       >
         <div
           className={cn(
             'flex h-9 min-w-0 items-center px-3',
             isNumericCell && 'justify-end',
-            isWeekLabel && 'justify-center'
+            isWeekLabel && 'justify-center',
           )}
         >
           {showPlaceholder ? (
@@ -855,7 +1206,11 @@ export function CustomPurchasePaymentsGrid({
             <span
               className={cn(
                 'block min-w-0 truncate',
-                isWeekLabel ? 'text-center' : isNumericCell ? 'text-right tabular-nums' : 'text-left'
+                isWeekLabel
+                  ? 'text-center'
+                  : isNumericCell
+                    ? 'text-right tabular-nums'
+                    : 'text-left',
               )}
             >
               {displayValue}
@@ -863,14 +1218,14 @@ export function CustomPurchasePaymentsGrid({
           )}
         </div>
       </TableCell>
-    )
-  }
+    );
+  };
 
   const isRowActive = (row: PurchasePaymentRow): boolean => {
-    if (selectedPaymentId && row.id === selectedPaymentId) return true
-    if (!selectedPaymentId && activeOrderId && row.purchaseOrderId === activeOrderId) return true
-    return false
-  }
+    if (selectedPaymentId && row.id === selectedPaymentId) return true;
+    if (!selectedPaymentId && activeOrderId && row.purchaseOrderId === activeOrderId) return true;
+    return false;
+  };
 
   return (
     <section className="space-y-3">
@@ -884,7 +1239,7 @@ export function CustomPurchasePaymentsGrid({
             <button
               type="button"
               onClick={() => {
-                if (onAddPayment) void onAddPayment()
+                if (onAddPayment) void onAddPayment();
               }}
               disabled={!activeOrderId || isLoading}
               className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
@@ -894,15 +1249,15 @@ export function CustomPurchasePaymentsGrid({
             <button
               type="button"
               onClick={() => {
-                if (!selectedPaymentId || !onRemovePayment) return
-                setIsRemoving(true)
+                if (!selectedPaymentId || !onRemovePayment) return;
+                setIsRemoving(true);
                 Promise.resolve(onRemovePayment(selectedPaymentId))
                   .then(() => setSelectedPaymentId(null))
                   .catch((error) => {
-                    console.error(error)
-                    toast.error('Unable to delete payment')
+                    console.error(error);
+                    toast.error('Unable to delete payment');
                   })
-                  .finally(() => setIsRemoving(false))
+                  .finally(() => setIsRemoving(false));
               }}
               disabled={!selectedPaymentId || isLoading || isRemoving}
               className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:focus:ring-rose-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
@@ -913,11 +1268,25 @@ export function CustomPurchasePaymentsGrid({
         </div>
       </header>
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+      <div className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <textarea
+          ref={clipboardRef}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="fixed left-0 top-0 h-1 w-1 opacity-0 pointer-events-none"
+          onPaste={handlePaste}
+        />
         <div
           ref={tableScrollRef}
           tabIndex={0}
+          onPointerDownCapture={() => {
+            if (!editingCell) {
+              tableScrollRef.current?.focus();
+            }
+          }}
           onKeyDown={handleTableKeyDown}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
           className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           <Table className="table-fixed border-collapse">
@@ -935,9 +1304,9 @@ export function CustomPurchasePaymentsGrid({
                         className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
                         title={`Click to switch to ${scheduleMode === 'weeks' ? 'date' : 'week'} input`}
                         onClick={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          toggleScheduleMode()
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleScheduleMode();
                         }}
                       >
                         {getHeaderLabel(column, scheduleMode)}
@@ -952,7 +1321,10 @@ export function CustomPurchasePaymentsGrid({
             <TableBody>
               {data.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={COLUMNS.length} className="p-6 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={COLUMNS.length}
+                    className="p-6 text-center text-sm text-muted-foreground"
+                  >
                     {activeOrderId
                       ? 'No payments for this order. Click "Add Payment" to schedule one.'
                       : 'Select a purchase order above to view or add payments.'}
@@ -965,11 +1337,11 @@ export function CustomPurchasePaymentsGrid({
                     className={cn(
                       'hover:bg-transparent',
                       rowIndex % 2 === 1 && 'bg-muted/30',
-                  isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+                      isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20',
                     )}
                     onClick={() => {
-                      onSelectOrder?.(row.purchaseOrderId)
-                      setSelectedPaymentId(row.id)
+                      onSelectOrder?.(row.purchaseOrderId);
+                      setSelectedPaymentId(row.id);
                     }}
                   >
                     {COLUMNS.map((column, colIndex) => renderCell(row, column, colIndex))}
@@ -981,5 +1353,5 @@ export function CustomPurchasePaymentsGrid({
         </div>
       </div>
     </section>
-  )
+  );
 }

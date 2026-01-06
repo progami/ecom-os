@@ -1,31 +1,31 @@
-'use client'
+'use client';
 
-import { clsx } from 'clsx'
+import { clsx } from 'clsx';
 
-import type { SelectionStats } from '@/lib/selection-stats'
+import type { SelectionStats } from '@/lib/selection-stats';
 
 type SelectionStatsBarProps = {
-  stats: SelectionStats | null
-  className?: string
-}
+  stats: SelectionStats | null;
+  className?: string;
+};
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 }).format(value)
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 3 }).format(value);
 }
 
 export function SelectionStatsBar({ stats, className }: SelectionStatsBarProps) {
-  if (!stats || stats.cellCount === 0) return null
+  if (!stats || stats.cellCount === 0) return null;
 
-  const parts: string[] = []
+  const parts: string[] = [];
 
   if (stats.numericCount > 0) {
-    parts.push(`Σ ${formatNumber(stats.sum)}`)
+    parts.push(`Σ ${formatNumber(stats.sum)}`);
     if (stats.average != null && stats.numericCount > 1) {
-      parts.push(`Avg ${formatNumber(stats.average)}`)
+      parts.push(`Avg ${formatNumber(stats.average)}`);
     }
-    parts.push(`N ${formatNumber(stats.numericCount)}`)
+    parts.push(`N ${formatNumber(stats.numericCount)}`);
   } else {
-    parts.push(`N ${formatNumber(stats.cellCount)}`)
+    parts.push(`N ${formatNumber(stats.cellCount)}`);
   }
 
   return (
@@ -38,6 +38,5 @@ export function SelectionStatsBar({ stats, className }: SelectionStatsBarProps) 
     >
       {parts.join(' · ')}
     </div>
-  )
+  );
 }
-

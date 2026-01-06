@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   useCallback,
@@ -9,16 +9,12 @@ import {
   type KeyboardEvent,
   type ClipboardEvent,
   type PointerEvent,
-} from 'react'
-import {
-  createColumnHelper,
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-import { toast } from 'sonner'
+} from 'react';
+import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { toast } from 'sonner';
 
-import { cn } from '@/lib/utils'
-import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -26,149 +22,208 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
-import {
-  formatNumericInput,
-  sanitizeNumeric,
-} from '@/components/sheets/validators'
-import { useMutationQueue } from '@/hooks/useMutationQueue'
-import { usePersistentScroll } from '@/hooks/usePersistentScroll'
-import { withAppBasePath } from '@/lib/base-path'
-import type { SelectionStats } from '@/lib/selection-stats'
+} from '@/components/ui/table';
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
+import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
+import { useMutationQueue } from '@/hooks/useMutationQueue';
+import { usePersistentScroll } from '@/hooks/usePersistentScroll';
+import { withAppBasePath } from '@/lib/base-path';
+import type { SelectionStats } from '@/lib/selection-stats';
 
 type WeeklyRow = {
-  weekNumber: string
-  weekLabel: string
-  weekDate: string
-  amazonPayout: string
-  inventorySpend: string
-  fixedCosts: string
-  netCash: string
-  cashBalance: string
-}
+  weekNumber: string;
+  weekLabel: string;
+  weekDate: string;
+  amazonPayout: string;
+  inventorySpend: string;
+  fixedCosts: string;
+  netCash: string;
+  cashBalance: string;
+};
 
 type UpdatePayload = {
-  weekNumber: number
-  values: Partial<Record<keyof WeeklyRow, string>>
-}
+  weekNumber: number;
+  values: Partial<Record<keyof WeeklyRow, string>>;
+};
 
 interface CashFlowGridProps {
-  strategyId: string
-  weekly: WeeklyRow[]
+  strategyId: string;
+  weekly: WeeklyRow[];
 }
 
 const columnConfig: Array<{
-  key: keyof WeeklyRow
-  label: string
-  width: number
-  format: 'text' | 'currency'
-  editable: boolean
-  align: 'left' | 'right'
-  sticky?: boolean
-  stickyOffset?: number
+  key: keyof WeeklyRow;
+  label: string;
+  width: number;
+  format: 'text' | 'currency';
+  editable: boolean;
+  align: 'left' | 'right';
+  sticky?: boolean;
+  stickyOffset?: number;
 }> = [
-  { key: 'weekLabel', label: 'Week', width: 80, format: 'text', editable: false, align: 'left', sticky: true, stickyOffset: 0 },
-  { key: 'weekDate', label: 'Date', width: 120, format: 'text', editable: false, align: 'left', sticky: true, stickyOffset: 80 },
-  { key: 'amazonPayout', label: 'Amazon Payout', width: 130, format: 'currency', editable: true, align: 'right' },
-  { key: 'inventorySpend', label: 'Inventory Purchase', width: 140, format: 'currency', editable: true, align: 'right' },
-  { key: 'fixedCosts', label: 'Fixed Costs', width: 120, format: 'currency', editable: true, align: 'right' },
-  { key: 'netCash', label: 'Net Cash', width: 130, format: 'currency', editable: false, align: 'right' },
-  { key: 'cashBalance', label: 'Cash Balance', width: 130, format: 'currency', editable: false, align: 'right' },
-]
+  {
+    key: 'weekLabel',
+    label: 'Week',
+    width: 80,
+    format: 'text',
+    editable: false,
+    align: 'left',
+    sticky: true,
+    stickyOffset: 0,
+  },
+  {
+    key: 'weekDate',
+    label: 'Date',
+    width: 120,
+    format: 'text',
+    editable: false,
+    align: 'left',
+    sticky: true,
+    stickyOffset: 80,
+  },
+  {
+    key: 'amazonPayout',
+    label: 'Amazon Payout',
+    width: 130,
+    format: 'currency',
+    editable: true,
+    align: 'right',
+  },
+  {
+    key: 'inventorySpend',
+    label: 'Inventory Purchase',
+    width: 140,
+    format: 'currency',
+    editable: true,
+    align: 'right',
+  },
+  {
+    key: 'fixedCosts',
+    label: 'Fixed Costs',
+    width: 120,
+    format: 'currency',
+    editable: true,
+    align: 'right',
+  },
+  {
+    key: 'netCash',
+    label: 'Net Cash',
+    width: 130,
+    format: 'currency',
+    editable: false,
+    align: 'right',
+  },
+  {
+    key: 'cashBalance',
+    label: 'Cash Balance',
+    width: 130,
+    format: 'currency',
+    editable: false,
+    align: 'right',
+  },
+];
 
-type CellCoords = { row: number; col: number }
-type CellRange = { from: CellCoords; to: CellCoords }
+type CellCoords = { row: number; col: number };
+type CellRange = { from: CellCoords; to: CellCoords };
 
-function normalizeRange(range: CellRange): { top: number; bottom: number; left: number; right: number } {
+function normalizeRange(range: CellRange): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
   return {
     top: Math.min(range.from.row, range.to.row),
     bottom: Math.max(range.from.row, range.to.row),
     left: Math.min(range.from.col, range.to.col),
     right: Math.max(range.from.col, range.to.col),
-  }
+  };
 }
 
 function formatDisplayValue(value: string, format: 'text' | 'currency'): string {
-  if (format === 'text') return value
-  const numeric = sanitizeNumeric(value)
-  if (!Number.isFinite(numeric)) return ''
-  return numeric.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+  if (format === 'text') return value;
+  const numeric = sanitizeNumeric(value);
+  if (!Number.isFinite(numeric)) return '';
+  return numeric.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  });
 }
 
 function parseNumericCandidate(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (typeof value !== 'string') return null
-  const raw = value.trim()
-  if (!raw) return null
-  const normalized = raw.replace(/[$,%\s]/g, '').replace(/,/g, '')
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized = raw.replace(/[$,%\s]/g, '').replace(/,/g, '');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function computeSelectionStats(
   data: WeeklyRow[],
   columnKeys: (keyof WeeklyRow)[],
-  range: CellRange | null
+  range: CellRange | null,
 ): SelectionStats | null {
-  if (!range) return null
-  const { top, bottom, left, right } = normalizeRange(range)
-  if (top < 0 || left < 0) return null
+  if (!range) return null;
+  const { top, bottom, left, right } = normalizeRange(range);
+  if (top < 0 || left < 0) return null;
 
-  let cellCount = 0
-  let numericCount = 0
-  let sum = 0
+  let cellCount = 0;
+  let numericCount = 0;
+  let sum = 0;
 
   for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
-    const row = data[rowIndex]
-    if (!row) continue
+    const row = data[rowIndex];
+    if (!row) continue;
     for (let colIndex = left; colIndex <= right; colIndex += 1) {
-      const key = columnKeys[colIndex]
-      if (!key) continue
-      cellCount += 1
-      const numeric = parseNumericCandidate(row[key])
+      const key = columnKeys[colIndex];
+      if (!key) continue;
+      cellCount += 1;
+      const numeric = parseNumericCandidate(row[key]);
       if (numeric != null) {
-        numericCount += 1
-        sum += numeric
+        numericCount += 1;
+        sum += numeric;
       }
     }
   }
 
-  if (cellCount === 0) return null
+  if (cellCount === 0) return null;
   return {
     rangeCount: 1,
     cellCount,
     numericCount,
     sum,
     average: numericCount > 0 ? sum / numericCount : null,
-  }
+  };
 }
 
 export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
-  const columnHelper = useMemo(() => createColumnHelper<WeeklyRow>(), [])
+  const columnHelper = useMemo(() => createColumnHelper<WeeklyRow>(), []);
 
-  const [data, setData] = useState<WeeklyRow[]>(() => weekly.map((row) => ({ ...row })))
+  const [data, setData] = useState<WeeklyRow[]>(() => weekly.map((row) => ({ ...row })));
   useEffect(() => {
-    setData(weekly.map((row) => ({ ...row })))
-  }, [weekly])
+    setData(weekly.map((row) => ({ ...row })));
+  }, [weekly]);
 
   const inboundSpendWeeks = useMemo(() => {
-    const flags = new Set<number>()
+    const flags = new Set<number>();
     weekly.forEach((row) => {
-      const spend = parseNumericCandidate(row.inventorySpend)
+      const spend = parseNumericCandidate(row.inventorySpend);
       if (spend != null && Math.abs(spend) > 0) {
-        const week = Number(row.weekNumber)
-        if (Number.isFinite(week)) flags.add(week)
+        const week = Number(row.weekNumber);
+        if (Number.isFinite(week)) flags.add(week);
       }
-    })
-    return flags
-  }, [weekly])
+    });
+    return flags;
+  }, [weekly]);
 
-  const scrollRef = useRef<HTMLDivElement | null>(null)
-  const clipboardRef = useRef<HTMLTextAreaElement | null>(null)
-  const pasteStartRef = useRef<CellCoords | null>(null)
-  const getScrollElement = useCallback(() => scrollRef.current, [])
-  usePersistentScroll(`hot:cash-flow:${strategyId}`, true, getScrollElement)
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const clipboardRef = useRef<HTMLTextAreaElement | null>(null);
+  const pasteStartRef = useRef<CellCoords | null>(null);
+  const getScrollElement = useCallback(() => scrollRef.current, []);
+  usePersistentScroll(`hot:cash-flow:${strategyId}`, true, getScrollElement);
 
   const columns = useMemo(() => {
     return columnConfig.map((config) =>
@@ -183,270 +238,271 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
           sticky: config.key === 'weekLabel' || config.key === 'weekDate',
           stickyOffset: config.key === 'weekLabel' ? 0 : config.key === 'weekDate' ? 80 : undefined,
         },
-      })
-    )
-  }, [columnHelper])
+      }),
+    );
+  }, [columnHelper]);
 
-  const columnKeys = useMemo(() => columnConfig.map((c) => c.key), [])
+  const columnKeys = useMemo(() => columnConfig.map((c) => c.key), []);
 
-  const tableWidth = useMemo(() => columnConfig.reduce((sum, c) => sum + c.width, 0), [])
+  const tableWidth = useMemo(() => columnConfig.reduce((sum, c) => sum + c.width, 0), []);
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-  })
+  });
 
-  const [selection, setSelection] = useState<CellRange | null>(null)
-  const selectionAnchorRef = useRef<CellCoords | null>(null)
-  const [activeCell, setActiveCell] = useState<CellCoords | null>(null)
-  const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null)
+  const [selection, setSelection] = useState<CellRange | null>(null);
+  const selectionAnchorRef = useRef<CellCoords | null>(null);
+  const [activeCell, setActiveCell] = useState<CellCoords | null>(null);
+  const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null);
 
   const [editingCell, setEditingCell] = useState<{
-    coords: CellCoords
-    key: keyof WeeklyRow
-    value: string
-  } | null>(null)
+    coords: CellCoords;
+    key: keyof WeeklyRow;
+    value: string;
+  } | null>(null);
 
   const handleFlush = useCallback(
     async (payload: UpdatePayload[]) => {
-      if (payload.length === 0) return
+      if (payload.length === 0) return;
       try {
         const res = await fetch(withAppBasePath('/api/v1/x-plan/cash-flow'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ strategyId, updates: payload }),
-        })
-        if (!res.ok) throw new Error('Failed to update cash flow')
-        toast.success('Cash flow updated')
+        });
+        if (!res.ok) throw new Error('Failed to update cash flow');
+        toast.success('Cash flow updated');
       } catch (error) {
-        console.error(error)
-        toast.error('Unable to save cash flow changes')
+        console.error(error);
+        toast.error('Unable to save cash flow changes');
       }
     },
-    [strategyId]
-  )
+    [strategyId],
+  );
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<number, UpdatePayload>({
     debounceMs: 600,
     onFlush: handleFlush,
-  })
+  });
 
   useEffect(() => {
     return () => {
-      flushNow().catch(() => {})
-    }
-  }, [flushNow])
+      flushNow().catch(() => {});
+    };
+  }, [flushNow]);
 
   const commitEditing = useCallback(() => {
-    if (!editingCell) return
-    const { coords, key, value } = editingCell
-    const rowIndex = coords.row
-    const row = data[rowIndex]
+    if (!editingCell) return;
+    const { coords, key, value } = editingCell;
+    const rowIndex = coords.row;
+    const row = data[rowIndex];
     if (!row) {
-      setEditingCell(null)
-      requestAnimationFrame(() => scrollRef.current?.focus())
-      return
+      setEditingCell(null);
+      requestAnimationFrame(() => scrollRef.current?.focus());
+      return;
     }
 
-    const formatted = formatNumericInput(value, 2)
-    const weekNumber = Number(row.weekNumber)
+    const formatted = formatNumericInput(value, 2);
+    const weekNumber = Number(row.weekNumber);
 
     setData((prev) => {
-      const next = [...prev]
-      next[rowIndex] = { ...next[rowIndex], [key]: formatted }
-      return next
-    })
+      const next = [...prev];
+      next[rowIndex] = { ...next[rowIndex], [key]: formatted };
+      return next;
+    });
 
     if (!pendingRef.current.has(weekNumber)) {
-      pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+      pendingRef.current.set(weekNumber, { weekNumber, values: {} });
     }
-    const entry = pendingRef.current.get(weekNumber)
+    const entry = pendingRef.current.get(weekNumber);
     if (entry) {
-      entry.values[key] = formatted
+      entry.values[key] = formatted;
     }
-    scheduleFlush()
-    setEditingCell(null)
-    requestAnimationFrame(() => scrollRef.current?.focus())
-  }, [data, editingCell, pendingRef, scheduleFlush])
+    scheduleFlush();
+    setEditingCell(null);
+    requestAnimationFrame(() => scrollRef.current?.focus());
+  }, [data, editingCell, pendingRef, scheduleFlush]);
 
   const cancelEditing = useCallback(() => {
-    setEditingCell(null)
-    requestAnimationFrame(() => scrollRef.current?.focus())
-  }, [])
+    setEditingCell(null);
+    requestAnimationFrame(() => scrollRef.current?.focus());
+  }, []);
 
   const moveActiveCell = useCallback(
     (deltaRow: number, deltaCol: number) => {
       setActiveCell((prev) => {
-        if (!prev) return prev
-        const newRow = Math.max(0, Math.min(data.length - 1, prev.row + deltaRow))
-        const newCol = Math.max(0, Math.min(columnKeys.length - 1, prev.col + deltaCol))
-        return { row: newRow, col: newCol }
-      })
-      setSelection(null)
+        if (!prev) return prev;
+        const newRow = Math.max(0, Math.min(data.length - 1, prev.row + deltaRow));
+        const newCol = Math.max(0, Math.min(columnKeys.length - 1, prev.col + deltaCol));
+        return { row: newRow, col: newCol };
+      });
+      setSelection(null);
     },
-    [data.length, columnKeys.length]
-  )
+    [data.length, columnKeys.length],
+  );
 
   const buildClipboardText = useCallback(
     (range: CellRange): string => {
-      const { top, bottom, left, right } = normalizeRange(range)
-      const lines: string[] = []
+      const { top, bottom, left, right } = normalizeRange(range);
+      const lines: string[] = [];
       for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
-        const row = data[rowIndex]
-        if (!row) continue
-        const cells: string[] = []
+        const row = data[rowIndex];
+        if (!row) continue;
+        const cells: string[] = [];
         for (let colIndex = left; colIndex <= right; colIndex += 1) {
-          const key = columnKeys[colIndex]
-          cells.push(key ? row[key] : '')
+          const key = columnKeys[colIndex];
+          cells.push(key ? row[key] : '');
         }
-        lines.push(cells.join('\t'))
+        lines.push(cells.join('\t'));
       }
-      return lines.join('\n')
+      return lines.join('\n');
     },
-    [data, columnKeys]
-  )
+    [data, columnKeys],
+  );
 
-  const copySelectionToClipboard = useCallback(async () => {
-    const range = selection ?? (activeCell ? { from: activeCell, to: activeCell } : null)
-    if (!range) return
+  const copySelectionToClipboard = useCallback(() => {
+    const range = selection ?? (activeCell ? { from: activeCell, to: activeCell } : null);
+    if (!range) return;
 
-    const text = buildClipboardText(range)
-    if (!text) return
+    const text = buildClipboardText(range);
+    if (!text) return;
 
-    try {
-      await navigator.clipboard.writeText(text)
-      return
-    } catch {
-      // Fallback for browsers that block clipboard writes.
+    const clipboard = clipboardRef.current;
+    if (!clipboard) {
+      if (navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
+      return;
     }
 
-    const clipboard = clipboardRef.current
-    if (!clipboard) return
-
-    clipboard.value = text
-    clipboard.focus()
-    clipboard.select()
+    clipboard.value = text;
+    clipboard.focus();
+    clipboard.select();
 
     try {
-      document.execCommand('copy')
+      const didCopy = document.execCommand('copy');
+      if (!didCopy && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
     } finally {
-      clipboard.value = ''
-      requestAnimationFrame(() => scrollRef.current?.focus())
+      clipboard.value = '';
+      requestAnimationFrame(() => scrollRef.current?.focus());
     }
-  }, [activeCell, selection, buildClipboardText])
+  }, [activeCell, selection, buildClipboardText]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return
-      if (editingCell) return
-      if (!activeCell) return
+      if (e.target !== e.currentTarget) return;
+      if (editingCell) return;
+      if (!activeCell) return;
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'c') {
-        e.preventDefault()
-        copySelectionToClipboard().catch(() => {})
-        return
+        e.preventDefault();
+        copySelectionToClipboard();
+        return;
       }
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
-        const clipboard = clipboardRef.current
-        if (!clipboard) return
-        pasteStartRef.current = activeCell
-        clipboard.value = ''
-        clipboard.focus()
-        clipboard.select()
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = activeCell;
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
         window.setTimeout(() => {
           if (pasteStartRef.current && document.activeElement === clipboard) {
-            pasteStartRef.current = null
-            clipboard.value = ''
-            scrollRef.current?.focus()
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            scrollRef.current?.focus();
           }
-        }, 250)
-        return
+        }, 250);
+        return;
       }
 
       if (e.key === 'Enter' || e.key === 'F2') {
-        e.preventDefault()
-        const config = columnConfig[activeCell.col]
+        e.preventDefault();
+        const config = columnConfig[activeCell.col];
         if (config?.editable) {
-          const row = data[activeCell.row]
+          const row = data[activeCell.row];
           if (row) {
             setEditingCell({
               coords: activeCell,
               key: config.key,
               value: row[config.key],
-            })
+            });
           }
         }
-        return
+        return;
       }
 
       if (e.key === 'Backspace' || e.key === 'Delete') {
-        e.preventDefault()
-        const range = selection ?? { from: activeCell, to: activeCell }
-        const { top, bottom, left, right } = normalizeRange(range)
-        const updates: Array<{ rowIndex: number; key: keyof WeeklyRow }> = []
+        e.preventDefault();
+        const range = selection ?? { from: activeCell, to: activeCell };
+        const { top, bottom, left, right } = normalizeRange(range);
+        const updates: Array<{ rowIndex: number; key: keyof WeeklyRow }> = [];
 
         for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
           for (let colIndex = left; colIndex <= right; colIndex += 1) {
-            const config = columnConfig[colIndex]
-            if (!config?.editable) continue
-            updates.push({ rowIndex, key: config.key })
+            const config = columnConfig[colIndex];
+            if (!config?.editable) continue;
+            updates.push({ rowIndex, key: config.key });
           }
         }
 
-        if (updates.length === 0) return
+        if (updates.length === 0) return;
 
         setData((prev) => {
-          const next = [...prev]
+          const next = [...prev];
           for (const update of updates) {
-            const row = next[update.rowIndex]
-            if (!row) continue
-            if ((row[update.key] ?? '') === '') continue
+            const row = next[update.rowIndex];
+            if (!row) continue;
+            if ((row[update.key] ?? '') === '') continue;
 
-            next[update.rowIndex] = { ...row, [update.key]: '' }
+            next[update.rowIndex] = { ...row, [update.key]: '' };
 
-            const weekNumber = Number(row.weekNumber)
+            const weekNumber = Number(row.weekNumber);
             if (Number.isFinite(weekNumber)) {
               if (!pendingRef.current.has(weekNumber)) {
-                pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+                pendingRef.current.set(weekNumber, { weekNumber, values: {} });
               }
-              const entry = pendingRef.current.get(weekNumber)
+              const entry = pendingRef.current.get(weekNumber);
               if (entry) {
-                entry.values[update.key] = ''
+                entry.values[update.key] = '';
               }
             }
           }
-          return next
-        })
+          return next;
+        });
 
-        scheduleFlush()
-        return
+        scheduleFlush();
+        return;
       }
 
       if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        moveActiveCell(1, 0)
-        return
+        e.preventDefault();
+        moveActiveCell(1, 0);
+        return;
       }
       if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        moveActiveCell(-1, 0)
-        return
+        e.preventDefault();
+        moveActiveCell(-1, 0);
+        return;
       }
       if (e.key === 'ArrowRight' || e.key === 'Tab') {
-        e.preventDefault()
-        moveActiveCell(0, e.shiftKey ? -1 : 1)
-        return
+        e.preventDefault();
+        moveActiveCell(0, e.shiftKey ? -1 : 1);
+        return;
       }
       if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        moveActiveCell(0, -1)
-        return
+        e.preventDefault();
+        moveActiveCell(0, -1);
+        return;
       }
       if (e.key === 'Escape') {
-        setSelection(null)
-        setActiveCell(null)
+        setSelection(null);
+        setActiveCell(null);
       }
     },
     [
@@ -458,41 +514,41 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       pendingRef,
       scheduleFlush,
       selection,
-    ]
-  )
+    ],
+  );
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return
-      if (!selection) return
-      e.preventDefault()
-      e.clipboardData.setData('text/plain', buildClipboardText(selection))
+      if (e.target !== e.currentTarget) return;
+      if (!selection) return;
+      e.preventDefault();
+      e.clipboardData.setData('text/plain', buildClipboardText(selection));
     },
-    [selection, buildClipboardText]
-  )
+    [selection, buildClipboardText],
+  );
 
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLElement>) => {
-      if (e.target !== e.currentTarget) return
-      const clipboard = clipboardRef.current
-      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard)
+      if (e.target !== e.currentTarget) return;
+      const clipboard = clipboardRef.current;
+      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard);
       const refocusClipboard = () => {
-        if (!shouldRefocus) return
-        if (clipboard) clipboard.value = ''
-        requestAnimationFrame(() => scrollRef.current?.focus())
-      }
+        if (!shouldRefocus) return;
+        if (clipboard) clipboard.value = '';
+        requestAnimationFrame(() => scrollRef.current?.focus());
+      };
 
-      const start = pasteStartRef.current ?? activeCell
-      pasteStartRef.current = null
+      const start = pasteStartRef.current ?? activeCell;
+      pasteStartRef.current = null;
       if (!start) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
-      const text = e.clipboardData.getData('text/plain')
-      e.preventDefault()
+      const text = e.clipboardData.getData('text/plain');
+      e.preventDefault();
       if (!text) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
       const rows = text
@@ -500,111 +556,111 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         .replace(/\r/g, '\n')
         .split('\n')
         .filter((line) => line.length > 0)
-        .map((line) => line.split('\t'))
+        .map((line) => line.split('\t'));
 
       if (rows.length === 0) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
-      const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = []
+      const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = [];
 
       for (let r = 0; r < rows.length; r += 1) {
         for (let c = 0; c < rows[r]!.length; c += 1) {
-          const targetRow = start.row + r
-          const targetCol = start.col + c
-          if (targetRow >= data.length) continue
-          if (targetCol >= columnConfig.length) continue
+          const targetRow = start.row + r;
+          const targetCol = start.col + c;
+          if (targetRow >= data.length) continue;
+          if (targetCol >= columnConfig.length) continue;
 
-          const config = columnConfig[targetCol]
-          if (!config?.editable) continue
+          const config = columnConfig[targetCol];
+          if (!config?.editable) continue;
 
-          const row = data[targetRow]
-          if (!row) continue
+          const row = data[targetRow];
+          if (!row) continue;
 
           updates.push({
             rowIndex: targetRow,
             key: config.key,
             value: rows[r]![c] ?? '',
-          })
+          });
         }
       }
 
       if (updates.length === 0) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
       setData((prev) => {
-        const next = [...prev]
+        const next = [...prev];
         for (const update of updates) {
-          const formatted = formatNumericInput(update.value, 2)
-          next[update.rowIndex] = { ...next[update.rowIndex], [update.key]: formatted }
+          const formatted = formatNumericInput(update.value, 2);
+          next[update.rowIndex] = { ...next[update.rowIndex], [update.key]: formatted };
 
-          const row = next[update.rowIndex]
-          const weekNumber = Number(row?.weekNumber)
+          const row = next[update.rowIndex];
+          const weekNumber = Number(row?.weekNumber);
           if (Number.isFinite(weekNumber)) {
             if (!pendingRef.current.has(weekNumber)) {
-              pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+              pendingRef.current.set(weekNumber, { weekNumber, values: {} });
             }
-            const entry = pendingRef.current.get(weekNumber)
+            const entry = pendingRef.current.get(weekNumber);
             if (entry) {
-              entry.values[update.key] = formatted
+              entry.values[update.key] = formatted;
             }
           }
         }
-        return next
-      })
+        return next;
+      });
 
-      scheduleFlush()
-      refocusClipboard()
+      scheduleFlush();
+      refocusClipboard();
     },
-    [activeCell, data, pendingRef, scheduleFlush]
-  )
+    [activeCell, data, pendingRef, scheduleFlush],
+  );
 
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
-      if (editingCell) return
-      scrollRef.current?.focus()
-      e.currentTarget.setPointerCapture(e.pointerId)
-      const coords = { row: rowIndex, col: colIndex }
-      selectionAnchorRef.current = coords
-      setActiveCell(coords)
-      setSelection({ from: coords, to: coords })
+      if (editingCell) return;
+      scrollRef.current?.focus();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const coords = { row: rowIndex, col: colIndex };
+      selectionAnchorRef.current = coords;
+      setActiveCell(coords);
+      setSelection({ from: coords, to: coords });
     },
-    [editingCell]
-  )
+    [editingCell],
+  );
 
   const handlePointerMove = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
-      if (!selectionAnchorRef.current) return
-      setSelection({ from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } })
+      if (!selectionAnchorRef.current) return;
+      setSelection({ from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } });
     },
-    []
-  )
+    [],
+  );
 
   const handlePointerUp = useCallback(() => {
-    selectionAnchorRef.current = null
-  }, [])
+    selectionAnchorRef.current = null;
+  }, []);
 
   const handleDoubleClick = useCallback(
     (rowIndex: number, colIndex: number) => {
-      const config = columnConfig[colIndex]
-      if (!config?.editable) return
-      const row = data[rowIndex]
-      if (!row) return
+      const config = columnConfig[colIndex];
+      if (!config?.editable) return;
+      const row = data[rowIndex];
+      if (!row) return;
       setEditingCell({
         coords: { row: rowIndex, col: colIndex },
         key: config.key,
         value: row[config.key],
-      })
+      });
     },
-    [data]
-  )
+    [data],
+  );
 
   useEffect(() => {
-    setSelectionStats(computeSelectionStats(data, columnKeys, selection))
-  }, [data, columnKeys, selection])
+    setSelectionStats(computeSelectionStats(data, columnKeys, selection));
+  }, [data, columnKeys, selection]);
 
   return (
     <section className="space-y-4">
@@ -616,21 +672,23 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
           ref={clipboardRef}
           tabIndex={-1}
           aria-hidden="true"
-          className="absolute -left-[9999px] top-0 h-1 w-1 opacity-0"
+          className="fixed left-0 top-0 h-1 w-1 opacity-0 pointer-events-none"
           onPaste={handlePaste}
         />
         <div
           ref={scrollRef}
           tabIndex={0}
           className="h-full overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          onPointerDownCapture={() => {
+            if (!editingCell) {
+              scrollRef.current?.focus();
+            }
+          }}
           onKeyDown={handleKeyDown}
           onCopy={handleCopy}
           onPaste={handlePaste}
         >
-          <Table
-            className="relative border-collapse w-full"
-            style={{ minWidth: tableWidth }}
-          >
+          <Table className="relative border-collapse w-full" style={{ minWidth: tableWidth }}>
             <colgroup>
               {columnConfig.map((config) => (
                 <col key={config.key} style={{ minWidth: config.width }} />
@@ -643,7 +701,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                     key={config.key}
                     className={cn(
                       'sticky top-0 z-20 h-10 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80',
-                      config.sticky && 'z-30'
+                      config.sticky && 'z-30',
                     )}
                     style={{
                       left: config.sticky ? config.stickyOffset : undefined,
@@ -657,8 +715,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows.map((row, rowIndex) => {
-                const weekNumber = Number(row.original.weekNumber)
-                const hasInbound = Number.isFinite(weekNumber) && inboundSpendWeeks.has(weekNumber)
+                const weekNumber = Number(row.original.weekNumber);
+                const hasInbound = Number.isFinite(weekNumber) && inboundSpendWeeks.has(weekNumber);
 
                 return (
                   <TableRow
@@ -668,44 +726,48 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                     {columnConfig.map((config, colIndex) => {
                       const isSelected = selection
                         ? (() => {
-                            const range = normalizeRange(selection)
+                            const range = normalizeRange(selection);
                             return (
                               rowIndex >= range.top &&
                               rowIndex <= range.bottom &&
                               colIndex >= range.left &&
                               colIndex <= range.right
-                            )
+                            );
                           })()
-                        : false
-                      const isCurrent = activeCell?.row === rowIndex && activeCell?.col === colIndex
+                        : false;
+                      const isCurrent =
+                        activeCell?.row === rowIndex && activeCell?.col === colIndex;
                       const isEditing =
-                        editingCell?.coords.row === rowIndex && editingCell?.coords.col === colIndex
-                      const isEvenRow = rowIndex % 2 === 1
-                      const isPinned = config.sticky
+                        editingCell?.coords.row === rowIndex &&
+                        editingCell?.coords.col === colIndex;
+                      const isEvenRow = rowIndex % 2 === 1;
+                      const isPinned = config.sticky;
 
-                      const rawValue = row.original[config.key]
-                      const displayValue = formatDisplayValue(rawValue, config.format)
+                      const rawValue = row.original[config.key];
+                      const displayValue = formatDisplayValue(rawValue, config.format);
 
                       const cellContent = isEditing ? (
                         <Input
                           autoFocus
                           value={editingCell.value}
                           onChange={(e) =>
-                            setEditingCell((prev) => (prev ? { ...prev, value: e.target.value } : prev))
+                            setEditingCell((prev) =>
+                              prev ? { ...prev, value: e.target.value } : prev,
+                            )
                           }
                           onBlur={commitEditing}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              e.preventDefault()
-                              commitEditing()
-                              moveActiveCell(1, 0)
+                              e.preventDefault();
+                              commitEditing();
+                              moveActiveCell(1, 0);
                             } else if (e.key === 'Tab') {
-                              e.preventDefault()
-                              commitEditing()
-                              moveActiveCell(0, e.shiftKey ? -1 : 1)
+                              e.preventDefault();
+                              commitEditing();
+                              moveActiveCell(0, e.shiftKey ? -1 : 1);
                             } else if (e.key === 'Escape') {
-                              e.preventDefault()
-                              cancelEditing()
+                              e.preventDefault();
+                              cancelEditing();
                             }
                           }}
                           className="h-7 w-full min-w-0 border-primary px-2 text-right text-sm focus-visible:ring-1"
@@ -714,12 +776,12 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                         <span
                           className={cn(
                             'block min-w-0 truncate tabular-nums',
-                            config.align === 'left' ? 'text-left' : 'text-right'
+                            config.align === 'left' ? 'text-left' : 'text-right',
                           )}
                         >
                           {displayValue}
                         </span>
-                      )
+                      );
 
                       return (
                         <TableCell
@@ -736,9 +798,11 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                             isPinned && 'sticky z-10',
                             colIndex === 1 && 'border-r-2',
                             config.editable && 'cursor-text font-medium bg-accent/50',
-                            hasInbound && !isPinned && 'bg-success-100/90 dark:bg-success-500/15 dark:ring-1 dark:ring-inset dark:ring-success-400/25',
+                            hasInbound &&
+                              !isPinned &&
+                              'bg-success-100/90 dark:bg-success-500/15 dark:ring-1 dark:ring-inset dark:ring-success-400/25',
                             isSelected && 'bg-accent',
-                            isCurrent && 'ring-2 ring-inset ring-ring'
+                            isCurrent && 'ring-2 ring-inset ring-ring',
                           )}
                           style={{
                             left: isPinned ? config.stickyOffset : undefined,
@@ -751,10 +815,10 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                         >
                           {cellContent}
                         </TableCell>
-                      )
+                      );
                     })}
                   </TableRow>
-                )
+                );
               })}
             </TableBody>
           </Table>
@@ -763,5 +827,5 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         <SelectionStatsBar stats={selectionStats} />
       </div>
     </section>
-  )
+  );
 }

@@ -1,20 +1,20 @@
-'use client'
+'use client';
 
-import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
+import { ProductSetupGrid } from '@/components/sheets/product-setup-grid';
 import {
   ProductSetupParametersPanel,
   type ProductSetupParametersPanelProps,
-} from '@/components/sheets/product-setup-panels'
+} from '@/components/sheets/product-setup-panels';
 
-type ParameterList = ProductSetupParametersPanelProps['parameters']
+type ParameterList = ProductSetupParametersPanelProps['parameters'];
 
 type ProductSetupWorkspaceProps = {
-  strategyId: string
-  products: Array<{ id: string; sku: string; name: string }>
-  operationsParameters: ParameterList
-  salesParameters: ParameterList
-  financeParameters: ParameterList
-}
+  strategyId: string;
+  products: Array<{ id: string; sku: string; name: string }>;
+  operationsParameters: ParameterList;
+  salesParameters: ParameterList;
+  financeParameters: ParameterList;
+};
 
 export function ProductSetupWorkspace({
   strategyId,
@@ -81,5 +81,5 @@ export function ProductSetupWorkspace({
         </section>
       </div>
     </div>
-  )
+  );
 }

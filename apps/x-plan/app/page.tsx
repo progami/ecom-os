@@ -1,12 +1,12 @@
-import SheetPage from './[sheet]/page'
+import SheetPage from './[sheet]/page';
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   return SheetPage({
     params: Promise.resolve({ sheet: '0-strategies' }),
     searchParams,
-  })
+  });
 }

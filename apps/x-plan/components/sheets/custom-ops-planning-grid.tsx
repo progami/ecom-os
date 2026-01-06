@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   memo,
@@ -10,15 +10,15 @@ import {
   type ClipboardEvent,
   type KeyboardEvent,
   type PointerEvent,
-} from 'react'
-import { toast } from 'sonner'
-import Flatpickr from 'react-flatpickr'
-import { usePersistentScroll } from '@/hooks/usePersistentScroll'
-import { useMutationQueue } from '@/hooks/useMutationQueue'
-import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo'
-import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
-import { cn } from '@/lib/utils'
-import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+} from 'react';
+import { toast } from 'sonner';
+import Flatpickr from 'react-flatpickr';
+import { usePersistentScroll } from '@/hooks/usePersistentScroll';
+import { useMutationQueue } from '@/hooks/useMutationQueue';
+import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
+import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates';
+import { cn } from '@/lib/utils';
+import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
 import {
   Table,
   TableBody,
@@ -26,51 +26,51 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { withAppBasePath } from '@/lib/base-path'
+} from '@/components/ui/table';
+import { withAppBasePath } from '@/lib/base-path';
 
 export type OpsInputRow = {
-  id: string
-  productId: string
-  orderCode: string
-  poDate: string
-  productionComplete: string
-  sourceDeparture: string
-  portEta: string
-  availableDate: string
-  shipName: string
-  containerNumber: string
-  productName: string
-  quantity: string
-  pay1Date: string
-  productionWeeks: string
-  sourceWeeks: string
-  oceanWeeks: string
-  finalWeeks: string
-  sellingPrice: string
-  manufacturingCost: string
-  freightCost: string
-  tariffRate: string
-  tacosPercent: string
-  fbaFee: string
-  referralRate: string
-  storagePerMonth: string
-  status: string
-  notes: string
-}
+  id: string;
+  productId: string;
+  orderCode: string;
+  poDate: string;
+  productionComplete: string;
+  sourceDeparture: string;
+  portEta: string;
+  availableDate: string;
+  shipName: string;
+  containerNumber: string;
+  productName: string;
+  quantity: string;
+  pay1Date: string;
+  productionWeeks: string;
+  sourceWeeks: string;
+  oceanWeeks: string;
+  finalWeeks: string;
+  sellingPrice: string;
+  manufacturingCost: string;
+  freightCost: string;
+  tariffRate: string;
+  tacosPercent: string;
+  fbaFee: string;
+  referralRate: string;
+  storagePerMonth: string;
+  status: string;
+  notes: string;
+};
 
 interface CustomOpsPlanningGridProps {
-  rows: OpsInputRow[]
-  activeOrderId?: string | null
-  scrollKey?: string | null
-  onSelectOrder?: (orderId: string) => void
-  onRowsChange?: (rows: OpsInputRow[]) => void
-  onCreateOrder?: () => void
-  onDuplicateOrder?: (orderId: string) => void
-  onDeleteOrder?: (orderId: string) => void
-  disableCreate?: boolean
-  disableDuplicate?: boolean
-  disableDelete?: boolean
+  rows: OpsInputRow[];
+  activeOrderId?: string | null;
+  scrollKey?: string | null;
+  onSelectOrder?: (orderId: string) => void;
+  onRowsChange?: (rows: OpsInputRow[]) => void;
+  onCreateOrder?: () => void;
+  onDuplicateOrder?: (orderId: string) => void;
+  onDeleteOrder?: (orderId: string) => void;
+  disableCreate?: boolean;
+  disableDuplicate?: boolean;
+  disableDelete?: boolean;
 }
 
 const STAGE_CONFIG = [
@@ -78,18 +78,18 @@ const STAGE_CONFIG = [
   { weeksKey: 'sourceWeeks', overrideKey: 'sourceDeparture' },
   { weeksKey: 'oceanWeeks', overrideKey: 'portEta' },
   { weeksKey: 'finalWeeks', overrideKey: 'availableDate' },
-] as const
+] as const;
 
-type StageWeeksKey = (typeof STAGE_CONFIG)[number]['weeksKey']
-type StageOverrideKey = (typeof STAGE_CONFIG)[number]['overrideKey']
+type StageWeeksKey = (typeof STAGE_CONFIG)[number]['weeksKey'];
+type StageOverrideKey = (typeof STAGE_CONFIG)[number]['overrideKey'];
 
 const STAGE_OVERRIDE_FIELDS: Record<StageWeeksKey, StageOverrideKey> = STAGE_CONFIG.reduce(
   (map, item) => {
-    map[item.weeksKey] = item.overrideKey
-    return map
+    map[item.weeksKey] = item.overrideKey;
+    return map;
   },
-  {} as Record<StageWeeksKey, StageOverrideKey>
-)
+  {} as Record<StageWeeksKey, StageOverrideKey>,
+);
 
 const NUMERIC_PRECISION: Partial<Record<keyof OpsInputRow, number>> = {
   quantity: 0,
@@ -105,7 +105,7 @@ const NUMERIC_PRECISION: Partial<Record<keyof OpsInputRow, number>> = {
   fbaFee: 2,
   referralRate: 2,
   storagePerMonth: 2,
-}
+};
 
 const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
   'quantity',
@@ -121,7 +121,7 @@ const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
   'fbaFee',
   'referralRate',
   'storagePerMonth',
-])
+]);
 
 const DATE_FIELDS = new Set<keyof OpsInputRow>([
   'poDate',
@@ -130,146 +130,146 @@ const DATE_FIELDS = new Set<keyof OpsInputRow>([
   'sourceDeparture',
   'portEta',
   'availableDate',
-])
+]);
 
 function addWeeks(base: Date, weeks: number): Date {
-  const ms = base.getTime() + weeks * 7 * 24 * 60 * 60 * 1000
-  return new Date(ms)
+  const ms = base.getTime() + weeks * 7 * 24 * 60 * 60 * 1000;
+  return new Date(ms);
 }
 
 function parseWeeks(value: string | undefined): number | null {
-  if (!value) return null
-  const n = Number(value)
-  return Number.isFinite(n) ? n : null
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function parseIsoDate(value: string | null | undefined): Date | null {
-  if (!value) return null
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00.000Z` : trimmed
-  const parsed = new Date(iso)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00.000Z` : trimmed;
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function resolveStageStart(row: OpsInputRow, stage: StageWeeksKey): Date | null {
-  const index = STAGE_CONFIG.findIndex((item) => item.weeksKey === stage)
+  const index = STAGE_CONFIG.findIndex((item) => item.weeksKey === stage);
   if (index <= 0) {
-    return parseIsoDate(row.poDate)
+    return parseIsoDate(row.poDate);
   }
-  const previous = STAGE_CONFIG[index - 1]
-  const override = parseIsoDate(row[previous.overrideKey])
-  if (override) return override
-  const previousStart = resolveStageStart(row, previous.weeksKey)
-  if (!previousStart) return null
-  const previousWeeks = parseWeeks(row[previous.weeksKey])
-  if (previousWeeks == null) return null
-  return addWeeks(previousStart, previousWeeks)
+  const previous = STAGE_CONFIG[index - 1];
+  const override = parseIsoDate(row[previous.overrideKey]);
+  if (override) return override;
+  const previousStart = resolveStageStart(row, previous.weeksKey);
+  if (!previousStart) return null;
+  const previousWeeks = parseWeeks(row[previous.weeksKey]);
+  if (previousWeeks == null) return null;
+  return addWeeks(previousStart, previousWeeks);
 }
 
 function resolveStageEnd(row: OpsInputRow, stage: StageWeeksKey): Date | null {
-  const override = parseIsoDate(row[STAGE_OVERRIDE_FIELDS[stage]])
-  if (override) return override
-  const start = resolveStageStart(row, stage)
-  if (!start) return null
-  const weeks = parseWeeks(row[stage])
-  if (weeks == null) return null
-  return addWeeks(start, weeks)
+  const override = parseIsoDate(row[STAGE_OVERRIDE_FIELDS[stage]]);
+  if (override) return override;
+  const start = resolveStageStart(row, stage);
+  if (!start) return null;
+  const weeks = parseWeeks(row[stage]);
+  if (weeks == null) return null;
+  return addWeeks(start, weeks);
 }
 
 function recomputeStageDates(
   record: OpsInputRow,
   entry: { values: Record<string, string | null> },
-  options: { anchorStage?: StageWeeksKey | null } = {}
+  options: { anchorStage?: StageWeeksKey | null } = {},
 ): OpsInputRow {
-  const anchorStage = options.anchorStage ?? null
-  let working = { ...record }
+  const anchorStage = options.anchorStage ?? null;
+  let working = { ...record };
 
-  const baseStart = parseIsoDate(working.poDate)
+  const baseStart = parseIsoDate(working.poDate);
   if (!baseStart) {
     for (const stage of STAGE_CONFIG) {
       if (working[stage.overrideKey] !== '') {
-        working = { ...working, [stage.overrideKey]: '' as OpsInputRow[StageOverrideKey] }
-        entry.values[stage.overrideKey] = ''
+        working = { ...working, [stage.overrideKey]: '' as OpsInputRow[StageOverrideKey] };
+        entry.values[stage.overrideKey] = '';
       }
     }
-    return working
+    return working;
   }
 
-  const MS_PER_DAY = 24 * 60 * 60 * 1000
-  let currentStart = baseStart
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
+  let currentStart = baseStart;
 
   for (const stage of STAGE_CONFIG) {
-    const weeksKey = stage.weeksKey
-    const overrideKey = stage.overrideKey
+    const weeksKey = stage.weeksKey;
+    const overrideKey = stage.overrideKey;
 
-    let stageEnd: Date | null = null
+    let stageEnd: Date | null = null;
 
     // If the user just edited a stage end date, treat it as the anchor for this stage and
     // recompute its weeks to match exactly, then derive all downstream stages from it.
     if (anchorStage === weeksKey) {
-      const anchored = parseIsoDate(working[overrideKey])
+      const anchored = parseIsoDate(working[overrideKey]);
       if (anchored) {
-        stageEnd = anchored
-        const diffDays = (anchored.getTime() - currentStart.getTime()) / MS_PER_DAY
-        const weeks = Math.max(0, diffDays / 7)
-        const normalizedWeeks = formatNumericInput(weeks, 2)
+        stageEnd = anchored;
+        const diffDays = (anchored.getTime() - currentStart.getTime()) / MS_PER_DAY;
+        const weeks = Math.max(0, diffDays / 7);
+        const normalizedWeeks = formatNumericInput(weeks, 2);
         if (working[weeksKey] !== normalizedWeeks) {
-          working = { ...working, [weeksKey]: normalizedWeeks as OpsInputRow[StageWeeksKey] }
-          entry.values[weeksKey] = normalizedWeeks
+          working = { ...working, [weeksKey]: normalizedWeeks as OpsInputRow[StageWeeksKey] };
+          entry.values[weeksKey] = normalizedWeeks;
         }
       }
     }
 
     if (!stageEnd) {
-      const weeks = parseWeeks(working[weeksKey]) ?? 0
-      stageEnd = addWeeks(currentStart, weeks)
+      const weeks = parseWeeks(working[weeksKey]) ?? 0;
+      stageEnd = addWeeks(currentStart, weeks);
     }
 
-    const iso = stageEnd ? toIsoDate(stageEnd) ?? '' : ''
+    const iso = stageEnd ? (toIsoDate(stageEnd) ?? '') : '';
     if (working[overrideKey] !== iso) {
-      working = { ...working, [overrideKey]: iso as OpsInputRow[StageOverrideKey] }
-      entry.values[overrideKey] = iso
+      working = { ...working, [overrideKey]: iso as OpsInputRow[StageOverrideKey] };
+      entry.values[overrideKey] = iso;
     }
 
-    currentStart = stageEnd
+    currentStart = stageEnd;
   }
 
-  return working
+  return working;
 }
 
 function normalizeNumeric(value: unknown, fractionDigits = 2): string {
-  return formatNumericInput(value, fractionDigits)
+  return formatNumericInput(value, fractionDigits);
 }
 
 function validateNumeric(value: string): boolean {
-  if (!value || value.trim() === '') return true
-  const parsed = sanitizeNumeric(value)
-  return !Number.isNaN(parsed)
+  if (!value || value.trim() === '') return true;
+  const parsed = sanitizeNumeric(value);
+  return !Number.isNaN(parsed);
 }
 
 function validatePositiveNumeric(value: string): boolean {
-  if (!value || value.trim() === '') return false
-  const parsed = sanitizeNumeric(value)
-  return !Number.isNaN(parsed) && parsed > 0
+  if (!value || value.trim() === '') return false;
+  const parsed = sanitizeNumeric(value);
+  return !Number.isNaN(parsed) && parsed > 0;
 }
 
 function validateDate(value: string): boolean {
-  if (!value || value.trim() === '') return true
-  const date = parseIsoDate(value)
-  return date !== null
+  if (!value || value.trim() === '') return true;
+  const date = parseIsoDate(value);
+  return date !== null;
 }
 
 type ColumnDef = {
-  key: keyof OpsInputRow
-  header: string
-  headerWeeks?: string
-  headerDates?: string
-  width: number
-  type: 'text' | 'numeric' | 'date' | 'stage'
-  editable?: boolean
-  precision?: number
-}
+  key: keyof OpsInputRow;
+  header: string;
+  headerWeeks?: string;
+  headerDates?: string;
+  width: number;
+  type: 'text' | 'numeric' | 'date' | 'stage';
+  editable?: boolean;
+  precision?: number;
+};
 
 const COLUMNS: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 150, type: 'text', editable: true },
@@ -317,93 +317,106 @@ const COLUMNS: ColumnDef[] = [
     precision: 2,
   },
   { key: 'notes', header: 'Notes', width: 200, type: 'text', editable: true },
-]
+];
 
-type StageMode = 'weeks' | 'dates'
+type StageMode = 'weeks' | 'dates';
 
-type CellCoords = { row: number; col: number }
-type CellRange = { from: CellCoords; to: CellCoords }
+type CellCoords = { row: number; col: number };
+type CellRange = { from: CellCoords; to: CellCoords };
 
-function normalizeRange(range: CellRange): { top: number; bottom: number; left: number; right: number } {
+function normalizeRange(range: CellRange): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
   return {
     top: Math.min(range.from.row, range.to.row),
     bottom: Math.max(range.from.row, range.to.row),
     left: Math.min(range.from.col, range.to.col),
     right: Math.max(range.from.col, range.to.col),
-  }
+  };
 }
 
 function parseNumericCandidate(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (typeof value !== 'string') return null
-  const raw = value.trim()
-  if (!raw) return null
-  const normalized = raw.replace(/[$,%\s]/g, '').replace(/,/g, '')
-  const parsed = Number(normalized)
-  return Number.isFinite(parsed) ? parsed : null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized = raw.replace(/[$,%\s]/g, '').replace(/,/g, '');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
-const CELL_ID_PREFIX = 'xplan-ops-po'
+const CELL_ID_PREFIX = 'xplan-ops-po';
 
 function sanitizeDomId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
 
 function cellDomId(rowId: string, colKey: keyof OpsInputRow): string {
-  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`
+  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`;
 }
 
 function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
   if (column.type === 'stage' && stageMode === 'dates') {
-    const stageField = column.key as StageWeeksKey
-    const endDate = resolveStageEnd(row, stageField)
-    return toIsoDate(endDate) ?? ''
+    const stageField = column.key as StageWeeksKey;
+    const endDate = resolveStageEnd(row, stageField);
+    return toIsoDate(endDate) ?? '';
   }
 
   if (column.type === 'date') {
-    return toIsoDate(row[column.key]) ?? ''
+    return toIsoDate(row[column.key]) ?? '';
   }
 
-  return row[column.key] ?? ''
+  return row[column.key] ?? '';
 }
 
 function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
   if (column.type === 'stage' && stageMode === 'dates') {
-    const stageField = column.key as StageWeeksKey
-    const endDate = resolveStageEnd(row, stageField)
-    const iso = toIsoDate(endDate)
-    return iso ? formatDateDisplay(iso) : ''
+    const stageField = column.key as StageWeeksKey;
+    const endDate = resolveStageEnd(row, stageField);
+    const iso = toIsoDate(endDate);
+    return iso ? formatDateDisplay(iso) : '';
   }
 
   if (column.type === 'date') {
-    const isoValue = row[column.key]
-    return isoValue ? formatDateDisplay(isoValue) : ''
+    const isoValue = row[column.key];
+    return isoValue ? formatDateDisplay(isoValue) : '';
   }
 
-  return row[column.key] ?? ''
+  return row[column.key] ?? '';
 }
 
 type CustomOpsPlanningRowProps = {
-  row: OpsInputRow
-  rowIndex: number
-  stageMode: StageMode
-  isActive: boolean
-  activeColKey: keyof OpsInputRow | null
-  editingColKey: keyof OpsInputRow | null
-  editValue: string
-  isDatePickerOpen: boolean
-  selection: CellRange | null
-  inputRef: { current: HTMLInputElement | null }
-  onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void
-  onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void
-  onSetEditValue: (value: string) => void
-  onCommitEdit?: (nextValue?: string) => void
-  onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
-  setIsDatePickerOpen: (open: boolean) => void
-  onPointerDown?: (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => void
-  onPointerMove?: (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => void
-  onPointerUp?: () => void
-}
+  row: OpsInputRow;
+  rowIndex: number;
+  stageMode: StageMode;
+  isActive: boolean;
+  activeColKey: keyof OpsInputRow | null;
+  editingColKey: keyof OpsInputRow | null;
+  editValue: string;
+  isDatePickerOpen: boolean;
+  selection: CellRange | null;
+  inputRef: { current: HTMLInputElement | null };
+  onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void;
+  onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void;
+  onSetEditValue: (value: string) => void;
+  onCommitEdit?: (nextValue?: string) => void;
+  onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
+  setIsDatePickerOpen: (open: boolean) => void;
+  onPointerDown?: (
+    e: PointerEvent<HTMLTableCellElement>,
+    rowIndex: number,
+    colIndex: number,
+  ) => void;
+  onPointerMove?: (
+    e: PointerEvent<HTMLTableCellElement>,
+    rowIndex: number,
+    colIndex: number,
+  ) => void;
+  onPointerUp?: () => void;
+};
 
 const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   row,
@@ -426,32 +439,33 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   onPointerMove,
   onPointerUp,
 }: CustomOpsPlanningRowProps) {
-  const isEvenRow = rowIndex % 2 === 1
+  const isEvenRow = rowIndex % 2 === 1;
 
   // Check if this cell is in selection range
   const isCellInSelection = (colIndex: number): boolean => {
-    if (!selection) return false
-    const { top, bottom, left, right } = normalizeRange(selection)
-    return rowIndex >= top && rowIndex <= bottom && colIndex >= left && colIndex <= right
-  }
+    if (!selection) return false;
+    const { top, bottom, left, right } = normalizeRange(selection);
+    return rowIndex >= top && rowIndex <= bottom && colIndex >= left && colIndex <= right;
+  };
 
   return (
     <TableRow
       className={cn(
         'hover:bg-transparent',
         isEvenRow ? 'bg-muted/30' : 'bg-card',
-        isActive && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+        isActive && 'bg-cyan-50/70 dark:bg-cyan-900/20',
       )}
     >
       {COLUMNS.map((column, colIndex) => {
-        const isEditing = editingColKey === column.key
-        const isEditable = column.editable !== false
-        const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
+        const isEditing = editingColKey === column.key;
+        const isEditable = column.editable !== false;
+        const isDateCell =
+          column.type === 'date' || (column.type === 'stage' && stageMode === 'dates');
         const isNumericCell =
-          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')
+          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks');
 
-        const isCurrentCell = activeColKey === column.key
-        const isSelected = isCellInSelection(colIndex)
+        const isCurrentCell = activeColKey === column.key;
+        const isSelected = isCellInSelection(colIndex);
 
         const cellClassName = cn(
           'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
@@ -460,13 +474,13 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
           isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
           isSelected && 'bg-accent',
           (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-ring',
-          colIndex === COLUMNS.length - 1 && 'border-r-0'
-        )
+          colIndex === COLUMNS.length - 1 && 'border-r-0',
+        );
 
         const inputClassName = cn(
           'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
-          isNumericCell && 'text-right'
-        )
+          isNumericCell && 'text-right',
+        );
 
         if (isEditing && onCommitEdit) {
           return (
@@ -484,26 +498,28 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                     disableMobile: true,
                     onOpen: () => setIsDatePickerOpen(true),
                     onClose: (_dates: Date[], dateStr: string) => {
-                      setIsDatePickerOpen(false)
-                      onCommitEdit(dateStr || editValue)
+                      setIsDatePickerOpen(false);
+                      onCommitEdit(dateStr || editValue);
                     },
                   }}
                   onChange={(_dates: Date[], dateStr: string) => {
-                    onSetEditValue(dateStr)
+                    onSetEditValue(dateStr);
                   }}
                   render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
                     <input
                       ref={(node) => {
-                        handleNodeChange(node)
-                        inputRef.current = node as HTMLInputElement | null
+                        handleNodeChange(node);
+                        inputRef.current = node as HTMLInputElement | null;
                       }}
                       type="text"
                       value={editValue}
-                      onChange={(event: ChangeEvent<HTMLInputElement>) => onSetEditValue(event.target.value)}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        onSetEditValue(event.target.value)
+                      }
                       onKeyDown={onInputKeyDown}
                       onBlur={() => {
                         if (!isDatePickerOpen) {
-                          onCommitEdit()
+                          onCommitEdit();
                         }
                       }}
                       className={inputClassName}
@@ -516,18 +532,20 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                   ref={inputRef}
                   type="text"
                   value={editValue}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => onSetEditValue(event.target.value)}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                    onSetEditValue(event.target.value)
+                  }
                   onKeyDown={onInputKeyDown}
                   onBlur={() => onCommitEdit()}
                   className={inputClassName}
                 />
               )}
             </TableCell>
-          )
+          );
         }
 
-        const formattedValue = getCellFormattedValue(row, column, stageMode)
-        const showPlaceholder = isDateCell && !formattedValue
+        const formattedValue = getCellFormattedValue(row, column, stageMode);
+        const showPlaceholder = isDateCell && !formattedValue;
 
         return (
           <TableCell
@@ -540,14 +558,18 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             onPointerMove={(e) => onPointerMove?.(e, rowIndex, colIndex)}
             onPointerUp={onPointerUp}
             onDoubleClick={(event) => {
-              event.stopPropagation()
-              if (!isEditable) return
-              onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
+              event.stopPropagation();
+              if (!isEditable) return;
+              onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode));
             }}
           >
-            <div className={cn('flex h-9 min-w-0 items-center px-3', isNumericCell && 'justify-end')}>
+            <div
+              className={cn('flex h-9 min-w-0 items-center px-3', isNumericCell && 'justify-end')}
+            >
               {showPlaceholder ? (
-                <span className="px-3 text-xs italic text-muted-foreground">Click to select date</span>
+                <span className="px-3 text-xs italic text-muted-foreground">
+                  Click to select date
+                </span>
               ) : (
                 <span className={cn('block min-w-0 truncate', isNumericCell && 'tabular-nums')}>
                   {formattedValue}
@@ -555,11 +577,11 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
               )}
             </div>
           </TableCell>
-        )
+        );
       })}
     </TableRow>
-  )
-})
+  );
+});
 
 export function CustomOpsPlanningGrid({
   rows,
@@ -574,58 +596,66 @@ export function CustomOpsPlanningGrid({
   disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
-  const [stageMode, setStageMode] = useState<StageMode>('dates')
-  const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
-  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
-  const [editValue, setEditValue] = useState<string>('')
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
-  const [selection, setSelection] = useState<CellRange | null>(null)
-  const selectionAnchorRef = useRef<CellCoords | null>(null)
-  const tableScrollRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const clipboardRef = useRef<HTMLTextAreaElement | null>(null)
-  const pasteStartRef = useRef<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
+  const [stageMode, setStageMode] = useState<StageMode>('dates');
+  const [editingCell, setEditingCell] = useState<{
+    rowId: string;
+    colKey: keyof OpsInputRow;
+  } | null>(null);
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(
+    null,
+  );
+  const [editValue, setEditValue] = useState<string>('');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [selection, setSelection] = useState<CellRange | null>(null);
+  const selectionAnchorRef = useRef<CellCoords | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const clipboardRef = useRef<HTMLTextAreaElement | null>(null);
+  const pasteStartRef = useRef<{ rowId: string; colKey: keyof OpsInputRow } | null>(null);
 
-  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
+  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current);
 
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string> }>) => {
-      if (payload.length === 0) return
+      if (payload.length === 0) return;
       // Filter out items that no longer exist in the current rows
-      const existingIds = new Set(rows.map((r) => r.id))
-      const validPayload = payload.filter((item) => existingIds.has(item.id))
-      if (validPayload.length === 0) return
-      const url = withAppBasePath('/api/v1/x-plan/purchase-orders')
+      const existingIds = new Set(rows.map((r) => r.id));
+      const validPayload = payload.filter((item) => existingIds.has(item.id));
+      if (validPayload.length === 0) return;
+      const url = withAppBasePath('/api/v1/x-plan/purchase-orders');
       try {
         const response = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: validPayload }),
-        })
+        });
         if (!response.ok) {
-          let errorMessage = 'Failed to update purchase orders'
+          let errorMessage = 'Failed to update purchase orders';
           try {
-            const text = await response.text()
+            const text = await response.text();
             if (text) {
-              const errorData = JSON.parse(text)
+              const errorData = JSON.parse(text);
               if (errorData?.error) {
-                errorMessage = errorData.error
+                errorMessage = errorData.error;
               }
             }
           } catch (parseError) {
             // ignore parse error
           }
-          toast.error(errorMessage, { duration: 5000, id: 'po-update-error' })
-          return
+          toast.error(errorMessage, { duration: 5000, id: 'po-update-error' });
+          return;
         }
-        toast.success('PO inputs saved', { id: 'po-inputs-saved' })
+        toast.success('PO inputs saved', { id: 'po-inputs-saved' });
       } catch (error) {
-        console.error('[CustomOpsPlanningGrid] Failed to update purchase orders:', error)
-        toast.error('Unable to save purchase order inputs', { duration: 5000, id: 'po-update-error' })
+        console.error('[CustomOpsPlanningGrid] Failed to update purchase orders:', error);
+        toast.error('Unable to save purchase order inputs', {
+          duration: 5000,
+          id: 'po-update-error',
+        });
       }
     },
-    [rows]
-  )
+    [rows],
+  );
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<
     string,
@@ -633,765 +663,797 @@ export function CustomOpsPlanningGrid({
   >({
     debounceMs: 500,
     onFlush: handleFlush,
-  })
+  });
 
   // Undo/redo functionality
   const applyUndoRedoEdits = useCallback(
     (edits: CellEdit<string>[]) => {
-      let updatedRows = [...rows]
+      let updatedRows = [...rows];
       for (const edit of edits) {
-        const rowIndex = updatedRows.findIndex((r) => r.id === edit.rowKey)
-        if (rowIndex < 0) continue
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [edit.field]: edit.newValue }
+        const rowIndex = updatedRows.findIndex((r) => r.id === edit.rowKey);
+        if (rowIndex < 0) continue;
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [edit.field]: edit.newValue };
 
         // Queue for API update
         if (!pendingRef.current.has(edit.rowKey)) {
-          pendingRef.current.set(edit.rowKey, { id: edit.rowKey, values: {} })
+          pendingRef.current.set(edit.rowKey, { id: edit.rowKey, values: {} });
         }
-        const entry = pendingRef.current.get(edit.rowKey)!
-        entry.values[edit.field] = edit.newValue
+        const entry = pendingRef.current.get(edit.rowKey)!;
+        entry.values[edit.field] = edit.newValue;
       }
-      onRowsChange?.(updatedRows)
-      scheduleFlush()
+      onRowsChange?.(updatedRows);
+      scheduleFlush();
     },
-    [rows, pendingRef, scheduleFlush, onRowsChange]
-  )
+    [rows, pendingRef, scheduleFlush, onRowsChange],
+  );
 
   const { recordEdits, undo, redo, canUndo, canRedo } = useGridUndoRedo<string>({
     maxHistory: 50,
     onApplyEdits: applyUndoRedoEdits,
-  })
+  });
 
   // Use ref pattern to avoid cleanup running on every re-render
-  const flushNowRef = useRef(flushNow)
+  const flushNowRef = useRef(flushNow);
   useEffect(() => {
-    flushNowRef.current = flushNow
-  }, [flushNow])
+    flushNowRef.current = flushNow;
+  }, [flushNow]);
 
   useEffect(() => {
     return () => {
-      flushNowRef.current().catch(() => {})
-    }
-  }, []) // Only run cleanup on unmount
+      flushNowRef.current().catch(() => {});
+    };
+  }, []); // Only run cleanup on unmount
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+      inputRef.current.focus();
+      inputRef.current.select();
     }
-  }, [editingCell])
+  }, [editingCell]);
 
   const handleDeleteClick = () => {
-    if (!onDeleteOrder || !activeOrderId || disableDelete) return
-    onDeleteOrder(activeOrderId)
-  }
+    if (!onDeleteOrder || !activeOrderId || disableDelete) return;
+    onDeleteOrder(activeOrderId);
+  };
 
   const handleDuplicateClick = () => {
-    if (!onDuplicateOrder || !activeOrderId || disableDuplicate) return
-    onDuplicateOrder(activeOrderId)
-  }
+    if (!onDuplicateOrder || !activeOrderId || disableDuplicate) return;
+    onDuplicateOrder(activeOrderId);
+  };
 
-  const startEditing = useCallback((rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
-    setIsDatePickerOpen(false)
-    setActiveCell({ rowId, colKey })
-    setEditingCell({ rowId, colKey })
-    setEditValue(currentValue)
-  }, [])
+  const startEditing = useCallback(
+    (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
+      setIsDatePickerOpen(false);
+      setActiveCell({ rowId, colKey });
+      setEditingCell({ rowId, colKey });
+      setEditValue(currentValue);
+    },
+    [],
+  );
 
   const selectCell = useCallback(
     (rowId: string, colKey: keyof OpsInputRow) => {
-      tableScrollRef.current?.focus()
-      setActiveCell({ rowId, colKey })
-      onSelectOrder?.(rowId)
+      tableScrollRef.current?.focus();
+      setActiveCell({ rowId, colKey });
+      onSelectOrder?.(rowId);
     },
-    [onSelectOrder]
-  )
+    [onSelectOrder],
+  );
 
   const cancelEditing = useCallback(() => {
-    setIsDatePickerOpen(false)
-    setEditingCell(null)
-    setEditValue('')
+    setIsDatePickerOpen(false);
+    setEditingCell(null);
+    setEditValue('');
     requestAnimationFrame(() => {
-      tableScrollRef.current?.focus()
-    })
-  }, [])
+      tableScrollRef.current?.focus();
+    });
+  }, []);
 
-  const commitEdit = useCallback((nextValue?: string) => {
-    if (!editingCell) return
+  const commitEdit = useCallback(
+    (nextValue?: string) => {
+      if (!editingCell) return;
 
-    const { rowId, colKey } = editingCell
-    const row = rows.find((r) => r.id === rowId)
-    if (!row) {
-      cancelEditing()
-      return
-    }
-
-    const column = COLUMNS.find((c) => c.key === colKey)
-    if (!column) {
-      cancelEditing()
-      return
-    }
-
-    let finalValue = nextValue ?? editValue
-
-    // Validate and normalize based on column type
-    if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
-      const isStageWeeks = column.type === 'stage' && stageMode === 'weeks'
-      const validator = isStageWeeks ? validatePositiveNumeric : validateNumeric
-      if (!validator(finalValue)) {
-        toast.error(isStageWeeks ? 'Weeks must be a positive number' : 'Invalid number')
-        cancelEditing()
-        return
+      const { rowId, colKey } = editingCell;
+      const row = rows.find((r) => r.id === rowId);
+      if (!row) {
+        cancelEditing();
+        return;
       }
-      const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2
-      finalValue = normalizeNumeric(finalValue, precision)
-    } else if (column.type === 'date') {
-      if (!finalValue || finalValue.trim() === '') {
-        finalValue = ''
-      } else {
-        const iso = toIsoDate(finalValue)
+
+      const column = COLUMNS.find((c) => c.key === colKey);
+      if (!column) {
+        cancelEditing();
+        return;
+      }
+
+      let finalValue = nextValue ?? editValue;
+
+      // Validate and normalize based on column type
+      if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
+        const isStageWeeks = column.type === 'stage' && stageMode === 'weeks';
+        const validator = isStageWeeks ? validatePositiveNumeric : validateNumeric;
+        if (!validator(finalValue)) {
+          toast.error(isStageWeeks ? 'Weeks must be a positive number' : 'Invalid number');
+          cancelEditing();
+          return;
+        }
+        const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
+        finalValue = normalizeNumeric(finalValue, precision);
+      } else if (column.type === 'date') {
+        if (!finalValue || finalValue.trim() === '') {
+          finalValue = '';
+        } else {
+          const iso = toIsoDate(finalValue);
+          if (!iso) {
+            toast.error('Invalid date');
+            cancelEditing();
+            return;
+          }
+          finalValue = iso;
+        }
+      } else if (column.type === 'stage' && stageMode === 'dates') {
+        if (!validateDate(finalValue)) {
+          toast.error('Invalid date');
+          cancelEditing();
+          return;
+        }
+      }
+
+      // Treat stage/date cells as the resolved stage end date, not the underlying weeks value.
+      if (column.type === 'stage' && stageMode === 'dates') {
+        const stageField = colKey as StageWeeksKey;
+        const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+        const currentIso = toIsoDate(resolveStageEnd(row, stageField)) ?? '';
+
+        if (!finalValue || finalValue.trim() === '') {
+          finalValue = '';
+          if ((row[overrideField] ?? '') === '') {
+            cancelEditing();
+            return;
+          }
+        } else {
+          const iso = toIsoDate(finalValue);
+          if (!iso) {
+            toast.error('Invalid date');
+            cancelEditing();
+            return;
+          }
+          finalValue = iso;
+          if (finalValue === currentIso) {
+            cancelEditing();
+            return;
+          }
+        }
+      } else if (column.type === 'date') {
+        const currentIso = row[colKey] ? (toIsoDate(row[colKey]) ?? '') : '';
+        if (currentIso === finalValue) {
+          cancelEditing();
+          return;
+        }
+      } else if (row[colKey] === finalValue) {
+        cancelEditing();
+        return;
+      }
+
+      // Client-side validation for duplicate orderCode
+      if (colKey === 'orderCode' && finalValue) {
+        const isDuplicate = rows.some(
+          (r) => r.id !== rowId && r.orderCode.toLowerCase() === finalValue.toLowerCase(),
+        );
+        if (isDuplicate) {
+          toast.warning(`Order code "${finalValue}" is already in use`, {
+            description: 'Please choose a unique order code.',
+            duration: 4000,
+          });
+          cancelEditing();
+          return;
+        }
+      }
+
+      // Prepare mutation entry
+      if (!pendingRef.current.has(rowId)) {
+        pendingRef.current.set(rowId, { id: rowId, values: {} });
+      }
+      const entry = pendingRef.current.get(rowId)!;
+
+      // Handle stage columns in date mode
+      if (column.type === 'stage' && stageMode === 'dates') {
+        const stageField = colKey as StageWeeksKey;
+        const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+        const iso = finalValue;
+
         if (!iso) {
-          toast.error('Invalid date')
-          cancelEditing()
-          return
+          if ((row[overrideField] ?? '') !== '') {
+            entry.values[overrideField] = '';
+          }
+        } else {
+          const picked = new Date(`${iso}T00:00:00Z`);
+          const stageStart = resolveStageStart(row, stageField);
+          if (stageStart) {
+            if (picked.getTime() < stageStart.getTime()) {
+              toast.error('Stage end date cannot be before the stage start');
+              cancelEditing();
+              return;
+            }
+            const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000);
+            const weeks = diffDays / 7;
+            if (weeks < 0) {
+              toast.error('Stage weeks cannot be negative');
+              cancelEditing();
+              return;
+            }
+            const normalized = formatNumericInput(weeks, 2);
+            if (row[colKey] !== normalized) {
+              entry.values[colKey] = normalized;
+            }
+          }
+          if ((row[overrideField] ?? '') !== iso) {
+            entry.values[overrideField] = iso ?? '';
+          }
         }
-        finalValue = iso
-      }
-    } else if (column.type === 'stage' && stageMode === 'dates') {
-      if (!validateDate(finalValue)) {
-        toast.error('Invalid date')
-        cancelEditing()
-        return
-      }
-    }
+      } else if (NUMERIC_FIELDS.has(colKey)) {
+        entry.values[colKey] = finalValue;
 
-    // Treat stage/date cells as the resolved stage end date, not the underlying weeks value.
-    if (column.type === 'stage' && stageMode === 'dates') {
-      const stageField = colKey as StageWeeksKey
-      const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
-      const currentIso = toIsoDate(resolveStageEnd(row, stageField)) ?? ''
-
-      if (!finalValue || finalValue.trim() === '') {
-        finalValue = ''
-        if ((row[overrideField] ?? '') === '') {
-          cancelEditing()
-          return
+        // Clear override if weeks changed
+        if ((colKey as string) in STAGE_OVERRIDE_FIELDS) {
+          const overrideField = STAGE_OVERRIDE_FIELDS[colKey as StageWeeksKey];
+          if ((row[overrideField] ?? '') !== '') {
+            entry.values[overrideField] = '';
+          }
         }
+      } else if (DATE_FIELDS.has(colKey)) {
+        entry.values[colKey] = finalValue;
       } else {
-        const iso = toIsoDate(finalValue)
-        if (!iso) {
-          toast.error('Invalid date')
-          cancelEditing()
-          return
-        }
-        finalValue = iso
-        if (finalValue === currentIso) {
-          cancelEditing()
-          return
-        }
+        entry.values[colKey] = finalValue;
       }
-    } else if (column.type === 'date') {
-      const currentIso = row[colKey] ? (toIsoDate(row[colKey]) ?? '') : ''
-      if (currentIso === finalValue) {
-        cancelEditing()
-        return
+
+      // Create updated row
+      let updatedRow = { ...row };
+      for (const [key, val] of Object.entries(entry.values)) {
+        updatedRow[key as keyof OpsInputRow] = val as any;
       }
-    } else if (row[colKey] === finalValue) {
-      cancelEditing()
-      return
-    }
 
-    // Client-side validation for duplicate orderCode
-    if (colKey === 'orderCode' && finalValue) {
-      const isDuplicate = rows.some(
-        (r) => r.id !== rowId && r.orderCode.toLowerCase() === finalValue.toLowerCase()
-      )
-      if (isDuplicate) {
-        toast.warning(`Order code "${finalValue}" is already in use`, {
-          description: 'Please choose a unique order code.',
-          duration: 4000,
-        })
-        cancelEditing()
-        return
+      // Recompute stage dates if necessary
+      const needsStageRecompute =
+        colKey === 'poDate' || (colKey as string) in STAGE_OVERRIDE_FIELDS;
+      if (needsStageRecompute) {
+        const anchorStage =
+          column.type === 'stage' && stageMode === 'dates' ? (colKey as StageWeeksKey) : null;
+        updatedRow = recomputeStageDates(
+          updatedRow,
+          entry as { values: Record<string, string | null> },
+          { anchorStage },
+        );
       }
-    }
 
-    // Prepare mutation entry
-    if (!pendingRef.current.has(rowId)) {
-      pendingRef.current.set(rowId, { id: rowId, values: {} })
-    }
-    const entry = pendingRef.current.get(rowId)!
-
-    // Handle stage columns in date mode
-    if (column.type === 'stage' && stageMode === 'dates') {
-      const stageField = colKey as StageWeeksKey
-      const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
-      const iso = finalValue
-
-      if (!iso) {
-        if ((row[overrideField] ?? '') !== '') {
-          entry.values[overrideField] = ''
-        }
-      } else {
-        const picked = new Date(`${iso}T00:00:00Z`)
-        const stageStart = resolveStageStart(row, stageField)
-        if (stageStart) {
-          if (picked.getTime() < stageStart.getTime()) {
-            toast.error('Stage end date cannot be before the stage start')
-            cancelEditing()
-            return
-          }
-          const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000)
-          const weeks = diffDays / 7
-          if (weeks < 0) {
-            toast.error('Stage weeks cannot be negative')
-            cancelEditing()
-            return
-          }
-          const normalized = formatNumericInput(weeks, 2)
-          if (row[colKey] !== normalized) {
-            entry.values[colKey] = normalized
-          }
-        }
-        if ((row[overrideField] ?? '') !== iso) {
-          entry.values[overrideField] = iso ?? ''
-        }
+      if (Object.keys(entry.values).length === 0) {
+        pendingRef.current.delete(rowId);
+        cancelEditing();
+        return;
       }
-    } else if (NUMERIC_FIELDS.has(colKey)) {
-      entry.values[colKey] = finalValue
 
-      // Clear override if weeks changed
-      if ((colKey as string) in STAGE_OVERRIDE_FIELDS) {
-        const overrideField = STAGE_OVERRIDE_FIELDS[colKey as StageWeeksKey]
-        if ((row[overrideField] ?? '') !== '') {
-          entry.values[overrideField] = ''
-        }
-      }
-    } else if (DATE_FIELDS.has(colKey)) {
-      entry.values[colKey] = finalValue
-    } else {
-      entry.values[colKey] = finalValue
-    }
+      // Record edits for undo/redo
+      const undoEdits: CellEdit<string>[] = Object.entries(entry.values).map(
+        ([field, newValue]) => ({
+          rowKey: rowId,
+          field,
+          oldValue: row[field as keyof OpsInputRow] ?? '',
+          newValue: newValue as string,
+        }),
+      );
+      recordEdits(undoEdits);
 
-    // Create updated row
-    let updatedRow = { ...row }
-    for (const [key, val] of Object.entries(entry.values)) {
-      updatedRow[key as keyof OpsInputRow] = val as any
-    }
+      // Update rows
+      const updatedRows = rows.map((r) => (r.id === rowId ? updatedRow : r));
+      onRowsChange?.(updatedRows);
 
-    // Recompute stage dates if necessary
-    const needsStageRecompute =
-      colKey === 'poDate' || (colKey as string) in STAGE_OVERRIDE_FIELDS
-    if (needsStageRecompute) {
-      const anchorStage =
-        column.type === 'stage' && stageMode === 'dates' ? (colKey as StageWeeksKey) : null
-      updatedRow = recomputeStageDates(
-        updatedRow,
-        entry as { values: Record<string, string | null> },
-        { anchorStage }
-      )
-    }
-
-    if (Object.keys(entry.values).length === 0) {
-      pendingRef.current.delete(rowId)
-      cancelEditing()
-      return
-    }
-
-    // Record edits for undo/redo
-    const undoEdits: CellEdit<string>[] = Object.entries(entry.values).map(([field, newValue]) => ({
-      rowKey: rowId,
-      field,
-      oldValue: row[field as keyof OpsInputRow] ?? '',
-      newValue: newValue as string,
-    }))
-    recordEdits(undoEdits)
-
-    // Update rows
-    const updatedRows = rows.map((r) => (r.id === rowId ? updatedRow : r))
-    onRowsChange?.(updatedRows)
-
-    scheduleFlush()
-    cancelEditing()
-  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing, recordEdits])
+      scheduleFlush();
+      cancelEditing();
+    },
+    [
+      editingCell,
+      editValue,
+      rows,
+      stageMode,
+      pendingRef,
+      scheduleFlush,
+      onRowsChange,
+      cancelEditing,
+      recordEdits,
+    ],
+  );
 
   const scrollToCell = useCallback((rowId: string, colKey: keyof OpsInputRow) => {
     requestAnimationFrame(() => {
-      const node = document.getElementById(cellDomId(rowId, colKey))
-      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    })
-  }, [])
+      const node = document.getElementById(cellDomId(rowId, colKey));
+      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }, []);
 
   const moveSelection = useCallback(
     (deltaRow: number, deltaCol: number) => {
-      if (!activeCell) return
+      if (!activeCell) return;
 
-      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
-      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
-      if (currentRowIndex < 0 || currentColIndex < 0) return
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId);
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey);
+      if (currentRowIndex < 0 || currentColIndex < 0) return;
 
-      const nextRowIndex = Math.max(0, Math.min(rows.length - 1, currentRowIndex + deltaRow))
-      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol))
+      const nextRowIndex = Math.max(0, Math.min(rows.length - 1, currentRowIndex + deltaRow));
+      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol));
 
-      const nextRowId = rows[nextRowIndex]?.id
-      const nextColKey = COLUMNS[nextColIndex]?.key
-      if (!nextRowId || !nextColKey) return
+      const nextRowId = rows[nextRowIndex]?.id;
+      const nextColKey = COLUMNS[nextColIndex]?.key;
+      if (!nextRowId || !nextColKey) return;
 
-      const coords = { row: nextRowIndex, col: nextColIndex }
-      selectionAnchorRef.current = coords
-      setSelection({ from: coords, to: coords })
-      setActiveCell({ rowId: nextRowId, colKey: nextColKey })
-      onSelectOrder?.(nextRowId)
-      scrollToCell(nextRowId, nextColKey)
+      const coords = { row: nextRowIndex, col: nextColIndex };
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
+      setActiveCell({ rowId: nextRowId, colKey: nextColKey });
+      onSelectOrder?.(nextRowId);
+      scrollToCell(nextRowId, nextColKey);
     },
-    [activeCell, rows, onSelectOrder, scrollToCell]
-  )
+    [activeCell, rows, onSelectOrder, scrollToCell],
+  );
 
   const moveSelectionTab = useCallback(
     (direction: 1 | -1) => {
-      if (!activeCell) return
+      if (!activeCell) return;
 
-      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
-      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
-      if (currentRowIndex < 0 || currentColIndex < 0) return
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId);
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey);
+      if (currentRowIndex < 0 || currentColIndex < 0) return;
 
-      let nextRowIndex = currentRowIndex
-      let nextColIndex = currentColIndex + direction
+      let nextRowIndex = currentRowIndex;
+      let nextColIndex = currentColIndex + direction;
 
       if (nextColIndex >= COLUMNS.length) {
-        nextColIndex = 0
-        nextRowIndex = Math.min(rows.length - 1, currentRowIndex + 1)
+        nextColIndex = 0;
+        nextRowIndex = Math.min(rows.length - 1, currentRowIndex + 1);
       } else if (nextColIndex < 0) {
-        nextColIndex = COLUMNS.length - 1
-        nextRowIndex = Math.max(0, currentRowIndex - 1)
+        nextColIndex = COLUMNS.length - 1;
+        nextRowIndex = Math.max(0, currentRowIndex - 1);
       }
 
-      const nextRowId = rows[nextRowIndex]?.id
-      const nextColKey = COLUMNS[nextColIndex]?.key
-      if (!nextRowId || !nextColKey) return
+      const nextRowId = rows[nextRowIndex]?.id;
+      const nextColKey = COLUMNS[nextColIndex]?.key;
+      if (!nextRowId || !nextColKey) return;
 
-      const coords = { row: nextRowIndex, col: nextColIndex }
-      selectionAnchorRef.current = coords
-      setSelection({ from: coords, to: coords })
-      setActiveCell({ rowId: nextRowId, colKey: nextColKey })
-      onSelectOrder?.(nextRowId)
-      scrollToCell(nextRowId, nextColKey)
+      const coords = { row: nextRowIndex, col: nextColIndex };
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
+      setActiveCell({ rowId: nextRowId, colKey: nextColKey });
+      onSelectOrder?.(nextRowId);
+      scrollToCell(nextRowId, nextColKey);
     },
-    [activeCell, rows, onSelectOrder, scrollToCell]
-  )
+    [activeCell, rows, onSelectOrder, scrollToCell],
+  );
 
   const startEditingActiveCell = useCallback(() => {
-    if (!activeCell) return
-    const row = rows.find((r) => r.id === activeCell.rowId)
-    const column = COLUMNS.find((c) => c.key === activeCell.colKey)
-    if (!row || !column) return
-    if ((column.editable ?? true) === false) return
-    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
-  }, [activeCell, rows, stageMode, startEditing])
+    if (!activeCell) return;
+    const row = rows.find((r) => r.id === activeCell.rowId);
+    const column = COLUMNS.find((c) => c.key === activeCell.colKey);
+    if (!row || !column) return;
+    if ((column.editable ?? true) === false) return;
+    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode));
+  }, [activeCell, rows, stageMode, startEditing]);
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
-    let idx = startIndex + direction
+    let idx = startIndex + direction;
     while (idx >= 0 && idx < COLUMNS.length) {
-      if (COLUMNS[idx].editable !== false) return idx
-      idx += direction
+      if (COLUMNS[idx].editable !== false) return idx;
+      idx += direction;
     }
-    return -1
-  }
+    return -1;
+  };
 
   const moveToCell = (rowIndex: number, colIndex: number) => {
-    if (rowIndex < 0 || rowIndex >= rows.length) return
-    if (colIndex < 0 || colIndex >= COLUMNS.length) return
-    const column = COLUMNS[colIndex]
-    if (column.editable === false) return
-    const row = rows[rowIndex]
-    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
-  }
+    if (rowIndex < 0 || rowIndex >= rows.length) return;
+    if (colIndex < 0 || colIndex >= COLUMNS.length) return;
+    const column = COLUMNS[colIndex];
+    if (column.editable === false) return;
+    const row = rows[rowIndex];
+    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode));
+  };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault()
-      commitEdit()
-      moveSelection(1, 0)
+      e.preventDefault();
+      commitEdit();
+      moveSelection(1, 0);
       requestAnimationFrame(() => {
-        tableScrollRef.current?.focus()
-      })
+        tableScrollRef.current?.focus();
+      });
     } else if (e.key === 'Escape') {
-      e.preventDefault()
-      cancelEditing()
+      e.preventDefault();
+      cancelEditing();
       requestAnimationFrame(() => {
-        tableScrollRef.current?.focus()
-      })
+        tableScrollRef.current?.focus();
+      });
     } else if (e.key === 'Tab') {
-      e.preventDefault()
-      commitEdit()
-      moveSelectionTab(e.shiftKey ? -1 : 1)
+      e.preventDefault();
+      commitEdit();
+      moveSelectionTab(e.shiftKey ? -1 : 1);
       requestAnimationFrame(() => {
-        tableScrollRef.current?.focus()
-      })
+        tableScrollRef.current?.focus();
+      });
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      commitEdit()
+      e.preventDefault();
+      commitEdit();
       if (editingCell) {
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        moveToCell(currentRowIndex - 1, currentColIndex)
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId);
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey);
+        moveToCell(currentRowIndex - 1, currentColIndex);
       }
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      commitEdit()
+      e.preventDefault();
+      commitEdit();
       if (editingCell) {
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        moveToCell(currentRowIndex + 1, currentColIndex)
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId);
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey);
+        moveToCell(currentRowIndex + 1, currentColIndex);
       }
     } else if (e.key === 'ArrowLeft') {
       // Only move to prev cell if cursor is at start of input
-      const input = e.currentTarget
+      const input = e.currentTarget;
       if (input.selectionStart === 0 && input.selectionEnd === 0) {
-        e.preventDefault()
-        commitEdit()
+        e.preventDefault();
+        commitEdit();
         if (editingCell) {
-          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-          const prevColIndex = findNextEditableColumn(currentColIndex, -1)
+          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId);
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey);
+          const prevColIndex = findNextEditableColumn(currentColIndex, -1);
           if (prevColIndex !== -1) {
-            moveToCell(currentRowIndex, prevColIndex)
+            moveToCell(currentRowIndex, prevColIndex);
           } else if (currentRowIndex > 0) {
             // Move to last editable column of previous row
-            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1);
             if (lastEditableColIndex !== -1) {
-              moveToCell(currentRowIndex - 1, lastEditableColIndex)
+              moveToCell(currentRowIndex - 1, lastEditableColIndex);
             }
           }
         }
       }
     } else if (e.key === 'ArrowRight') {
       // Only move to next cell if cursor is at end of input
-      const input = e.currentTarget
-      const len = input.value.length
+      const input = e.currentTarget;
+      const len = input.value.length;
       if (input.selectionStart === len && input.selectionEnd === len) {
-        e.preventDefault()
-        commitEdit()
+        e.preventDefault();
+        commitEdit();
         if (editingCell) {
-          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-          const nextColIndex = findNextEditableColumn(currentColIndex, 1)
+          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId);
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey);
+          const nextColIndex = findNextEditableColumn(currentColIndex, 1);
           if (nextColIndex !== -1) {
-            moveToCell(currentRowIndex, nextColIndex)
+            moveToCell(currentRowIndex, nextColIndex);
           } else if (currentRowIndex < rows.length - 1) {
             // Move to first editable column of next row
-            const firstEditableColIndex = findNextEditableColumn(-1, 1)
+            const firstEditableColIndex = findNextEditableColumn(-1, 1);
             if (firstEditableColIndex !== -1) {
-              moveToCell(currentRowIndex + 1, firstEditableColIndex)
+              moveToCell(currentRowIndex + 1, firstEditableColIndex);
             }
           }
         }
       }
     }
-  }
+  };
 
   // Pointer event handlers for drag selection
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
-      if (editingCell) return
-      tableScrollRef.current?.focus()
-      e.currentTarget.setPointerCapture(e.pointerId)
-      const coords = { row: rowIndex, col: colIndex }
-      selectionAnchorRef.current = coords
-      setSelection({ from: coords, to: coords })
+      if (editingCell) return;
+      tableScrollRef.current?.focus();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const coords = { row: rowIndex, col: colIndex };
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
       // Also update activeCell to match
-      const row = rows[rowIndex]
-      const column = COLUMNS[colIndex]
+      const row = rows[rowIndex];
+      const column = COLUMNS[colIndex];
       if (row && column) {
-        setActiveCell({ rowId: row.id, colKey: column.key })
-        onSelectOrder?.(row.id)
+        setActiveCell({ rowId: row.id, colKey: column.key });
+        onSelectOrder?.(row.id);
       }
     },
-    [editingCell, rows, onSelectOrder]
-  )
+    [editingCell, rows, onSelectOrder],
+  );
 
   const handlePointerMove = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
-      if (!selectionAnchorRef.current) return
-      const newRange = { from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } }
-      setSelection(newRange)
+      if (!selectionAnchorRef.current) return;
+      const newRange = { from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } };
+      setSelection(newRange);
     },
-    []
-  )
+    [],
+  );
 
   const handlePointerUp = useCallback(() => {
-    selectionAnchorRef.current = null
-  }, [])
+    selectionAnchorRef.current = null;
+  }, []);
 
   // Copy handler - use display values for clipboard (user-friendly format)
   const buildClipboardText = useCallback(
     (range: CellRange): string => {
-      const { top, bottom, left, right } = normalizeRange(range)
-      const lines: string[] = []
+      const { top, bottom, left, right } = normalizeRange(range);
+      const lines: string[] = [];
       for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
-        const row = rows[rowIndex]
-        if (!row) continue
-        const cells: string[] = []
+        const row = rows[rowIndex];
+        if (!row) continue;
+        const cells: string[] = [];
         for (let colIndex = left; colIndex <= right; colIndex += 1) {
-          const column = COLUMNS[colIndex]
-          if (!column) continue
+          const column = COLUMNS[colIndex];
+          if (!column) continue;
           // Use formatted display value for clipboard so dates show as "Feb 22 2026" not "2026-02-22"
-          cells.push(getCellFormattedValue(row, column, stageMode))
+          cells.push(getCellFormattedValue(row, column, stageMode));
         }
-        lines.push(cells.join('\t'))
+        lines.push(cells.join('\t'));
       }
-      return lines.join('\n')
+      return lines.join('\n');
     },
-    [rows, stageMode]
-  )
+    [rows, stageMode],
+  );
 
   // Programmatic copy to clipboard (for Ctrl+C shortcut)
-  const copySelectionToClipboard = useCallback(async () => {
+  const copySelectionToClipboard = useCallback(() => {
     const currentSelection =
       selection ??
       (activeCell
         ? (() => {
-            const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
-            const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
-            if (rowIndex < 0 || colIndex < 0) return null
-            const coords = { row: rowIndex, col: colIndex }
-            return { from: coords, to: coords }
+            const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId);
+            const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey);
+            if (rowIndex < 0 || colIndex < 0) return null;
+            const coords = { row: rowIndex, col: colIndex };
+            return { from: coords, to: coords };
           })()
-        : null)
+        : null);
 
-    if (!currentSelection) return
+    if (!currentSelection) return;
 
-    const text = buildClipboardText(currentSelection)
-    if (!text) return
+    const text = buildClipboardText(currentSelection);
+    if (!text) return;
 
-    try {
-      await navigator.clipboard.writeText(text)
-      return
-    } catch {
-      // Fallback for browsers that block clipboard writes.
+    const clipboard = clipboardRef.current;
+    if (!clipboard) {
+      if (navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
+      return;
     }
 
-    const clipboard = clipboardRef.current
-    if (!clipboard) return
-
-    clipboard.value = text
-    clipboard.focus()
-    clipboard.select()
+    clipboard.value = text;
+    clipboard.focus();
+    clipboard.select();
 
     try {
-      document.execCommand('copy')
+      const didCopy = document.execCommand('copy');
+      if (!didCopy && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
     } finally {
-      clipboard.value = ''
-      requestAnimationFrame(() => tableScrollRef.current?.focus())
+      clipboard.value = '';
+      requestAnimationFrame(() => tableScrollRef.current?.focus());
     }
-  }, [activeCell, rows, selection, buildClipboardText])
+  }, [activeCell, rows, selection, buildClipboardText]);
 
   const clearSelectionValues = useCallback(() => {
     const currentSelection =
       selection ??
       (activeCell
         ? (() => {
-            const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
-            const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
-            if (rowIndex < 0 || colIndex < 0) return null
-            const coords = { row: rowIndex, col: colIndex }
-            return { from: coords, to: coords }
+            const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId);
+            const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey);
+            if (rowIndex < 0 || colIndex < 0) return null;
+            const coords = { row: rowIndex, col: colIndex };
+            return { from: coords, to: coords };
           })()
-        : null)
+        : null);
 
-    if (!currentSelection) return
+    if (!currentSelection) return;
 
-    const { top, bottom, left, right } = normalizeRange(currentSelection)
-    if (top < 0 || left < 0) return
+    const { top, bottom, left, right } = normalizeRange(currentSelection);
+    if (top < 0 || left < 0) return;
 
-    let updatedRows = [...rows]
-    const undoEdits: CellEdit<string>[] = []
+    let updatedRows = [...rows];
+    const undoEdits: CellEdit<string>[] = [];
 
     for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
-      const row = updatedRows[rowIndex]
-      if (!row) continue
+      const row = updatedRows[rowIndex];
+      if (!row) continue;
 
       for (let colIndex = left; colIndex <= right; colIndex += 1) {
-        const column = COLUMNS[colIndex]
-        if (!column || column.editable === false) continue
-        if (column.type === 'stage') continue
+        const column = COLUMNS[colIndex];
+        if (!column || column.editable === false) continue;
+        if (column.type === 'stage') continue;
 
-        const colKey = column.key
-        const oldValue = row[colKey] ?? ''
-        if (oldValue === '') continue
+        const colKey = column.key;
+        const oldValue = row[colKey] ?? '';
+        if (oldValue === '') continue;
 
         if (!pendingRef.current.has(row.id)) {
-          pendingRef.current.set(row.id, { id: row.id, values: {} })
+          pendingRef.current.set(row.id, { id: row.id, values: {} });
         }
-        const entry = pendingRef.current.get(row.id)!
-        entry.values[colKey] = ''
+        const entry = pendingRef.current.get(row.id)!;
+        entry.values[colKey] = '';
 
         undoEdits.push({
           rowKey: row.id,
           field: colKey,
           oldValue,
           newValue: '',
-        })
+        });
 
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [colKey]: '' }
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [colKey]: '' };
       }
     }
 
-    if (undoEdits.length === 0) return
+    if (undoEdits.length === 0) return;
 
-    recordEdits(undoEdits)
-    onRowsChange?.(updatedRows)
-    scheduleFlush()
-  }, [activeCell, onRowsChange, pendingRef, recordEdits, rows, scheduleFlush, selection])
+    recordEdits(undoEdits);
+    onRowsChange?.(updatedRows);
+    scheduleFlush();
+  }, [activeCell, onRowsChange, pendingRef, recordEdits, rows, scheduleFlush, selection]);
 
-  const handleTableKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return
-      if (editingCell) return
+  const handleGridKeyDown = useCallback(
+    (event: {
+      key: string;
+      ctrlKey: boolean;
+      metaKey: boolean;
+      shiftKey: boolean;
+      preventDefault: () => void;
+    }) => {
+      if (editingCell) return;
 
       // Handle Ctrl+Z for undo and Ctrl+Shift+Z / Ctrl+Y for redo (even without active cell)
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-        event.preventDefault()
+        event.preventDefault();
         if (event.shiftKey) {
-          redo()
+          redo();
         } else {
-          undo()
+          undo();
         }
-        return
+        return;
       }
 
       // Handle Ctrl+Y for redo (Windows convention)
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'y') {
-        event.preventDefault()
-        redo()
-        return
+        event.preventDefault();
+        redo();
+        return;
       }
 
-      if (!activeCell) return
+      if (!activeCell) return;
 
       // Handle Ctrl+C for copy
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
-        event.preventDefault()
-        copySelectionToClipboard().catch(() => {})
-        return
+        event.preventDefault();
+        copySelectionToClipboard();
+        return;
       }
 
       // Handle Ctrl+V for paste via hidden clipboard textarea
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        const clipboard = clipboardRef.current
-        if (!clipboard) return
-        pasteStartRef.current = activeCell
-        clipboard.value = ''
-        clipboard.focus()
-        clipboard.select()
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = activeCell;
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
         window.setTimeout(() => {
           if (pasteStartRef.current && document.activeElement === clipboard) {
-            pasteStartRef.current = null
-            clipboard.value = ''
-            tableScrollRef.current?.focus()
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            tableScrollRef.current?.focus();
           }
-        }, 250)
-        return
+        }, 250);
+        return;
       }
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
-        event.preventDefault()
-        clearSelectionValues()
-        return
+        event.preventDefault();
+        clearSelectionValues();
+        return;
       }
 
       if (event.key === 'Enter' || event.key === 'F2') {
-        event.preventDefault()
-        startEditingActiveCell()
-        return
+        event.preventDefault();
+        startEditingActiveCell();
+        return;
       }
 
       if (event.key === 'Tab') {
-        event.preventDefault()
-        moveSelectionTab(event.shiftKey ? -1 : 1)
-        return
+        event.preventDefault();
+        moveSelectionTab(event.shiftKey ? -1 : 1);
+        return;
       }
 
       if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        moveSelection(1, 0)
-        return
+        event.preventDefault();
+        moveSelection(1, 0);
+        return;
       }
       if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        moveSelection(-1, 0)
-        return
+        event.preventDefault();
+        moveSelection(-1, 0);
+        return;
       }
       if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        moveSelection(0, 1)
-        return
+        event.preventDefault();
+        moveSelection(0, 1);
+        return;
       }
       if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        moveSelection(0, -1)
-        return
+        event.preventDefault();
+        moveSelection(0, -1);
+        return;
       }
     },
     [
       activeCell,
       clearSelectionValues,
+      copySelectionToClipboard,
       editingCell,
       moveSelection,
       moveSelectionTab,
-      startEditingActiveCell,
-      copySelectionToClipboard,
-      undo,
       redo,
-    ]
-  )
+      startEditingActiveCell,
+      undo,
+    ],
+  );
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return;
+      handleGridKeyDown(event);
+    },
+    [handleGridKeyDown],
+  );
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return
+      if (e.target !== e.currentTarget) return;
       const currentSelection =
         selection ??
         (activeCell
           ? (() => {
-              const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
-              const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
-              if (rowIndex < 0 || colIndex < 0) return null
-              const coords = { row: rowIndex, col: colIndex }
-              return { from: coords, to: coords }
+              const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId);
+              const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey);
+              if (rowIndex < 0 || colIndex < 0) return null;
+              const coords = { row: rowIndex, col: colIndex };
+              return { from: coords, to: coords };
             })()
-          : null)
+          : null);
 
-      if (!currentSelection) return
-      e.preventDefault()
-      e.clipboardData.setData('text/plain', buildClipboardText(currentSelection))
+      if (!currentSelection) return;
+      e.preventDefault();
+      e.clipboardData.setData('text/plain', buildClipboardText(currentSelection));
     },
-    [activeCell, buildClipboardText, rows, selection]
-  )
+    [activeCell, buildClipboardText, rows, selection],
+  );
 
   // Paste handler
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLElement>) => {
-      if (e.target !== e.currentTarget) return
-      const clipboard = clipboardRef.current
-      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard)
+      if (e.target !== e.currentTarget) return;
+      const clipboard = clipboardRef.current;
+      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard);
       const refocusClipboard = () => {
-        if (!shouldRefocus) return
-        if (clipboard) clipboard.value = ''
-        requestAnimationFrame(() => tableScrollRef.current?.focus())
-      }
+        if (!shouldRefocus) return;
+        if (clipboard) clipboard.value = '';
+        requestAnimationFrame(() => tableScrollRef.current?.focus());
+      };
 
-      const start = pasteStartRef.current ?? activeCell
-      pasteStartRef.current = null
+      const start = pasteStartRef.current ?? activeCell;
+      pasteStartRef.current = null;
       if (!start) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
-      const text = e.clipboardData.getData('text/plain')
-      e.preventDefault()
+      const text = e.clipboardData.getData('text/plain');
+      e.preventDefault();
       if (!text) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
       const pasteRows = text
@@ -1399,76 +1461,76 @@ export function CustomOpsPlanningGrid({
         .replace(/\r/g, '\n')
         .split('\n')
         .filter((line) => line.length > 0)
-        .map((line) => line.split('\t'))
+        .map((line) => line.split('\t'));
 
       if (pasteRows.length === 0) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
-      const startRowIndex = rows.findIndex((r) => r.id === start.rowId)
-      const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey)
+      const startRowIndex = rows.findIndex((r) => r.id === start.rowId);
+      const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey);
       if (startRowIndex < 0 || startColIndex < 0) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
-      const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = []
+      const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = [];
 
       for (let r = 0; r < pasteRows.length; r += 1) {
         for (let c = 0; c < pasteRows[r]!.length; c += 1) {
-          const targetRowIndex = startRowIndex + r
-          const targetColIndex = startColIndex + c
-          if (targetRowIndex >= rows.length) continue
-          if (targetColIndex >= COLUMNS.length) continue
+          const targetRowIndex = startRowIndex + r;
+          const targetColIndex = startColIndex + c;
+          if (targetRowIndex >= rows.length) continue;
+          if (targetColIndex >= COLUMNS.length) continue;
 
-          const column = COLUMNS[targetColIndex]
-          if (!column || column.editable === false) continue
+          const column = COLUMNS[targetColIndex];
+          if (!column || column.editable === false) continue;
 
-          const row = rows[targetRowIndex]
-          if (!row) continue
+          const row = rows[targetRowIndex];
+          if (!row) continue;
 
           updates.push({
             rowId: row.id,
             colKey: column.key,
             value: pasteRows[r]![c] ?? '',
-          })
+          });
         }
       }
 
       if (updates.length === 0) {
-        refocusClipboard()
-        return
+        refocusClipboard();
+        return;
       }
 
       // Apply updates and track for undo
-      let updatedRows = [...rows]
-      const undoEdits: CellEdit<string>[] = []
+      let updatedRows = [...rows];
+      const undoEdits: CellEdit<string>[] = [];
 
       for (const update of updates) {
-        const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId)
-        if (rowIndex < 0) continue
+        const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId);
+        if (rowIndex < 0) continue;
 
-        const column = COLUMNS.find((c) => c.key === update.colKey)
-        if (!column) continue
+        const column = COLUMNS.find((c) => c.key === update.colKey);
+        if (!column) continue;
 
-        let finalValue = update.value
-        const originalRow = rows.find((r) => r.id === update.rowId)
+        let finalValue = update.value;
+        const originalRow = rows.find((r) => r.id === update.rowId);
 
         // Queue for API update
         if (!pendingRef.current.has(update.rowId)) {
-          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} })
+          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} });
         }
-        const entry = pendingRef.current.get(update.rowId)!
+        const entry = pendingRef.current.get(update.rowId)!;
 
         // Handle stage columns in dates mode - convert pasted date to weeks + override
         if (column.type === 'stage' && stageMode === 'dates') {
-          const stageField = column.key as StageWeeksKey
-          const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
-          const row = updatedRows[rowIndex]
+          const stageField = column.key as StageWeeksKey;
+          const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+          const row = updatedRows[rowIndex];
 
           // Try to parse the pasted value as a date
-          const pastedDate = toIsoDate(finalValue)
+          const pastedDate = toIsoDate(finalValue);
           if (pastedDate) {
             // Track undo for override field
             undoEdits.push({
@@ -1476,19 +1538,19 @@ export function CustomOpsPlanningGrid({
               field: overrideField,
               oldValue: originalRow?.[overrideField] ?? '',
               newValue: pastedDate,
-            })
+            });
 
             // Update the override field with the date
-            updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate }
-            entry.values[overrideField] = pastedDate
+            updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate };
+            entry.values[overrideField] = pastedDate;
 
             // Calculate weeks from stage start to pasted date
-            const stageStart = resolveStageStart(row, stageField)
+            const stageStart = resolveStageStart(row, stageField);
             if (stageStart) {
-              const picked = new Date(`${pastedDate}T00:00:00Z`)
-              const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000)
-              const weeks = Math.max(0, diffDays / 7)
-              const normalizedWeeks = formatNumericInput(weeks, 2)
+              const picked = new Date(`${pastedDate}T00:00:00Z`);
+              const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000);
+              const weeks = Math.max(0, diffDays / 7);
+              const normalizedWeeks = formatNumericInput(weeks, 2);
 
               // Track undo for weeks field
               undoEdits.push({
@@ -1496,27 +1558,27 @@ export function CustomOpsPlanningGrid({
                 field: stageField,
                 oldValue: originalRow?.[stageField] ?? '',
                 newValue: normalizedWeeks,
-              })
+              });
 
-              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [stageField]: normalizedWeeks }
-              entry.values[stageField] = normalizedWeeks
+              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [stageField]: normalizedWeeks };
+              entry.values[stageField] = normalizedWeeks;
             }
           }
-          continue
+          continue;
         }
 
         // Handle date columns
         if (column.type === 'date') {
-          const pastedDate = toIsoDate(finalValue)
+          const pastedDate = toIsoDate(finalValue);
           if (pastedDate) {
-            finalValue = pastedDate
+            finalValue = pastedDate;
           }
         }
 
         // Normalize numeric values
         if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
-          const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2
-          finalValue = normalizeNumeric(finalValue, precision)
+          const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2;
+          finalValue = normalizeNumeric(finalValue, precision);
         }
 
         // Track undo
@@ -1525,41 +1587,41 @@ export function CustomOpsPlanningGrid({
           field: update.colKey,
           oldValue: originalRow?.[update.colKey] ?? '',
           newValue: finalValue,
-        })
+        });
 
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue }
-        entry.values[update.colKey] = finalValue
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue };
+        entry.values[update.colKey] = finalValue;
       }
 
       // Record all edits as a single undo batch
       if (undoEdits.length > 0) {
-        recordEdits(undoEdits)
+        recordEdits(undoEdits);
       }
 
-      onRowsChange?.(updatedRows)
-      scheduleFlush()
-      toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`)
-      refocusClipboard()
+      onRowsChange?.(updatedRows);
+      scheduleFlush();
+      toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`);
+      refocusClipboard();
     },
-    [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, recordEdits]
-  )
+    [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, recordEdits],
+  );
 
   const getHeaderLabel = (column: ColumnDef): string => {
     if (column.type === 'stage') {
       return stageMode === 'weeks'
-        ? column.headerWeeks ?? column.header
-        : column.headerDates ?? column.header
+        ? (column.headerWeeks ?? column.header)
+        : (column.headerDates ?? column.header);
     }
-    return column.header
-  }
+    return column.header;
+  };
 
   const toggleStageMode = () => {
-    setStageMode((prev) => (prev === 'weeks' ? 'dates' : 'weeks'))
-  }
+    setStageMode((prev) => (prev === 'weeks' ? 'dates' : 'weeks'));
+  };
 
   const renderHeader = (column: ColumnDef) => {
-    const isStageColumn = column.type === 'stage'
-    const headerLabel = getHeaderLabel(column)
+    const isStageColumn = column.type === 'stage';
+    const headerLabel = getHeaderLabel(column);
 
     return (
       <TableHead
@@ -1573,9 +1635,9 @@ export function CustomOpsPlanningGrid({
             className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
             title={`Click to switch to ${stageMode === 'weeks' ? 'dates' : 'weeks'} view`}
             onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              toggleStageMode()
+              event.preventDefault();
+              event.stopPropagation();
+              toggleStageMode();
             }}
           >
             {headerLabel}
@@ -1584,8 +1646,8 @@ export function CustomOpsPlanningGrid({
           headerLabel
         )}
       </TableHead>
-    )
-  }
+    );
+  };
 
   return (
     <section className="space-y-4">
@@ -1636,12 +1698,17 @@ export function CustomOpsPlanningGrid({
           ref={clipboardRef}
           tabIndex={-1}
           aria-hidden="true"
-          className="absolute -left-[9999px] top-0 h-1 w-1 opacity-0"
+          className="fixed left-0 top-0 h-1 w-1 opacity-0 pointer-events-none"
           onPaste={handlePaste}
         />
         <div
           ref={tableScrollRef}
           tabIndex={0}
+          onPointerDownCapture={() => {
+            if (!editingCell) {
+              tableScrollRef.current?.focus();
+            }
+          }}
           onKeyDown={handleTableKeyDown}
           onCopy={handleCopy}
           onPaste={handlePaste}
@@ -1654,13 +1721,16 @@ export function CustomOpsPlanningGrid({
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={COLUMNS.length} className="p-6 text-center text-sm text-muted-foreground">
+                  <TableCell
+                    colSpan={COLUMNS.length}
+                    className="p-6 text-center text-sm text-muted-foreground"
+                  >
                     No purchase orders yet. Click &ldquo;Add purchase order&rdquo; to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 rows.map((row, rowIndex) => {
-                  const isEditingRow = editingCell?.rowId === row.id
+                  const isEditingRow = editingCell?.rowId === row.id;
                   return (
                     <CustomOpsPlanningRow
                       key={row.id}
@@ -1684,14 +1754,13 @@ export function CustomOpsPlanningGrid({
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
                     />
-                  )
+                  );
                 })
               )}
             </TableBody>
           </Table>
         </div>
-
       </div>
     </section>
-  )
+  );
 }

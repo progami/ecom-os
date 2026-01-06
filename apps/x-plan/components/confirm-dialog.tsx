@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import {
   AlertDialog,
@@ -9,22 +9,22 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { cn } from '@/lib/utils'
+} from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
-type ConfirmDialogTone = 'default' | 'danger'
+type ConfirmDialogTone = 'default' | 'danger';
 
 type ConfirmDialogProps = {
-  open: boolean
-  title: string
-  description?: string
-  confirmLabel?: string
-  cancelLabel?: string
-  tone?: ConfirmDialogTone
-  isBusy?: boolean
-  onConfirm: () => void
-  onOpenChange: (open: boolean) => void
-}
+  open: boolean;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: ConfirmDialogTone;
+  isBusy?: boolean;
+  onConfirm: () => void;
+  onOpenChange: (open: boolean) => void;
+};
 
 export function ConfirmDialog({
   open,
@@ -42,9 +42,7 @@ export function ConfirmDialog({
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
-          {description && (
-            <AlertDialogDescription>{description}</AlertDialogDescription>
-          )}
+          {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isBusy}>{cancelLabel}</AlertDialogCancel>
@@ -53,7 +51,7 @@ export function ConfirmDialog({
             disabled={isBusy}
             className={cn(
               tone === 'danger' &&
-                'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                'bg-destructive text-destructive-foreground hover:bg-destructive/90',
             )}
           >
             {confirmLabel}
@@ -61,5 +59,5 @@ export function ConfirmDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }
