@@ -150,7 +150,7 @@ export default function PerformanceReviewWorkflowPage() {
         </Alert>
       ) : null}
 
-      <WorkflowRecordLayout data={dto} onAction={onAction}>
+      <WorkflowRecordLayout data={dto} onAction={onAction} backHref="/performance/reviews">
         {review ? (
           <div className="space-y-6">
             <div className="flex items-center justify-end">

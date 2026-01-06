@@ -85,7 +85,7 @@ export default function PolicyWorkflowPage() {
         </Alert>
       ) : null}
 
-      <WorkflowRecordLayout data={dto} onAction={onAction}>
+      <WorkflowRecordLayout data={dto} onAction={onAction} backHref="/policies">
         {policy ? (
           <div className="space-y-6">
             {policy.summary ? (
