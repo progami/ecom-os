@@ -126,7 +126,8 @@ export function SalesPlanningVisual({
   // Calculate Y-axis bounds and zero offset for split gradients (red below 0)
   const yAxisBounds = useMemo(() => {
     const allValues = stockDataPoints.map((p) => p.stockEnd).filter(Number.isFinite);
-    if (allValues.length === 0) return { min: 0, max: 0, zeroOffset: 0.5, hasNegative: false, allNegative: false };
+    if (allValues.length === 0)
+      return { min: 0, max: 0, zeroOffset: 0.5, hasNegative: false, allNegative: false };
     const dataMin = Math.min(...allValues);
     const dataMax = Math.max(...allValues);
 
@@ -257,7 +258,7 @@ export function SalesPlanningVisual({
                           Stock: {Math.round(data.stockEnd).toLocaleString()} units
                         </p>
                         {data.hasShipment && (
-                          <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                          <p className="text-xs text-emerald-600 dark:text-emerald-200">
                             Shipment arrives
                           </p>
                         )}

@@ -582,7 +582,7 @@ export function POProfitabilitySection({
               <div>
                 Total Profit:{' '}
                 <span
-                  className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                  className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                 >
                   {formatCurrency(summary.totalProfit)}
                 </span>
@@ -696,17 +696,17 @@ export function POProfitabilitySection({
                     {formatCurrency(row.ppcCost)}
                   </TableCell>
                   <TableCell
-                    className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                    className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                   >
                     {formatCurrency(row.netProfit)}
                   </TableCell>
                   <TableCell
-                    className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                    className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                   >
                     {formatPercent(row.netMarginPercent)}
                   </TableCell>
                   <TableCell
-                    className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                    className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                   >
                     {formatPercent(row.roi)}
                   </TableCell>
@@ -736,17 +736,17 @@ export function POProfitabilitySection({
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcCost, 0))}
                 </TableCell>
                 <TableCell
-                  className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                  className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                 >
                   {formatCurrency(summary.totalProfit)}
                 </TableCell>
                 <TableCell
-                  className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                  className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                 >
                   {formatPercent(summary.avgMargin)}
                 </TableCell>
                 <TableCell
-                  className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600 dark:text-red-300' : ''}`}
+                  className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                 >
                   {formatPercent(summary.avgROI)}
                 </TableCell>
@@ -794,12 +794,12 @@ function SortButton({
 
 function StatusBadge({ status }: { status: POStatus }) {
   const styles: Record<POStatus, string> = {
-    ARRIVED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-    CLOSED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    IN_TRANSIT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
-    PRODUCTION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    PLANNED: 'bg-slate-100 text-slate-600 dark:bg-slate-700/30 dark:text-slate-300',
-    CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+    ARRIVED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-200',
+    CLOSED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/35 dark:text-blue-200',
+    IN_TRANSIT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/35 dark:text-sky-200',
+    PRODUCTION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200',
+    PLANNED: 'bg-slate-100 text-slate-600 dark:bg-slate-700/35 dark:text-slate-200',
+    CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200',
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
