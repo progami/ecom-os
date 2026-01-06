@@ -1,33 +1,49 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { addWeeks, differenceInCalendarDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
 import { clsx } from 'clsx'
 import type { PurchaseTimelineProps } from '@/lib/planning/timeline'
 import { PurchaseTimelineOrder, TimelineStageKey } from '@/lib/planning/timeline'
 import { Tooltip } from '@/components/ui/tooltip'
 
-const stagePalette: Record<TimelineStageKey, { label: string; description: string; color: string }> = {
+const stagePalette: Record<TimelineStageKey, { label: string; description: string; lightColor: string; darkColor: string }> = {
   source: {
     label: 'Source',
     description: 'Sourcing & procurement',
-    color: 'hsl(var(--chart-1))',
+    lightColor: '#22d3ee', // cyan-400
+    darkColor: '#0891b2',  // cyan-600
   },
   production: {
     label: 'Production',
     description: 'Manufacturing',
-    color: 'hsl(var(--chart-2))',
+    lightColor: '#06b6d4', // cyan-500
+    darkColor: '#06b6d4',  // cyan-500
   },
   ocean: {
     label: 'Ocean',
     description: 'Ocean freight',
-    color: 'hsl(var(--chart-3))',
+    lightColor: '#0891b2', // cyan-600
+    darkColor: '#14b8a6',  // teal-500
   },
   final: {
     label: 'Final',
     description: 'Final mile',
-    color: 'hsl(var(--chart-4))',
+    lightColor: '#0e7490', // cyan-700
+    darkColor: '#2dd4bf',  // teal-400
   },
+}
+
+function useIsDarkMode() {
+  const [isDark, setIsDark] = useState(false)
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.classList.contains('dark'))
+    check()
+    const observer = new MutationObserver(check)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+  return isDark
 }
 
 const WEEK_OPTIONS = { weekStartsOn: 0 as const }
@@ -56,6 +72,12 @@ type WeekColumn = {
 }
 
 export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header, months }: PurchaseTimelineProps) {
+  const isDarkMode = useIsDarkMode()
+  const getStageColor = (key: TimelineStageKey) => {
+    const palette = stagePalette[key] ?? stagePalette.production
+    return isDarkMode ? palette.darkColor : palette.lightColor
+  }
+
   const timelineOrders = useMemo<TimelineComputedOrder[]>(() => {
     return orders
       .map((order) => {
@@ -199,7 +221,7 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
             const days = differenceInCalendarDays(segment.endDate, segment.startDate)
             return (
               <div key={segment.key} className="flex items-center gap-2 text-xs">
-                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: palette.color }} />
+                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: getStageColor(segment.key) }} />
                 <span className="flex-1">{palette.label}</span>
                 <span className="text-muted-foreground">{days}d</span>
               </div>
@@ -236,7 +258,6 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
 
             const segLeftPercent = ((segStart - overallStart) / overallDuration) * 100
             const segWidthPercent = ((segEnd - segStart) / overallDuration) * 100
-            const palette = stagePalette[segment.key] ?? stagePalette.production
 
             return (
               <div
@@ -245,7 +266,7 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
                 style={{
                   left: `${segLeftPercent}%`,
                   width: `${segWidthPercent}%`,
-                  backgroundColor: palette.color,
+                  backgroundColor: getStageColor(segment.key),
                 }}
               />
             )
@@ -302,10 +323,10 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
           <h2 className="text-base font-semibold text-foreground">PO Timeline</h2>
           {/* Legend */}
           <div className="flex items-center gap-3">
-            {Object.entries(stagePalette).map(([key, palette]) => (
+            {(Object.keys(stagePalette) as TimelineStageKey[]).map((key) => (
               <div key={key} className="flex items-center gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: palette.color }} />
-                <span className="text-[10px] text-muted-foreground">{palette.label}</span>
+                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: getStageColor(key) }} />
+                <span className="text-[10px] text-muted-foreground">{stagePalette[key].label}</span>
               </div>
             ))}
           </div>
