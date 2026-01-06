@@ -1425,6 +1425,7 @@ export function SalesPlanningGrid({
 
   const handleCopy = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
       if (!selectionRef.current) return
       event.preventDefault()
       event.clipboardData.setData('text/plain', buildClipboardText(selectionRef.current))
@@ -1434,6 +1435,7 @@ export function SalesPlanningGrid({
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
       if (!activeCell) return
       const text = event.clipboardData.getData('text/plain')
       if (!text) return

@@ -1086,6 +1086,7 @@ export function CustomOpsPlanningGrid({
   const handlePointerDown = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
       if (editingCell) return
+      tableScrollRef.current?.focus()
       e.currentTarget.setPointerCapture(e.pointerId)
       const coords = { row: rowIndex, col: colIndex }
       selectionAnchorRef.current = coords
@@ -1158,6 +1159,64 @@ export function CustomOpsPlanningGrid({
     }
   }, [activeCell, rows, selection, buildClipboardText])
 
+  const clearSelectionValues = useCallback(() => {
+    const currentSelection =
+      selection ??
+      (activeCell
+        ? (() => {
+            const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
+            const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
+            if (rowIndex < 0 || colIndex < 0) return null
+            const coords = { row: rowIndex, col: colIndex }
+            return { from: coords, to: coords }
+          })()
+        : null)
+
+    if (!currentSelection) return
+
+    const { top, bottom, left, right } = normalizeRange(currentSelection)
+    if (top < 0 || left < 0) return
+
+    let updatedRows = [...rows]
+    const undoEdits: CellEdit<string>[] = []
+
+    for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+      const row = updatedRows[rowIndex]
+      if (!row) continue
+
+      for (let colIndex = left; colIndex <= right; colIndex += 1) {
+        const column = COLUMNS[colIndex]
+        if (!column || column.editable === false) continue
+        if (column.type === 'stage') continue
+
+        const colKey = column.key
+        const oldValue = row[colKey] ?? ''
+        if (oldValue === '') continue
+
+        if (!pendingRef.current.has(row.id)) {
+          pendingRef.current.set(row.id, { id: row.id, values: {} })
+        }
+        const entry = pendingRef.current.get(row.id)!
+        entry.values[colKey] = ''
+
+        undoEdits.push({
+          rowKey: row.id,
+          field: colKey,
+          oldValue,
+          newValue: '',
+        })
+
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [colKey]: '' }
+      }
+    }
+
+    if (undoEdits.length === 0) return
+
+    recordEdits(undoEdits)
+    onRowsChange?.(updatedRows)
+    scheduleFlush()
+  }, [activeCell, onRowsChange, pendingRef, recordEdits, rows, scheduleFlush, selection])
+
   const handleTableKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.target !== event.currentTarget) return
@@ -1196,6 +1255,12 @@ export function CustomOpsPlanningGrid({
         return
       }
 
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault()
+        clearSelectionValues()
+        return
+      }
+
       if (event.key === 'Enter' || event.key === 'F2') {
         event.preventDefault()
         startEditingActiveCell()
@@ -1229,11 +1294,22 @@ export function CustomOpsPlanningGrid({
         return
       }
     },
-    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell, copySelectionToClipboard, undo, redo]
+    [
+      activeCell,
+      clearSelectionValues,
+      editingCell,
+      moveSelection,
+      moveSelectionTab,
+      startEditingActiveCell,
+      copySelectionToClipboard,
+      undo,
+      redo,
+    ]
   )
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
       if (!selection) return
       e.preventDefault()
       e.clipboardData.setData('text/plain', buildClipboardText(selection))
@@ -1244,6 +1320,7 @@ export function CustomOpsPlanningGrid({
   // Paste handler
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
       if (!activeCell) return
       const text = e.clipboardData.getData('text/plain')
       if (!text) return
