@@ -34,6 +34,39 @@ export type CreateFulfillmentOrderInput = {
   shippingMethod?: string
   trackingNumber?: string
   externalReference?: string
+  amazonShipmentId?: string
+  amazonShipmentName?: string
+  amazonShipmentStatus?: string
+  amazonDestinationFulfillmentCenterId?: string
+  amazonLabelPrepType?: string
+  amazonBoxContentsSource?: string
+  amazonShipFromAddress?: Record<string, unknown> | null
+  amazonReferenceId?: string
+  amazonShipmentReference?: string
+  amazonShipperId?: string
+  amazonPickupNumber?: string
+  amazonPickupAppointmentId?: string
+  amazonDeliveryAppointmentId?: string
+  amazonLoadId?: string
+  amazonFreightBillNumber?: string
+  amazonBillOfLadingNumber?: string
+  amazonPickupWindowStart?: Date | string | null
+  amazonPickupWindowEnd?: Date | string | null
+  amazonDeliveryWindowStart?: Date | string | null
+  amazonDeliveryWindowEnd?: Date | string | null
+  amazonPickupAddress?: string
+  amazonPickupContactName?: string
+  amazonPickupContactPhone?: string
+  amazonDeliveryAddress?: string
+  amazonShipmentMode?: string
+  amazonBoxCount?: number | string | null
+  amazonPalletCount?: number | string | null
+  amazonCommodityDescription?: string
+  amazonDistanceMiles?: number | string | null
+  amazonBasePrice?: number | string | null
+  amazonFuelSurcharge?: number | string | null
+  amazonTotalPrice?: number | string | null
+  amazonCurrency?: string
   notes?: string
   lines: CreateFulfillmentOrderLineInput[]
 }
@@ -180,6 +213,57 @@ export async function createFulfillmentOrder(
   for (let attempt = 0; attempt < MAX_FO_NUMBER_ATTEMPTS; attempt += 1) {
     const foNumber = await generateFoNumber()
 
+    const normalizeOptionalString = (value?: string | null) =>
+      value?.trim() ? sanitizeForDisplay(value.trim()) : null
+
+    const parseOptionalDate = (value?: Date | string | null, label?: string) => {
+      if (!value) return null
+      const parsed = value instanceof Date ? value : new Date(value)
+      if (Number.isNaN(parsed.getTime())) {
+        throw new ValidationError(`${label ?? 'Date'} is invalid`)
+      }
+      return parsed
+    }
+
+    const parseOptionalNumber = (value: number | string | null | undefined, label: string) => {
+      if (value === null || value === undefined || value === '') return null
+      const parsed = typeof value === 'string' ? Number(value) : value
+      if (!Number.isFinite(parsed)) {
+        throw new ValidationError(`${label} must be a valid number`)
+      }
+      return parsed
+    }
+
+    const parseOptionalInt = (value: number | string | null | undefined, label: string) => {
+      if (value === null || value === undefined || value === '') return null
+      const parsed = typeof value === 'string' ? Number(value) : value
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        throw new ValidationError(`${label} must be a non-negative integer`)
+      }
+      return parsed
+    }
+
+    const amazonShipFromAddress = input.amazonShipFromAddress
+      ? (JSON.parse(JSON.stringify(input.amazonShipFromAddress)) as Prisma.InputJsonValue)
+      : null
+
+    const amazonPickupWindowStart = parseOptionalDate(
+      input.amazonPickupWindowStart,
+      'Pickup window start'
+    )
+    const amazonPickupWindowEnd = parseOptionalDate(
+      input.amazonPickupWindowEnd,
+      'Pickup window end'
+    )
+    const amazonDeliveryWindowStart = parseOptionalDate(
+      input.amazonDeliveryWindowStart,
+      'Delivery window start'
+    )
+    const amazonDeliveryWindowEnd = parseOptionalDate(
+      input.amazonDeliveryWindowEnd,
+      'Delivery window end'
+    )
+
     try {
       return await prisma.fulfillmentOrder.create({
         data: {
@@ -188,28 +272,49 @@ export async function createFulfillmentOrder(
           warehouseCode: warehouse.code,
           warehouseName: warehouse.name,
           destinationType: input.destinationType ?? FulfillmentDestinationType.CUSTOMER,
-          destinationName: input.destinationName?.trim()
-            ? sanitizeForDisplay(input.destinationName.trim())
-            : null,
-          destinationAddress: input.destinationAddress?.trim()
-            ? sanitizeForDisplay(input.destinationAddress.trim())
-            : null,
-          destinationCountry: input.destinationCountry?.trim()
-            ? sanitizeForDisplay(input.destinationCountry.trim())
-            : null,
-          shippingCarrier: input.shippingCarrier?.trim()
-            ? sanitizeForDisplay(input.shippingCarrier.trim())
-            : null,
-          shippingMethod: input.shippingMethod?.trim()
-            ? sanitizeForDisplay(input.shippingMethod.trim())
-            : null,
-          trackingNumber: input.trackingNumber?.trim()
-            ? sanitizeForDisplay(input.trackingNumber.trim())
-            : null,
-          externalReference: input.externalReference?.trim()
-            ? sanitizeForDisplay(input.externalReference.trim())
-            : null,
-          notes: input.notes?.trim() ? sanitizeForDisplay(input.notes.trim()) : null,
+          destinationName: normalizeOptionalString(input.destinationName),
+          destinationAddress: normalizeOptionalString(input.destinationAddress),
+          destinationCountry: normalizeOptionalString(input.destinationCountry),
+          shippingCarrier: normalizeOptionalString(input.shippingCarrier),
+          shippingMethod: normalizeOptionalString(input.shippingMethod),
+          trackingNumber: normalizeOptionalString(input.trackingNumber),
+          externalReference: normalizeOptionalString(input.externalReference),
+          amazonShipmentId: normalizeOptionalString(input.amazonShipmentId),
+          amazonShipmentName: normalizeOptionalString(input.amazonShipmentName),
+          amazonShipmentStatus: normalizeOptionalString(input.amazonShipmentStatus),
+          amazonDestinationFulfillmentCenterId: normalizeOptionalString(
+            input.amazonDestinationFulfillmentCenterId
+          ),
+          amazonLabelPrepType: normalizeOptionalString(input.amazonLabelPrepType),
+          amazonBoxContentsSource: normalizeOptionalString(input.amazonBoxContentsSource),
+          amazonShipFromAddress,
+          amazonReferenceId: normalizeOptionalString(input.amazonReferenceId),
+          amazonShipmentReference: normalizeOptionalString(input.amazonShipmentReference),
+          amazonShipperId: normalizeOptionalString(input.amazonShipperId),
+          amazonPickupNumber: normalizeOptionalString(input.amazonPickupNumber),
+          amazonPickupAppointmentId: normalizeOptionalString(input.amazonPickupAppointmentId),
+          amazonDeliveryAppointmentId: normalizeOptionalString(input.amazonDeliveryAppointmentId),
+          amazonLoadId: normalizeOptionalString(input.amazonLoadId),
+          amazonFreightBillNumber: normalizeOptionalString(input.amazonFreightBillNumber),
+          amazonBillOfLadingNumber: normalizeOptionalString(input.amazonBillOfLadingNumber),
+          amazonPickupWindowStart,
+          amazonPickupWindowEnd,
+          amazonDeliveryWindowStart,
+          amazonDeliveryWindowEnd,
+          amazonPickupAddress: normalizeOptionalString(input.amazonPickupAddress),
+          amazonPickupContactName: normalizeOptionalString(input.amazonPickupContactName),
+          amazonPickupContactPhone: normalizeOptionalString(input.amazonPickupContactPhone),
+          amazonDeliveryAddress: normalizeOptionalString(input.amazonDeliveryAddress),
+          amazonShipmentMode: normalizeOptionalString(input.amazonShipmentMode),
+          amazonBoxCount: parseOptionalInt(input.amazonBoxCount, 'Box count'),
+          amazonPalletCount: parseOptionalInt(input.amazonPalletCount, 'Pallet count'),
+          amazonCommodityDescription: normalizeOptionalString(input.amazonCommodityDescription),
+          amazonDistanceMiles: parseOptionalNumber(input.amazonDistanceMiles, 'Distance (miles)'),
+          amazonBasePrice: parseOptionalNumber(input.amazonBasePrice, 'Base price'),
+          amazonFuelSurcharge: parseOptionalNumber(input.amazonFuelSurcharge, 'Fuel surcharge'),
+          amazonTotalPrice: parseOptionalNumber(input.amazonTotalPrice, 'Total price'),
+          amazonCurrency: normalizeOptionalString(input.amazonCurrency),
+          notes: normalizeOptionalString(input.notes),
           createdById: user.id,
           createdByName: user.name,
           lines: {

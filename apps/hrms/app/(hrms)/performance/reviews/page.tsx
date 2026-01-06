@@ -139,6 +139,14 @@ export default function PerformanceReviewsPage() {
         enableSorting: true,
       },
       {
+        accessorKey: 'reviewerName',
+        header: 'Reviewer',
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{getValue<string>()}</span>
+        ),
+        enableSorting: true,
+      },
+      {
         accessorKey: 'reviewType',
         header: 'Review Type',
         cell: ({ getValue }) => {

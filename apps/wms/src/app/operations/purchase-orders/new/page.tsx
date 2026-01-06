@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { calculateUnitCost } from '@/lib/utils/calculations'
 
 interface Supplier {
   id: string
@@ -31,7 +32,7 @@ interface LineItem {
   skuDescription: string
   batchLot: string
   quantity: number
-  unitCost: string
+  actualCost: string
   currency: string
   notes: string
 }
@@ -64,7 +65,7 @@ export default function NewPurchaseOrderPage() {
       skuDescription: '',
       batchLot: 'DEFAULT',
       quantity: 1,
-      unitCost: '',
+      actualCost: '',
       currency: 'USD',
       notes: '',
     },
@@ -135,7 +136,7 @@ export default function NewPurchaseOrderPage() {
         skuDescription: '',
         batchLot: 'DEFAULT',
         quantity: 1,
-        unitCost: '',
+        actualCost: '',
         currency: tenantCurrency,
         notes: '',
       },
@@ -223,6 +224,14 @@ export default function NewPurchaseOrderPage() {
     setLineItems(prev => prev.filter(item => item.id !== id))
   }
 
+  const parseMoney = (value: string): number | null => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed) || parsed < 0) return null
+    return parsed
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -248,6 +257,15 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
+    const invalidCostLine = lineItems.find(line => {
+      if (!line.actualCost.trim()) return false
+      return parseMoney(line.actualCost) === null
+    })
+    if (invalidCostLine) {
+      toast.error(`Invalid actual cost for SKU ${invalidCostLine.skuCode || 'line item'}`)
+      return
+    }
+
     setSubmitting(true)
     try {
       const response = await fetchWithCSRF('/api/purchase-orders', {
@@ -257,11 +275,13 @@ export default function NewPurchaseOrderPage() {
           counterpartyName: selectedSupplier.name,
           notes: formData.notes || undefined,
           lines: lineItems.map(item => ({
+            ...(parseMoney(item.actualCost) !== null
+              ? { unitCost: calculateUnitCost(parseMoney(item.actualCost) ?? 0, item.quantity, 2) }
+              : {}),
             skuCode: item.skuCode,
             skuDescription: item.skuDescription,
             batchLot: item.batchLot.trim().toUpperCase(),
             quantity: item.quantity,
-            unitCost: item.unitCost ? parseFloat(item.unitCost) : undefined,
             currency: item.currency,
             notes: item.notes || undefined,
           })),
@@ -368,7 +388,7 @@ export default function NewPurchaseOrderPage() {
                 <div className="col-span-2">Batch/Lot</div>
                 <div className="col-span-3">Description</div>
                 <div className="col-span-1">Qty</div>
-                <div className="col-span-2">Unit Cost</div>
+                <div className="col-span-2">Actual Cost</div>
                 <div className="col-span-2">Notes</div>
                 <div className="col-span-1"></div>
               </div>
@@ -440,8 +460,8 @@ export default function NewPurchaseOrderPage() {
                         type="number"
                         step="0.01"
                         min="0"
-                        value={item.unitCost}
-                        onChange={e => updateLineItem(item.id, 'unitCost', e.target.value)}
+                        value={item.actualCost}
+                        onChange={e => updateLineItem(item.id, 'actualCost', e.target.value)}
                         placeholder="0.00"
                         className="text-sm h-8 flex-1"
                       />
@@ -457,6 +477,15 @@ export default function NewPurchaseOrderPage() {
                         ))}
                       </select>
                     </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Unit:{' '}
+                      {(() => {
+                        const money = parseMoney(item.actualCost)
+                        if (money === null) return '—'
+                        const unit = calculateUnitCost(money, item.quantity, 2)
+                        return `${unit.toFixed(2)} ${item.currency}`
+                      })()}
+                    </p>
                   </div>
                   <div className="col-span-2">
                     <Input

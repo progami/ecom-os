@@ -199,30 +199,32 @@ function FulfillmentOrdersPageContent() {
               variant="underline"
             />
 
-            {/* Header with status counts - consistent with Purchase Orders */}
-            <div className="flex flex-col gap-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Fulfillment Orders</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Track outbound shipments to customers, Amazon FBA, and warehouse transfers.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                  <span>
-                    <span className="font-semibold text-foreground">{statusCounts.draftCount}</span> draft
-                  </span>
-                  <span>
-                    <span className="font-semibold text-foreground">{statusCounts.shippedCount}</span> shipped
-                  </span>
-                  <span>
-                    <span className="font-semibold text-foreground">{statusCounts.cancelledCount}</span> cancelled
-                  </span>
+            {/* Wrapper with gap-4 to match PurchaseOrdersPanel layout */}
+            <div className="flex min-h-0 flex-col gap-4">
+              {/* Header with status counts - consistent with Purchase Orders */}
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Fulfillment Orders</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Track outbound shipments to customers, Amazon FBA, and warehouse transfers.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    <span>
+                      <span className="font-semibold text-foreground">{statusCounts.draftCount}</span> draft
+                    </span>
+                    <span>
+                      <span className="font-semibold text-foreground">{statusCounts.shippedCount}</span> shipped
+                    </span>
+                    <span>
+                      <span className="font-semibold text-foreground">{statusCounts.cancelledCount}</span> cancelled
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft">
+              <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[960px] table-auto text-sm">
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -306,6 +308,7 @@ function FulfillmentOrdersPageContent() {
                   </tbody>
                 </table>
               </div>
+            </div>
             </div>
           </div>
         </PageContent>

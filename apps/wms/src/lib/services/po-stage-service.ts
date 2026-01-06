@@ -567,15 +567,44 @@ export async function createPurchaseOrder(
             const sku = skuMap.get(skuId)
             if (!sku) continue
 
-            await tx.skuBatch.upsert({
+            const existingDefault = await tx.skuBatch.findFirst({
               where: {
-                skuId_batchCode: {
-                  skuId,
-                  batchCode: DEFAULT_BATCH_LOT,
-                },
-              },
-              create: {
                 skuId,
+                batchCode: { equals: DEFAULT_BATCH_LOT, mode: 'insensitive' },
+              },
+              select: { id: true },
+            })
+
+            if (existingDefault) {
+              await tx.skuBatch.update({
+                where: { id: existingDefault.id },
+                data: { isActive: true },
+              })
+              continue
+            }
+
+            const txDefaults = await tx.inventoryTransaction.findFirst({
+              where: {
+                skuCode: sku.skuCode,
+                storageCartonsPerPallet: { not: null },
+                shippingCartonsPerPallet: { not: null },
+              },
+              orderBy: { transactionDate: 'desc' },
+              select: {
+                storageCartonsPerPallet: true,
+                shippingCartonsPerPallet: true,
+              },
+            })
+
+            if (!txDefaults) {
+              throw new ValidationError(
+                `DEFAULT batch is missing for SKU ${sku.skuCode}. Create it in Config → Products → Batches before creating purchase orders.`
+              )
+            }
+
+            await tx.skuBatch.create({
+              data: {
+                sku: { connect: { id: skuId } },
                 batchCode: DEFAULT_BATCH_LOT,
                 packSize: sku.packSize,
                 unitsPerCarton: sku.unitsPerCarton,
@@ -591,9 +620,8 @@ export async function createPurchaseOrder(
                 cartonHeightCm: sku.cartonHeightCm,
                 cartonWeightKg: sku.cartonWeightKg,
                 packagingType: sku.packagingType,
-                isActive: true,
-              },
-              update: {
+                storageCartonsPerPallet: txDefaults.storageCartonsPerPallet,
+                shippingCartonsPerPallet: txDefaults.shippingCartonsPerPallet,
                 isActive: true,
               },
             })

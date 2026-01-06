@@ -94,6 +94,21 @@ export default function DisciplinaryPage() {
         enableSorting: true,
       },
       {
+        id: 'reportedBy',
+        header: 'Reported By',
+        accessorFn: (row) => {
+          // Use createdBy relation if available, otherwise fall back to reportedBy text
+          if (row.createdBy) {
+            return `${row.createdBy.firstName} ${row.createdBy.lastName}`
+          }
+          return row.reportedBy
+        },
+        cell: ({ getValue }) => (
+          <span className="text-muted-foreground">{getValue<string>()}</span>
+        ),
+        enableSorting: true,
+      },
+      {
         accessorKey: 'violationType',
         header: 'Type',
         cell: ({ getValue }) => (

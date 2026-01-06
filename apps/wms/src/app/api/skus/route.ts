@@ -143,6 +143,8 @@ const createSkuSchema = refineDimensions(
   skuSchemaBase.extend({
     packSize: z.number().int().positive().default(1),
     unitsPerCarton: z.number().int().positive().default(1),
+    storageCartonsPerPallet: z.number().int().positive(),
+    shippingCartonsPerPallet: z.number().int().positive(),
   })
 )
 
@@ -302,7 +304,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
     await tx.skuBatch.create({
       data: {
-        skuId: created.id,
+        sku: { connect: { id: created.id } },
         batchCode: 'DEFAULT',
         packSize: created.packSize,
         unitsPerCarton: created.unitsPerCarton,
@@ -318,6 +320,8 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         cartonHeightCm: created.cartonHeightCm,
         cartonWeightKg: created.cartonWeightKg,
         packagingType: created.packagingType,
+        storageCartonsPerPallet: validatedData.storageCartonsPerPallet,
+        shippingCartonsPerPallet: validatedData.shippingCartonsPerPallet,
         isActive: true,
       },
     })

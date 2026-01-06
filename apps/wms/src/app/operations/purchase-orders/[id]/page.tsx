@@ -19,6 +19,7 @@ import {
   Ship,
   Warehouse,
   Upload,
+  Download,
   ChevronRight,
   Check,
   XCircle,
@@ -878,6 +879,16 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <a
+                href={`/api/purchase-orders/${order.id}/pdf`}
+                download
+                className="flex items-center"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                PDF
+              </a>
+            </Button>
             <Badge className={statusBadgeClasses(order.status)}>
               {formatStatusLabel(order.status)}
             </Badge>

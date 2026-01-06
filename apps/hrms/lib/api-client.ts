@@ -573,6 +573,12 @@ export type DisciplinaryAction = {
   incidentDate: string
   reportedDate: string
   reportedBy: string
+  createdById?: string | null
+  createdBy?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
   description: string
   witnesses?: string | null
   evidence?: string | null
