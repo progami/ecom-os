@@ -16,6 +16,7 @@ import Flatpickr from 'react-flatpickr';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
+import { readClipboardText } from '@/lib/grid/clipboard';
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
@@ -1293,6 +1294,137 @@ export function CustomOpsPlanningGrid({
     scheduleFlush();
   }, [activeCell, onRowsChange, pendingRef, recordEdits, rows, scheduleFlush, selection]);
 
+  const applyPastedText = useCallback(
+    (text: string, start: { rowId: string; colKey: keyof OpsInputRow }) => {
+      const pasteRows = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (pasteRows.length === 0) return;
+
+      const startRowIndex = rows.findIndex((r) => r.id === start.rowId);
+      const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey);
+      if (startRowIndex < 0 || startColIndex < 0) return;
+
+      const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = [];
+
+      for (let r = 0; r < pasteRows.length; r += 1) {
+        for (let c = 0; c < pasteRows[r]!.length; c += 1) {
+          const targetRowIndex = startRowIndex + r;
+          const targetColIndex = startColIndex + c;
+          if (targetRowIndex >= rows.length) continue;
+          if (targetColIndex >= COLUMNS.length) continue;
+
+          const column = COLUMNS[targetColIndex];
+          if (!column || column.editable === false) continue;
+
+          const row = rows[targetRowIndex];
+          if (!row) continue;
+
+          updates.push({
+            rowId: row.id,
+            colKey: column.key,
+            value: pasteRows[r]![c] ?? '',
+          });
+        }
+      }
+
+      if (updates.length === 0) return;
+
+      let updatedRows = [...rows];
+      const undoEdits: CellEdit<string>[] = [];
+
+      for (const update of updates) {
+        const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId);
+        if (rowIndex < 0) continue;
+
+        const column = COLUMNS.find((c) => c.key === update.colKey);
+        if (!column) continue;
+
+        let finalValue = update.value;
+        const originalRow = rows.find((r) => r.id === update.rowId);
+
+        if (!pendingRef.current.has(update.rowId)) {
+          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} });
+        }
+        const entry = pendingRef.current.get(update.rowId)!;
+
+        if (column.type === 'stage' && stageMode === 'dates') {
+          const stageField = column.key as StageWeeksKey;
+          const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+          const row = updatedRows[rowIndex];
+
+          const pastedDate = toIsoDate(finalValue);
+          if (pastedDate) {
+            undoEdits.push({
+              rowKey: update.rowId,
+              field: overrideField,
+              oldValue: originalRow?.[overrideField] ?? '',
+              newValue: pastedDate,
+            });
+
+            updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate };
+            entry.values[overrideField] = pastedDate;
+
+            const stageStart = resolveStageStart(row, stageField);
+            if (stageStart) {
+              const picked = new Date(`${pastedDate}T00:00:00Z`);
+              const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000);
+              const weeks = Math.max(0, diffDays / 7);
+              const normalizedWeeks = formatNumericInput(weeks, 2);
+
+              undoEdits.push({
+                rowKey: update.rowId,
+                field: stageField,
+                oldValue: originalRow?.[stageField] ?? '',
+                newValue: normalizedWeeks,
+              });
+
+              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [stageField]: normalizedWeeks };
+              entry.values[stageField] = normalizedWeeks;
+            }
+          }
+          continue;
+        }
+
+        if (column.type === 'date') {
+          const pastedDate = toIsoDate(finalValue);
+          if (pastedDate) {
+            finalValue = pastedDate;
+          }
+        }
+
+        if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
+          const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2;
+          finalValue = normalizeNumeric(finalValue, precision);
+        }
+
+        undoEdits.push({
+          rowKey: update.rowId,
+          field: update.colKey,
+          oldValue: originalRow?.[update.colKey] ?? '',
+          newValue: finalValue,
+        });
+
+        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue };
+        entry.values[update.colKey] = finalValue;
+      }
+
+      if (undoEdits.length > 0) {
+        recordEdits(undoEdits);
+      }
+
+      onRowsChange?.(updatedRows);
+      scheduleFlush();
+      toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`);
+      requestAnimationFrame(() => tableScrollRef.current?.focus());
+    },
+    [onRowsChange, pendingRef, recordEdits, rows, scheduleFlush, stageMode],
+  );
+
   const handleGridKeyDown = useCallback(
     (event: {
       key: string;
@@ -1332,19 +1464,13 @@ export function CustomOpsPlanningGrid({
 
       // Handle Ctrl+V for paste via hidden clipboard textarea
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        const clipboard = clipboardRef.current;
-        if (!clipboard) return;
-        pasteStartRef.current = activeCell;
-        clipboard.value = '';
-        clipboard.focus();
-        clipboard.select();
-        window.setTimeout(() => {
-          if (pasteStartRef.current && document.activeElement === clipboard) {
-            pasteStartRef.current = null;
-            clipboard.value = '';
-            tableScrollRef.current?.focus();
-          }
-        }, 250);
+        event.preventDefault();
+        const start = { ...activeCell };
+        void (async () => {
+          const text = await readClipboardText();
+          if (!text) return;
+          applyPastedText(text, start);
+        })();
         return;
       }
 
@@ -1389,6 +1515,7 @@ export function CustomOpsPlanningGrid({
     },
     [
       activeCell,
+      applyPastedText,
       clearSelectionValues,
       copySelectionToClipboard,
       editingCell,
@@ -1456,154 +1583,10 @@ export function CustomOpsPlanningGrid({
         return;
       }
 
-      const pasteRows = text
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-        .split('\n')
-        .filter((line) => line.length > 0)
-        .map((line) => line.split('\t'));
-
-      if (pasteRows.length === 0) {
-        refocusClipboard();
-        return;
-      }
-
-      const startRowIndex = rows.findIndex((r) => r.id === start.rowId);
-      const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey);
-      if (startRowIndex < 0 || startColIndex < 0) {
-        refocusClipboard();
-        return;
-      }
-
-      const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = [];
-
-      for (let r = 0; r < pasteRows.length; r += 1) {
-        for (let c = 0; c < pasteRows[r]!.length; c += 1) {
-          const targetRowIndex = startRowIndex + r;
-          const targetColIndex = startColIndex + c;
-          if (targetRowIndex >= rows.length) continue;
-          if (targetColIndex >= COLUMNS.length) continue;
-
-          const column = COLUMNS[targetColIndex];
-          if (!column || column.editable === false) continue;
-
-          const row = rows[targetRowIndex];
-          if (!row) continue;
-
-          updates.push({
-            rowId: row.id,
-            colKey: column.key,
-            value: pasteRows[r]![c] ?? '',
-          });
-        }
-      }
-
-      if (updates.length === 0) {
-        refocusClipboard();
-        return;
-      }
-
-      // Apply updates and track for undo
-      let updatedRows = [...rows];
-      const undoEdits: CellEdit<string>[] = [];
-
-      for (const update of updates) {
-        const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId);
-        if (rowIndex < 0) continue;
-
-        const column = COLUMNS.find((c) => c.key === update.colKey);
-        if (!column) continue;
-
-        let finalValue = update.value;
-        const originalRow = rows.find((r) => r.id === update.rowId);
-
-        // Queue for API update
-        if (!pendingRef.current.has(update.rowId)) {
-          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} });
-        }
-        const entry = pendingRef.current.get(update.rowId)!;
-
-        // Handle stage columns in dates mode - convert pasted date to weeks + override
-        if (column.type === 'stage' && stageMode === 'dates') {
-          const stageField = column.key as StageWeeksKey;
-          const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
-          const row = updatedRows[rowIndex];
-
-          // Try to parse the pasted value as a date
-          const pastedDate = toIsoDate(finalValue);
-          if (pastedDate) {
-            // Track undo for override field
-            undoEdits.push({
-              rowKey: update.rowId,
-              field: overrideField,
-              oldValue: originalRow?.[overrideField] ?? '',
-              newValue: pastedDate,
-            });
-
-            // Update the override field with the date
-            updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate };
-            entry.values[overrideField] = pastedDate;
-
-            // Calculate weeks from stage start to pasted date
-            const stageStart = resolveStageStart(row, stageField);
-            if (stageStart) {
-              const picked = new Date(`${pastedDate}T00:00:00Z`);
-              const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000);
-              const weeks = Math.max(0, diffDays / 7);
-              const normalizedWeeks = formatNumericInput(weeks, 2);
-
-              // Track undo for weeks field
-              undoEdits.push({
-                rowKey: update.rowId,
-                field: stageField,
-                oldValue: originalRow?.[stageField] ?? '',
-                newValue: normalizedWeeks,
-              });
-
-              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [stageField]: normalizedWeeks };
-              entry.values[stageField] = normalizedWeeks;
-            }
-          }
-          continue;
-        }
-
-        // Handle date columns
-        if (column.type === 'date') {
-          const pastedDate = toIsoDate(finalValue);
-          if (pastedDate) {
-            finalValue = pastedDate;
-          }
-        }
-
-        // Normalize numeric values
-        if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
-          const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2;
-          finalValue = normalizeNumeric(finalValue, precision);
-        }
-
-        // Track undo
-        undoEdits.push({
-          rowKey: update.rowId,
-          field: update.colKey,
-          oldValue: originalRow?.[update.colKey] ?? '',
-          newValue: finalValue,
-        });
-
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue };
-        entry.values[update.colKey] = finalValue;
-      }
-
-      // Record all edits as a single undo batch
-      if (undoEdits.length > 0) {
-        recordEdits(undoEdits);
-      }
-
-      onRowsChange?.(updatedRows);
-      scheduleFlush();
-      toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`);
+      applyPastedText(text, start);
       refocusClipboard();
     },
-    [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, recordEdits],
+    [activeCell, applyPastedText],
   );
 
   const getHeaderLabel = (column: ColumnDef): string => {

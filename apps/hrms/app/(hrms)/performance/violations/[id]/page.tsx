@@ -10,7 +10,6 @@ import { Card, CardDivider } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/ui/badge'
-import { useNavigationHistory } from '@/lib/navigation-history'
 
 const SEVERITY_LABELS: Record<string, string> = {
   MINOR: 'Minor',
@@ -48,7 +47,6 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function DisciplinaryDetailPage() {
-  const { goBack } = useNavigationHistory()
   const params = useParams()
   const id = params.id as string
 
@@ -84,7 +82,7 @@ export default function DisciplinaryDetailPage() {
           title="Violation Details"
           description="Loading..."
           icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-          showBack
+          backHref="/performance/violations"
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -107,7 +105,7 @@ export default function DisciplinaryDetailPage() {
           title="Violation Details"
           description="Not Found"
           icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-          showBack
+          backHref="/performance/violations"
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -124,7 +122,7 @@ export default function DisciplinaryDetailPage() {
         title="Violation Details"
         description={`${action.employee?.firstName} ${action.employee?.lastName}`}
         icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-        showBack
+        backHref="/performance/violations"
         actions={
           canEdit ? (
             <Button href={`/performance/violations/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
@@ -254,8 +252,8 @@ export default function DisciplinaryDetailPage() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button variant="secondary" onClick={goBack}>
-            Back
+          <Button variant="secondary" href="/performance/violations">
+            Back to Violations
           </Button>
           {canEdit && (
             <Button href={`/performance/violations/${id}/edit`}>

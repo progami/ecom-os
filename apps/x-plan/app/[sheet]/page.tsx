@@ -2273,7 +2273,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
-      wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>;
+      wrapLayout = (node) => (
+        <SalesPlanningFocusProvider key={activeStrategyId} strategyId={activeStrategyId}>
+          {node}
+        </SalesPlanningFocusProvider>
+      );
       tabularContent = (
         <SalesPlanningGrid
           strategyId={activeStrategyId}

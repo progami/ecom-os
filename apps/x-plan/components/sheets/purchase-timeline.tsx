@@ -242,7 +242,7 @@ export function PurchaseTimeline({
             {order.status.replace(/_/g, ' ')}
           </span>
           {order.availableDate && (
-            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-300">
+            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-200">
               ETA {format(order.availableDate, 'MMM d')}
             </span>
           )}

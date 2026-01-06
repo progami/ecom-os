@@ -39,6 +39,11 @@ import {
 import { Tooltip } from '@/components/ui/tooltip';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
 import {
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SELECT,
+} from '@/components/sheet-toolbar';
+import {
   formatNumericInput,
   parseNumericInput,
   sanitizeNumeric,
@@ -105,9 +110,15 @@ export function useSalesPlanningFocus() {
   return useContext(SalesPlanningFocusContext);
 }
 
-export function SalesPlanningFocusProvider({ children }: { children: ReactNode }) {
+export function SalesPlanningFocusProvider({
+  children,
+  strategyId,
+}: {
+  children: ReactNode;
+  strategyId: string;
+}) {
   const [focusProductId, setFocusProductId] = usePersistentState<string>(
-    'xplan:sales-grid:focus-product',
+    `xplan:sales-grid:${strategyId}:focus-product`,
     'ALL',
   );
   const value = useMemo(
@@ -127,18 +138,27 @@ export function SalesPlanningFocusControl({
   productOptions: Array<{ id: string; name: string }>;
 }) {
   const context = useContext(SalesPlanningFocusContext);
+  const focusProductId = context?.focusProductId ?? 'ALL';
+
+  useEffect(() => {
+    if (!context) return;
+    if (focusProductId === 'ALL') return;
+    if (!productOptions.some((option) => option.id === focusProductId)) {
+      context.setFocusProductId('ALL');
+    }
+  }, [context, focusProductId, productOptions]);
+
   if (!context) return null;
-  const { focusProductId, setFocusProductId } = context;
+  const { setFocusProductId } = context;
 
   return (
-    <label className="flex items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">
-        Focus SKU
-      </span>
+    <div className={SHEET_TOOLBAR_GROUP}>
+      <span className={SHEET_TOOLBAR_LABEL}>Focus SKU</span>
       <select
         value={focusProductId}
         onChange={(event) => setFocusProductId(event.target.value)}
-        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className={`${SHEET_TOOLBAR_SELECT} min-w-[10rem]`}
+        aria-label="Focus on a single SKU"
       >
         <option value="ALL">Show all</option>
         {productOptions.map((option) => (
@@ -147,7 +167,7 @@ export function SalesPlanningFocusControl({
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 
