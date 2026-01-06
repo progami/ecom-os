@@ -8,8 +8,6 @@ import { ClipboardDocumentCheckIcon, PlusIcon, StarFilledIcon, ClockIcon, Exclam
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
@@ -109,7 +107,6 @@ function formatDate(dateStr: string) {
 export default function PerformanceReviewsPage() {
   const router = useRouter()
   const [items, setItems] = useState<PerformanceReview[]>([])
-  const [q, setQ] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
@@ -117,7 +114,6 @@ export default function PerformanceReviewsPage() {
     try {
       setLoading(true)
       const data = await PerformanceReviewsApi.list({
-        q,
         status: filters.status || undefined,
         reviewType: filters.reviewType || undefined,
       })
@@ -128,7 +124,7 @@ export default function PerformanceReviewsPage() {
     } finally {
       setLoading(false)
     }
-  }, [q, filters.status, filters.reviewType])
+  }, [filters.status, filters.reviewType])
 
   useEffect(() => {
     load()
@@ -237,15 +233,6 @@ export default function PerformanceReviewsPage() {
       />
 
       <div className="space-y-4">
-        <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={load}
-            placeholder="Search by employee or reviewer..."
-          />
-        </Card>
-
         <ResultsCount
           count={items.length}
           singular="review"

@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
-import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
@@ -146,7 +145,6 @@ function LeavePageContent() {
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([])
   const [leaveLoading, setLeaveLoading] = useState(true)
   const [showLeavePanel, setShowLeavePanel] = useState(false)
-  const [q, setQ] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [processingId, setProcessingId] = useState<string | null>(null)
 
@@ -290,27 +288,11 @@ function LeavePageContent() {
   // Apply filters
   const filteredItems = useMemo(() => {
     return allLeaveItems.filter((item) => {
-      // Column filters
       if (filters.status && item.status !== filters.status) return false
       if (filters.leaveType && item.leaveType !== filters.leaveType) return false
-
-      // Search filter
-      if (q) {
-        const searchLower = q.toLowerCase()
-        const name = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase()
-        const leaveType = (LEAVE_TYPE_LABELS[item.leaveType] ?? item.leaveType).toLowerCase()
-        if (
-          !name.includes(searchLower) &&
-          !leaveType.includes(searchLower) &&
-          !item.reason?.toLowerCase().includes(searchLower)
-        ) {
-          return false
-        }
-      }
-
       return true
     })
-  }, [allLeaveItems, filters, q])
+  }, [allLeaveItems, filters])
 
   const columns = useMemo<ColumnDef<LeaveItem>[]>(
     () => [
@@ -467,12 +449,7 @@ function LeavePageContent() {
           description="Request and manage time off"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
-        <div className="space-y-4">
-          <Card padding="md">
-            <div className="animate-pulse h-10 bg-muted rounded w-full" />
-          </Card>
-          <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
-        </div>
+        <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
       </>
     )
   }
@@ -547,15 +524,6 @@ function LeavePageContent() {
           </Alert>
         )}
 
-        <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={() => {}}
-            placeholder="Search by name or leave type..."
-          />
-        </Card>
-
         <ResultsCount
           count={filteredItems.length}
           singular="request"
@@ -590,12 +558,7 @@ function LeavePageSkeleton() {
         description="Request and manage time off"
         icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
       />
-      <div className="space-y-4">
-        <Card padding="md">
-          <div className="animate-pulse h-10 bg-muted rounded w-full" />
-        </Card>
-        <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
-      </div>
+      <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
     </>
   )
 }

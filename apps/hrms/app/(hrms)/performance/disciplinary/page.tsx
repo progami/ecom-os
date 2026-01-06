@@ -8,8 +8,6 @@ import { ExclamationTriangleIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
@@ -65,7 +63,6 @@ function formatDate(dateStr: string) {
 export default function DisciplinaryPage() {
   const router = useRouter()
   const [items, setItems] = useState<DisciplinaryAction[]>([])
-  const [q, setQ] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
@@ -73,7 +70,6 @@ export default function DisciplinaryPage() {
     try {
       setLoading(true)
       const data = await DisciplinaryActionsApi.list({
-        q,
         status: filters.status || undefined,
         severity: filters.severity || undefined,
       })
@@ -84,7 +80,7 @@ export default function DisciplinaryPage() {
     } finally {
       setLoading(false)
     }
-  }, [q, filters.status, filters.severity])
+  }, [filters.status, filters.severity])
 
   useEffect(() => {
     load()
@@ -192,15 +188,6 @@ export default function DisciplinaryPage() {
       />
 
       <div className="space-y-4">
-        <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={load}
-            placeholder="Search by employee or reporter..."
-          />
-        </Card>
-
         <ResultsCount
           count={items.length}
           singular="violation"
