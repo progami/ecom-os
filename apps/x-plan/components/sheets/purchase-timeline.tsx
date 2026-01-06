@@ -1,37 +1,32 @@
 'use client'
 
 import { useMemo } from 'react'
-import { addMonths, addWeeks, differenceInCalendarDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
+import { addWeeks, differenceInCalendarDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
 import { clsx } from 'clsx'
-import { Info } from 'lucide-react'
 import type { PurchaseTimelineProps } from '@/lib/planning/timeline'
 import { PurchaseTimelineOrder, TimelineStageKey } from '@/lib/planning/timeline'
 import { Tooltip } from '@/components/ui/tooltip'
 
-const stagePalette: Record<TimelineStageKey, { label: string; description: string; barClass: string; textClass: string }> = {
+const stagePalette: Record<TimelineStageKey, { label: string; description: string; color: string }> = {
   source: {
     label: 'Source',
-    description: 'Sourcing & procurement phase',
-    barClass: 'bg-cyan-400/80 hover:bg-cyan-400 dark:bg-cyan-600/80 dark:hover:bg-cyan-600 focus-visible:outline-cyan-400',
-    textClass: 'text-cyan-950 dark:text-cyan-100',
+    description: 'Sourcing & procurement',
+    color: 'hsl(var(--chart-1))',
   },
   production: {
     label: 'Production',
-    description: 'Manufacturing in progress',
-    barClass: 'bg-cyan-500/90 hover:bg-cyan-500 dark:bg-cyan-500/90 dark:hover:bg-cyan-500 focus-visible:outline-cyan-500',
-    textClass: 'text-white dark:text-cyan-50',
+    description: 'Manufacturing',
+    color: 'hsl(var(--chart-2))',
   },
   ocean: {
     label: 'Ocean',
-    description: 'Ocean freight in transit',
-    barClass: 'bg-cyan-600/90 hover:bg-cyan-600 dark:bg-teal-500/90 dark:hover:bg-teal-500 focus-visible:outline-cyan-600',
-    textClass: 'text-white dark:text-cyan-50',
+    description: 'Ocean freight',
+    color: 'hsl(var(--chart-3))',
   },
   final: {
     label: 'Final',
-    description: 'Final mile & delivery',
-    barClass: 'bg-cyan-700 hover:bg-cyan-800 dark:bg-teal-400 dark:hover:bg-teal-300 focus-visible:outline-cyan-700',
-    textClass: 'text-white dark:text-teal-950',
+    description: 'Final mile',
+    color: 'hsl(var(--chart-4))',
   },
 }
 
@@ -157,54 +152,110 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
   const timelineEnd = monthBuckets?.[monthBuckets.length - 1]?.end ?? timelineBounds?.rangeEnd ?? null
   const totalDurationMs = timelineStart && timelineEnd ? Math.max(timelineEnd.getTime() - timelineStart.getTime(), 1) : null
 
-  const renderStageBlock = (order: TimelineComputedOrder, segment: TimelineComputedSegment) => {
+  const renderConsolidatedBar = (order: TimelineComputedOrder) => {
     if (!timelineStart || !timelineEnd || !totalDurationMs) return null
-    const rawStart = segment.startDate.getTime()
-    const rawEnd = segment.endDate.getTime()
-    const clampedStart = Math.min(Math.max(rawStart, timelineStart.getTime()), timelineEnd.getTime())
-    const clampedEnd = Math.min(Math.max(rawEnd, timelineStart.getTime()), timelineEnd.getTime())
-    if (clampedEnd <= clampedStart) return null
+    if (order.segments.length === 0) return null
 
-    const palette = stagePalette[segment.key] ?? stagePalette.production
-    const leftPercent = ((clampedStart - timelineStart.getTime()) / totalDurationMs) * 100
-    const widthPercent = ((clampedEnd - clampedStart) / totalDurationMs) * 100
-    const durationDays = differenceInCalendarDays(segment.endDate, segment.startDate)
+    // Calculate the overall bar position (from first segment start to last segment end)
+    const firstSegment = order.segments[0]
+    const lastSegment = order.segments[order.segments.length - 1]
+    const overallStart = Math.min(Math.max(firstSegment.startDate.getTime(), timelineStart.getTime()), timelineEnd.getTime())
+    const overallEnd = Math.min(Math.max(lastSegment.endDate.getTime(), timelineStart.getTime()), timelineEnd.getTime())
+    if (overallEnd <= overallStart) return null
 
+    const leftPercent = ((overallStart - timelineStart.getTime()) / totalDurationMs) * 100
+    const widthPercent = ((overallEnd - overallStart) / totalDurationMs) * 100
+    const overallDuration = overallEnd - overallStart
+    const totalDays = differenceInCalendarDays(new Date(overallEnd), new Date(overallStart))
+
+    // Build tooltip content with all order details
     const tooltipContent = (
-      <div className="space-y-1.5">
-        <div className="font-semibold">{palette.label}</div>
-        <div className="text-muted-foreground text-xs">{palette.description}</div>
-        <div className="pt-1 border-t border-border">
-          <div className="text-xs text-muted-foreground">
-            {format(segment.startDate, 'MMM d, yyyy')} – {format(segment.endDate, 'MMM d, yyyy')}
+      <div className="space-y-3 min-w-[200px]">
+        <div className="space-y-1">
+          <div className="font-semibold text-sm">{order.orderCode}</div>
+          <div className="text-xs text-muted-foreground">{order.productName}</div>
+          <div className="text-xs font-medium">{order.quantity.toLocaleString('en-US')} units</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+            {order.status.replace(/_/g, ' ')}
+          </span>
+          {order.availableDate && (
+            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              ETA {format(order.availableDate, 'MMM d')}
+            </span>
+          )}
+        </div>
+        {(order.shipName || order.containerNumber) && (
+          <div className="space-y-0.5 text-xs text-muted-foreground border-t border-border pt-2">
+            {order.shipName && <div>Ship: {order.shipName}</div>}
+            {order.containerNumber && <div>Container: {order.containerNumber}</div>}
           </div>
-          <div className="text-xs text-primary">{durationDays} days</div>
+        )}
+        <div className="border-t border-border pt-2 space-y-1.5">
+          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Timeline ({totalDays} days)</div>
+          {order.segments.map((segment) => {
+            const palette = stagePalette[segment.key] ?? stagePalette.production
+            const days = differenceInCalendarDays(segment.endDate, segment.startDate)
+            return (
+              <div key={segment.key} className="flex items-center gap-2 text-xs">
+                <div className="h-2 w-2 rounded-full" style={{ backgroundColor: palette.color }} />
+                <span className="flex-1">{palette.label}</span>
+                <span className="text-muted-foreground">{days}d</span>
+              </div>
+            )
+          })}
         </div>
       </div>
     )
 
     return (
       <Tooltip
-        key={`${order.id}-${segment.key}-${segment.start}`}
+        key={order.id}
         content={tooltipContent}
         position="top"
         className="absolute h-full"
-        style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 1.5)}%` }}
+        style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 2)}%` }}
       >
         <button
           type="button"
           onClick={() => onSelectOrder?.(order.id)}
           className={clsx(
-            'flex h-full w-full flex-col justify-center rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide shadow-md transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 cursor-pointer',
-            palette.barClass,
-            activeOrderId === order.id && 'ring-2 ring-primary ring-offset-2 ring-offset-background'
+            'relative flex h-full w-full cursor-pointer overflow-hidden rounded-lg shadow-sm transition-all duration-150',
+            'hover:shadow-md hover:scale-y-110',
+            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+            activeOrderId === order.id && 'ring-2 ring-primary ring-offset-1 ring-offset-background shadow-lg'
           )}
-          aria-label={`${segment.label}: ${format(segment.startDate, 'MMM d')} – ${format(segment.endDate, 'MMM d')}`}
+          aria-label={`${order.orderCode}: ${order.productName}, ${order.quantity.toLocaleString()} units`}
         >
-          <span className="truncate text-xs">{segment.label}</span>
-          <span className={clsx('truncate text-xs font-normal uppercase tracking-wide', palette.textClass)}>
-            {format(segment.startDate, 'MMM d')} – {format(segment.endDate, 'MMM d')}
-          </span>
+          {/* Render each stage as a colored segment within the bar */}
+          {order.segments.map((segment) => {
+            const segStart = Math.max(segment.startDate.getTime(), overallStart)
+            const segEnd = Math.min(segment.endDate.getTime(), overallEnd)
+            if (segEnd <= segStart) return null
+
+            const segLeftPercent = ((segStart - overallStart) / overallDuration) * 100
+            const segWidthPercent = ((segEnd - segStart) / overallDuration) * 100
+            const palette = stagePalette[segment.key] ?? stagePalette.production
+
+            return (
+              <div
+                key={segment.key}
+                className="absolute inset-y-0 transition-opacity"
+                style={{
+                  left: `${segLeftPercent}%`,
+                  width: `${segWidthPercent}%`,
+                  backgroundColor: palette.color,
+                }}
+              />
+            )
+          })}
+          {/* Order code label inside bar */}
+          <div className="relative z-10 flex h-full w-full items-center justify-center px-2">
+            <span className="truncate text-[10px] font-semibold text-white drop-shadow-sm">
+              {order.orderCode}
+            </span>
+          </div>
         </button>
       </Tooltip>
     )
@@ -245,123 +296,76 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
   }
 
   return (
-    <section className="space-y-6 rounded-3xl border bg-card p-6 shadow-lg">
+    <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
       {header ?? (
-        <header className="space-y-1">
-          <p className="text-xs font-bold uppercase tracking-wide text-primary">Purchase orders</p>
-          <h2 className="text-xl font-semibold text-foreground">PO timeline</h2>
+        <header className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-foreground">PO Timeline</h2>
+          {/* Legend */}
+          <div className="flex items-center gap-3">
+            {Object.entries(stagePalette).map(([key, palette]) => (
+              <div key={key} className="flex items-center gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: palette.color }} />
+                <span className="text-[10px] text-muted-foreground">{palette.label}</span>
+              </div>
+            ))}
+          </div>
         </header>
       )}
 
-      <div className="grid items-end gap-4 pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground" style={{ gridTemplateColumns: 'minmax(180px, 220px) 1fr' }}>
-        <span className="px-2">Order</span>
-        {monthBuckets ? (
-          <div className="relative h-8 rounded-lg bg-muted overflow-hidden">
-            {/* Month labels positioned absolutely */}
-            {monthBuckets.map((month, idx) => {
-              if (!timelineStart || !totalDurationMs) return null
-              const monthMid = month.start.getTime() + (month.end.getTime() - month.start.getTime()) / 2
-              const position = ((monthMid - timelineStart.getTime()) / totalDurationMs) * 100
-              return (
-                <span
-                  key={`${month.label}-${month.start.toISOString()}-header`}
-                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-xs font-semibold text-muted-foreground"
-                  style={{ left: `${Math.min(Math.max(position, 4), 96)}%` }}
-                >
-                  {month.label}
-                </span>
-              )
-            })}
-            {/* Month divider lines */}
-            {monthBuckets.slice(1).map((month, idx) => {
-              if (!timelineStart || !totalDurationMs) return null
-              const position = ((month.start.getTime() - timelineStart.getTime()) / totalDurationMs) * 100
-              return (
-                <div
-                  key={`divider-${idx}`}
-                  className="absolute top-0 bottom-0 w-px bg-border"
-                  style={{ left: `${position}%` }}
-                />
-              )
-            })}
+      {/* Month header row */}
+      {monthBuckets && (
+        <div className="relative h-6 rounded-md bg-muted/50 overflow-hidden">
+          {monthBuckets.map((month) => {
+            if (!timelineStart || !totalDurationMs) return null
+            const monthMid = month.start.getTime() + (month.end.getTime() - month.start.getTime()) / 2
+            const position = ((monthMid - timelineStart.getTime()) / totalDurationMs) * 100
+            return (
+              <span
+                key={`${month.label}-${month.start.toISOString()}-header`}
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground"
+                style={{ left: `${Math.min(Math.max(position, 3), 97)}%` }}
+              >
+                {month.label}
+              </span>
+            )
+          })}
+          {/* Month divider lines */}
+          {monthBuckets.slice(1).map((month, idx) => {
+            if (!timelineStart || !totalDurationMs) return null
+            const position = ((month.start.getTime() - timelineStart.getTime()) / totalDurationMs) * 100
+            return (
+              <div
+                key={`divider-${idx}`}
+                className="absolute top-0 bottom-0 w-px bg-border/50"
+                style={{ left: `${position}%` }}
+              />
+            )
+          })}
+        </div>
+      )}
+
+      {/* Gantt bars - stacked vertically */}
+      <div className="space-y-1.5">
+        {timelineOrders.map((order) => (
+          <div key={order.id} className="relative h-7">
+            {renderTimelineBackground()}
+            <div className="absolute inset-0">
+              {renderConsolidatedBar(order)}
+            </div>
+            {order.segments.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[10px] text-muted-foreground/60">No dates set</span>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="relative h-8 rounded-lg bg-muted" />
-        )}
+        ))}
       </div>
 
-      <ul className="space-y-3 pt-3">
-        {timelineOrders.map((order) => {
-          const isActive = activeOrderId === order.id
-          return (
-            <li
-              key={order.id}
-              className={clsx(
-                'rounded-2xl border bg-muted/50 px-4 py-3 backdrop-blur-sm transition',
-                isActive && 'border-primary shadow-lg'
-              )}
-            >
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(180px, 220px) 1fr' }}>
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => onSelectOrder?.(order.id)} className="text-left text-sm font-semibold text-foreground hover:underline">
-                      {order.orderCode}
-                    </button>
-                    {(order.shipName || order.containerNumber) ? (
-                      <Tooltip
-                        content={
-                          <div className="space-y-1">
-                            {order.shipName && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground text-xs">Ship</span>
-                                <span className="text-foreground text-sm">{order.shipName}</span>
-                              </div>
-                            )}
-                            {order.containerNumber && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-muted-foreground text-xs">Container</span>
-                                <span className="text-foreground text-sm font-mono">{order.containerNumber}</span>
-                              </div>
-                            )}
-                          </div>
-                        }
-                        position="right"
-                      >
-                        <span className="inline-flex items-center text-muted-foreground hover:text-primary cursor-pointer transition-colors">
-                          <Info className="h-3.5 w-3.5" />
-                        </span>
-                      </Tooltip>
-                    ) : null}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {order.productName} · {order.quantity.toLocaleString('en-US')} units
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {order.status.replace(/_/g, ' ')}
-                    </span>
-                    {order.availableDate ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                        ETA {format(order.availableDate, 'MMM d')}
-                      </span>
-                    ) : null}
-                  </div>
-                  {order.segments.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Add milestone dates to plot on timeline.</p>
-                  ) : null}
-                </div>
-
-                <div className="relative h-12">
-                  {renderTimelineBackground()}
-                  <div className="absolute inset-0">
-                    {order.segments.map((segment) => renderStageBlock(order, segment))}
-                  </div>
-                </div>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      {timelineOrders.length === 0 && (
+        <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+          No purchase orders to display
+        </div>
+      )}
     </section>
   )
 }
