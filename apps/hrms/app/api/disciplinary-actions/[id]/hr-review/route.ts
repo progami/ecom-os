@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit, safeErrorResponse, validateBody } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canHRReview } from '@/lib/permissions'
+import { z } from 'zod'
 
 /**
  * HR Review endpoint for disciplinary actions
  * 3-tier workflow: Manager raises -> HR reviews -> Super Admin approves -> Employee acknowledges
  */
 type RouteContext = { params: Promise<{ id: string }> }
+
+const HrReviewBodySchema = z.object({
+  approved: z.boolean(),
+  notes: z.string().max(2000).nullable().optional(),
+})
 
 export async function POST(req: Request, context: RouteContext) {
   const rateLimitError = withRateLimit(req)
@@ -17,14 +23,10 @@ export async function POST(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params
     const body = await req.json()
-    const { approved, notes } = body
+    const validation = validateBody(HrReviewBodySchema, body)
+    if (!validation.success) return validation.error
 
-    if (typeof approved !== 'boolean') {
-      return NextResponse.json(
-        { error: 'approved field is required (boolean)' },
-        { status: 400 }
-      )
-    }
+    const { approved, notes } = validation.data
 
     // Check if current user is HR
     const currentEmployeeId = await getCurrentEmployeeId()
@@ -203,9 +205,15 @@ export async function GET(req: Request, context: RouteContext) {
     }
 
     const permissionCheck = await canHRReview(currentEmployeeId)
+    if (!permissionCheck.allowed) {
+      return NextResponse.json(
+        { error: `Permission denied: ${permissionCheck.reason}` },
+        { status: 403 }
+      )
+    }
 
     return NextResponse.json({
-      canReview: action.status === 'PENDING_HR_REVIEW' && permissionCheck.allowed,
+      canReview: action.status === 'PENDING_HR_REVIEW',
       hrReview: {
         reviewedAt: action.hrReviewedAt,
         reviewedById: action.hrReviewedById,
