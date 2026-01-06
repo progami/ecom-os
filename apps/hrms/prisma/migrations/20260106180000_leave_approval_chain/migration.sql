@@ -19,6 +19,3 @@ ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "hrNotes" TEXT;
 ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "superAdminApprovedById" TEXT;
 ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "superAdminApprovedAt" TIMESTAMP(3);
 ALTER TABLE "LeaveRequest" ADD COLUMN IF NOT EXISTS "superAdminNotes" TEXT;
-
--- Migrate existing PENDING requests to PENDING_MANAGER
-UPDATE "LeaveRequest" SET "status" = 'PENDING_MANAGER' WHERE "status" = 'PENDING';
