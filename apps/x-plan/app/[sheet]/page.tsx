@@ -19,6 +19,8 @@ import {
 } from '@/components/sheets/financial-trends-section';
 import {
   POProfitabilitySection,
+  POProfitabilityFiltersProvider,
+  POProfitabilityHeaderControls,
   type POProfitabilityData,
   type POStatus,
 } from '@/components/sheets/po-profitability-section';
@@ -1889,7 +1891,10 @@ function getCashFlowView(
   };
 }
 
-function getPOProfitabilityView(financialData: FinancialData): { data: POProfitabilityData[] } {
+function getPOProfitabilityView(
+  financialData: FinancialData,
+  activeSegment: YearSegment | null,
+): { data: POProfitabilityData[] } {
   const { derivedOrders, operations } = financialData;
   const { productNameById } = operations;
 
@@ -1897,6 +1902,13 @@ function getPOProfitabilityView(financialData: FinancialData): { data: POProfita
   const data: POProfitabilityData[] = [];
 
   for (const { derived, input } of derivedOrders) {
+    if (
+      activeSegment &&
+      derived.availableWeekNumber != null &&
+      !isWeekInSegment(derived.availableWeekNumber, activeSegment)
+    ) {
+      continue;
+    }
     // Map status
     const statusMap: Record<string, POStatus> = {
       PLANNED: 'PLANNED',
@@ -2456,8 +2468,34 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break;
     }
     case '6-po-profitability': {
+      const activeStrategyId = requireStrategyId();
+      if (activeSegment && activeSegment.weekCount === 0) {
+        tabularContent = (
+          <VisualPlaceholder
+            title="No planning weeks for this year"
+            description={`No planning calendar coverage found for ${activeYear ?? 'this year'}. Select another year to continue.`}
+          />
+        );
+        visualContent = null;
+        break;
+      }
       const data = await getFinancialData();
-      const view = getPOProfitabilityView(data);
+      const view = getPOProfitabilityView(data, activeSegment);
+      const productOptions = data.operations.productInputs
+        .map((product) => ({ id: product.id, name: productLabel(product) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      controls.push(
+        <POProfitabilityHeaderControls
+          key="po-profitability-controls"
+          productOptions={productOptions}
+        />,
+      );
+      wrapLayout = (node) => (
+        <POProfitabilityFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
+          {node}
+        </POProfitabilityFiltersProvider>
+      );
       // PO Profitability shows chart + table in one unified view, no toggle needed
       tabularContent = (
         <POProfitabilitySection
