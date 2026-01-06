@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
+import { readClipboardText } from '@/lib/grid/clipboard';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { withAppBasePath } from '@/lib/base-path';
@@ -392,6 +393,66 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
     }
   }, [activeCell, selection, buildClipboardText]);
 
+  const applyPastedText = useCallback(
+    (text: string, start: CellCoords) => {
+      const rows = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (rows.length === 0) return;
+
+      const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = [];
+
+      for (let r = 0; r < rows.length; r += 1) {
+        for (let c = 0; c < rows[r]!.length; c += 1) {
+          const targetRow = start.row + r;
+          const targetCol = start.col + c;
+          if (targetCol >= columnConfig.length) continue;
+
+          const config = columnConfig[targetCol];
+          if (!config?.editable) continue;
+
+          updates.push({
+            rowIndex: targetRow,
+            key: config.key,
+            value: rows[r]![c] ?? '',
+          });
+        }
+      }
+
+      if (updates.length === 0) return;
+
+      setData((prev) => {
+        const next = [...prev];
+        for (const update of updates) {
+          if (update.rowIndex >= next.length) continue;
+          const formatted = formatNumericInput(update.value, 2);
+          next[update.rowIndex] = { ...next[update.rowIndex], [update.key]: formatted };
+
+          const row = next[update.rowIndex];
+          const weekNumber = Number(row?.weekNumber);
+          if (Number.isFinite(weekNumber)) {
+            if (!pendingRef.current.has(weekNumber)) {
+              pendingRef.current.set(weekNumber, { weekNumber, values: {} });
+            }
+            const entry = pendingRef.current.get(weekNumber);
+            if (entry) {
+              entry.values[update.key] = formatted;
+            }
+          }
+        }
+        return next;
+      });
+
+      scheduleFlush();
+      requestAnimationFrame(() => scrollRef.current?.focus());
+    },
+    [pendingRef, scheduleFlush],
+  );
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (e.target !== e.currentTarget) return;
@@ -405,19 +466,13 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       }
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
-        const clipboard = clipboardRef.current;
-        if (!clipboard) return;
-        pasteStartRef.current = activeCell;
-        clipboard.value = '';
-        clipboard.focus();
-        clipboard.select();
-        window.setTimeout(() => {
-          if (pasteStartRef.current && document.activeElement === clipboard) {
-            pasteStartRef.current = null;
-            clipboard.value = '';
-            scrollRef.current?.focus();
-          }
-        }, 250);
+        e.preventDefault();
+        const start = { ...activeCell };
+        void (async () => {
+          const text = await readClipboardText();
+          if (!text) return;
+          applyPastedText(text, start);
+        })();
         return;
       }
 
@@ -507,6 +562,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
     },
     [
       activeCell,
+      applyPastedText,
       copySelectionToClipboard,
       data,
       editingCell,
@@ -551,71 +607,10 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         return;
       }
 
-      const rows = text
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-        .split('\n')
-        .filter((line) => line.length > 0)
-        .map((line) => line.split('\t'));
-
-      if (rows.length === 0) {
-        refocusClipboard();
-        return;
-      }
-
-      const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = [];
-
-      for (let r = 0; r < rows.length; r += 1) {
-        for (let c = 0; c < rows[r]!.length; c += 1) {
-          const targetRow = start.row + r;
-          const targetCol = start.col + c;
-          if (targetRow >= data.length) continue;
-          if (targetCol >= columnConfig.length) continue;
-
-          const config = columnConfig[targetCol];
-          if (!config?.editable) continue;
-
-          const row = data[targetRow];
-          if (!row) continue;
-
-          updates.push({
-            rowIndex: targetRow,
-            key: config.key,
-            value: rows[r]![c] ?? '',
-          });
-        }
-      }
-
-      if (updates.length === 0) {
-        refocusClipboard();
-        return;
-      }
-
-      setData((prev) => {
-        const next = [...prev];
-        for (const update of updates) {
-          const formatted = formatNumericInput(update.value, 2);
-          next[update.rowIndex] = { ...next[update.rowIndex], [update.key]: formatted };
-
-          const row = next[update.rowIndex];
-          const weekNumber = Number(row?.weekNumber);
-          if (Number.isFinite(weekNumber)) {
-            if (!pendingRef.current.has(weekNumber)) {
-              pendingRef.current.set(weekNumber, { weekNumber, values: {} });
-            }
-            const entry = pendingRef.current.get(weekNumber);
-            if (entry) {
-              entry.values[update.key] = formatted;
-            }
-          }
-        }
-        return next;
-      });
-
-      scheduleFlush();
+      applyPastedText(text, start);
       refocusClipboard();
     },
-    [activeCell, data, pendingRef, scheduleFlush],
+    [activeCell, applyPastedText],
   );
 
   const handlePointerDown = useCallback(
