@@ -2,46 +2,37 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { PerformanceReviewsApi, EmployeesApi, MeApi, type Employee, type Me } from '@/lib/api-client'
-import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/card'
+import { ArrowLeftIcon, ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import {
-  FormField,
-  SelectField,
-  TextareaField,
-  FormSection,
-  FormActions,
-} from '@/components/ui/FormField'
-import { useNavigationHistory } from '@/lib/navigation-history'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { NativeSelect } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes } from '@/lib/review-period'
 import { CreatePerformanceReviewSchema } from '@/lib/validations'
 
 type FormData = z.infer<typeof CreatePerformanceReviewSchema>
 
-// Simplified for small team (15-20 people)
-const reviewTypeOptions = [
+const REVIEW_TYPES = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
   { value: 'QUARTERLY', label: 'Quarterly' },
   { value: 'ANNUAL', label: 'Annual' },
 ]
 
-const statusOptions = [
+const STATUS_OPTIONS = [
   { value: 'DRAFT', label: 'Draft' },
   { value: 'PENDING_REVIEW', label: 'Pending Review' },
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
 ]
-
-const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
-  value,
-  label: REVIEW_PERIOD_TYPE_LABELS[value],
-}))
 
 function RatingInput({
   label,
@@ -56,8 +47,8 @@ function RatingInput({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-foreground mb-1.5">{label}</label>
-      <div className="flex items-center gap-1">
+      <Label>{label}</Label>
+      <div className="flex items-center gap-1 mt-1.5">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
@@ -74,21 +65,20 @@ function RatingInput({
         ))}
         <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
       </div>
-      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   )
 }
 
-function AddReviewForm() {
+function AddReviewContent() {
   const router = useRouter()
-  const { goBack } = useNavigationHistory()
   const searchParams = useSearchParams()
   const preselectedEmployeeId = searchParams.get('employeeId')
   const currentYear = new Date().getFullYear()
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [me, setMe] = useState<Me | null>(null)
-  const [loadingEmployees, setLoadingEmployees] = useState(true)
+  const [loading, setLoading] = useState(true)
 
   const {
     register,
@@ -96,6 +86,7 @@ function AddReviewForm() {
     watch,
     setValue,
     formState: { errors, isSubmitting },
+    setError,
   } = useForm<FormData>({
     resolver: zodResolver(CreatePerformanceReviewSchema),
     defaultValues: {
@@ -117,7 +108,6 @@ function AddReviewForm() {
     },
   })
 
-  const [error, setError] = useState<string | null>(null)
   const reviewType = watch('reviewType')
   const periodType = watch('periodType')
   const selectedEmployeeId = watch('employeeId')
@@ -129,13 +119,10 @@ function AddReviewForm() {
   const initiative = watch('initiative') ?? 3
   const attendance = watch('attendance') ?? 3
 
-  const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map((y) => ({
-    value: String(y),
-    label: String(y),
-  }))
+  const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx)
 
   useEffect(() => {
-    async function loadEmployees() {
+    async function load() {
       try {
         const [meData, data] = await Promise.all([
           MeApi.get(),
@@ -143,14 +130,14 @@ function AddReviewForm() {
         ])
         setMe(meData)
         setEmployees(data.items || [])
-      } catch (e) {
-        console.error('Failed to load manageable employees:', e)
+      } catch (e: any) {
+        setError('root', { message: e.message })
       } finally {
-        setLoadingEmployees(false)
+        setLoading(false)
       }
     }
-    loadEmployees()
-  }, [])
+    load()
+  }, [setError])
 
   useEffect(() => {
     async function hydrateRoleAndManager() {
@@ -166,7 +153,6 @@ function AddReviewForm() {
     hydrateRoleAndManager()
   }, [selectedEmployeeId, setValue])
 
-  // Update periodType when reviewType changes
   useEffect(() => {
     const allowedTypes = getAllowedReviewPeriodTypes(reviewType)
     if (!allowedTypes.includes(periodType as any)) {
@@ -174,227 +160,342 @@ function AddReviewForm() {
     }
   }, [reviewType, periodType, setValue])
 
-  async function onSubmit(data: FormData) {
-    setError(null)
+  const onSubmit = async (data: FormData) => {
     try {
       await PerformanceReviewsApi.create(data)
       router.push('/performance/reviews')
     } catch (e: any) {
-      setError(e.message || 'Failed to create review')
+      setError('root', { message: e.message || 'Failed to create review' })
     }
   }
 
-  const employeeOptions = employees.map((e) => ({
-    value: e.id,
-    label: `${e.firstName} ${e.lastName} (${e.employeeId})`,
-  }))
-
-  const managerOptions = [
-    ...(me ? [{ value: me.id, label: `Me (${me.employeeId})` }] : []),
-    ...employees.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName} (${e.employeeId})` })),
-  ]
-
   const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
-  const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
-    allowedPeriodTypes.includes(opt.value as any)
-  )
+  const periodTypeOptions = REVIEW_PERIOD_TYPES
+    .filter((type) => allowedPeriodTypes.includes(type as any))
+    .map((type) => ({ value: type, label: REVIEW_PERIOD_TYPE_LABELS[type] }))
+
+  const canCreate = Boolean(me?.isHR || me?.isSuperAdmin || employees.length > 0)
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card padding="lg">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-muted rounded w-1/3" />
+            <div className="h-4 bg-muted rounded w-2/3" />
+            <div className="h-32 bg-muted rounded" />
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!canCreate) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card padding="lg">
+          <Alert variant="error">You do not have permission to create reviews.</Alert>
+          <div className="mt-4">
+            <Button variant="secondary" href="/performance/reviews">Back to Reviews</Button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <Card padding="lg">
-      {error && (
-        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back link */}
+      <Link
+        href="/performance/reviews"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        Back to Reviews
+      </Link>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        <FormSection title="Review Details">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <div className="sm:col-span-2">
-              <SelectField
-                label="Employee"
-                required
-                options={employeeOptions}
-                placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                error={errors.employeeId?.message}
-                {...register('employeeId')}
-              />
-            </div>
-            <FormField
-              label="Role"
-              required
-              error={errors.roleTitle?.message}
-              {...register('roleTitle')}
-            />
-            <SelectField
-              label="Review Type"
-              required
-              options={reviewTypeOptions}
-              error={errors.reviewType?.message}
-              {...register('reviewType')}
-            />
-            <SelectField
-              label="Review Period"
-              required
-              options={periodTypeOptions}
-              error={errors.periodType?.message}
-              {...register('periodType')}
-            />
-            <SelectField
-              label="Year"
-              required
-              options={periodYearOptions}
-              error={errors.periodYear?.message}
-              {...register('periodYear')}
-            />
-            <FormField
-              label="Review Date"
-              type="date"
-              required
-              error={errors.reviewDate?.message}
-              {...register('reviewDate')}
-            />
-            <SelectField
-              label="Manager"
-              required
-              options={managerOptions}
-              placeholder={loadingEmployees ? 'Loading employees...' : 'Select manager...'}
-              error={errors.assignedReviewerId?.message}
-              {...register('assignedReviewerId')}
-            />
-            <SelectField
-              label="Status"
-              required
-              options={statusOptions}
-              error={errors.status?.message}
-              {...register('status')}
-            />
+      {/* Main card */}
+      <Card padding="lg">
+        {/* Header */}
+        <div className="flex items-start gap-3 pb-6 border-b border-border">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <ClipboardDocumentCheckIcon className="h-6 w-6 text-primary" />
           </div>
-        </FormSection>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">New Performance Review</h1>
+            <p className="text-sm text-muted-foreground">
+              Create a performance review for an employee
+            </p>
+          </div>
+        </div>
 
-        <CardDivider />
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="py-6 space-y-6">
+          {errors.root && (
+            <Alert variant="error" onDismiss={() => setError('root', { message: '' })}>
+              {errors.root.message}
+            </Alert>
+          )}
 
-        <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="sm:col-span-2">
+          {/* Employee Selection */}
+          <div>
+            <Label htmlFor="employeeId">Employee</Label>
+            <NativeSelect
+              {...register('employeeId')}
+              className={cn('mt-1.5', errors.employeeId && 'border-destructive')}
+            >
+              <option value="">Select employee...</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.firstName} {emp.lastName} ({emp.employeeId})
+                </option>
+              ))}
+            </NativeSelect>
+            {errors.employeeId && (
+              <p className="text-xs text-destructive mt-1">{errors.employeeId.message}</p>
+            )}
+          </div>
+
+          {/* Role & Review Type */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="roleTitle">Role</Label>
+              <Input
+                {...register('roleTitle')}
+                placeholder="Employee's role"
+                className={cn('mt-1.5', errors.roleTitle && 'border-destructive')}
+              />
+              {errors.roleTitle && (
+                <p className="text-xs text-destructive mt-1">{errors.roleTitle.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="reviewType">Review Type</Label>
+              <NativeSelect
+                {...register('reviewType')}
+                className={cn('mt-1.5', errors.reviewType && 'border-destructive')}
+              >
+                {REVIEW_TYPES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </NativeSelect>
+              {errors.reviewType && (
+                <p className="text-xs text-destructive mt-1">{errors.reviewType.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Period & Year */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="periodType">Review Period</Label>
+              <NativeSelect
+                {...register('periodType')}
+                className={cn('mt-1.5', errors.periodType && 'border-destructive')}
+              >
+                {periodTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </NativeSelect>
+              {errors.periodType && (
+                <p className="text-xs text-destructive mt-1">{errors.periodType.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="periodYear">Year</Label>
+              <NativeSelect
+                {...register('periodYear')}
+                className={cn('mt-1.5', errors.periodYear && 'border-destructive')}
+              >
+                {periodYearOptions.map((year) => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </NativeSelect>
+              {errors.periodYear && (
+                <p className="text-xs text-destructive mt-1">{errors.periodYear.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Review Date & Manager */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="reviewDate">Review Date</Label>
+              <Input
+                {...register('reviewDate')}
+                type="date"
+                className={cn('mt-1.5', errors.reviewDate && 'border-destructive')}
+              />
+              {errors.reviewDate && (
+                <p className="text-xs text-destructive mt-1">{errors.reviewDate.message}</p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="assignedReviewerId">Manager</Label>
+              <NativeSelect
+                {...register('assignedReviewerId')}
+                className={cn('mt-1.5', errors.assignedReviewerId && 'border-destructive')}
+              >
+                <option value="">Select manager...</option>
+                {me && <option value={me.id}>Me ({me.employeeId})</option>}
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName} ({emp.employeeId})
+                  </option>
+                ))}
+              </NativeSelect>
+              {errors.assignedReviewerId && (
+                <p className="text-xs text-destructive mt-1">{errors.assignedReviewerId.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Status */}
+          <div>
+            <Label htmlFor="status">Status</Label>
+            <NativeSelect
+              {...register('status')}
+              className={cn('mt-1.5', errors.status && 'border-destructive')}
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </NativeSelect>
+            {errors.status && (
+              <p className="text-xs text-destructive mt-1">{errors.status.message}</p>
+            )}
+          </div>
+
+          {/* Ratings Section */}
+          <div className="pt-6 border-t border-border">
+            <h2 className="text-sm font-medium text-foreground mb-4">Performance Ratings</h2>
+            <p className="text-xs text-muted-foreground mb-4">Rate the employee on a scale of 1-5</p>
+
+            <div className="space-y-4">
               <RatingInput
                 label="Overall Rating"
                 value={overallRating}
                 onChange={(v) => setValue('overallRating', v)}
                 error={errors.overallRating?.message}
               />
+
+              <div className="grid grid-cols-2 gap-4">
+                <RatingInput
+                  label="Quality of Work"
+                  value={qualityOfWork}
+                  onChange={(v) => setValue('qualityOfWork', v)}
+                  error={errors.qualityOfWork?.message}
+                />
+                <RatingInput
+                  label="Productivity"
+                  value={productivity}
+                  onChange={(v) => setValue('productivity', v)}
+                  error={errors.productivity?.message}
+                />
+                <RatingInput
+                  label="Communication"
+                  value={communication}
+                  onChange={(v) => setValue('communication', v)}
+                  error={errors.communication?.message}
+                />
+                <RatingInput
+                  label="Teamwork"
+                  value={teamwork}
+                  onChange={(v) => setValue('teamwork', v)}
+                  error={errors.teamwork?.message}
+                />
+                <RatingInput
+                  label="Initiative"
+                  value={initiative}
+                  onChange={(v) => setValue('initiative', v)}
+                  error={errors.initiative?.message}
+                />
+                <RatingInput
+                  label="Attendance"
+                  value={attendance}
+                  onChange={(v) => setValue('attendance', v)}
+                  error={errors.attendance?.message}
+                />
+              </div>
             </div>
-            <RatingInput
-              label="Quality of Work"
-              value={qualityOfWork}
-              onChange={(v) => setValue('qualityOfWork', v)}
-              error={errors.qualityOfWork?.message}
-            />
-            <RatingInput
-              label="Productivity"
-              value={productivity}
-              onChange={(v) => setValue('productivity', v)}
-              error={errors.productivity?.message}
-            />
-            <RatingInput
-              label="Communication"
-              value={communication}
-              onChange={(v) => setValue('communication', v)}
-              error={errors.communication?.message}
-            />
-            <RatingInput
-              label="Teamwork"
-              value={teamwork}
-              onChange={(v) => setValue('teamwork', v)}
-              error={errors.teamwork?.message}
-            />
-            <RatingInput
-              label="Initiative"
-              value={initiative}
-              onChange={(v) => setValue('initiative', v)}
-              error={errors.initiative?.message}
-            />
-            <RatingInput
-              label="Attendance"
-              value={attendance}
-              onChange={(v) => setValue('attendance', v)}
-              error={errors.attendance?.message}
-            />
           </div>
-        </FormSection>
 
-        <CardDivider />
+          {/* Feedback Section */}
+          <div className="pt-6 border-t border-border">
+            <h2 className="text-sm font-medium text-foreground mb-4">Feedback</h2>
+            <p className="text-xs text-muted-foreground mb-4">Detailed comments and goals</p>
 
-        <FormSection title="Feedback" description="Detailed comments and goals">
-          <div className="space-y-5">
-            <TextareaField
-              label="Strengths"
-              rows={3}
-              placeholder="Key strengths demonstrated..."
-              error={errors.strengths?.message}
-              {...register('strengths')}
-            />
-            <TextareaField
-              label="Areas to Improve"
-              rows={3}
-              placeholder="Areas that need development..."
-              error={errors.areasToImprove?.message}
-              {...register('areasToImprove')}
-            />
-            <TextareaField
-              label="Goals for Next Period"
-              rows={3}
-              placeholder="Objectives and targets..."
-              error={errors.goals?.message}
-              {...register('goals')}
-            />
-            <TextareaField
-              label="Additional Comments"
-              rows={3}
-              placeholder="Any other observations..."
-              error={errors.comments?.message}
-              {...register('comments')}
-            />
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="strengths">Strengths</Label>
+                <Textarea
+                  {...register('strengths')}
+                  rows={3}
+                  placeholder="Key strengths demonstrated..."
+                  className="mt-1.5 resize-none"
+                />
+              </div>
+              <div>
+                <Label htmlFor="areasToImprove">Areas to Improve</Label>
+                <Textarea
+                  {...register('areasToImprove')}
+                  rows={3}
+                  placeholder="Areas that need development..."
+                  className="mt-1.5 resize-none"
+                />
+              </div>
+              <div>
+                <Label htmlFor="goals">Goals for Next Period</Label>
+                <Textarea
+                  {...register('goals')}
+                  rows={3}
+                  placeholder="Objectives and targets..."
+                  className="mt-1.5 resize-none"
+                />
+              </div>
+              <div>
+                <Label htmlFor="comments">Additional Comments</Label>
+                <Textarea
+                  {...register('comments')}
+                  rows={3}
+                  placeholder="Any other observations..."
+                  className="mt-1.5 resize-none"
+                />
+              </div>
+            </div>
           </div>
-        </FormSection>
 
-        <FormActions>
-          <Button variant="secondary" type="button" onClick={goBack}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Review'}
-          </Button>
-        </FormActions>
-      </form>
-    </Card>
+          {/* Actions */}
+          <div className="pt-6 border-t border-border flex justify-end gap-3">
+            <Button type="button" variant="secondary" href="/performance/reviews">
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Save Review
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   )
 }
 
 export default function AddReviewPage() {
   return (
-    <>
-      <PageHeader
-        title="New Performance Review"
-        description="Performance"
-        icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
-        showBack
-      />
-
-      <div className="max-w-3xl">
-        <Suspense fallback={
+    <Suspense
+      fallback={
+        <div className="max-w-2xl mx-auto">
           <Card padding="lg">
-            <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-muted rounded w-1/4" />
-              <div className="h-10 bg-muted rounded" />
-              <div className="h-4 bg-muted rounded w-1/4" />
-              <div className="h-10 bg-muted rounded" />
+            <div className="animate-pulse space-y-4">
+              <div className="h-6 bg-muted rounded w-1/3" />
+              <div className="h-4 bg-muted rounded w-2/3" />
+              <div className="h-32 bg-muted rounded" />
             </div>
           </Card>
-        }>
-          <AddReviewForm />
-        </Suspense>
-      </div>
-    </>
+        </div>
+      }
+    >
+      <AddReviewContent />
+    </Suspense>
   )
 }
