@@ -235,6 +235,7 @@ export default function PurchaseOrderDetailPage() {
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<PurchaseOrderSummary | null>(null)
+  const [tenantDestination, setTenantDestination] = useState<string>('')
   const [transitioning, setTransitioning] = useState(false)
   const [detailsSaving, setDetailsSaving] = useState(false)
   const [isEditingDetails, setIsEditingDetails] = useState(false)
@@ -322,6 +323,24 @@ export default function PurchaseOrderDetailPage() {
       }
     }
 
+    const loadTenant = async () => {
+      try {
+        const response = await fetch('/api/tenant/current')
+        if (!response.ok) return
+        const payload = await response.json().catch(() => null)
+        const tenantName = payload?.current?.name
+        const tenantCode = payload?.current?.displayName ?? payload?.current?.code
+        if (typeof tenantName !== 'string' || !tenantName.trim()) return
+        const label =
+          typeof tenantCode === 'string' && tenantCode.trim()
+            ? `${tenantName.trim()} (${tenantCode.trim().toUpperCase()})`
+            : tenantName.trim()
+        setTenantDestination(label)
+      } catch {
+        // Non-blocking
+      }
+    }
+
     const loadOrder = async () => {
       try {
         setLoading(true)
@@ -340,6 +359,7 @@ export default function PurchaseOrderDetailPage() {
     }
 
     loadWarehouses()
+    loadTenant()
     loadOrder()
   }, [params.id, router, session, status])
 
@@ -1204,6 +1224,12 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
+                      Destination Country
+                    </label>
+                    <Input value={tenantDestination || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
                       Expected Date
                     </label>
                     {isEditingDetails ? (
@@ -1313,6 +1339,12 @@ export default function PurchaseOrderDetailPage() {
                     <Input value={order.counterpartyName || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Destination Country
+                    </label>
+                    <Input value={tenantDestination || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
                     <Input
                       value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
@@ -1366,6 +1398,12 @@ export default function PurchaseOrderDetailPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Supplier</label>
                     <Input value={order.counterpartyName || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Destination Country
+                    </label>
+                    <Input value={tenantDestination || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
