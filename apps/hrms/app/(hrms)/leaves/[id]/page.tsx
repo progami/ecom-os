@@ -204,6 +204,16 @@ export default function LeaveDetailPage() {
           )}
         </div>
 
+        {/* Pending approval info */}
+        {leave.status === 'PENDING' && employee.reportsTo && (
+          <div className="py-6 border-t border-border">
+            <p className="text-sm font-medium text-muted-foreground mb-2">Pending approval from</p>
+            <p className="text-base text-foreground">
+              {employee.reportsTo.firstName} {employee.reportsTo.lastName}
+            </p>
+          </div>
+        )}
+
         {/* Review info if reviewed */}
         {leave.status !== 'PENDING' && leave.reviewedBy && (
           <div className="py-6 border-t border-border">
