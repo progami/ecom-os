@@ -6,6 +6,7 @@ import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { withAppBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
+import { formatDateDisplay } from '@/lib/utils/dates';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
@@ -76,6 +77,18 @@ export function StrategiesWorkspace({
   const [directoryConfigured, setDirectoryConfigured] = useState(true);
 
   const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null;
+  const lastEditedFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'UTC',
+      }),
+    [],
+  );
 
   const canAssignByStrategyId = useMemo(() => {
     const map = new Map<string, boolean>();
@@ -135,6 +148,10 @@ export function StrategiesWorkspace({
   const renderAssigneeLabel = (strategy: Strategy) => {
     if (strategy.assigneeEmail) return strategy.assigneeEmail;
     return 'Unassigned';
+  };
+
+  const renderLastEditedLabel = (strategy: Strategy) => {
+    return formatDateDisplay(strategy.updatedAt, lastEditedFormatter, '—');
   };
 
   const handleCreate = async () => {
@@ -300,6 +317,9 @@ export function StrategiesWorkspace({
                 <TableHead className="sticky top-0 z-10 h-10 w-60 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Assignee
                 </TableHead>
+                <TableHead className="sticky top-0 z-10 h-10 w-44 border-b border-r bg-muted px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                  Last edited
+                </TableHead>
                 <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Products
                 </TableHead>
@@ -364,6 +384,9 @@ export function StrategiesWorkspace({
                       ))}
                     </select>
                   </TableCell>
+                  <TableCell className="border-r px-4 py-3 text-right text-xs text-muted-foreground">
+                    —
+                  </TableCell>
                   <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">
                     -
                   </TableCell>
@@ -395,7 +418,7 @@ export function StrategiesWorkspace({
 
               {strategies.length === 0 && !isAdding ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="p-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
                     No strategies yet. Create your first planning strategy to get started.
                   </TableCell>
                 </TableRow>
@@ -514,6 +537,18 @@ export function StrategiesWorkspace({
                             ) : null}
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell className="border-r px-4 py-3 text-right">
+                        <span
+                          className={cn(
+                            'text-xs tabular-nums',
+                            isActive
+                              ? 'font-semibold text-cyan-700 dark:text-cyan-300'
+                              : 'text-muted-foreground',
+                          )}
+                        >
+                          {renderLastEditedLabel(strategy)}
+                        </span>
                       </TableCell>
                       <TableCell className="border-r px-4 py-3 text-center">
                         <span
