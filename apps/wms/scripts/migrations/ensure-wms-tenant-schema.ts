@@ -224,6 +224,12 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
         END IF;
       END $$;
     `,
+
+    // Purchase order essentials (stage 1 / issued)
+    `ALTER TYPE "PurchaseOrderStatus" ADD VALUE IF NOT EXISTS 'ISSUED'`,
+    `ALTER TYPE "PurchaseOrderStatus" ADD VALUE IF NOT EXISTS 'REJECTED'`,
+    `ALTER TABLE "purchase_orders" ADD COLUMN IF NOT EXISTS "incoterms" text`,
+    `ALTER TABLE "purchase_orders" ADD COLUMN IF NOT EXISTS "payment_terms" text`,
   ]
 
   for (const statement of ddlStatements) {

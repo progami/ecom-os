@@ -34,6 +34,8 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
 
 const UpdateDetailsSchema = z.object({
  expectedDate: z.string().trim().optional().nullable(),
+ incoterms: z.string().trim().optional().nullable(),
+ paymentTerms: z.string().trim().optional().nullable(),
  counterpartyName: z.string().trim().optional().nullable(),
  notes: z.string().trim().optional().nullable(),
 })
@@ -62,6 +64,8 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
  const normalized = {
  expectedDate:
  parsed.data.expectedDate === '' ? null : parsed.data.expectedDate ?? undefined,
+ incoterms: parsed.data.incoterms === '' ? null : parsed.data.incoterms ?? undefined,
+ paymentTerms: parsed.data.paymentTerms === '' ? null : parsed.data.paymentTerms ?? undefined,
  counterpartyName:
  parsed.data.counterpartyName === '' ? null : parsed.data.counterpartyName ?? undefined,
  notes: parsed.data.notes === '' ? null : parsed.data.notes ?? undefined,

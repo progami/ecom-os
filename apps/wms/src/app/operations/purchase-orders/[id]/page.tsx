@@ -152,6 +152,8 @@ interface PurchaseOrderSummary {
   warehouseName: string | null
   counterpartyName: string | null
   expectedDate: string | null
+  incoterms: string | null
+  paymentTerms: string | null
   createdAt: string
   updatedAt: string
   notes?: string | null
@@ -203,6 +205,8 @@ const STAGES = [
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
 ] as const
 
+const INCOTERMS_OPTIONS = ['EXW', 'FOB', 'FCA', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'] as const
+
 function statusBadgeClasses(status: POStageStatus) {
   return PO_STATUS_BADGE_CLASSES[status] ?? DEFAULT_BADGE_CLASS
 }
@@ -237,6 +241,8 @@ export default function PurchaseOrderDetailPage() {
   const [detailsDraft, setDetailsDraft] = useState({
     counterpartyName: '',
     expectedDate: '',
+    incoterms: '',
+    paymentTerms: '',
     notes: '',
   })
 
@@ -368,6 +374,8 @@ export default function PurchaseOrderDetailPage() {
     setDetailsDraft({
       counterpartyName: order.counterpartyName ?? '',
       expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : '',
+      incoterms: order.incoterms ?? '',
+      paymentTerms: order.paymentTerms ?? '',
       notes: order.notes ?? '',
     })
   }, [order, isEditingDetails])
@@ -498,6 +506,8 @@ export default function PurchaseOrderDetailPage() {
     setDetailsDraft({
       counterpartyName: order.counterpartyName ?? '',
       expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : '',
+      incoterms: order.incoterms ?? '',
+      paymentTerms: order.paymentTerms ?? '',
       notes: order.notes ?? '',
     })
     setIsEditingDetails(true)
@@ -508,6 +518,8 @@ export default function PurchaseOrderDetailPage() {
     setDetailsDraft({
       counterpartyName: order.counterpartyName ?? '',
       expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : '',
+      incoterms: order.incoterms ?? '',
+      paymentTerms: order.paymentTerms ?? '',
       notes: order.notes ?? '',
     })
     setIsEditingDetails(false)
@@ -523,6 +535,8 @@ export default function PurchaseOrderDetailPage() {
         body: JSON.stringify({
           counterpartyName: detailsDraft.counterpartyName,
           expectedDate: detailsDraft.expectedDate,
+          incoterms: detailsDraft.incoterms,
+          paymentTerms: detailsDraft.paymentTerms,
           notes: detailsDraft.notes,
         }),
       })
@@ -564,6 +578,7 @@ export default function PurchaseOrderDetailPage() {
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
   const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
+  const canDownloadPdf = order.status !== 'DRAFT'
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
@@ -599,15 +614,19 @@ export default function PurchaseOrderDetailPage() {
     if (!nextStage) return null
 
     if (nextStage.value === 'ISSUED') {
-      const missingExpectedDate = !order?.expectedDate
+      const missingFields = [
+        !order?.expectedDate ? 'Expected date' : null,
+        !order?.incoterms ? 'Incoterms' : null,
+        !order?.paymentTerms ? 'Payment terms' : null,
+      ].filter((value): value is string => value !== null)
       return (
         <div className="space-y-4">
           <p className="text-sm text-slate-700">
             Marking this PO as issued locks draft edits and indicates it has been sent to the supplier.
           </p>
-          {missingExpectedDate && (
+          {missingFields.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Expected date is required before issuing. Set it in Order Details.
+              Missing required details: {missingFields.join(', ')}. Set them in Order Details.
             </div>
           )}
           <p className="text-xs text-muted-foreground">
@@ -927,16 +946,18 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <a
-                href={withBasePath(`/api/purchase-orders/${order.id}/pdf`)}
-                download
-                className="flex items-center"
-              >
-                <Download className="h-4 w-4 mr-1" />
-                PDF
-              </a>
-            </Button>
+            {canDownloadPdf && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={withBasePath(`/api/purchase-orders/${order.id}/pdf`)}
+                  download
+                  className="flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  PDF
+                </a>
+              </Button>
+            )}
             <Badge className={statusBadgeClasses(order.status)}>
               {formatStatusLabel(order.status)}
             </Badge>
@@ -1203,6 +1224,45 @@ export default function PurchaseOrderDetailPage() {
                     )}
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Incoterms</label>
+                    {isEditingDetails ? (
+                      <select
+                        value={detailsDraft.incoterms}
+                        onChange={e =>
+                          setDetailsDraft(d => ({ ...d, incoterms: e.target.value }))
+                        }
+                        disabled={detailsSaving}
+                        className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      >
+                        <option value="">Select incoterms</option>
+                        {INCOTERMS_OPTIONS.map(option => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <Input value={order.incoterms || '—'} disabled readOnly />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Payment Terms
+                    </label>
+                    {isEditingDetails ? (
+                      <Input
+                        value={detailsDraft.paymentTerms}
+                        onChange={e =>
+                          setDetailsDraft(d => ({ ...d, paymentTerms: e.target.value }))
+                        }
+                        disabled={detailsSaving}
+                        placeholder="e.g., 30% deposit, 70% before shipment"
+                      />
+                    ) : (
+                      <Input value={order.paymentTerms || '—'} disabled readOnly />
+                    )}
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Created</label>
                     <Input
                       value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
@@ -1261,6 +1321,16 @@ export default function PurchaseOrderDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Incoterms</label>
+                    <Input value={order.incoterms || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Payment Terms
+                    </label>
+                    <Input value={order.paymentTerms || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Created</label>
                     <Input
                       value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
@@ -1304,6 +1374,16 @@ export default function PurchaseOrderDetailPage() {
                       disabled
                       readOnly
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Incoterms</label>
+                    <Input value={order.incoterms || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Payment Terms
+                    </label>
+                    <Input value={order.paymentTerms || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Created</label>
@@ -1705,7 +1785,8 @@ export default function PurchaseOrderDetailPage() {
                   transitioning ||
                   documentsLoading ||
                   !nextStageDocsComplete ||
-                  (nextStage.value === 'ISSUED' && !order.expectedDate)
+                  (nextStage.value === 'ISSUED' &&
+                    (!order.expectedDate || !order.incoterms || !order.paymentTerms))
                 }
                 className="gap-2"
               >
