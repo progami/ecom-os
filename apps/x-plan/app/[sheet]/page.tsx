@@ -2239,10 +2239,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getSalesPlanningView(data, planningCalendar, activeSegment);
+      controls.push(weeklyLabelControl('Weekly Sales Planning'));
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
-      controls.push(weeklyLabelControl('Weekly Sales Planning'));
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>;
       tabularContent = (
         <SalesPlanningGrid
