@@ -1,43 +1,64 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { LeavesApi } from '@/lib/api-client'
-import type { ActionId } from '@/lib/contracts/action-ids'
-import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
-import { executeAction } from '@/lib/actions/execute-action'
-import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { Alert } from '@/components/ui/alert'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { LeavesApi, DashboardApi, type LeaveRequest } from '@/lib/api-client'
 import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/ui/alert'
+import { StatusBadge } from '@/components/ui/badge'
+import { Avatar } from '@/components/ui/avatar'
+import { ArrowLeftIcon, CheckIcon, XIcon, ClockIcon } from '@/components/ui/Icons'
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  PTO: 'PTO (Paid Time Off)',
+  PARENTAL: 'Parental Leave',
+  BEREAVEMENT_IMMEDIATE: 'Bereavement',
+  UNPAID: 'Unpaid Leave',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+}
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  return new Date(value).toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 }
 
-export default function LeaveRequestWorkflowPage() {
+export default function LeaveDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
 
-  const [dto, setDto] = useState<WorkflowRecordDTO | null>(null)
-  const [leave, setLeave] = useState<any>(null)
+  const [leave, setLeave] = useState<LeaveRequest | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [workflow, raw] = await Promise.all([
-        LeavesApi.getWorkflowRecord(id),
+      const [leaveData, dashboard] = await Promise.all([
         LeavesApi.get(id),
+        DashboardApi.get(),
       ])
-      setDto(workflow)
-      setLeave(raw)
+      setLeave(leaveData)
+      setCurrentEmployeeId(dashboard.currentEmployee?.id ?? null)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load leave request'
       setError(message)
-      setDto(null)
       setLeave(null)
     } finally {
       setLoading(false)
@@ -48,96 +69,199 @@ export default function LeaveRequestWorkflowPage() {
     void load()
   }, [load])
 
-  const onAction = useCallback(async (actionId: ActionId) => {
+  const handleAction = async (action: 'APPROVED' | 'REJECTED' | 'CANCELLED') => {
+    setProcessing(true)
     setError(null)
     try {
-      await executeAction(actionId, { type: 'LEAVE_REQUEST', id })
+      await LeavesApi.update(id, { status: action })
       await load()
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to complete action'
+      const message = e instanceof Error ? e.message : 'Failed to update leave request'
       setError(message)
+    } finally {
+      setProcessing(false)
     }
-  }, [id, load])
+  }
 
   if (loading) {
     return (
-      <Card padding="lg">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-muted rounded w-1/3" />
-          <div className="h-4 bg-muted rounded w-2/3" />
-          <div className="h-40 bg-muted rounded" />
-        </div>
-      </Card>
+      <div className="max-w-2xl mx-auto">
+        <Card padding="lg">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-muted rounded w-1/3" />
+            <div className="h-4 bg-muted rounded w-2/3" />
+            <div className="h-32 bg-muted rounded" />
+          </div>
+        </Card>
+      </div>
     )
   }
 
-  if (!dto) {
+  if (!leave || !leave.employee) {
     return (
-      <Card padding="lg">
-        <p className="text-sm font-medium text-foreground">Leave request</p>
-        <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
-      </Card>
+      <div className="max-w-2xl mx-auto">
+        <Card padding="lg">
+          <p className="text-sm font-medium text-foreground">Leave request not found</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+          <div className="mt-4">
+            <Button variant="secondary" href="/leave">Back to Leave</Button>
+          </div>
+        </Card>
+      </div>
     )
   }
+
+  const employee = leave.employee
+  const isOwn = employee.id === currentEmployeeId
+  const canApproveReject = !isOwn && leave.status === 'PENDING'
+  const canCancel = isOwn && leave.status === 'PENDING'
+  const employeeName = `${employee.firstName} ${employee.lastName}`
 
   return (
-    <>
-      {error ? (
-        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Back link */}
+      <Link
+        href="/leave"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        Back to Leave
+      </Link>
+
+      {error && (
+        <Alert variant="error" onDismiss={() => setError(null)}>
           {error}
         </Alert>
-      ) : null}
+      )}
 
-      <WorkflowRecordLayout data={dto} onAction={onAction}>
-        {leave ? (
-          <div className="space-y-6">
-            <Card padding="lg">
-              <h3 className="text-sm font-semibold text-foreground mb-3">Request details</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">Leave type</p>
-                  <p className="text-sm text-foreground mt-0.5">{leave.leaveType?.replaceAll('_', ' ')?.toLowerCase() || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">Total days</p>
-                  <p className="text-sm text-foreground mt-0.5">{String(leave.totalDays ?? '—')}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">Start date</p>
-                  <p className="text-sm text-foreground mt-0.5">{formatDate(leave.startDate)}</p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">End date</p>
-                  <p className="text-sm text-foreground mt-0.5">{formatDate(leave.endDate)}</p>
-                </div>
-                <div className="sm:col-span-2">
-                  <p className="text-xs font-medium text-muted-foreground">Reason</p>
-                  <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">{leave.reason || '—'}</p>
-                </div>
-              </div>
-            </Card>
-
-            {leave.reviewedAt || leave.reviewNotes ? (
-              <Card padding="lg">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Decision</h3>
-                <div className="space-y-2 text-sm">
-                  {leave.reviewedAt ? (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground">Reviewed at</p>
-                      <p className="text-sm text-foreground mt-0.5">{formatDate(leave.reviewedAt)}</p>
-                    </div>
-                  ) : null}
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Notes</p>
-                    <p className="text-sm text-foreground mt-0.5 whitespace-pre-line">{leave.reviewNotes || '—'}</p>
-                  </div>
-                </div>
-              </Card>
-            ) : null}
+      {/* Main card */}
+      <Card padding="lg">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 pb-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <Avatar
+              src={employee.avatar}
+              alt={employeeName}
+              size="lg"
+            />
+            <div>
+              <h1 className="text-lg font-semibold text-foreground">
+                {employeeName}
+                {isOwn && <span className="ml-2 text-sm font-normal text-muted-foreground">(You)</span>}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {employee.employeeId}
+              </p>
+            </div>
           </div>
-        ) : null}
-      </WorkflowRecordLayout>
-    </>
+          {leave.status === 'PENDING' ? (
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-warning-100 text-warning-800">
+              <ClockIcon className="h-4 w-4" />
+              Pending
+            </span>
+          ) : (
+            <StatusBadge status={STATUS_LABELS[leave.status]} />
+          )}
+        </div>
+
+        {/* Details */}
+        <div className="py-6 space-y-6">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Leave Type</p>
+              <p className="text-base text-foreground">
+                {LEAVE_TYPE_LABELS[leave.leaveType] ?? leave.leaveType}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Total Days</p>
+              <p className="text-base text-foreground">
+                {leave.totalDays} business day{leave.totalDays !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Start Date</p>
+              <p className="text-base text-foreground">{formatDate(leave.startDate)}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">End Date</p>
+              <p className="text-base text-foreground">{formatDate(leave.endDate)}</p>
+            </div>
+          </div>
+
+          {leave.reason && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Reason</p>
+              <p className="text-base text-foreground whitespace-pre-line">{leave.reason}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Review info if reviewed */}
+        {leave.status !== 'PENDING' && leave.reviewedBy && (
+          <div className="py-6 border-t border-border">
+            <p className="text-sm font-medium text-muted-foreground mb-2">
+              {leave.status === 'APPROVED' ? 'Approved' : leave.status === 'REJECTED' ? 'Rejected' : 'Reviewed'} by
+            </p>
+            <p className="text-base text-foreground">
+              {leave.reviewedBy.firstName} {leave.reviewedBy.lastName}
+              {leave.reviewedAt && (
+                <span className="text-muted-foreground"> on {formatDate(leave.reviewedAt)}</span>
+              )}
+            </p>
+            {leave.reviewNotes && (
+              <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">
+                {leave.reviewNotes}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Actions */}
+        {(canApproveReject || canCancel) && (
+          <div className="pt-6 border-t border-border flex justify-end gap-3">
+            {canCancel && (
+              <Button
+                variant="danger"
+                onClick={() => handleAction('CANCELLED')}
+                disabled={processing}
+              >
+                <XIcon className="h-4 w-4 mr-2" />
+                Cancel Request
+              </Button>
+            )}
+            {canApproveReject && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => handleAction('REJECTED')}
+                  disabled={processing}
+                >
+                  <XIcon className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+                <Button
+                  onClick={() => handleAction('APPROVED')}
+                  disabled={processing}
+                >
+                  <CheckIcon className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </Card>
+
+      {/* Request date */}
+      {leave.createdAt && (
+        <p className="text-sm text-muted-foreground text-center">
+          Requested on {formatDate(leave.createdAt)}
+        </p>
+      )}
+    </div>
   )
 }
-

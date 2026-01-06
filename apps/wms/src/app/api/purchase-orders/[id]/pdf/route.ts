@@ -3,6 +3,7 @@ import PDFDocument from 'pdfkit'
 import { withAuthAndParams, ApiResponses } from '@/lib/api'
 import { getPurchaseOrderById } from '@/lib/services/purchase-order-service'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
+import { getCurrentTenant } from '@/lib/tenant/server'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,7 @@ async function renderPurchaseOrderPdf(params: {
   supplierName: string
   status: string
   createdAt: Date
+  destinationCountry?: string | null
   expectedDate?: Date | null
   incoterms?: string | null
   paymentTerms?: string | null
@@ -65,6 +67,9 @@ async function renderPurchaseOrderPdf(params: {
   doc.text(`Supplier: ${params.supplierName || '—'}`)
   doc.text(`Status: ${params.status}`)
   doc.text(`Created: ${formatDate(params.createdAt)}`)
+  doc.text(
+    `Destination Country: ${params.destinationCountry?.trim() ? params.destinationCountry.trim() : '—'}`
+  )
   doc.text(`Expected: ${formatDate(params.expectedDate ?? null)}`)
   doc.text(`Incoterms: ${params.incoterms?.trim() ? params.incoterms.trim() : '—'}`)
   doc.text(`Payment Terms: ${params.paymentTerms?.trim() ? params.paymentTerms.trim() : '—'}`)
@@ -202,6 +207,9 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     return ApiResponses.badRequest('Issue the purchase order before generating a PDF')
   }
 
+  const tenant = await getCurrentTenant()
+  const destinationCountry = `${tenant.name} (${tenant.displayName})`
+
   const poNumber = order.poNumber ?? toPublicOrderNumber(order.orderNumber)
   const filename = `${sanitizeFilename(poNumber)}.pdf`
 
@@ -219,6 +227,7 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     supplierName: order.counterpartyName ?? '',
     status: order.status,
     createdAt: order.createdAt,
+    destinationCountry,
     expectedDate: order.expectedDate,
     incoterms: order.incoterms,
     paymentTerms: order.paymentTerms,
