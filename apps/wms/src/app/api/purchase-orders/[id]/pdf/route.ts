@@ -9,6 +9,17 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
+// Targon brand colors
+const COLORS = {
+  primary: '#002C51', // Dark navy
+  accent: '#00C2B9', // Teal
+  lightGray: '#F8FAFC',
+  mediumGray: '#E2E8F0',
+  darkGray: '#64748B',
+  text: '#1E293B',
+  white: '#FFFFFF',
+} as const
+
 function sanitizeFilename(value: string): string {
   return value.trim().replaceAll(/[^a-z0-9._-]+/gi, '-')
 }
@@ -52,6 +63,7 @@ async function renderPurchaseOrderPdf(params: {
 }): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 50 })
   doc.info.Title = `Purchase Order ${params.poNumber}`
+  doc.info.Author = 'Targon Global'
 
   const chunks: Buffer[] = []
   const result = new Promise<Buffer>((resolve, reject) => {
@@ -60,86 +72,164 @@ async function renderPurchaseOrderPdf(params: {
     doc.on('error', reject)
   })
 
-  doc.fontSize(20).font('Helvetica-Bold').text('Purchase Order')
-  doc.moveDown(0.5)
-  doc.fontSize(12).font('Helvetica')
-  doc.text(`PO #: ${params.poNumber}`)
-  doc.text(`Supplier: ${params.supplierName || '—'}`)
-  doc.text(`Status: ${params.status}`)
-  doc.text(`Created: ${formatDate(params.createdAt)}`)
-  doc.text(
-    `Destination Country: ${params.destinationCountry?.trim() ? params.destinationCountry.trim() : '—'}`
-  )
-  doc.text(`Expected: ${formatDate(params.expectedDate ?? null)}`)
-  doc.text(`Incoterms: ${params.incoterms?.trim() ? params.incoterms.trim() : '—'}`)
-  doc.text(`Payment Terms: ${params.paymentTerms?.trim() ? params.paymentTerms.trim() : '—'}`)
-  doc.text(
-    `Warehouse: ${
-      params.warehouseName ?? params.warehouseCode ?? 'Not assigned'
-    }${params.warehouseName && params.warehouseCode ? ` (${params.warehouseCode})` : ''}`
-  )
+  const pageWidth = doc.page.width
+  const pageHeight = doc.page.height
+  const margin = doc.page.margins.left
+  const contentWidth = pageWidth - margin * 2
+
+  // ============================================
+  // HEADER - Targon Branding
+  // ============================================
+
+  // Header background
+  doc.rect(0, 0, pageWidth, 100).fill(COLORS.primary)
+
+  // Accent bar
+  doc.rect(0, 100, pageWidth, 4).fill(COLORS.accent)
+
+  // Company name "TARGON"
+  doc.fillColor(COLORS.white).fontSize(28).font('Helvetica-Bold')
+  doc.text('TARGON', margin, 30, { continued: false })
+
+  // Tagline
+  doc.fontSize(9).font('Helvetica').fillColor(COLORS.accent)
+  doc.text('GLOBAL TRADE SOLUTIONS', margin, 60)
+
+  // Document title on right
+  doc.fillColor(COLORS.white).fontSize(22).font('Helvetica-Bold')
+  doc.text('PURCHASE ORDER', pageWidth - margin - 200, 35, { width: 200, align: 'right' })
+
+  // PO Number badge
+  doc.fontSize(11).font('Helvetica')
+  doc.text(params.poNumber, pageWidth - margin - 200, 62, { width: 200, align: 'right' })
+
+  // ============================================
+  // ORDER INFO SECTION
+  // ============================================
+
+  let y = 130
+
+  // Status badge
+  const statusColors: Record<string, string> = {
+    ISSUED: '#059669',
+    MANUFACTURING: '#D97706',
+    OCEAN: '#2563EB',
+    WAREHOUSE: '#7C3AED',
+    SHIPPED: '#10B981',
+    DRAFT: '#6B7280',
+    REJECTED: '#DC2626',
+    CANCELLED: '#991B1B',
+  }
+  const statusColor = statusColors[params.status] ?? '#6B7280'
+
+  doc.roundedRect(margin, y, 80, 22, 4).fill(statusColor)
+  doc.fillColor(COLORS.white).fontSize(9).font('Helvetica-Bold')
+  doc.text(params.status, margin + 10, y + 6, { width: 60, align: 'center' })
+
+  y += 40
+
+  // Two-column layout for details
+  const leftColX = margin
+  const rightColX = margin + contentWidth / 2 + 20
+  const colWidth = contentWidth / 2 - 20
+
+  // Left column - Supplier Info
+  doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
+  doc.text('SUPPLIER', leftColX, y)
+  y += 14
+  doc.fillColor(COLORS.text).fontSize(11).font('Helvetica')
+  doc.text(params.supplierName || '—', leftColX, y, { width: colWidth })
+
+  // Right column - Ship To
+  doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
+  doc.text('SHIP TO', rightColX, y - 14)
+  doc.fillColor(COLORS.text).fontSize(11).font('Helvetica')
+  doc.text(params.destinationCountry || '—', rightColX, y, { width: colWidth })
+  if (params.warehouseName || params.warehouseCode) {
+    doc.text(
+      `${params.warehouseName ?? params.warehouseCode}${params.warehouseName && params.warehouseCode ? ` (${params.warehouseCode})` : ''}`,
+      rightColX,
+      y + 14,
+      { width: colWidth }
+    )
+  }
+
+  y += 50
+
+  // Divider
+  doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.mediumGray).lineWidth(1).stroke()
+
+  y += 20
+
+  // Order details grid
+  const detailsGrid = [
+    { label: 'Order Date', value: formatDate(params.createdAt) },
+    { label: 'Expected Date', value: formatDate(params.expectedDate ?? null) },
+    { label: 'Incoterms', value: params.incoterms?.trim() || '—' },
+    { label: 'Payment Terms', value: params.paymentTerms?.trim() || '—' },
+  ]
+
+  const gridColWidth = contentWidth / 4
+  detailsGrid.forEach((item, i) => {
+    const x = margin + i * gridColWidth
+    doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
+    doc.text(item.label.toUpperCase(), x, y, { width: gridColWidth - 10 })
+    doc.fillColor(COLORS.text).fontSize(10).font('Helvetica-Bold')
+    doc.text(item.value, x, y + 12, { width: gridColWidth - 10 })
+  })
+
+  y += 45
+
+  // Notes section (if present)
   if (params.notes?.trim()) {
-    doc.moveDown(0.5)
-    doc.font('Helvetica-Bold').text('Notes')
-    doc.font('Helvetica').fontSize(11).text(params.notes.trim())
-    doc.fontSize(12)
+    doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
+    doc.text('NOTES', margin, y)
+    y += 14
+    doc.roundedRect(margin, y, contentWidth, 40, 4).fill(COLORS.lightGray)
+    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
+    doc.text(params.notes.trim(), margin + 10, y + 10, { width: contentWidth - 20 })
+    y += 55
   }
 
-  doc.moveDown(1)
+  // ============================================
+  // LINE ITEMS TABLE
+  // ============================================
 
-  const startX = doc.page.margins.left
-  const startY = doc.y
+  y += 10
 
-  const col = {
-    sku: 70,
-    description: 160,
-    batch: 60,
-    quantity: 45,
-    currency: 45,
-    unit: 55,
-    total: 60,
-  } as const
+  // Table header
+  doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
+  doc.text('ORDER ITEMS', margin, y)
+  y += 20
 
-  const positions = {
-    sku: startX,
-    description: startX + col.sku,
-    batch: startX + col.sku + col.description,
-    quantity: startX + col.sku + col.description + col.batch,
-    currency: startX + col.sku + col.description + col.batch + col.quantity,
-    unit: startX + col.sku + col.description + col.batch + col.quantity + col.currency,
-    total:
-      startX + col.sku + col.description + col.batch + col.quantity + col.currency + col.unit,
-  } as const
-
-  const rowHeight = 18
-  const tableTopPadding = 6
-
-  const drawHeader = () => {
-    doc.fontSize(10).font('Helvetica-Bold')
-    doc.text('SKU', positions.sku, doc.y, { width: col.sku })
-    doc.text('Description', positions.description, doc.y, { width: col.description })
-    doc.text('Batch', positions.batch, doc.y, { width: col.batch })
-    doc.text('Qty', positions.quantity, doc.y, { width: col.quantity, align: 'right' })
-    doc.text('Curr', positions.currency, doc.y, { width: col.currency })
-    doc.text('Unit', positions.unit, doc.y, { width: col.unit, align: 'right' })
-    doc.text('Total', positions.total, doc.y, { width: col.total, align: 'right' })
-    doc.moveDown(0.4)
-    doc
-      .moveTo(startX, doc.y)
-      .lineTo(startX + Object.values(col).reduce((sum, width) => sum + width, 0), doc.y)
-      .strokeColor('#d1d5db')
-      .stroke()
-    doc.moveDown(0.3)
-    doc.font('Helvetica').fontSize(10)
+  // Column definitions
+  const cols = {
+    sku: { x: margin, width: 70 },
+    description: { x: margin + 70, width: 180 },
+    batch: { x: margin + 250, width: 70 },
+    qty: { x: margin + 320, width: 50 },
+    unit: { x: margin + 370, width: 65 },
+    total: { x: margin + 435, width: 60 },
   }
 
-  doc.y = startY + tableTopPadding
-  drawHeader()
+  // Table header row
+  doc.rect(margin, y, contentWidth, 28).fill(COLORS.primary)
+  doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
+  doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 8 })
+  doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 8 })
+  doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 8 })
+  doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width, align: 'right' })
+  doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width, align: 'right' })
+  doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width, align: 'right' })
 
+  y += 28
+
+  // Table rows
   const totalsByCurrency = new Map<string, { total: number }>()
   let totalQuantity = 0
+  const rowHeight = 32
 
-  for (const line of params.lines) {
+  const drawTableRow = (line: (typeof params.lines)[0], rowY: number, isAlt: boolean) => {
     const currency = (line.currency || 'USD').toUpperCase()
     const unitCost = line.unitCost
     const lineTotal = unitCost !== null ? unitCost * line.quantity : null
@@ -151,40 +241,101 @@ async function renderPurchaseOrderPdf(params: {
       totalsByCurrency.set(currency, entry)
     }
 
-    if (doc.y + rowHeight > doc.page.height - doc.page.margins.bottom) {
-      doc.addPage()
-      drawHeader()
+    // Alternating row background
+    if (isAlt) {
+      doc.rect(margin, rowY, contentWidth, rowHeight).fill(COLORS.lightGray)
     }
 
-    doc.text(line.skuCode, positions.sku, doc.y, { width: col.sku })
-    doc.text(line.skuDescription ?? '—', positions.description, doc.y, {
-      width: col.description,
+    // Row content
+    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
+    doc.text(line.skuCode, cols.sku.x + 8, rowY + 10, { width: cols.sku.width - 8 })
+    doc.text(line.skuDescription ?? '—', cols.description.x + 8, rowY + 6, {
+      width: cols.description.width - 8,
+      height: rowHeight - 8,
       ellipsis: true,
     })
-    doc.text(line.batchLot ?? '—', positions.batch, doc.y, { width: col.batch })
-    doc.text(line.quantity.toLocaleString(), positions.quantity, doc.y, {
-      width: col.quantity,
+    doc.text(line.batchLot ?? '—', cols.batch.x + 8, rowY + 10, { width: cols.batch.width - 8 })
+    doc.font('Helvetica-Bold')
+    doc.text(line.quantity.toLocaleString(), cols.qty.x, rowY + 10, { width: cols.qty.width, align: 'right' })
+    doc.font('Helvetica')
+    doc.text(`${currency} ${formatMoney(unitCost)}`, cols.unit.x, rowY + 10, { width: cols.unit.width, align: 'right' })
+    doc.font('Helvetica-Bold')
+    doc.text(lineTotal !== null ? `${currency} ${formatMoney(lineTotal)}` : '—', cols.total.x, rowY + 10, {
+      width: cols.total.width,
       align: 'right',
     })
-    doc.text(currency, positions.currency, doc.y, { width: col.currency })
-    doc.text(formatMoney(unitCost), positions.unit, doc.y, { width: col.unit, align: 'right' })
-    doc.text(formatMoney(lineTotal), positions.total, doc.y, { width: col.total, align: 'right' })
-    doc.moveDown(0.8)
+
+    // Bottom border
+    doc.moveTo(margin, rowY + rowHeight).lineTo(pageWidth - margin, rowY + rowHeight).strokeColor(COLORS.mediumGray).lineWidth(0.5).stroke()
   }
 
-  doc.moveDown(0.5)
-  doc
-    .moveTo(startX, doc.y)
-    .lineTo(startX + Object.values(col).reduce((sum, width) => sum + width, 0), doc.y)
-    .strokeColor('#d1d5db')
-    .stroke()
+  for (let i = 0; i < params.lines.length; i++) {
+    // Check for page break
+    if (y + rowHeight > pageHeight - 120) {
+      doc.addPage()
+      y = margin
+      // Redraw table header on new page
+      doc.rect(margin, y, contentWidth, 28).fill(COLORS.primary)
+      doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
+      doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 8 })
+      doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 8 })
+      doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 8 })
+      doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width, align: 'right' })
+      doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width, align: 'right' })
+      doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width, align: 'right' })
+      y += 28
+    }
 
-  doc.moveDown(0.6)
-  doc.font('Helvetica-Bold').fontSize(11).text(`Total quantity: ${totalQuantity.toLocaleString()}`)
-  doc.font('Helvetica').fontSize(11)
+    drawTableRow(params.lines[i], y, i % 2 === 1)
+    y += rowHeight
+  }
+
+  // ============================================
+  // TOTALS SECTION
+  // ============================================
+
+  y += 15
+
+  // Totals box
+  const totalsBoxWidth = 200
+  const totalsBoxX = pageWidth - margin - totalsBoxWidth
+
+  doc.rect(totalsBoxX, y, totalsBoxWidth, 60).fill(COLORS.lightGray)
+  doc.rect(totalsBoxX, y, totalsBoxWidth, 60).stroke(COLORS.mediumGray)
+
+  doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
+  doc.text('Total Quantity:', totalsBoxX + 15, y + 12)
+  doc.fillColor(COLORS.text).font('Helvetica-Bold')
+  doc.text(totalQuantity.toLocaleString(), totalsBoxX + totalsBoxWidth - 15, y + 12, {
+    width: 80,
+    align: 'right',
+  })
+
+  let totalsY = y + 28
   for (const [currency, totals] of totalsByCurrency.entries()) {
-    doc.text(`Total cost (${currency}): ${totals.total.toFixed(2)}`)
+    doc.fillColor(COLORS.darkGray).font('Helvetica')
+    doc.text(`Total (${currency}):`, totalsBoxX + 15, totalsY)
+    doc.fillColor(COLORS.primary).font('Helvetica-Bold').fontSize(11)
+    doc.text(totals.total.toFixed(2), totalsBoxX + totalsBoxWidth - 15, totalsY, {
+      width: 80,
+      align: 'right',
+    })
+    totalsY += 16
   }
+
+  // ============================================
+  // FOOTER
+  // ============================================
+
+  const footerY = pageHeight - 40
+
+  // Footer line
+  doc.moveTo(margin, footerY).lineTo(pageWidth - margin, footerY).strokeColor(COLORS.accent).lineWidth(2).stroke()
+
+  // Footer text
+  doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
+  doc.text(`Generated on ${new Date().toISOString().slice(0, 10)}`, margin, footerY + 10)
+  doc.text('Powered by Targon Global', pageWidth - margin - 120, footerY + 10, { width: 120, align: 'right' })
 
   doc.end()
   return await result
