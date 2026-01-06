@@ -34,7 +34,6 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
   return payload as T;
 }
 
-// Simplified action executor for small teams (no super admin actions)
 export async function executeAction(actionId: ActionId, entity: WorkItemEntity): Promise<void> {
   switch (actionId) {
     case 'policy.acknowledge': {
@@ -75,6 +74,26 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       return;
     }
 
+    case 'review.superAdminApprove': {
+      if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
+      const notes = window.prompt('Optional: add final approval notes.', '') ?? '';
+      await postJson(`/api/performance-reviews/${encodeURIComponent(entity.id)}/super-admin-review`, {
+        approved: true,
+        notes: notes.trim() || null,
+      });
+      return;
+    }
+
+    case 'review.superAdminReject': {
+      if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
+      const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
+      await postJson(`/api/performance-reviews/${encodeURIComponent(entity.id)}/super-admin-review`, {
+        approved: false,
+        notes: notes.trim() || null,
+      });
+      return;
+    }
+
     case 'review.acknowledge': {
       if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
       await PerformanceReviewsApi.acknowledge(entity.id);
@@ -83,8 +102,24 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'leave.approve': {
       if (entity.type !== 'LEAVE_REQUEST') throw new Error('Invalid action target');
-      await LeavesApi.update(entity.id, { status: 'APPROVED' });
-      return;
+      const leave = await LeavesApi.get(entity.id);
+
+      if (leave.permissions?.canManagerApprove || ['PENDING', 'PENDING_MANAGER'].includes(leave.status)) {
+        await LeavesApi.managerApprove(entity.id, { approved: true });
+        return;
+      }
+
+      if (leave.permissions?.canHRApprove || leave.status === 'PENDING_HR') {
+        await LeavesApi.hrApprove(entity.id, { approved: true });
+        return;
+      }
+
+      if (leave.permissions?.canSuperAdminApprove || leave.status === 'PENDING_SUPER_ADMIN') {
+        await LeavesApi.superAdminApprove(entity.id, { approved: true });
+        return;
+      }
+
+      throw new Error('You do not have permission to approve this leave request.');
     }
 
     case 'leave.reject': {
@@ -94,11 +129,26 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
           'Optional: add a short reason/notes for rejection (visible to requester).',
           '',
         ) ?? '';
-      await LeavesApi.update(entity.id, {
-        status: 'REJECTED',
-        reviewNotes: notes.trim() || undefined,
-      });
-      return;
+
+      const leave = await LeavesApi.get(entity.id);
+      const trimmed = notes.trim() || undefined;
+
+      if (leave.permissions?.canManagerApprove || ['PENDING', 'PENDING_MANAGER'].includes(leave.status)) {
+        await LeavesApi.managerApprove(entity.id, { approved: false, notes: trimmed });
+        return;
+      }
+
+      if (leave.permissions?.canHRApprove || leave.status === 'PENDING_HR') {
+        await LeavesApi.hrApprove(entity.id, { approved: false, notes: trimmed });
+        return;
+      }
+
+      if (leave.permissions?.canSuperAdminApprove || leave.status === 'PENDING_SUPER_ADMIN') {
+        await LeavesApi.superAdminApprove(entity.id, { approved: false, notes: trimmed });
+        return;
+      }
+
+      throw new Error('You do not have permission to reject this leave request.');
     }
 
     case 'leave.cancel': {
@@ -133,6 +183,26 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
       const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/hr-review`, {
+        approved: false,
+        notes: notes.trim() || null,
+      });
+      return;
+    }
+
+    case 'disciplinary.superAdminApprove': {
+      if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
+      const notes = window.prompt('Optional: add final approval notes.', '') ?? '';
+      await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-review`, {
+        approved: true,
+        notes: notes.trim() || null,
+      });
+      return;
+    }
+
+    case 'disciplinary.superAdminReject': {
+      if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
+      const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
+      await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-review`, {
         approved: false,
         notes: notes.trim() || null,
       });

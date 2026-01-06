@@ -23,6 +23,7 @@ const STATUS_LABELS: Record<string, string> = {
   REPORTED: 'Reported',
   UNDER_REVIEW: 'Under Review',
   PENDING_HR_REVIEW: 'Pending HR Review',
+  PENDING_SUPER_ADMIN: 'Pending Final Approval',
   PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
   ACKNOWLEDGED: 'Acknowledged',
   RESOLVED: 'Resolved',

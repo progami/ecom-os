@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit, safeErrorResponse, validateBody } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canHRReview } from '@/lib/permissions'
+import { z } from 'zod'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -10,6 +11,11 @@ type RouteContext = { params: Promise<{ id: string }> }
  * HR Review endpoint for performance reviews
  * 3-tier workflow: Manager creates -> HR reviews -> Super Admin approves -> Employee acknowledges
  */
+const HRReviewBodySchema = z.object({
+  approved: z.boolean(),
+  notes: z.string().max(2000).nullable().optional(),
+})
+
 export async function POST(req: Request, context: RouteContext) {
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
@@ -17,14 +23,10 @@ export async function POST(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params
     const body = await req.json()
-    const { approved, notes } = body
+    const validation = validateBody(HRReviewBodySchema, body)
+    if (!validation.success) return validation.error
 
-    if (typeof approved !== 'boolean') {
-      return NextResponse.json(
-        { error: 'approved field is required (boolean)' },
-        { status: 400 }
-      )
-    }
+    const { approved, notes } = validation.data
 
     // Check if current user is HR
     const currentEmployeeId = await getCurrentEmployeeId()
@@ -175,6 +177,19 @@ export async function GET(req: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params
+
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const permissionCheck = await canHRReview(currentEmployeeId)
+    if (!permissionCheck.allowed) {
+      return NextResponse.json(
+        { error: `Permission denied: ${permissionCheck.reason}` },
+        { status: 403 }
+      )
+    }
 
     const review = await prisma.performanceReview.findUnique({
       where: { id },
