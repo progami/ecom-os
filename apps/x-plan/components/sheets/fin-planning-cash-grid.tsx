@@ -308,6 +308,49 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         return
       }
 
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault()
+        const range = selection ?? { from: activeCell, to: activeCell }
+        const { top, bottom, left, right } = normalizeRange(range)
+        const updates: Array<{ rowIndex: number; key: keyof WeeklyRow }> = []
+
+        for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+          for (let colIndex = left; colIndex <= right; colIndex += 1) {
+            const config = columnConfig[colIndex]
+            if (!config?.editable) continue
+            updates.push({ rowIndex, key: config.key })
+          }
+        }
+
+        if (updates.length === 0) return
+
+        setData((prev) => {
+          const next = [...prev]
+          for (const update of updates) {
+            const row = next[update.rowIndex]
+            if (!row) continue
+            if ((row[update.key] ?? '') === '') continue
+
+            next[update.rowIndex] = { ...row, [update.key]: '' }
+
+            const weekNumber = Number(row.weekNumber)
+            if (Number.isFinite(weekNumber)) {
+              if (!pendingRef.current.has(weekNumber)) {
+                pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+              }
+              const entry = pendingRef.current.get(weekNumber)
+              if (entry) {
+                entry.values[update.key] = ''
+              }
+            }
+          }
+          return next
+        })
+
+        scheduleFlush()
+        return
+      }
+
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         moveActiveCell(1, 0)
@@ -333,11 +376,12 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         setActiveCell(null)
       }
     },
-    [activeCell, data, editingCell, moveActiveCell]
+    [activeCell, data, editingCell, moveActiveCell, pendingRef, scheduleFlush, selection]
   )
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
       if (!selection) return
       e.preventDefault()
       const { top, bottom, left, right } = normalizeRange(selection)
@@ -359,6 +403,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
       if (!activeCell) return
       const text = e.clipboardData.getData('text/plain')
       if (!text) return
