@@ -50,6 +50,7 @@ import {
   type ProfitAndLossWeek,
   type PurchaseOrder,
   type PurchaseOrderPayment,
+  type SalesWeek,
 } from '@ecom-os/prisma-x-plan';
 import { getSheetConfig } from '@/lib/sheets';
 import { getWorkbookStatus } from '@/lib/workbook';
@@ -60,6 +61,7 @@ import {
   mapLeadOverrides,
   mapBusinessParameters,
   mapPurchaseOrders,
+  mapSalesWeeks,
   mapProfitAndLossWeeks,
   mapCashFlowWeeks,
 } from '@/lib/calculations/adapters';
@@ -1161,6 +1163,11 @@ function deriveOrders(
 
 async function loadFinancialData(planning: PlanningCalendar, strategyId: string) {
   const prismaAny = prisma as unknown as Record<string, unknown>;
+  const salesDelegate = prismaAny.salesWeek as
+    | {
+        findMany: (args?: unknown) => Promise<SalesWeek[]>;
+      }
+    | undefined;
   const profitDelegate = prismaAny.profitAndLossWeek as
     | {
         findMany: (args?: unknown) => Promise<ProfitAndLossWeek[]>;
@@ -1172,8 +1179,14 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
       }
     | undefined;
 
-  const [operations, profitOverrideRows, cashOverrideRows] = await Promise.all([
+  const [operations, salesRows, profitOverrideRows, cashOverrideRows] = await Promise.all([
     loadOperationsContext(strategyId, planning.calendar),
+    safeFindMany<SalesWeek[]>(
+      salesDelegate,
+      { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
+      [],
+      'salesWeek',
+    ),
     safeFindMany<ProfitAndLossWeek[]>(
       profitDelegate,
       { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
@@ -1189,8 +1202,9 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
   ]);
 
   const derivedOrders = deriveOrders(operations, planning.calendar);
+  const salesOverrides = mapSalesWeeks(salesRows);
   const salesPlan = computeSalesPlan(
-    planning.salesWeeks,
+    salesOverrides,
     derivedOrders.map((item) => item.derived),
     {
       productIds: operations.productInputs.map((product) => product.id),
