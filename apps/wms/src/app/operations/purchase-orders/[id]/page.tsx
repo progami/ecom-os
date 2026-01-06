@@ -13,15 +13,17 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft,
   Loader2,
-  Package2,
-  FileEdit,
-  Factory,
-  Ship,
-  Warehouse,
-  Upload,
-  Download,
-  ChevronRight,
-  Check,
+	Package2,
+	FileEdit,
+	Send,
+	Factory,
+	Ship,
+	Warehouse,
+	PackageX,
+	Upload,
+	Download,
+	ChevronRight,
+	Check,
   XCircle,
   ChevronDown,
   ChevronUp,
@@ -35,7 +37,15 @@ import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { withBasePath } from '@/lib/utils/base-path'
 
 // 5-Stage State Machine Types
-type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
+type POStageStatus =
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'MANUFACTURING'
+  | 'OCEAN'
+  | 'WAREHOUSE'
+  | 'SHIPPED'
+  | 'REJECTED'
+  | 'CANCELLED'
 
 interface PurchaseOrderLineSummary {
   id: string
@@ -187,6 +197,7 @@ const STAGE_DOCUMENTS: Record<
 // Stage configuration
 const STAGES = [
   { value: 'DRAFT', label: 'Draft', icon: FileEdit, color: 'slate' },
+  { value: 'ISSUED', label: 'Issued', icon: Send, color: 'emerald' },
   { value: 'MANUFACTURING', label: 'Manufacturing', icon: Factory, color: 'amber' },
   { value: 'OCEAN', label: 'In Transit', icon: Ship, color: 'blue' },
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
@@ -240,7 +251,7 @@ export default function PurchaseOrderDetailPage() {
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean
-    type: 'cancel' | null
+    type: 'cancel' | 'reject' | null
     title: string
     message: string
   }>({ open: false, type: null, title: '', message: '' })
@@ -422,6 +433,16 @@ export default function PurchaseOrderDetailPage() {
       return
     }
 
+    if (targetStatus === 'REJECTED') {
+      setConfirmDialog({
+        open: true,
+        type: 'reject',
+        title: 'Mark as Rejected',
+        message: 'Mark this PO as rejected by the supplier? You can reopen it as a draft to revise and re-issue.',
+      })
+      return
+    }
+
     await executeTransition(targetStatus)
   }
 
@@ -461,6 +482,9 @@ export default function PurchaseOrderDetailPage() {
   const handleConfirmDialogConfirm = async () => {
     if (confirmDialog.type === 'cancel') {
       await executeTransition('CANCELLED')
+    }
+    if (confirmDialog.type === 'reject') {
+      await executeTransition('REJECTED')
     }
     setConfirmDialog({ open: false, type: null, title: '', message: '' })
   }
@@ -538,7 +562,7 @@ export default function PurchaseOrderDetailPage() {
   }
 
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
-  const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED'
+  const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
 
   const breadcrumbItems = [
@@ -573,6 +597,25 @@ export default function PurchaseOrderDetailPage() {
   // Stage-specific form fields based on next stage
   const renderStageTransitionForm = () => {
     if (!nextStage) return null
+
+    if (nextStage.value === 'ISSUED') {
+      const missingExpectedDate = !order?.expectedDate
+      return (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            Marking this PO as issued locks draft edits and indicates it has been sent to the supplier.
+          </p>
+          {missingExpectedDate && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              Expected date is required before issuing. Set it in Order Details.
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            You can download the PDF and share it with the supplier once issued.
+          </p>
+        </div>
+      )
+    }
 
     const fields: Array<{
       key: string
@@ -901,7 +944,7 @@ export default function PurchaseOrderDetailPage() {
         </div>
 
         {/* Stage Progress Bar */}
-        {!order.isLegacy && order.status !== 'CANCELLED' && (
+        {!order.isLegacy && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-slate-900">Order Progress</h2>
@@ -984,6 +1027,28 @@ export default function PurchaseOrderDetailPage() {
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               )}
+              {order.status === 'ISSUED' && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleTransition('DRAFT')}
+                  disabled={transitioning}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Draft
+                </Button>
+              )}
+              {order.status === 'ISSUED' && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleTransition('REJECTED')}
+                  disabled={transitioning}
+                  className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                >
+                  <PackageX className="h-4 w-4" />
+                  Mark Rejected
+                </Button>
+              )}
               {!isTerminal && (
                 <Button
                   variant="destructive"
@@ -1026,18 +1091,38 @@ export default function PurchaseOrderDetailPage() {
           </div>
         )}
 
+        {/* Rejected banner */}
+        {order.status === 'REJECTED' && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4">
+            <p className="text-sm text-slate-700">
+              This PO was rejected by the supplier. Reopen it as a draft to revise and re-issue.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => handleTransition('DRAFT')}
+              disabled={transitioning}
+              className="gap-2"
+            >
+              <FileEdit className="h-4 w-4" />
+              Reopen Draft
+            </Button>
+          </div>
+        )}
+
         {/* Stage-Based Content View */}
         <div className="rounded-xl border bg-white shadow-sm">
           {/* Stage Content Header */}
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                {activeViewStage === 'DRAFT' && 'Order Details'}
-                {activeViewStage === 'MANUFACTURING' && 'Manufacturing Stage'}
-                {activeViewStage === 'OCEAN' && 'In Transit Stage'}
-                {activeViewStage === 'WAREHOUSE' && 'Warehouse Stage'}
-                {activeViewStage === 'SHIPPED' && 'Shipped'}
-              </h3>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {activeViewStage === 'DRAFT' && 'Order Details'}
+                  {activeViewStage === 'ISSUED' && 'Issued'}
+                  {activeViewStage === 'MANUFACTURING' && 'Manufacturing Stage'}
+                  {activeViewStage === 'OCEAN' && 'In Transit Stage'}
+                  {activeViewStage === 'WAREHOUSE' && 'Warehouse Stage'}
+                  {activeViewStage === 'SHIPPED' && 'Shipped'}
+                  {activeViewStage === 'REJECTED' && 'Rejected'}
+                </h3>
               <p className="text-xs text-muted-foreground">
                 {isViewingCurrentStage ? 'Current stage' : 'Viewing past stage (read-only)'}
               </p>
@@ -1146,6 +1231,97 @@ export default function PurchaseOrderDetailPage() {
                   )}
                 </div>
               </>
+            )}
+
+            {/* ISSUED Stage View */}
+            {activeViewStage === 'ISSUED' && (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-sm text-slate-700">
+                    This PO has been issued to the supplier. Capture supplier confirmation (e.g. proforma invoice)
+                    before advancing to manufacturing.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">PO Number</label>
+                    <Input value={order.poNumber || order.orderNumber} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Supplier</label>
+                    <Input value={order.counterpartyName || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
+                    <Input
+                      value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Created</label>
+                    <Input
+                      value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                  <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
+                    {order.notes || <span className="text-muted-foreground italic">No notes</span>}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* REJECTED Stage View */}
+            {activeViewStage === 'REJECTED' && (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+                  <p className="text-sm text-slate-700">
+                    This PO was rejected by the supplier. Reopen as a draft to revise and re-issue.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">PO Number</label>
+                    <Input value={order.poNumber || order.orderNumber} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Supplier</label>
+                    <Input value={order.counterpartyName || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
+                    <Input
+                      value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Created</label>
+                    <Input
+                      value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                  <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
+                    {order.notes || <span className="text-muted-foreground italic">No notes</span>}
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* MANUFACTURING Stage View */}
@@ -1525,7 +1701,12 @@ export default function PurchaseOrderDetailPage() {
                     setAdvanceModalOpen(false)
                   }
                 }}
-                disabled={transitioning || documentsLoading || !nextStageDocsComplete}
+                disabled={
+                  transitioning ||
+                  documentsLoading ||
+                  !nextStageDocsComplete ||
+                  (nextStage.value === 'ISSUED' && !order.expectedDate)
+                }
                 className="gap-2"
               >
                 {transitioning ? (
@@ -1552,8 +1733,14 @@ export default function PurchaseOrderDetailPage() {
         onConfirm={handleConfirmDialogConfirm}
         title={confirmDialog.title}
         message={confirmDialog.message}
-        type={confirmDialog.type === 'cancel' ? 'danger' : 'info'}
-        confirmText={confirmDialog.type === 'cancel' ? 'Cancel Order' : 'Confirm'}
+        type={confirmDialog.type ? 'danger' : 'info'}
+        confirmText={
+          confirmDialog.type === 'cancel'
+            ? 'Cancel Order'
+            : confirmDialog.type === 'reject'
+              ? 'Mark Rejected'
+              : 'Confirm'
+        }
         cancelText="Go Back"
       />
     </DashboardLayout>

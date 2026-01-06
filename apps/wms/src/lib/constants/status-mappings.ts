@@ -4,7 +4,15 @@
  */
 
 // Purchase Order Status Types (5-stage state machine)
-export type POStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
+export type POStatus =
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'MANUFACTURING'
+  | 'OCEAN'
+  | 'WAREHOUSE'
+  | 'SHIPPED'
+  | 'REJECTED'
+  | 'CANCELLED'
 
 export type POType = 'PURCHASE' | 'ADJUSTMENT'
 
@@ -22,10 +30,12 @@ export type POLineStatus = 'PENDING' | 'POSTED' | 'CANCELLED'
  */
 export const PO_STATUS_BADGE_CLASSES: Record<POStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 border border-slate-200',
+  ISSUED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   MANUFACTURING: 'bg-amber-50 text-amber-700 border border-amber-200',
   OCEAN: 'bg-blue-50 text-blue-700 border border-blue-200',
   WAREHOUSE: 'bg-purple-50 text-purple-700 border border-purple-200',
   SHIPPED: 'bg-slate-50 text-slate-600 border border-slate-200',
+  REJECTED: 'bg-rose-50 text-rose-700 border border-rose-200',
   CANCELLED: 'bg-red-50 text-red-700 border border-red-200',
 }
 
@@ -34,10 +44,12 @@ export const PO_STATUS_BADGE_CLASSES: Record<POStatus, string> = {
  */
 export const PO_STATUS_LABELS: Record<POStatus, string> = {
   DRAFT: 'Draft',
+  ISSUED: 'Issued',
   MANUFACTURING: 'Manufacturing',
   OCEAN: 'In Transit',
   WAREHOUSE: 'At Warehouse',
   SHIPPED: 'Legacy Closed',
+  REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
 }
 

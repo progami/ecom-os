@@ -16,10 +16,12 @@ export type PurchaseOrderWithLines = Prisma.PurchaseOrderGetPayload<{
 
 const VISIBLE_STATUSES: PurchaseOrderStatus[] = [
   PurchaseOrderStatus.DRAFT,
+  PurchaseOrderStatus.ISSUED,
   PurchaseOrderStatus.MANUFACTURING,
   PurchaseOrderStatus.OCEAN,
   PurchaseOrderStatus.WAREHOUSE,
   PurchaseOrderStatus.SHIPPED,
+  PurchaseOrderStatus.REJECTED,
   PurchaseOrderStatus.CANCELLED,
 ]
 
@@ -100,10 +102,10 @@ export async function updatePurchaseOrderDetails(
   }
 
   if (
-    order.status === PurchaseOrderStatus.CANCELLED ||
-    order.status === PurchaseOrderStatus.CLOSED
+    order.isLegacy ||
+    order.status !== PurchaseOrderStatus.DRAFT
   ) {
-    throw new ConflictError('Closed or cancelled purchase orders cannot be edited')
+    throw new ConflictError('Only draft purchase orders can be edited')
   }
 
   let expectedDate: Date | null | undefined = order.expectedDate
