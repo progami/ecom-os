@@ -56,6 +56,17 @@ export class S3Service {
                 // so uploads over multiple months don't scatter across folders.
                 return `purchase-orders/${tenant}/${purchaseOrderFolder}/${context.stage}/${documentType}/${timestamp}_${hash}_${sanitizedFilename}`;
             }
+            case 'fulfillment-order': {
+                const tenant = context.tenantCode ? this.sanitizeFilename(context.tenantCode) : 'unknown';
+                const fulfillmentOrderNumber = context.fulfillmentOrderNumber
+                    ? this.sanitizeFilename(context.fulfillmentOrderNumber)
+                    : null;
+                const fulfillmentOrderFolder = fulfillmentOrderNumber
+                    ? `${fulfillmentOrderNumber}--${context.fulfillmentOrderId}`
+                    : context.fulfillmentOrderId;
+                const documentType = this.sanitizeFilename(context.documentType);
+                return `fulfillment-orders/${tenant}/${fulfillmentOrderFolder}/${context.stage}/${documentType}/${timestamp}_${hash}_${sanitizedFilename}`;
+            }
             case 'export-temp': {
                 const exportType = this.sanitizeFilename(context.exportType);
                 return `exports/temp/${context.userId}/${exportType}_${timestamp}_${sanitizedFilename}`;
@@ -334,6 +345,10 @@ export function isValidFileContext(context) {
         case 'purchase-order':
             return (typeof c.purchaseOrderId === 'string' &&
                 ['MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED'].includes(c.stage) &&
+                typeof c.documentType === 'string');
+        case 'fulfillment-order':
+            return (typeof c.fulfillmentOrderId === 'string' &&
+                ['PACKING', 'SHIPPING', 'DELIVERY'].includes(c.stage) &&
                 typeof c.documentType === 'string');
         case 'warehouse-rate-list':
             return typeof c.warehouseId === 'string';

@@ -4,6 +4,7 @@ import { getTenantPrisma, getCurrentTenant } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
 import { Prisma } from '@ecom-os/prisma-wms'
+import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 const UpdateLineSchema = z.object({
   skuCode: z.string().trim().min(1).optional(),
@@ -124,6 +125,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
 
   if (order.status === 'DRAFT') {
     const DEFAULT_BATCH_LOT = 'DEFAULT'
+    const defaultCartonsPerPallet = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
     const skuCodeChanged =
       result.data.skuCode !== undefined &&
       result.data.skuCode.trim().toLowerCase() !== line.skuCode.trim().toLowerCase()
@@ -179,7 +181,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
         },
       },
       create: {
-        skuId: sku.id,
+        sku: { connect: { id: sku.id } },
         batchCode: DEFAULT_BATCH_LOT,
         packSize: sku.packSize,
         unitsPerCarton: sku.unitsPerCarton,
@@ -195,6 +197,8 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
         cartonHeightCm: sku.cartonHeightCm,
         cartonWeightKg: sku.cartonWeightKg,
         packagingType: sku.packagingType,
+        storageCartonsPerPallet: defaultCartonsPerPallet,
+        shippingCartonsPerPallet: defaultCartonsPerPallet,
         isActive: true,
       },
       update: { isActive: true },

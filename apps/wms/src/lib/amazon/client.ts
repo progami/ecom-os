@@ -38,6 +38,77 @@ type AmazonFinancialEventsResponse = {
   }
 }
 
+type AmazonErrorDetail = { code?: string; message?: string; details?: string }
+
+type AmazonInboundShipment = {
+  ShipmentId?: string
+  ShipmentName?: string
+  ShipFromAddress?: Record<string, unknown>
+  DestinationFulfillmentCenterId?: string
+  ShipmentStatus?: string
+  LabelPrepType?: string
+  BoxContentsSource?: string
+  AreCasesRequired?: boolean
+  ConfirmedNeedByDate?: string
+}
+
+type AmazonInboundShipmentItem = {
+  ShipmentId?: string
+  SellerSKU?: string
+  FulfillmentNetworkSKU?: string
+  QuantityShipped?: number
+  QuantityReceived?: number
+  QuantityInCase?: number
+  ReleaseDate?: string
+  PrepDetailsList?: unknown
+}
+
+type AmazonInboundShipmentsResponse = {
+  payload?: {
+    ShipmentData?: AmazonInboundShipment[]
+    NextToken?: string
+  }
+  errors?: AmazonErrorDetail[]
+}
+
+type AmazonInboundShipmentItemsResponse = {
+  payload?: {
+    ItemData?: AmazonInboundShipmentItem[]
+    NextToken?: string
+  }
+  errors?: AmazonErrorDetail[]
+}
+
+type AmazonBillOfLadingResponse = {
+  payload?: {
+    DownloadURL?: string
+  }
+  errors?: AmazonErrorDetail[]
+}
+
+type AmazonInboundPlanMatch = {
+  inboundPlanId: string
+  inboundPlan: Record<string, unknown> | null
+  shipment: Record<string, unknown> | null
+  items: Record<string, unknown>[]
+  placementOptions: Record<string, unknown> | unknown[] | null
+  transportationOptions: Record<string, unknown> | unknown[] | null
+}
+
+type AmazonInboundShipmentNormalized = {
+  shipmentId: string
+  shipmentName?: string
+  shipmentStatus?: string
+  destinationFulfillmentCenterId?: string
+  labelPrepType?: string
+  boxContentsSource?: string
+  referenceId?: string
+  shipFromAddress?: Record<string, unknown> | null
+  shipToAddress?: Record<string, unknown> | null
+  inboundPlanId?: string
+  inboundOrderId?: string
+}
+
 async function callAmazonApi<T>(tenantCode: TenantCode | undefined, params: Record<string, unknown>): Promise<T> {
   const client = getAmazonClient(tenantCode)
   return (await client.callAPI(params)) as T
@@ -85,6 +156,130 @@ function getDefaultRegion(tenantCode: TenantCode | undefined): SellingPartnerApi
   if (tenantCode === 'US') return 'na'
   if (tenantCode === 'UK') return 'eu'
   return 'eu'
+}
+
+function extractAmazonErrors(response: { errors?: AmazonErrorDetail[] } | null | undefined): string[] {
+  if (!response?.errors?.length) return []
+  return response.errors
+    .map(error => error?.message?.trim() || error?.details?.trim())
+    .filter((message): message is string => Boolean(message))
+}
+
+function unwrapAmazonPayload(response: unknown): Record<string, unknown> | null {
+  const record = asRecord(response)
+  if (!record) return null
+  const payload = asRecord(record.payload)
+  return payload ?? record
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function getRecordValue(record: Record<string, unknown> | null | undefined, key: string): unknown {
+  if (!record) return undefined
+  if (record[key] !== undefined) return record[key]
+  const lowered = key.toLowerCase()
+  const match = Object.keys(record).find(entry => entry.toLowerCase() === lowered)
+  return match ? record[match] : undefined
+}
+
+function getStringField(record: Record<string, unknown> | null | undefined, keys: string[]): string | undefined {
+  if (!record) return undefined
+  for (const key of keys) {
+    const value = getRecordValue(record, key)
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return undefined
+}
+
+function getArrayField(record: Record<string, unknown> | null | undefined, keys: string[]): unknown[] {
+  if (!record) return []
+  for (const key of keys) {
+    const value = getRecordValue(record, key)
+    if (Array.isArray(value)) return value
+    const nested = asRecord(value)
+    if (nested) {
+      const nestedArray = getArrayField(nested, ['items', 'data', 'plans', 'inboundPlans', 'shipments', 'shipmentItems'])
+      if (nestedArray.length) return nestedArray
+    }
+  }
+  return []
+}
+
+function isAddressLike(record: Record<string, unknown>): boolean {
+  const addressKeys = [
+    'AddressLine1',
+    'AddressLine2',
+    'AddressLine3',
+    'City',
+    'StateOrProvinceCode',
+    'PostalCode',
+    'CountryCode',
+    'addressLine1',
+    'addressLine2',
+    'addressLine3',
+    'city',
+    'stateOrProvinceCode',
+    'stateOrProvince',
+    'postalCode',
+    'zipCode',
+    'countryCode',
+    'country',
+  ]
+  return addressKeys.some(key => typeof getRecordValue(record, key) === 'string')
+}
+
+function getRecordField(record: Record<string, unknown> | null | undefined, keys: string[]): Record<string, unknown> | null {
+  if (!record) return null
+  for (const key of keys) {
+    const value = getRecordValue(record, key)
+    const direct = asRecord(value)
+    if (direct) {
+      if (isAddressLike(direct)) return direct
+      const nested = asRecord(getRecordValue(direct, 'address')) || asRecord(getRecordValue(direct, 'Address'))
+      if (nested && isAddressLike(nested)) return nested
+      return direct
+    }
+  }
+  return null
+}
+
+function pickString(
+  records: Array<Record<string, unknown> | null | undefined>,
+  keys: string[]
+): string | undefined {
+  for (const record of records) {
+    const value = getStringField(record, keys)
+    if (value) return value
+  }
+  return undefined
+}
+
+function pickAddress(
+  records: Array<Record<string, unknown> | null | undefined>,
+  keys: string[]
+): Record<string, unknown> | null {
+  for (const record of records) {
+    const value = getRecordField(record, keys)
+    if (value) return value
+  }
+  return null
+}
+
+function extractPaginationToken(record: Record<string, unknown> | null | undefined): string | undefined {
+  if (!record) return undefined
+  const direct = getStringField(record, ['nextToken', 'paginationToken'])
+  if (direct) return direct
+  const pagination = asRecord(getRecordValue(record, 'pagination'))
+  return getStringField(pagination, ['nextToken', 'paginationToken'])
+}
+
+function toRecordArray(values: unknown[]): Record<string, unknown>[] {
+  return values
+    .map((value) => asRecord(value))
+    .filter((value): value is Record<string, unknown> => Boolean(value))
 }
 
 function getAmazonSpApiConfigFromEnv(tenantCode?: TenantCode): AmazonSpApiConfig | null {
@@ -209,21 +404,357 @@ export async function getInventory(tenantCode?: TenantCode) {
   }
 }
 
-export async function getInboundShipments(tenantCode?: TenantCode) {
+export async function getInboundShipments(
+  tenantCode?: TenantCode,
+  options?: { nextToken?: string }
+) {
   try {
     const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const nextToken = options?.nextToken?.trim()
+    const baseQuery = {
+      MarketplaceId: config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID,
+      ShipmentStatusList: ['WORKING', 'SHIPPED', 'RECEIVING', 'CLOSED', 'CANCELLED', 'DELETED'],
+    }
     const response = await callAmazonApi<unknown>(tenantCode, {
       operation: 'getShipments',
-      endpoint: 'fbaInbound',
-      query: {
-        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
-        shipmentStatusList: ['WORKING', 'SHIPPED', 'RECEIVING', 'CLOSED'],
-      },
+      endpoint: 'fulfillmentInbound',
+      query: nextToken ? { ...baseQuery, NextToken: nextToken } : baseQuery,
     })
     return response
   } catch (_error) {
     // console.error('Error fetching inbound shipments:', _error)
     throw _error
+  }
+}
+
+async function safeAmazonCall<T>(call: () => Promise<T>): Promise<T | null> {
+  try {
+    return await call()
+  } catch {
+    return null
+  }
+}
+
+async function findInboundPlanForShipment(
+  shipmentId: string,
+  tenantCode?: TenantCode
+): Promise<AmazonInboundPlanMatch | null> {
+  const maxPages = 3
+  const maxPlans = 40
+  let paginationToken: string | undefined
+  let checked = 0
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const listResponse = await safeAmazonCall(() =>
+      callAmazonApi<Record<string, unknown>>(tenantCode, {
+        operation: 'listInboundPlans',
+        endpoint: 'fulfillmentInbound',
+        options: { version: '2024-03-20' },
+        query: paginationToken ? { paginationToken } : undefined,
+      })
+    )
+
+    const listRecord = asRecord(listResponse)
+    if (!listRecord) return null
+
+    const plans = toRecordArray(getArrayField(listRecord, ['inboundPlans', 'plans', 'items']))
+    for (const plan of plans) {
+      const planId = getStringField(plan, ['inboundPlanId', 'planId', 'id'])
+      if (!planId) continue
+      checked += 1
+      if (checked > maxPlans) return null
+
+      const shipment = await safeAmazonCall(() =>
+        callAmazonApi<Record<string, unknown>>(tenantCode, {
+          operation: 'getShipment',
+          endpoint: 'fulfillmentInbound',
+          options: { version: '2024-03-20' },
+          path: { inboundPlanId: planId, shipmentId },
+        })
+      )
+
+      if (!shipment) continue
+
+      const inboundPlan = await safeAmazonCall(() =>
+        callAmazonApi<Record<string, unknown>>(tenantCode, {
+          operation: 'getInboundPlan',
+          endpoint: 'fulfillmentInbound',
+          options: { version: '2024-03-20' },
+          path: { inboundPlanId: planId },
+        })
+      )
+
+      const itemsResponse = await safeAmazonCall(() =>
+        callAmazonApi<Record<string, unknown>>(tenantCode, {
+          operation: 'listShipmentItems',
+          endpoint: 'fulfillmentInbound',
+          options: { version: '2024-03-20' },
+          path: { inboundPlanId: planId, shipmentId },
+        })
+      )
+
+      const itemsRecord = asRecord(itemsResponse)
+      const items = toRecordArray(getArrayField(itemsRecord, ['items', 'shipmentItems', 'itemData']))
+
+      const placementResponse = await safeAmazonCall(() =>
+        callAmazonApi<unknown>(tenantCode, {
+          operation: 'listPlacementOptions',
+          endpoint: 'fulfillmentInbound',
+          options: { version: '2024-03-20' },
+          path: { inboundPlanId: planId },
+        })
+      )
+
+      const transportationResponse = await safeAmazonCall(() =>
+        callAmazonApi<unknown>(tenantCode, {
+          operation: 'listTransportationOptions',
+          endpoint: 'fulfillmentInbound',
+          options: { version: '2024-03-20' },
+          path: { inboundPlanId: planId },
+        })
+      )
+
+      const placementOptions =
+        asRecord(placementResponse) || (Array.isArray(placementResponse) ? placementResponse : null)
+      const transportationOptions =
+        asRecord(transportationResponse) ||
+        (Array.isArray(transportationResponse) ? transportationResponse : null)
+
+      return {
+        inboundPlanId: planId,
+        inboundPlan: asRecord(inboundPlan) ?? null,
+        shipment: asRecord(shipment) ?? null,
+        items,
+        placementOptions,
+        transportationOptions,
+      }
+    }
+
+    paginationToken = extractPaginationToken(listRecord)
+    if (!paginationToken) return null
+  }
+
+  return null
+}
+
+function normalizeInboundShipmentDetails(params: {
+  shipmentId: string
+  fbaShipment: AmazonInboundShipment | null
+  inboundPlanMatch: AmazonInboundPlanMatch | null
+  awdShipment: Record<string, unknown> | null
+  awdInboundOrder: Record<string, unknown> | null
+}): AmazonInboundShipmentNormalized {
+  const fbaRecord = params.fbaShipment ? (params.fbaShipment as Record<string, unknown>) : null
+  const planShipment = params.inboundPlanMatch?.shipment ?? null
+  const planRecord = params.inboundPlanMatch?.inboundPlan ?? null
+  const awdShipment = params.awdShipment
+  const awdInboundOrder = params.awdInboundOrder
+
+  const shipmentName = pickString(
+    [planShipment, awdShipment, fbaRecord],
+    ['ShipmentName', 'shipmentName', 'name']
+  )
+  const shipmentStatus = pickString(
+    [planShipment, awdShipment, fbaRecord],
+    ['ShipmentStatus', 'shipmentStatus', 'status']
+  )
+  const destinationFulfillmentCenterId = pickString(
+    [planShipment, awdShipment, fbaRecord],
+    [
+      'DestinationFulfillmentCenterId',
+      'destinationFulfillmentCenterId',
+      'fulfillmentCenterId',
+      'destinationWarehouseId',
+      'destinationId',
+    ]
+  )
+  const labelPrepType = pickString(
+    [planShipment, awdShipment, fbaRecord],
+    ['LabelPrepType', 'labelPrepType']
+  )
+  const boxContentsSource = pickString(
+    [planShipment, awdShipment, fbaRecord],
+    ['BoxContentsSource', 'boxContentsSource']
+  )
+  const referenceId = pickString(
+    [planShipment, planRecord, awdShipment, awdInboundOrder, fbaRecord],
+    [
+      'AmazonReferenceId',
+      'amazonReferenceId',
+      'referenceId',
+      'ReferenceId',
+      'referenceNumber',
+      'poNumber',
+      'purchaseOrderId',
+    ]
+  )
+
+  const shipFromAddress = pickAddress(
+    [planShipment, awdShipment, fbaRecord],
+    ['ShipFromAddress', 'shipFromAddress', 'originAddress', 'sourceAddress', 'shipFrom']
+  )
+  const shipToAddress = pickAddress(
+    [planShipment, awdShipment, fbaRecord],
+    ['ShipToAddress', 'shipToAddress', 'destinationAddress', 'destination', 'shipTo']
+  )
+
+  return {
+    shipmentId: params.shipmentId,
+    shipmentName,
+    shipmentStatus,
+    destinationFulfillmentCenterId,
+    labelPrepType,
+    boxContentsSource,
+    referenceId,
+    shipFromAddress,
+    shipToAddress,
+    inboundPlanId: params.inboundPlanMatch?.inboundPlanId,
+    inboundOrderId: pickString(
+      [awdShipment, awdInboundOrder],
+      ['inboundOrderId', 'orderId', 'inboundOrderID']
+    ),
+  }
+}
+
+export async function getInboundShipmentDetails(shipmentId: string, tenantCode?: TenantCode) {
+  const trimmedShipmentId = shipmentId.trim()
+  if (!trimmedShipmentId) {
+    throw new Error('Shipment ID is required')
+  }
+
+  const config = getAmazonSpApiConfigFromEnv(tenantCode)
+  const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
+
+  if (!marketplaceId) {
+    throw new Error('Amazon marketplace ID is not configured')
+  }
+
+  let shipment: AmazonInboundShipment | null = null
+  let items: AmazonInboundShipmentItem[] = []
+  let billOfLadingUrl: string | null = null
+  let fbaError: string | null = null
+
+  const shipmentResponse = await safeAmazonCall(() =>
+    callAmazonApi<AmazonInboundShipmentsResponse>(tenantCode, {
+      operation: 'getShipments',
+      endpoint: 'fulfillmentInbound',
+      query: {
+        QueryType: 'SHIPMENT',
+        ShipmentIdList: [trimmedShipmentId],
+        MarketplaceId: marketplaceId,
+      },
+    })
+  )
+
+  if (shipmentResponse) {
+    const shipmentErrors = extractAmazonErrors(shipmentResponse)
+    if (shipmentErrors.length > 0) {
+      fbaError = shipmentErrors.join(' ')
+    } else {
+      const shipmentPayload = unwrapAmazonPayload(shipmentResponse)
+      const shipmentData = getArrayField(shipmentPayload, [
+        'ShipmentData',
+        'shipments',
+        'shipmentData',
+      ])
+      shipment = (shipmentData[0] as AmazonInboundShipment | undefined) ?? null
+    }
+  }
+
+  if (shipment) {
+    const itemsResponse = await safeAmazonCall(() =>
+      callAmazonApi<AmazonInboundShipmentItemsResponse>(tenantCode, {
+        operation: 'getShipmentItemsByShipmentId',
+        endpoint: 'fulfillmentInbound',
+        path: {
+          shipmentId: trimmedShipmentId,
+        },
+      })
+    )
+
+    if (itemsResponse) {
+      const itemErrors = extractAmazonErrors(itemsResponse)
+      if (itemErrors.length > 0) {
+        fbaError = fbaError ?? itemErrors.join(' ')
+      } else {
+        const itemsPayload = unwrapAmazonPayload(itemsResponse)
+        items = getArrayField(itemsPayload, ['ItemData', 'items', 'shipmentItems'])
+      }
+    }
+
+    const bolResponse = await safeAmazonCall(() =>
+      callAmazonApi<AmazonBillOfLadingResponse>(tenantCode, {
+        operation: 'getBillOfLading',
+        endpoint: 'fulfillmentInbound',
+        path: {
+          shipmentId: trimmedShipmentId,
+        },
+      })
+    )
+    if (bolResponse) {
+      const bolErrors = extractAmazonErrors(bolResponse)
+      if (bolErrors.length === 0) {
+        const bolPayload = unwrapAmazonPayload(bolResponse)
+        billOfLadingUrl = getStringField(bolPayload, ['DownloadURL', 'downloadUrl']) ?? null
+      }
+    }
+  }
+
+  const awdShipmentResponse = await safeAmazonCall(() =>
+    callAmazonApi<Record<string, unknown>>(tenantCode, {
+      operation: 'getInboundShipment',
+      endpoint: 'amazonWarehousingAndDistribution',
+      options: { version: '2024-05-09' },
+      path: { shipmentId: trimmedShipmentId },
+    })
+  )
+
+  const awdShipment = asRecord(awdShipmentResponse)
+  const awdInboundOrderId = getStringField(awdShipment, ['inboundOrderId', 'orderId', 'inboundOrderID'])
+  const awdInboundOrderResponse = awdInboundOrderId
+    ? await safeAmazonCall(() =>
+        callAmazonApi<Record<string, unknown>>(tenantCode, {
+          operation: 'getInbound',
+          endpoint: 'amazonWarehousingAndDistribution',
+          options: { version: '2024-05-09' },
+          path: { orderId: awdInboundOrderId },
+        })
+      )
+    : null
+
+  const awdInboundOrder = asRecord(awdInboundOrderResponse)
+  const inboundPlanMatch = await findInboundPlanForShipment(trimmedShipmentId, tenantCode)
+  const normalized = normalizeInboundShipmentDetails({
+    shipmentId: trimmedShipmentId,
+    fbaShipment: shipment,
+    inboundPlanMatch,
+    awdShipment,
+    awdInboundOrder,
+  })
+
+  if (
+    !shipment &&
+    items.length === 0 &&
+    !awdShipment &&
+    !inboundPlanMatch?.shipment &&
+    !inboundPlanMatch?.inboundPlan
+  ) {
+    throw new Error(fbaError ?? 'Amazon shipment not found')
+  }
+
+  return {
+    shipmentId: trimmedShipmentId,
+    shipment,
+    items,
+    billOfLadingUrl,
+    awdShipment,
+    awdInboundOrder,
+    inboundPlan: inboundPlanMatch?.inboundPlan ?? null,
+    inboundPlanShipment: inboundPlanMatch?.shipment ?? null,
+    inboundPlanItems: inboundPlanMatch?.items ?? [],
+    inboundPlanPlacementOptions: inboundPlanMatch?.placementOptions ?? null,
+    inboundPlanTransportationOptions: inboundPlanMatch?.transportationOptions ?? null,
+    normalized,
   }
 }
 

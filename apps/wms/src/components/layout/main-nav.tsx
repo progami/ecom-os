@@ -115,7 +115,7 @@ export function MainNav() {
  <div className="flex grow flex-col gap-y-3 overflow-y-auto border-r border-slate-200 bg-white px-4 pb-3">
  <div className="flex h-16 shrink-0 items-center justify-between">
  <div className="flex items-center gap-3">
- <Link href="/dashboard" scroll={false} className="flex items-center gap-3">
+ <Link href="/dashboard" scroll={false} prefetch={false} className="flex items-center gap-3">
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-brand-teal-500 shadow-md ">
  <span className="text-lg font-bold text-white">W</span>
  </div>
@@ -199,6 +199,7 @@ export function MainNav() {
  <Link
  href={item.href}
  scroll={false}
+ prefetch={false}
  className={cn(
  matchesPath(item.href)
  ? 'bg-cyan-50 text-cyan-900 '
@@ -270,7 +271,7 @@ export function MainNav() {
  </div>
  <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
  <div className="flex h-16 shrink-0 items-center">
- <Link href="/dashboard" scroll={false} className="flex items-center gap-3">
+ <Link href="/dashboard" scroll={false} prefetch={false} className="flex items-center gap-3">
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-brand-teal-500 shadow-md ">
  <span className="text-lg font-bold text-white">W</span>
  </div>
@@ -300,6 +301,7 @@ export function MainNav() {
  <Link
  href={item.href}
  scroll={false}
+ prefetch={false}
  className={cn(
  matchesPath(item.href)
  ? 'bg-cyan-50 text-cyan-900 '

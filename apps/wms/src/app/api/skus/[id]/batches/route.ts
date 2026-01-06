@@ -3,6 +3,7 @@ import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
+import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
@@ -97,6 +98,8 @@ export const GET = withAuthAndParams(async (_request, params, session) => {
     return ApiResponses.notFound('SKU not found')
   }
 
+  const defaultCartonsPerPallet = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
+
   await prisma.skuBatch.upsert({
     where: {
       skuId_batchCode: {
@@ -105,7 +108,7 @@ export const GET = withAuthAndParams(async (_request, params, session) => {
       },
     },
     create: {
-      skuId,
+      sku: { connect: { id: skuId } },
       batchCode: 'DEFAULT',
       packSize: sku.packSize,
       unitsPerCarton: sku.unitsPerCarton,
@@ -121,6 +124,8 @@ export const GET = withAuthAndParams(async (_request, params, session) => {
       cartonHeightCm: sku.cartonHeightCm,
       cartonWeightKg: sku.cartonWeightKg,
       packagingType: sku.packagingType,
+      storageCartonsPerPallet: defaultCartonsPerPallet,
+      shippingCartonsPerPallet: defaultCartonsPerPallet,
       isActive: true,
     },
     update: {
@@ -166,8 +171,20 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   const payload = parsed.data
 
   const normalizedCode = sanitizeForDisplay(payload.batchCode.toUpperCase())
-  if (normalizedCode === 'DEFAULT') {
-    return ApiResponses.badRequest('DEFAULT batch is created automatically for every SKU')
+  const existingDefault = await prisma.skuBatch.findFirst({
+    where: {
+      skuId,
+      batchCode: { equals: 'DEFAULT', mode: 'insensitive' },
+    },
+    select: { id: true },
+  })
+
+  if (!existingDefault && normalizedCode !== 'DEFAULT') {
+    return ApiResponses.badRequest('DEFAULT batch must be created before adding other batches')
+  }
+
+  if (existingDefault && normalizedCode === 'DEFAULT') {
+    return ApiResponses.badRequest('DEFAULT batch already exists for this SKU')
   }
   const productionDate = payload.productionDate ? new Date(payload.productionDate) : null
   const expiryDate = payload.expiryDate ? new Date(payload.expiryDate) : null
@@ -212,7 +229,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   try {
     const batch = await prisma.skuBatch.create({
       data: {
-        skuId,
+        sku: { connect: { id: skuId } },
         batchCode: normalizedCode,
         description: payload.description ? sanitizeForDisplay(payload.description) : null,
         productionDate,
@@ -231,8 +248,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: payload.cartonWeightKg ?? null,
         packagingType: payload.packagingType ? sanitizeForDisplay(payload.packagingType) : null,
-        storageCartonsPerPallet: payload.storageCartonsPerPallet ?? null,
-        shippingCartonsPerPallet: payload.shippingCartonsPerPallet ?? null,
+        storageCartonsPerPallet: payload.storageCartonsPerPallet,
+        shippingCartonsPerPallet: payload.shippingCartonsPerPallet,
         isActive: true,
       },
     })

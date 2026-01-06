@@ -20,12 +20,17 @@ export function FreightSection({
   hasContent = false,
 }: FreightSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
+  const buttonId = `${id}-toggle`
+  const contentId = `${id}-content`
 
   return (
     <div className="rounded-lg border bg-white overflow-hidden">
       <button
         type="button"
+        id={buttonId}
         onClick={() => setIsOpen(prev => !prev)}
+        aria-expanded={isOpen}
+        aria-controls={contentId}
         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -41,14 +46,14 @@ export function FreightSection({
         )}
       </button>
       <div
+        id={contentId}
+        aria-labelledby={buttonId}
         className={cn(
           'transition-all duration-200 ease-in-out',
           isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
         )}
       >
-        <div className="border-t px-4 py-4">
-          {children}
-        </div>
+        <div className="border-t px-4 py-4">{children}</div>
       </div>
     </div>
   )

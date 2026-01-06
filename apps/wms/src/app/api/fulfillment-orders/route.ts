@@ -14,6 +14,41 @@ export const GET = withAuth(async (_request: NextRequest, _session) => {
   return ApiResponses.success({ data: orders })
 })
 
+const emptyToNull = (value: unknown) => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'string' && value.trim().length === 0) return null
+  return value
+}
+
+const OptionalString = z.preprocess(emptyToNull, z.string().trim().optional().nullable())
+
+const OptionalNumber = z.preprocess(value => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  return value
+}, z.number().nonnegative().optional().nullable())
+
+const OptionalInt = z.preprocess(value => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    return Number.isNaN(parsed) ? value : parsed
+  }
+  return value
+}, z.number().int().nonnegative().optional().nullable())
+
+const OptionalDateString = z.preprocess(emptyToNull, z.string().trim().optional().nullable())
+
 const LineItemSchema = z.object({
   skuCode: z.string().min(1),
   skuDescription: z.string().optional(),
@@ -33,6 +68,39 @@ const CreateFOSchema = z.object({
   shippingMethod: z.string().optional(),
   trackingNumber: z.string().optional(),
   externalReference: z.string().optional(),
+  amazonShipmentId: OptionalString,
+  amazonShipmentName: OptionalString,
+  amazonShipmentStatus: OptionalString,
+  amazonDestinationFulfillmentCenterId: OptionalString,
+  amazonLabelPrepType: OptionalString,
+  amazonBoxContentsSource: OptionalString,
+  amazonShipFromAddress: z.record(z.unknown()).optional().nullable(),
+  amazonReferenceId: OptionalString,
+  amazonShipmentReference: OptionalString,
+  amazonShipperId: OptionalString,
+  amazonPickupNumber: OptionalString,
+  amazonPickupAppointmentId: OptionalString,
+  amazonDeliveryAppointmentId: OptionalString,
+  amazonLoadId: OptionalString,
+  amazonFreightBillNumber: OptionalString,
+  amazonBillOfLadingNumber: OptionalString,
+  amazonPickupWindowStart: OptionalDateString,
+  amazonPickupWindowEnd: OptionalDateString,
+  amazonDeliveryWindowStart: OptionalDateString,
+  amazonDeliveryWindowEnd: OptionalDateString,
+  amazonPickupAddress: OptionalString,
+  amazonPickupContactName: OptionalString,
+  amazonPickupContactPhone: OptionalString,
+  amazonDeliveryAddress: OptionalString,
+  amazonShipmentMode: OptionalString,
+  amazonBoxCount: OptionalInt,
+  amazonPalletCount: OptionalInt,
+  amazonCommodityDescription: OptionalString,
+  amazonDistanceMiles: OptionalNumber,
+  amazonBasePrice: OptionalNumber,
+  amazonFuelSurcharge: OptionalNumber,
+  amazonTotalPrice: OptionalNumber,
+  amazonCurrency: OptionalString,
   notes: z.string().optional(),
   lines: z.array(LineItemSchema).min(1, 'At least one line item is required'),
 })
@@ -72,6 +140,39 @@ export const POST = withAuth(async (request: NextRequest, session) => {
     shippingMethod: result.data.shippingMethod,
     trackingNumber: result.data.trackingNumber,
     externalReference: result.data.externalReference,
+    amazonShipmentId: result.data.amazonShipmentId,
+    amazonShipmentName: result.data.amazonShipmentName,
+    amazonShipmentStatus: result.data.amazonShipmentStatus,
+    amazonDestinationFulfillmentCenterId: result.data.amazonDestinationFulfillmentCenterId,
+    amazonLabelPrepType: result.data.amazonLabelPrepType,
+    amazonBoxContentsSource: result.data.amazonBoxContentsSource,
+    amazonShipFromAddress: result.data.amazonShipFromAddress ?? undefined,
+    amazonReferenceId: result.data.amazonReferenceId,
+    amazonShipmentReference: result.data.amazonShipmentReference,
+    amazonShipperId: result.data.amazonShipperId,
+    amazonPickupNumber: result.data.amazonPickupNumber,
+    amazonPickupAppointmentId: result.data.amazonPickupAppointmentId,
+    amazonDeliveryAppointmentId: result.data.amazonDeliveryAppointmentId,
+    amazonLoadId: result.data.amazonLoadId,
+    amazonFreightBillNumber: result.data.amazonFreightBillNumber,
+    amazonBillOfLadingNumber: result.data.amazonBillOfLadingNumber,
+    amazonPickupWindowStart: result.data.amazonPickupWindowStart,
+    amazonPickupWindowEnd: result.data.amazonPickupWindowEnd,
+    amazonDeliveryWindowStart: result.data.amazonDeliveryWindowStart,
+    amazonDeliveryWindowEnd: result.data.amazonDeliveryWindowEnd,
+    amazonPickupAddress: result.data.amazonPickupAddress,
+    amazonPickupContactName: result.data.amazonPickupContactName,
+    amazonPickupContactPhone: result.data.amazonPickupContactPhone,
+    amazonDeliveryAddress: result.data.amazonDeliveryAddress,
+    amazonShipmentMode: result.data.amazonShipmentMode,
+    amazonBoxCount: result.data.amazonBoxCount,
+    amazonPalletCount: result.data.amazonPalletCount,
+    amazonCommodityDescription: result.data.amazonCommodityDescription,
+    amazonDistanceMiles: result.data.amazonDistanceMiles,
+    amazonBasePrice: result.data.amazonBasePrice,
+    amazonFuelSurcharge: result.data.amazonFuelSurcharge,
+    amazonTotalPrice: result.data.amazonTotalPrice,
+    amazonCurrency: result.data.amazonCurrency,
     notes: result.data.notes,
     lines: result.data.lines.map((line) => ({
       skuCode: line.skuCode,
@@ -89,4 +190,3 @@ export const POST = withAuth(async (request: NextRequest, session) => {
     return ApiResponses.handleError(error)
   }
 })
-
