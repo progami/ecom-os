@@ -452,18 +452,18 @@ type SheetPageProps = {
 async function safeFindMany<T>(
   delegate: { findMany: (args?: unknown) => Promise<T> } | undefined,
   args: unknown,
-  fallback: T,
+  _fallback: T,
   label: string,
 ): Promise<T> {
-  if (!delegate) {
-    console.warn(`[x-plan] Prisma delegate for ${label} unavailable; using fallback`);
-    return fallback;
-  }
   try {
+    if (!delegate) {
+      throw new Error(`[x-plan] Prisma delegate for ${label} unavailable`);
+    }
+
     return await delegate.findMany(args);
   } catch (error) {
-    console.warn(`[x-plan] Prisma query for ${label} failed; using fallback`, error);
-    return fallback;
+    console.error(`[x-plan] Prisma query for ${label} failed`, error);
+    throw error;
   }
 }
 
@@ -1212,22 +1212,8 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     },
   );
 
-  const profitOverrides = mapProfitAndLossWeeks(
-    profitOverrideRows.filter(
-      (row) =>
-        row.updatedAt != null &&
-        row.createdAt != null &&
-        row.updatedAt.getTime() > row.createdAt.getTime(),
-    ),
-  );
-  const cashOverrides = mapCashFlowWeeks(
-    cashOverrideRows.filter(
-      (row) =>
-        row.updatedAt != null &&
-        row.createdAt != null &&
-        row.updatedAt.getTime() > row.createdAt.getTime(),
-    ),
-  );
+  const profitOverrides = mapProfitAndLossWeeks(profitOverrideRows);
+  const cashOverrides = mapCashFlowWeeks(cashOverrideRows);
   const profit = computeProfitAndLoss(
     salesPlan,
     operations.productIndex,
@@ -2039,13 +2025,15 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     redirect(`/${routeParams.sheet}?${nextParams.toString()}`);
   }
 
-  const strategyId = resolvedStrategyId ?? 'default-strategy';
+  const strategyId = resolvedStrategyId;
 
   const prismaAnyLocal = prisma as unknown as Record<string, any>;
-  const strategyRegionRow = await prismaAnyLocal.strategy?.findUnique?.({
-    where: { id: strategyId },
-    select: { region: true },
-  });
+  const strategyRegionRow = strategyId
+    ? await prismaAnyLocal.strategy?.findUnique?.({
+        where: { id: strategyId },
+        select: { region: true },
+      })
+    : null;
   const strategyRegion: StrategyRegion = strategyRegionRow?.region === 'UK' ? 'UK' : 'US';
   const weekStartsOn = weekStartsOnForRegion(strategyRegion);
 
@@ -2077,7 +2065,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   let tabularContent: React.ReactNode = null;
   let visualContent: React.ReactNode = null;
 
-  const getFinancialData = () => loadFinancialData(planningCalendar, strategyId);
+  const requireStrategyId = () => {
+    if (!strategyId) {
+      throw new Error('StrategyRequired');
+    }
+    return strategyId;
+  };
+
+  const getFinancialData = () => loadFinancialData(planningCalendar, requireStrategyId());
   const weeklyLabelControl = (label: string) => (
     <div key="weekly-label" className={SHEET_TOOLBAR_GROUP}>
       <span className={SHEET_TOOLBAR_LABEL}>{label}</span>
@@ -2199,10 +2194,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break;
     }
     case '1-product-setup': {
-      const view = await getProductSetupView(strategyId);
+      const activeStrategyId = requireStrategyId();
+      const view = await getProductSetupView(activeStrategyId);
       tabularContent = (
         <ProductSetupWorkspace
-          strategyId={strategyId}
+          strategyId={activeStrategyId}
           products={view.products}
           operationsParameters={view.operationsParameters}
           salesParameters={view.salesParameters}
@@ -2214,10 +2210,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break;
     }
     case '2-ops-planning': {
-      const view = await getOpsPlanningView(strategyId, planningCalendar, activeSegment);
+      const activeStrategyId = requireStrategyId();
+      const view = await getOpsPlanningView(activeStrategyId, planningCalendar, activeSegment);
       tabularContent = (
         <OpsPlanningWorkspace
-          strategyId={strategyId}
+          strategyId={activeStrategyId}
           activeYear={activeYear}
           planningWeekConfig={planningWeekConfig}
           poTableRows={view.poTableRows}
@@ -2232,7 +2229,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       visualContent = (
         <OpsPlanningWorkspace
-          strategyId={strategyId}
+          strategyId={activeStrategyId}
           activeYear={activeYear}
           planningWeekConfig={planningWeekConfig}
           poTableRows={view.poTableRows}
@@ -2248,6 +2245,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break;
     }
     case '3-sales-planning': {
+      const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
           <VisualPlaceholder
@@ -2266,7 +2264,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>;
       tabularContent = (
         <SalesPlanningGrid
-          strategyId={strategyId}
+          strategyId={activeStrategyId}
           rows={view.rows}
           hiddenRowIndices={view.hiddenRowIndices}
           columnMeta={view.columnMeta}
@@ -2290,6 +2288,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break;
     }
     case '4-fin-planning-pl': {
+      const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
           <VisualPlaceholder
@@ -2302,7 +2301,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
-      tabularContent = <ProfitAndLossGrid strategyId={strategyId} weekly={view.weekly} />;
+      tabularContent = <ProfitAndLossGrid strategyId={activeStrategyId} weekly={view.weekly} />;
 
       const segmentStart = activeSegment?.startWeekNumber ?? null;
       const pnlWeeklyBase = data.profit.weekly
@@ -2357,6 +2356,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break;
     }
     case '5-fin-planning-cash-flow': {
+      const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
           <VisualPlaceholder
@@ -2369,7 +2369,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getCashFlowView(data, activeSegment, activeYear);
-      tabularContent = <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />;
+      tabularContent = <CashFlowGrid strategyId={activeStrategyId} weekly={view.weekly} />;
 
       const cashSegmentStart = activeSegment?.startWeekNumber ?? null;
       const cashWeeklyBase = data.cash.weekly
