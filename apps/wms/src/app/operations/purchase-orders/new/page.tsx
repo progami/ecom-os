@@ -107,9 +107,7 @@ export default function NewPurchaseOrderPage() {
         if (suppliersRes.ok) {
           const suppliersData = await suppliersRes.json()
           const suppliersList = suppliersData?.data || suppliersData || []
-          setSuppliers(
-            Array.isArray(suppliersList) ? suppliersList : []
-          )
+          setSuppliers(Array.isArray(suppliersList) ? suppliersList : [])
         }
 
         if (skusRes.ok) {
@@ -162,7 +160,11 @@ export default function NewPurchaseOrderPage() {
       const payload = await response.json().catch(() => null)
       const batches = Array.isArray(payload?.batches) ? payload.batches : []
       const batchCodes: string[] = batches
-        .map((batch: { batchCode?: unknown }) => String(batch?.batchCode ?? '').trim().toUpperCase())
+        .map((batch: { batchCode?: unknown }) =>
+          String(batch?.batchCode ?? '')
+            .trim()
+            .toUpperCase()
+        )
         .filter((batchCode): batchCode is string => Boolean(batchCode))
 
       const unique: string[] = Array.from(new Set(batchCodes))
@@ -245,7 +247,9 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    const invalidLines = lineItems.filter(item => !item.skuCode || !item.batchLot || item.quantity <= 0)
+    const invalidLines = lineItems.filter(
+      item => !item.skuCode || !item.batchLot || item.quantity <= 0
+    )
     if (invalidLines.length > 0) {
       toast.error('Please fill in SKU, batch/lot, and quantity for all line items')
       return
@@ -373,142 +377,151 @@ export default function NewPurchaseOrderPage() {
 
           {/* Line Items Section */}
           <div className="px-6 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium">Line Items</h2>
-              <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Item
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {/* Table Header */}
-              <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
-                <div className="col-span-3">SKU</div>
-                <div className="col-span-2">Batch/Lot</div>
-                <div className="col-span-3">Description</div>
-                <div className="col-span-1">Qty</div>
-                <div className="col-span-2">Actual Cost</div>
-                <div className="col-span-2">Notes</div>
-                <div className="col-span-1"></div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold">Line Items</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Add products to this purchase order
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Item
+                </Button>
               </div>
 
-              {/* Line Items */}
-              {lineItems.map(item => (
-                <div key={item.id} className="grid grid-cols-14 gap-2 items-center">
-                  <div className="col-span-3">
-                    <select
-                      value={item.skuCode}
-                      onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
-                      className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      required
-                    >
-                      <option value="">Select SKU</option>
-                      {skus.map(sku => (
-                        <option key={sku.id} value={sku.skuCode}>
-                          {sku.skuCode}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-span-2">
-                    <select
-                      value={item.batchLot}
-                      onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
-                      className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      required
-                      disabled={!item.skuId}
-                    >
-                      {item.skuId ? (
-                        batchesLoadingBySkuId[item.skuId] ? (
-                          <option value={item.batchLot || 'DEFAULT'}>Loading…</option>
-                        ) : (
-                          (batchesBySkuId[item.skuId] ?? ['DEFAULT']).map(batchCode => (
-                            <option key={batchCode} value={batchCode}>
-                              {batchCode}
-                            </option>
-                          ))
-                        )
-                      ) : (
-                        <option value="DEFAULT">DEFAULT</option>
-                      )}
-                    </select>
-                  </div>
-                  <div className="col-span-3">
-                    <Input
-                      value={item.skuDescription}
-                      onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
-                      placeholder="Description"
-                      className="text-sm h-8"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={e =>
-                        updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)
-                      }
-                      className="text-sm h-8"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <div className="flex gap-1">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={item.actualCost}
-                        onChange={e => updateLineItem(item.id, 'actualCost', e.target.value)}
-                        placeholder="0.00"
-                        className="text-sm h-8 flex-1"
-                      />
-                      <select
-                        value={item.currency}
-                        onChange={e => updateLineItem(item.id, 'currency', e.target.value)}
-                        className="w-16 px-1 py-1 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      >
-                        {CURRENCIES.map(curr => (
-                          <option key={curr} value={curr}>
-                            {curr}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Unit:{' '}
-                      {(() => {
-                        const money = parseMoney(item.actualCost)
-                        if (money === null) return '—'
-                        const unit = calculateUnitCost(money, item.quantity, 2)
-                        return `${unit.toFixed(2)} ${item.currency}`
-                      })()}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <Input
-                      value={item.notes}
-                      onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
-                      placeholder="Notes"
-                      className="text-sm h-8"
-                    />
-                  </div>
-                  <div className="col-span-1 flex justify-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeLineItem(item.id)}
-                      disabled={lineItems.length === 1}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+              <div className="rounded-lg border bg-white">
+                {/* Table Header */}
+                <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground p-3 border-b bg-slate-50/50">
+                  <div className="col-span-3">SKU</div>
+                  <div className="col-span-2">Batch/Lot</div>
+                  <div className="col-span-3">Description</div>
+                  <div className="col-span-1">Qty</div>
+                  <div className="col-span-2">Actual Cost</div>
+                  <div className="col-span-2">Notes</div>
+                  <div className="col-span-1"></div>
                 </div>
-              ))}
+
+                {/* Line Items */}
+                <div className="divide-y">
+                  {lineItems.map(item => (
+                    <div key={item.id} className="grid grid-cols-14 gap-2 items-start p-3">
+                      <div className="col-span-3">
+                        <select
+                          value={item.skuCode}
+                          onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
+                          className="w-full h-8 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                          required
+                        >
+                          <option value="">Select SKU</option>
+                          {skus.map(sku => (
+                            <option key={sku.id} value={sku.skuCode}>
+                              {sku.skuCode}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <select
+                          value={item.batchLot}
+                          onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
+                          className="w-full h-8 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                          required
+                          disabled={!item.skuId}
+                        >
+                          {item.skuId ? (
+                            batchesLoadingBySkuId[item.skuId] ? (
+                              <option value={item.batchLot || 'DEFAULT'}>Loading…</option>
+                            ) : (
+                              (batchesBySkuId[item.skuId] ?? ['DEFAULT']).map(batchCode => (
+                                <option key={batchCode} value={batchCode}>
+                                  {batchCode}
+                                </option>
+                              ))
+                            )
+                          ) : (
+                            <option value="DEFAULT">DEFAULT</option>
+                          )}
+                        </select>
+                      </div>
+                      <div className="col-span-3">
+                        <Input
+                          value={item.skuDescription}
+                          onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
+                          placeholder="Description"
+                          className="text-sm h-8"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={e =>
+                            updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)
+                          }
+                          className="text-sm h-8"
+                          required
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <div className="flex gap-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.actualCost}
+                            onChange={e => updateLineItem(item.id, 'actualCost', e.target.value)}
+                            placeholder="0.00"
+                            className="text-sm h-8 flex-1"
+                          />
+                          <select
+                            value={item.currency}
+                            onChange={e => updateLineItem(item.id, 'currency', e.target.value)}
+                            className="h-8 w-20 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                          >
+                            {CURRENCIES.map(curr => (
+                              <option key={curr} value={curr}>
+                                {curr}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground leading-none">
+                          Unit:{' '}
+                          {(() => {
+                            const money = parseMoney(item.actualCost)
+                            if (money === null) return '—'
+                            const unit = calculateUnitCost(money, item.quantity, 2)
+                            return `${unit.toFixed(2)} ${item.currency}`
+                          })()}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <Input
+                          value={item.notes}
+                          onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
+                          placeholder="Notes"
+                          className="text-sm h-8"
+                        />
+                      </div>
+                      <div className="col-span-1 flex justify-end self-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeLineItem(item.id)}
+                          disabled={lineItems.length === 1}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
