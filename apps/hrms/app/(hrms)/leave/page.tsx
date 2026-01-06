@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
 import {
   DashboardApi,
@@ -25,7 +25,6 @@ import { Avatar } from '@/components/ui/avatar'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
-import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 
 const LEAVE_TYPE_OPTIONS: FilterOption[] = [
   { value: 'PTO', label: 'PTO' },
@@ -90,53 +89,7 @@ type LeaveItem = {
   isOwn: boolean
 }
 
-function RequestLeavePanel({
-  isOpen,
-  onClose,
-  employeeId,
-  onSuccess,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  employeeId: string
-  onSuccess: () => void
-}) {
-  if (!isOpen) return null
-
-  return (
-    <div className="relative z-50">
-      <div
-        className="fixed inset-0 bg-foreground/50 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-md">
-          <div className="flex h-full flex-col bg-card shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Request Leave</h2>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <XIcon className="h-5 w-5" />
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-              <LeaveRequestForm
-                employeeId={employeeId}
-                onSuccess={() => {
-                  onSuccess()
-                  onClose()
-                }}
-                onCancel={onClose}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function LeavePageContent() {
-  const searchParams = useSearchParams()
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -144,17 +97,9 @@ function LeavePageContent() {
 
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([])
   const [leaveLoading, setLeaveLoading] = useState(true)
-  const [showLeavePanel, setShowLeavePanel] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [processingId, setProcessingId] = useState<string | null>(null)
   const currentEmployeeId = data?.currentEmployee?.id
-
-  useEffect(() => {
-    if (searchParams.get('request') === 'true') {
-      setShowLeavePanel(true)
-      router.replace('/leave', { scroll: false })
-    }
-  }, [searchParams, router])
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -189,13 +134,6 @@ function LeavePageContent() {
     }
     loadLeave()
   }, [currentEmployeeId])
-
-  const handleLeaveRequestSuccess = useCallback(async () => {
-    if (!currentEmployeeId) return
-    const requestsData = await LeavesApi.list({ employeeId: currentEmployeeId })
-    setMyRequests(requestsData.items)
-    await fetchDashboardData()
-  }, [currentEmployeeId, fetchDashboardData])
 
   const handleCancelLeave = useCallback(async (requestId: string) => {
     if (!currentEmployeeId) return
@@ -519,19 +457,12 @@ function LeavePageContent() {
         icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         action={
           <Button
-            onClick={() => setShowLeavePanel(true)}
+            href="/leave/request"
             icon={<PlusIcon className="h-4 w-4" />}
           >
             Request Leave
           </Button>
         }
-      />
-
-      <RequestLeavePanel
-        isOpen={showLeavePanel}
-        onClose={() => setShowLeavePanel(false)}
-        employeeId={currentEmployee.id}
-        onSuccess={handleLeaveRequestSuccess}
       />
 
       <div className="space-y-4">
