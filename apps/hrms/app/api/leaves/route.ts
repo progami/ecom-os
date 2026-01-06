@@ -194,7 +194,15 @@ export async function POST(req: Request) {
     const overlapping = await prisma.leaveRequest.findFirst({
       where: {
         employeeId,
-        status: { in: ['PENDING', 'APPROVED'] },
+        status: {
+          in: [
+            'PENDING',
+            'PENDING_MANAGER',
+            'PENDING_HR',
+            'PENDING_SUPER_ADMIN',
+            'APPROVED',
+          ],
+        },
         AND: [
           { startDate: { lte: end } },
           { endDate: { gte: start } },
