@@ -2121,12 +2121,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           }
           markStrategyAssignmentFieldsUnavailable();
           strategiesData = await prismaAnyLocal.strategy.findMany({
+            where: buildStrategyAccessWhere(actor),
             orderBy,
             select: legacyStrategySelect,
           });
         }
       } else {
         strategiesData = await prismaAnyLocal.strategy.findMany({
+          where: buildStrategyAccessWhere(actor),
           orderBy,
           select: legacyStrategySelect,
         });
@@ -2282,7 +2284,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
-      controls.push(weeklyLabelControl('Weekly P&L'));
       tabularContent = <ProfitAndLossGrid strategyId={strategyId} weekly={view.weekly} />;
 
       const segmentStart = activeSegment?.startWeekNumber ?? null;
@@ -2350,7 +2351,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getCashFlowView(data, activeSegment, activeYear);
-      controls.push(weeklyLabelControl('Weekly Cash Flow'));
       tabularContent = <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />;
 
       const cashSegmentStart = activeSegment?.startWeekNumber ?? null;
