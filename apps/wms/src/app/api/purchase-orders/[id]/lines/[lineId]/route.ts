@@ -3,6 +3,7 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma, getCurrentTenant } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
+import { auditLog } from '@/lib/security/audit-logger'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
@@ -236,6 +237,50 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     throw error
   }
 
+  const before = {
+    lineId: line.id,
+    skuCode: line.skuCode,
+    skuDescription: line.skuDescription ?? null,
+    batchLot: line.batchLot ?? null,
+    quantity: line.quantity,
+    unitCost: line.unitCost ? Number(line.unitCost) : null,
+    currency: line.currency ?? null,
+    notes: line.lineNotes ?? null,
+    quantityReceived: line.quantityReceived ?? null,
+  }
+  const after = {
+    lineId: updated.id,
+    skuCode: updated.skuCode,
+    skuDescription: updated.skuDescription ?? null,
+    batchLot: updated.batchLot ?? null,
+    quantity: updated.quantity,
+    unitCost: updated.unitCost ? Number(updated.unitCost) : null,
+    currency: updated.currency ?? null,
+    notes: updated.lineNotes ?? null,
+    quantityReceived: updated.quantityReceived ?? null,
+  }
+
+  const auditOldValue: Record<string, unknown> = { lineId: line.id }
+  const auditNewValue: Record<string, unknown> = { lineId: line.id }
+
+  for (const key of Object.keys(after) as Array<keyof typeof after>) {
+    if (key === 'lineId') continue
+    if (before[key] === after[key]) continue
+    auditOldValue[key] = before[key]
+    auditNewValue[key] = after[key]
+  }
+
+  if (Object.keys(auditNewValue).length > 1) {
+    await auditLog({
+      entityType: 'PurchaseOrder',
+      entityId: id,
+      action: 'LINE_UPDATE',
+      userId: _session.user.id,
+      oldValue: auditOldValue,
+      newValue: auditNewValue,
+    })
+  }
+
   return ApiResponses.success({
     id: updated.id,
     skuCode: updated.skuCode,
@@ -291,6 +336,24 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
 
   await prisma.purchaseOrderLine.delete({
     where: { id: lineId },
+  })
+
+  await auditLog({
+    entityType: 'PurchaseOrder',
+    entityId: id,
+    action: 'LINE_DELETE',
+    userId: _session.user.id,
+    oldValue: {
+      lineId: line.id,
+      skuCode: line.skuCode,
+      skuDescription: line.skuDescription ?? null,
+      batchLot: line.batchLot ?? null,
+      quantity: line.quantity,
+      unitCost: line.unitCost ? Number(line.unitCost) : null,
+      currency: line.currency ?? null,
+      notes: line.lineNotes ?? null,
+    },
+    newValue: { lineId: line.id, deleted: true },
   })
 
   return ApiResponses.success({ deleted: true })

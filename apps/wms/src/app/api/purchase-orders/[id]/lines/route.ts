@@ -3,6 +3,7 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma, getCurrentTenant } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
+import { auditLog } from '@/lib/security/audit-logger'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
@@ -190,6 +191,22 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     }
     throw error
   }
+
+  await auditLog({
+    entityType: 'PurchaseOrder',
+    entityId: id,
+    action: 'LINE_ADD',
+    userId: _session.user.id,
+    newValue: {
+      lineId: line.id,
+      skuCode: line.skuCode,
+      batchLot: line.batchLot,
+      quantity: line.quantity,
+      unitCost: line.unitCost ? Number(line.unitCost) : null,
+      currency: line.currency,
+      notes: line.lineNotes ?? null,
+    },
+  })
 
   return ApiResponses.success({
     id: line.id,

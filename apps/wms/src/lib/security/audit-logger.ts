@@ -7,6 +7,11 @@ export interface AuditLogEntry {
  entityId: string
  action: string
  userId: string
+ oldValue?: unknown
+ newValue?: unknown
+ /**
+  * @deprecated Use `newValue` / `oldValue` instead.
+  */
  data?: unknown
  ipAddress?: string
  userAgent?: string
@@ -19,8 +24,14 @@ export async function auditLog(entry: AuditLogEntry) {
  try {
  const prisma = await getTenantPrisma()
  // Sanitize data before storing
- const sanitizedData: Prisma.JsonValue =
- entry.data === undefined ? null : sanitizeAuditData(entry.data)
+ const sanitizedOldValue: Prisma.JsonValue =
+ entry.oldValue === undefined ? null : sanitizeAuditData(entry.oldValue)
+ const sanitizedNewValue: Prisma.JsonValue =
+ entry.newValue === undefined
+ ? entry.data === undefined
+ ? null
+ : sanitizeAuditData(entry.data)
+ : sanitizeAuditData(entry.newValue)
 
  await prisma.auditLog.create({
  data: {
@@ -28,7 +39,8 @@ export async function auditLog(entry: AuditLogEntry) {
  entityId: entry.entityId,
  action: entry.action,
  userId: entry.userId,
- newValue: sanitizedData,
+ oldValue: sanitizedOldValue,
+ newValue: sanitizedNewValue,
  }
  })
  } catch (_error) {

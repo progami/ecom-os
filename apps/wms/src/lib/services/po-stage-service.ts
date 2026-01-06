@@ -105,6 +105,16 @@ type SerializedStageData = {
   [K in keyof StageData]: SerializedStageSection<StageData[K]>
 }
 
+function normalizeAuditValue(value: unknown): unknown {
+  if (value === null || value === undefined) return null
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'object') {
+    const numeric = Number(value as never)
+    if (Number.isFinite(numeric)) return numeric
+  }
+  return value
+}
+
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
   DRAFT: [PurchaseOrderStatus.ISSUED, PurchaseOrderStatus.CANCELLED],
@@ -852,7 +862,8 @@ export async function transitionPurchaseOrderStage(
       action: 'STATUS_TRANSITION',
       entityType: 'PurchaseOrder',
       entityId: orderId,
-      data: { fromStatus: currentStatus, toStatus: targetStatus, approvedBy: user.name },
+      oldValue: { status: currentStatus },
+      newValue: { status: targetStatus, fromStatus: currentStatus, toStatus: targetStatus, approvedBy: user.name },
     })
 
     await recalculateStorageLedgerForTransactions(
@@ -1394,12 +1405,30 @@ export async function transitionPurchaseOrderStage(
   })
 
   // Audit log the transition
+  const auditOldValue: Record<string, unknown> = { status: currentStatus }
+  const auditNewValue: Record<string, unknown> = {
+    status: targetStatus,
+    fromStatus: currentStatus,
+    toStatus: targetStatus,
+    approvedBy: user.name,
+  }
+
+  for (const key of Object.keys(stageData ?? {})) {
+    if (key === 'targetStatus') continue
+    const before = normalizeAuditValue((order as Record<string, unknown>)[key])
+    const after = normalizeAuditValue((updatedOrder as Record<string, unknown>)[key])
+    if (before === after) continue
+    auditOldValue[key] = before
+    auditNewValue[key] = after
+  }
+
   await auditLog({
     userId: user.id,
     action: 'STATUS_TRANSITION',
     entityType: 'PurchaseOrder',
     entityId: orderId,
-    data: { fromStatus: currentStatus, toStatus: targetStatus, approvedBy: user.name },
+    oldValue: auditOldValue,
+    newValue: auditNewValue,
   })
 
   await Promise.all(
