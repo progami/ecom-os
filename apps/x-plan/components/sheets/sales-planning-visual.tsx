@@ -126,13 +126,21 @@ export function SalesPlanningVisual({
   // Calculate Y-axis bounds and zero offset for split gradients (red below 0)
   const yAxisBounds = useMemo(() => {
     const allValues = stockDataPoints.map((p) => p.stockEnd).filter(Number.isFinite);
-    if (allValues.length === 0) return { min: 0, max: 0, zeroOffset: 0.5 };
-    const min = Math.min(...allValues);
-    const max = Math.max(...allValues);
+    if (allValues.length === 0) return { min: 0, max: 0, zeroOffset: 0.5, hasNegative: false, allNegative: false };
+    const dataMin = Math.min(...allValues);
+    const dataMax = Math.max(...allValues);
+
+    // Extend Y-axis to include 0 for context when data is all negative or all positive
+    const min = Math.min(dataMin, 0);
+    const max = Math.max(dataMax, 0);
     const range = max - min;
+
     // zeroOffset is where 0 falls as a percentage from top (max) to bottom (min)
     const zeroOffset = range > 0 ? max / range : 0.5;
-    return { min, max, zeroOffset: Math.max(0, Math.min(1, zeroOffset)) };
+    const hasNegative = dataMin < 0;
+    const allNegative = dataMax <= 0;
+
+    return { min, max, zeroOffset: Math.max(0, Math.min(1, zeroOffset)), hasNegative, allNegative };
   }, [stockDataPoints]);
 
   if (productOptions.length === 0) {
@@ -170,7 +178,14 @@ export function SalesPlanningVisual({
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
                 <defs>
                   <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
-                    {yAxisBounds.min < 0 ? (
+                    {yAxisBounds.allNegative ? (
+                      // All values negative: solid red gradient
+                      <>
+                        <stop offset="0%" stopColor="#dc2626" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
+                      </>
+                    ) : yAxisBounds.hasNegative ? (
+                      // Mixed values: split gradient at zero
                       <>
                         <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
                         <stop
@@ -186,6 +201,7 @@ export function SalesPlanningVisual({
                         <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
                       </>
                     ) : (
+                      // All values positive: normal gradient
                       <>
                         <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
                         <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
@@ -217,9 +233,10 @@ export function SalesPlanningVisual({
                   axisLine={false}
                   tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) =>
-                    value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()
+                    Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()
                   }
                   width={60}
+                  domain={[yAxisBounds.min, yAxisBounds.max]}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
@@ -266,7 +283,7 @@ export function SalesPlanningVisual({
                     );
                   })}
                 {/* Zero reference line when stock goes negative */}
-                {yAxisBounds.min < 0 && (
+                {yAxisBounds.hasNegative && (
                   <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                 )}
                 {showStockLine && (
