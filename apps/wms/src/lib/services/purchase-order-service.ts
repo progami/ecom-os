@@ -118,7 +118,7 @@ export async function updatePurchaseOrderDetails(
     } else {
       const parsed = new Date(input.expectedDate)
       if (Number.isNaN(parsed.getTime())) {
-        throw new ValidationError('Invalid expected date value')
+        throw new ValidationError('Invalid cargo ready date value')
       }
       expectedDate = parsed
     }
