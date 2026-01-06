@@ -8,4 +8,3 @@ export async function readClipboardText(): Promise<string | null> {
     return null;
   }
 }
-

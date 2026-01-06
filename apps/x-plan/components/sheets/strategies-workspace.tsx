@@ -420,7 +420,7 @@ export function StrategiesWorkspace({
                         type="button"
                         onClick={() => void handleCreate()}
                         disabled={isCreating}
-                        className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+                        className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-200 dark:hover:bg-emerald-900/20"
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -609,7 +609,7 @@ export function StrategiesWorkspace({
                               <button
                                 type="button"
                                 onClick={() => void handleUpdate(strategy.id)}
-                                className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-900/20"
+                                className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 dark:text-emerald-200 dark:hover:bg-emerald-900/20"
                               >
                                 <Check className="h-4 w-4" />
                               </button>
