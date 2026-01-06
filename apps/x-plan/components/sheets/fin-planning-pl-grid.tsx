@@ -163,7 +163,6 @@ function computeSelectionStats(
 
 export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps) {
   const columnHelper = useMemo(() => createColumnHelper<WeeklyRow>(), [])
-  const SECTION_TITLE = 'Weekly P&L'
 
   const [data, setData] = useState<WeeklyRow[]>(() => weekly.map((row) => ({ ...row })))
   useEffect(() => {
@@ -614,12 +613,6 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
   return (
     <section className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
-          {SECTION_TITLE}
-        </h2>
-      </div>
-
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}

@@ -12,6 +12,7 @@ import { SalesPlanningVisual } from '@/components/sheets/sales-planning-visual';
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid';
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid';
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle';
+import { SHEET_TOOLBAR_GROUP, SHEET_TOOLBAR_LABEL } from '@/components/sheet-toolbar';
 import {
   FinancialTrendsSection,
   type FinancialMetricDefinition,
@@ -2058,6 +2059,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   let visualContent: React.ReactNode = null;
 
   const getFinancialData = () => loadFinancialData(planningCalendar, strategyId);
+  const weeklyLabelControl = (label: string) => (
+    <div key="weekly-label" className={SHEET_TOOLBAR_GROUP}>
+      <span className={SHEET_TOOLBAR_LABEL}>{label}</span>
+    </div>
+  );
 
   switch (config.slug) {
     case '0-strategies': {
@@ -2236,6 +2242,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
+      controls.push(weeklyLabelControl('Weekly Sales Planning'));
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>;
       tabularContent = (
         <SalesPlanningGrid
@@ -2275,6 +2282,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
+      controls.push(weeklyLabelControl('Weekly P&L'));
       tabularContent = <ProfitAndLossGrid strategyId={strategyId} weekly={view.weekly} />;
 
       const segmentStart = activeSegment?.startWeekNumber ?? null;
@@ -2342,6 +2350,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getCashFlowView(data, activeSegment, activeYear);
+      controls.push(weeklyLabelControl('Weekly Cash Flow'));
       tabularContent = <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />;
 
       const cashSegmentStart = activeSegment?.startWeekNumber ?? null;
