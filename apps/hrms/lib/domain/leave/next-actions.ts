@@ -23,7 +23,8 @@ export type LeaveViewerContext = {
 export function buildLeaveNextActions(leave: LeaveWorkflowRecordInput, viewer: LeaveViewerContext): WorkflowRecordDTO['actions'] {
   const isOwner = leave.employeeId === viewer.employeeId
   const isManager = leave.employee.reportsToId === viewer.employeeId
-  const isPending = leave.status === 'PENDING'
+  const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
+  const isPending = pendingStatuses.includes(leave.status)
 
   const actions: WorkflowRecordDTO['actions'] = { primary: null, secondary: [], more: [] }
 
@@ -39,20 +40,54 @@ export function buildLeaveNextActions(leave: LeaveWorkflowRecordInput, viewer: L
     return actions
   }
 
-  if (viewer.isHR || viewer.isSuperAdmin || isManager) {
-    actions.primary = { id: 'leave.approve', label: 'Approve', variant: 'primary', disabled: false }
+  const canApproveReject = (() => {
+    switch (leave.status) {
+      case 'PENDING':
+      case 'PENDING_MANAGER':
+        return viewer.isHR || viewer.isSuperAdmin || isManager
+      case 'PENDING_HR':
+        return viewer.isHR || viewer.isSuperAdmin
+      case 'PENDING_SUPER_ADMIN':
+        return viewer.isSuperAdmin
+      default:
+        return false
+    }
+  })()
+
+  if (canApproveReject) {
+    const label =
+      leave.status === 'PENDING_HR'
+        ? 'Approve (HR)'
+        : leave.status === 'PENDING_SUPER_ADMIN'
+          ? 'Final approve'
+          : 'Approve'
+
+    actions.primary = { id: 'leave.approve', label, variant: 'primary', disabled: false }
     actions.secondary = [{ id: 'leave.reject', label: 'Reject', variant: 'danger', disabled: false }]
     return actions
   }
 
+  const waitingLabel =
+    leave.status === 'PENDING_HR'
+      ? 'Waiting for HR'
+      : leave.status === 'PENDING_SUPER_ADMIN'
+        ? 'Waiting for final approval'
+        : 'Waiting for manager'
+
+  const disabledReason =
+    leave.status === 'PENDING_SUPER_ADMIN'
+      ? 'Only Super Admin can give final approval.'
+      : leave.status === 'PENDING_HR'
+        ? 'Only HR can approve at this stage.'
+        : 'Only the requester, their manager, or HR can act on this request.'
+
   actions.primary = {
     id: 'leave.approve',
-    label: 'Waiting for approval',
+    label: waitingLabel,
     variant: 'primary',
     disabled: true,
-    disabledReason: 'Only the requester, their manager, or HR can act on this request.',
+    disabledReason,
   }
 
   return actions
 }
-

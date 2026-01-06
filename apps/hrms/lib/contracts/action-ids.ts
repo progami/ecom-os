@@ -1,4 +1,3 @@
-// Simplified action IDs for small teams (no super admin actions)
 export type ActionId =
   | 'leave.approve'
   | 'leave.reject'
@@ -8,9 +7,13 @@ export type ActionId =
   | 'review.submit'
   | 'review.hrApprove'
   | 'review.hrReject'
+  | 'review.superAdminApprove'
+  | 'review.superAdminReject'
   | 'review.acknowledge'
   | 'disciplinary.hrApprove'
   | 'disciplinary.hrReject'
+  | 'disciplinary.superAdminApprove'
+  | 'disciplinary.superAdminReject'
   | 'disciplinary.acknowledge'
   | 'disciplinary.appeal'
   | 'disciplinary.appeal.hrDecide'

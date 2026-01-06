@@ -34,7 +34,10 @@ const LEAVE_TYPE_OPTIONS: FilterOption[] = [
 ]
 
 const STATUS_OPTIONS: FilterOption[] = [
-  { value: 'PENDING', label: 'Pending' },
+  { value: 'PENDING_MANAGER', label: 'Pending Manager' },
+  { value: 'PENDING_HR', label: 'Pending HR' },
+  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Final' },
+  { value: 'PENDING', label: 'Pending (Legacy)' },
   { value: 'APPROVED', label: 'Approved' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'CANCELLED', label: 'Cancelled' },

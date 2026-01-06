@@ -26,12 +26,13 @@ function computeSla(action: DisciplinaryWorkflowRecordInput): WorkflowRecordDTO[
     return { dueAt, isOverdue, overdueLabel, tone: isOverdue ? 'danger' : 'none' }
   }
 
-  // Simplified SLA for small teams (no super admin stage)
   switch (action.status) {
     case 'PENDING_HR_REVIEW':
       return maybe(addDaysIso(action.reportedDate, 3))
+    case 'PENDING_SUPER_ADMIN':
+      return maybe(addDaysIso(action.hrReviewedAt ?? action.reportedDate, 2))
     case 'PENDING_ACKNOWLEDGMENT':
-      return maybe(addDaysIso(action.hrReviewedAt ?? action.reportedDate, 5))
+      return maybe(addDaysIso(action.superAdminApprovedAt ?? action.hrReviewedAt ?? action.reportedDate, 5))
     case 'APPEAL_PENDING_HR':
       return maybe(addDaysIso(action.appealedAt ?? action.reportedDate, 3))
     default:
@@ -56,6 +57,7 @@ function severityTone(severity: string): WorkflowTone {
 function statusLabel(status: string): string {
   const map: Record<string, string> = {
     PENDING_HR_REVIEW: 'Pending HR review',
+    PENDING_SUPER_ADMIN: 'Pending final approval',
     PENDING_ACKNOWLEDGMENT: 'Pending acknowledgement',
     ACTIVE: 'Active',
     APPEAL_PENDING_HR: 'Appeal pending HR decision',
@@ -70,8 +72,6 @@ function statusLabel(status: string): string {
 }
 
 function buildWorkflow(action: DisciplinaryWorkflowRecordInput): WorkflowRecordDTO['workflow'] {
-  // Simplified workflow for small teams (15-20 people)
-  // No super admin stage - HR makes final decisions
   const isAppeal = ['APPEAL_PENDING_HR', 'APPEALED'].includes(action.status) || Boolean(action.appealedAt)
 
   if (isAppeal) {
@@ -95,26 +95,31 @@ function buildWorkflow(action: DisciplinaryWorkflowRecordInput): WorkflowRecordD
     }
   }
 
-  // Normal flow: Raised -> HR Review -> Acknowledgment
-  const order = ['raised', 'hr_review', 'ack']
+  // Normal flow: Raised -> HR Review -> Final Approval -> Acknowledgment
+  const order = ['raised', 'hr_review', 'admin', 'ack']
   const currentStageId =
     action.status === 'PENDING_ACKNOWLEDGMENT'
       ? 'ack'
-      : action.status === 'PENDING_HR_REVIEW'
-        ? 'hr_review'
-        : 'raised'
+      : action.status === 'PENDING_SUPER_ADMIN'
+        ? 'admin'
+        : action.status === 'PENDING_HR_REVIEW'
+          ? 'hr_review'
+          : 'raised'
 
   return {
     currentStageId,
     currentStageLabel:
       currentStageId === 'hr_review'
         ? 'HR review'
+        : currentStageId === 'admin'
+          ? 'Final approval'
         : currentStageId === 'ack'
           ? 'Acknowledgement'
           : 'Raised',
     stages: [
       { id: 'raised', label: 'Raised', status: stageStatus(order, currentStageId, 'raised') },
       { id: 'hr_review', label: 'HR', status: stageStatus(order, currentStageId, 'hr_review') },
+      { id: 'admin', label: 'Admin', status: stageStatus(order, currentStageId, 'admin') },
       { id: 'ack', label: 'Ack', status: stageStatus(order, currentStageId, 'ack') },
     ],
     statusBadge: { label: statusLabel(action.status), tone: toneForStatus(action.status) },

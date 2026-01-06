@@ -32,6 +32,23 @@ test('performance: PENDING_HR_REVIEW blocks non-HR', () => {
   assert.equal(actions.primary?.disabled, true)
 })
 
+test('performance: PENDING_SUPER_ADMIN blocks non-super-admin', () => {
+  const actions = buildPerformanceReviewNextActions(
+    review({ status: 'PENDING_SUPER_ADMIN', employeeId: 'emp' }),
+    baseViewer
+  )
+  assert.equal(actions.primary?.disabled, true)
+})
+
+test('performance: PENDING_SUPER_ADMIN lets super admin approve', () => {
+  const actions = buildPerformanceReviewNextActions(
+    review({ status: 'PENDING_SUPER_ADMIN', employeeId: 'emp' }),
+    { ...baseViewer, isSuperAdmin: true }
+  )
+  assert.equal(actions.primary?.id, 'review.superAdminApprove')
+  assert.equal(actions.primary?.disabled, false)
+})
+
 test('performance: PENDING_ACKNOWLEDGMENT lets employee acknowledge', () => {
   const actions = buildPerformanceReviewNextActions(
     review({ status: 'PENDING_ACKNOWLEDGMENT', employeeId: 'viewer' }),
@@ -40,4 +57,3 @@ test('performance: PENDING_ACKNOWLEDGMENT lets employee acknowledge', () => {
   assert.equal(actions.primary?.id, 'review.acknowledge')
   assert.equal(actions.primary?.disabled, false)
 })
-
