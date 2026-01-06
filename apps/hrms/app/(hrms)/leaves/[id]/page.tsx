@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { LeavesApi, DashboardApi, type LeaveRequest } from '@/lib/api-client'
 import { Card } from '@/components/ui/card'
@@ -37,8 +37,12 @@ function formatDate(value: string | null | undefined): string {
 
 export default function LeaveDetailPage() {
   const params = useParams()
-  const router = useRouter()
+  const pathname = usePathname()
   const id = params.id as string
+
+  const leaveIndexHref = pathname?.includes('/leaves/')
+    ? `${pathname.split('/leaves/')[0]}/leave`
+    : '/leave'
 
   const [leave, setLeave] = useState<LeaveRequest | null>(null)
   const [loading, setLoading] = useState(true)
@@ -104,7 +108,7 @@ export default function LeaveDetailPage() {
           <p className="text-sm font-medium text-foreground">Leave request not found</p>
           <p className="text-sm text-muted-foreground mt-1">{error}</p>
           <div className="mt-4">
-            <Button variant="secondary" href="/leave">Back to Leave</Button>
+            <Button variant="secondary" href={leaveIndexHref}>Back to Leave</Button>
           </div>
         </Card>
       </div>
@@ -121,7 +125,7 @@ export default function LeaveDetailPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Back link */}
       <Link
-        href="/leave"
+        href={leaveIndexHref}
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeftIcon className="h-4 w-4" />
@@ -265,3 +269,4 @@ export default function LeaveDetailPage() {
     </div>
   )
 }
+
