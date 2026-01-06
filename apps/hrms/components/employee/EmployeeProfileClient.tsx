@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   EmployeeFilesApi,
-  EmployeeTimelineApi,
   EmployeesApi,
   LeavesApi,
   MeApi,
@@ -16,7 +15,6 @@ import {
   type LeaveBalance,
   type LeaveRequest,
   type PerformanceReview,
-  type TimelineEvent,
 } from '@/lib/api-client'
 import {
   BuildingIcon,
@@ -44,7 +42,7 @@ const visibilityOptions = [
   { value: 'EMPLOYEE_AND_HR', label: 'Employee + HR' },
 ]
 
-type Tab = 'overview' | 'job' | 'documents' | 'timeline' | 'performance' | 'leave'
+type Tab = 'overview' | 'job' | 'documents' | 'performance' | 'leave'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -82,7 +80,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const initialTab: Tab =
     normalizedTabParam === 'job' ||
     normalizedTabParam === 'documents' ||
-    normalizedTabParam === 'timeline' ||
     normalizedTabParam === 'performance' ||
     normalizedTabParam === 'leave'
       ? (normalizedTabParam as Tab)
@@ -102,9 +99,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [leaveLoading, setLeaveLoading] = useState(false)
 
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
-  const [timelineLoading, setTimelineLoading] = useState(false)
-
   const [files, setFiles] = useState<EmployeeFile[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
@@ -117,7 +111,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const isManager = Boolean(permissions?.isManager)
   const canViewSensitive = isSelf || isHR || isManager
   const canViewDocuments = isSelf || isHR
-  const canViewTimeline = canViewSensitive
   const canViewPerformance = canViewSensitive
   const canViewLeave = canViewSensitive
   const permissionsReady = Boolean(employee && me && permissions)
@@ -146,11 +139,10 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       { id: 'overview' as Tab, label: 'Overview', icon: UsersIcon, visible: true },
       { id: 'job' as Tab, label: 'Job & Org', icon: BuildingIcon, visible: true },
       { id: 'documents' as Tab, label: 'Documents', icon: FolderIcon, visible: canViewDocuments },
-      { id: 'timeline' as Tab, label: 'Timeline', icon: CalendarIcon, visible: canViewTimeline },
       { id: 'performance' as Tab, label: 'Performance', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
       { id: 'leave' as Tab, label: 'Leave', icon: CalendarDaysIcon, visible: canViewLeave },
     ],
-    [canViewDocuments, canViewTimeline, canViewPerformance, canViewLeave]
+    [canViewDocuments, canViewPerformance, canViewLeave]
   )
 
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible), [tabs])
@@ -248,23 +240,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     }
     loadLeave()
   }, [activeTab, canViewLeave, employee])
-
-  useEffect(() => {
-    async function loadTimeline() {
-      if (!employee || activeTab !== 'timeline' || !canViewTimeline) return
-      try {
-        setTimelineLoading(true)
-        const data = await EmployeeTimelineApi.get(employee.id, { take: 200 })
-        setTimelineEvents(data.items || [])
-      } catch (e) {
-        console.error('Failed to load timeline', e)
-        setTimelineEvents([])
-      } finally {
-        setTimelineLoading(false)
-      }
-    }
-    loadTimeline()
-  }, [activeTab, canViewTimeline, employee])
 
   useEffect(() => {
     async function loadFiles() {
@@ -597,36 +572,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
             )}
           </Card>
         </div>
-      ) : null}
-
-      {activeTab === 'timeline' && canViewTimeline ? (
-        <Card padding="md">
-          <h2 className="text-sm font-semibold text-foreground mb-3">Timeline</h2>
-          {timelineLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : timelineEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No timeline events yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {timelineEvents.map((event) => (
-                <div key={event.id} className="rounded-lg border border-border bg-card p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-foreground">{event.title}</div>
-                      {event.description ? <div className="text-sm text-muted-foreground mt-1">{event.description}</div> : null}
-                      <div className="text-xs text-muted-foreground mt-2">{new Date(event.occurredAt).toLocaleString()}</div>
-                    </div>
-                    {event.href ? (
-                      <Link href={event.href} className="text-sm text-accent hover:underline shrink-0">
-                        View
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
       ) : null}
 
       {activeTab === 'performance' && canViewPerformance ? (

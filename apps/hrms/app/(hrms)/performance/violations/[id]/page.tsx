@@ -10,6 +10,13 @@ import { Card, CardDivider } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/ui/badge'
+import {
+  DISCIPLINARY_ACTION_TYPE_LABELS,
+  DISCIPLINARY_STATUS_LABELS,
+  VALUE_BREACH_LABELS,
+  VIOLATION_REASON_LABELS,
+  VIOLATION_TYPE_LABELS,
+} from '@/lib/domain/disciplinary/constants'
 
 const SEVERITY_LABELS: Record<string, string> = {
   MINOR: 'Minor',
@@ -18,15 +25,8 @@ const SEVERITY_LABELS: Record<string, string> = {
   CRITICAL: 'Critical',
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  REPORTED: 'Reported',
-  UNDER_REVIEW: 'Under Review',
-  PENDING_HR_REVIEW: 'Pending HR Review',
-  PENDING_SUPER_ADMIN: 'Pending Final Approval',
-  PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
-  ACKNOWLEDGED: 'Acknowledged',
-  RESOLVED: 'Resolved',
-  CLOSED: 'Closed',
+function labelFrom(labels: Record<string, string>, value: string) {
+  return labels[value] ?? value
 }
 
 function formatDate(dateStr: string) {
@@ -152,14 +152,14 @@ export default function DisciplinaryDetailPage() {
                 </p>
               </div>
             </div>
-            <StatusBadge status={STATUS_LABELS[action.status] ?? action.status} />
+            <StatusBadge status={labelFrom(DISCIPLINARY_STATUS_LABELS as unknown as Record<string, string>, action.status)} />
           </div>
 
           <CardDivider />
 
           <div className="space-y-1 mt-4">
-            <InfoRow label="Violation Type" value={action.violationType} />
-            <InfoRow label="Reason" value={action.violationReason} />
+            <InfoRow label="Violation Type" value={labelFrom(VIOLATION_TYPE_LABELS as unknown as Record<string, string>, action.violationType)} />
+            <InfoRow label="Reason" value={labelFrom(VIOLATION_REASON_LABELS as unknown as Record<string, string>, action.violationReason)} />
             <InfoRow label="Severity" value={SEVERITY_LABELS[action.severity] ?? action.severity} />
             <InfoRow label="Incident Date" value={formatDate(action.incidentDate)} />
             <InfoRow label="Reported Date" value={formatDate(action.reportedDate)} />
@@ -183,7 +183,7 @@ export default function DisciplinaryDetailPage() {
                   key={value}
                   className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-danger-100 text-danger-800"
                 >
-                  {value}
+                  {labelFrom(VALUE_BREACH_LABELS as unknown as Record<string, string>, value)}
                 </span>
               ))}
             </div>
@@ -215,7 +215,7 @@ export default function DisciplinaryDetailPage() {
         <Card padding="lg">
           <h3 className="text-sm font-semibold text-foreground mb-3">Action Taken</h3>
           <div className="space-y-1">
-            <InfoRow label="Action" value={action.actionTaken} />
+            <InfoRow label="Action" value={labelFrom(DISCIPLINARY_ACTION_TYPE_LABELS as unknown as Record<string, string>, action.actionTaken)} />
             {action.actionDate && <InfoRow label="Action Date" value={formatDate(action.actionDate)} />}
             {action.actionDetails && (
               <div className="pt-2">
