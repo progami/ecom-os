@@ -1280,11 +1280,17 @@ export function CustomOpsPlanningGrid({
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
         const clipboard = clipboardRef.current
         if (!clipboard) return
-        event.preventDefault()
         pasteStartRef.current = activeCell
         clipboard.value = ''
         clipboard.focus()
         clipboard.select()
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null
+            clipboard.value = ''
+            tableScrollRef.current?.focus()
+          }
+        }, 250)
         return
       }
 
@@ -1366,12 +1372,27 @@ export function CustomOpsPlanningGrid({
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLElement>) => {
       if (e.target !== e.currentTarget) return
+      const clipboard = clipboardRef.current
+      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard)
+      const refocusClipboard = () => {
+        if (!shouldRefocus) return
+        if (clipboard) clipboard.value = ''
+        requestAnimationFrame(() => tableScrollRef.current?.focus())
+      }
+
       const start = pasteStartRef.current ?? activeCell
-      if (!start) return
       pasteStartRef.current = null
+      if (!start) {
+        refocusClipboard()
+        return
+      }
+
       const text = e.clipboardData.getData('text/plain')
-      if (!text) return
       e.preventDefault()
+      if (!text) {
+        refocusClipboard()
+        return
+      }
 
       const pasteRows = text
         .replace(/\r\n/g, '\n')
@@ -1380,11 +1401,17 @@ export function CustomOpsPlanningGrid({
         .filter((line) => line.length > 0)
         .map((line) => line.split('\t'))
 
-      if (pasteRows.length === 0) return
+      if (pasteRows.length === 0) {
+        refocusClipboard()
+        return
+      }
 
       const startRowIndex = rows.findIndex((r) => r.id === start.rowId)
       const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey)
-      if (startRowIndex < 0 || startColIndex < 0) return
+      if (startRowIndex < 0 || startColIndex < 0) {
+        refocusClipboard()
+        return
+      }
 
       const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = []
 
@@ -1409,7 +1436,10 @@ export function CustomOpsPlanningGrid({
         }
       }
 
-      if (updates.length === 0) return
+      if (updates.length === 0) {
+        refocusClipboard()
+        return
+      }
 
       // Apply updates and track for undo
       let updatedRows = [...rows]
@@ -1509,12 +1539,7 @@ export function CustomOpsPlanningGrid({
       onRowsChange?.(updatedRows)
       scheduleFlush()
       toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`)
-
-      const clipboard = clipboardRef.current
-      if (clipboard && e.currentTarget === clipboard) {
-        clipboard.value = ''
-        requestAnimationFrame(() => tableScrollRef.current?.focus())
-      }
+      refocusClipboard()
     },
     [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, recordEdits]
   )

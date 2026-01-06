@@ -352,11 +352,17 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
         const clipboard = clipboardRef.current
         if (!clipboard) return
-        e.preventDefault()
         pasteStartRef.current = activeCell
         clipboard.value = ''
         clipboard.focus()
         clipboard.select()
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null
+            clipboard.value = ''
+            scrollRef.current?.focus()
+          }
+        }, 250)
         return
       }
 
@@ -469,12 +475,26 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLElement>) => {
       if (e.target !== e.currentTarget) return
+      const clipboard = clipboardRef.current
+      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard)
+      const refocusClipboard = () => {
+        if (!shouldRefocus) return
+        if (clipboard) clipboard.value = ''
+        requestAnimationFrame(() => scrollRef.current?.focus())
+      }
+
       const start = pasteStartRef.current ?? activeCell
-      if (!start) return
       pasteStartRef.current = null
+      if (!start) {
+        refocusClipboard()
+        return
+      }
       const text = e.clipboardData.getData('text/plain')
-      if (!text) return
       e.preventDefault()
+      if (!text) {
+        refocusClipboard()
+        return
+      }
 
       const rows = text
         .replace(/\r\n/g, '\n')
@@ -483,7 +503,10 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         .filter((line) => line.length > 0)
         .map((line) => line.split('\t'))
 
-      if (rows.length === 0) return
+      if (rows.length === 0) {
+        refocusClipboard()
+        return
+      }
 
       const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = []
 
@@ -508,7 +531,10 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         }
       }
 
-      if (updates.length === 0) return
+      if (updates.length === 0) {
+        refocusClipboard()
+        return
+      }
 
       setData((prev) => {
         const next = [...prev]
@@ -532,12 +558,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       })
 
       scheduleFlush()
-
-      const clipboard = clipboardRef.current
-      if (clipboard && e.currentTarget === clipboard) {
-        clipboard.value = ''
-        requestAnimationFrame(() => scrollRef.current?.focus())
-      }
+      refocusClipboard()
     },
     [activeCell, data, pendingRef, scheduleFlush]
   )
