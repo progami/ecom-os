@@ -265,8 +265,14 @@ model PurchaseOrder {
   updatedAt        DateTime            @updatedAt @map("updated_at")
   isLegacy         Boolean             @default(false) @map("is_legacy")
 
-  // Legacy fields (kept for backward compatibility)
+  // ===========================================
+  // STAGE 1: ISSUED (supplier-facing essentials)
+  // ===========================================
   expectedDate       DateTime?           @map("expected_date")
+  incoterms          String?             @map("incoterms")
+  paymentTerms       String?             @map("payment_terms")
+
+  // Legacy fields (kept for backward compatibility)
   postedAt           DateTime?           @map("posted_at")
   receiveType        InboundReceiveType? @map("receive_type")
   shipMode           OutboundShipMode?   @map("ship_mode")

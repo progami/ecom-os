@@ -56,6 +56,8 @@ export function serializePurchaseOrder(
 
 export interface UpdatePurchaseOrderInput {
   expectedDate?: string | null
+  incoterms?: string | null
+  paymentTerms?: string | null
   counterpartyName?: string | null
   notes?: string | null
 }
@@ -121,6 +123,20 @@ export async function updatePurchaseOrderDetails(
     }
   }
 
+  const incoterms =
+    input.incoterms !== undefined
+      ? input.incoterms === null || input.incoterms.trim().length === 0
+        ? null
+        : input.incoterms.trim().toUpperCase()
+      : order.incoterms
+
+  const paymentTerms =
+    input.paymentTerms !== undefined
+      ? input.paymentTerms === null || input.paymentTerms.trim().length === 0
+        ? null
+        : input.paymentTerms.trim()
+      : order.paymentTerms
+
   const counterpartyName =
     input.counterpartyName !== undefined ? input.counterpartyName : order.counterpartyName
   const notes = input.notes !== undefined ? input.notes : order.notes
@@ -130,6 +146,8 @@ export async function updatePurchaseOrderDetails(
     data: {
       counterpartyName,
       expectedDate,
+      incoterms,
+      paymentTerms,
       notes,
     },
     include: { lines: true },
