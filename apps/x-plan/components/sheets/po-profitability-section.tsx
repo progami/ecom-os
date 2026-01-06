@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react'
 import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import {
-  Bar,
-  BarChart,
+  Area,
+  AreaChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip,
@@ -59,10 +59,10 @@ type SortField = 'orderCode' | 'grossRevenue' | 'netProfit' | 'netMarginPercent'
 type SortDirection = 'asc' | 'desc'
 type MetricKey = 'grossMarginPercent' | 'netMarginPercent' | 'roi'
 
-const metricConfig: Record<MetricKey, { label: string; color: string }> = {
-  grossMarginPercent: { label: 'Gross Margin %', color: 'hsl(var(--chart-1))' },
-  netMarginPercent: { label: 'Net Margin %', color: 'hsl(var(--chart-2))' },
-  roi: { label: 'ROI %', color: 'hsl(var(--chart-3))' },
+const metricConfig: Record<MetricKey, { label: string; color: string; gradientId: string }> = {
+  grossMarginPercent: { label: 'Gross Margin %', color: 'hsl(var(--chart-1))', gradientId: 'gradientGrossMargin' },
+  netMarginPercent: { label: 'Net Margin %', color: 'hsl(var(--chart-2))', gradientId: 'gradientNetMargin' },
+  roi: { label: 'ROI %', color: 'hsl(var(--chart-3))', gradientId: 'gradientROI' },
 }
 
 const statusLabels: Record<POStatus, string> = {
@@ -283,7 +283,7 @@ export function POProfitabilitySection({
       </div>
 
       {/* Chart Card */}
-      <Card className="rounded-xl shadow-sm dark:border-white/10">
+      <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Margin Trends</CardTitle>
           <CardDescription>Performance across purchase orders by arrival date</CardDescription>
@@ -292,54 +292,147 @@ export function POProfitabilitySection({
           {/* Chart */}
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
+              <AreaChart
                 data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
+                {/* Gradient definitions */}
+                <defs>
+                  <linearGradient id="gradientGrossMargin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-1))" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="gradientNetMargin" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--chart-2))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-2))" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="gradientROI" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--chart-3))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--chart-3))" stopOpacity={0.05} />
+                  </linearGradient>
+                  {/* Glow filters for dark mode */}
+                  <filter id="glow1" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                    <feMerge>
+                      <feMergeNode in="coloredBlur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="currentColor"
+                  className="text-slate-200 dark:text-slate-700/50"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="name"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11 }}
+                  className="text-slate-500 dark:text-slate-400"
                   interval="preserveStartEnd"
+                  dy={10}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11 }}
+                  className="text-slate-500 dark:text-slate-400"
                   tickFormatter={(value) => `${value.toFixed(0)}%`}
                   width={50}
                 />
                 <Tooltip
                   content={({ active, payload, label }) => {
-                    if (!active || !payload) return null
+                    if (!active || !payload || payload.length === 0) return null
                     return (
-                      <div className="rounded-lg border bg-background p-2 shadow-md">
-                        <p className="mb-1 text-xs font-medium">{label}</p>
-                        {payload.map((entry) => (
-                          <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
-                            {metricConfig[entry.dataKey as MetricKey]?.label}: {formatPercent(entry.value as number)}
-                          </p>
-                        ))}
+                      <div className="rounded-xl border border-slate-200/50 bg-white/95 px-4 py-3 shadow-xl backdrop-blur-md dark:border-slate-700/50 dark:bg-slate-900/95">
+                        <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{label}</p>
+                        <div className="space-y-1.5">
+                          {payload.map((entry) => (
+                            <div key={entry.dataKey} className="flex items-center justify-between gap-6">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="text-xs text-slate-600 dark:text-slate-400">
+                                  {metricConfig[entry.dataKey as MetricKey]?.label}
+                                </span>
+                              </div>
+                              <span className="text-xs font-semibold tabular-nums" style={{ color: entry.color }}>
+                                {formatPercent(entry.value as number)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )
                   }}
+                  cursor={{
+                    stroke: 'currentColor',
+                    strokeWidth: 1,
+                    strokeDasharray: '4 4',
+                    className: 'text-slate-300 dark:text-slate-600',
+                  }}
                 />
-                {enabledMetrics.map((key) => (
-                  <Bar
-                    key={key}
-                    dataKey={key}
-                    fill={metricConfig[key].color}
-                    radius={[4, 4, 0, 0]}
+                {enabledMetrics.includes('grossMarginPercent') && (
+                  <Area
+                    type="monotone"
+                    dataKey="grossMarginPercent"
+                    stroke="hsl(var(--chart-1))"
+                    strokeWidth={2.5}
+                    fill="url(#gradientGrossMargin)"
+                    dot={false}
+                    activeDot={{
+                      r: 5,
+                      strokeWidth: 2,
+                      stroke: 'hsl(var(--chart-1))',
+                      fill: 'white',
+                      className: 'dark:fill-slate-900',
+                    }}
                   />
-                ))}
-              </BarChart>
+                )}
+                {enabledMetrics.includes('netMarginPercent') && (
+                  <Area
+                    type="monotone"
+                    dataKey="netMarginPercent"
+                    stroke="hsl(var(--chart-2))"
+                    strokeWidth={2.5}
+                    fill="url(#gradientNetMargin)"
+                    dot={false}
+                    activeDot={{
+                      r: 5,
+                      strokeWidth: 2,
+                      stroke: 'hsl(var(--chart-2))',
+                      fill: 'white',
+                      className: 'dark:fill-slate-900',
+                    }}
+                  />
+                )}
+                {enabledMetrics.includes('roi') && (
+                  <Area
+                    type="monotone"
+                    dataKey="roi"
+                    stroke="hsl(var(--chart-3))"
+                    strokeWidth={2.5}
+                    fill="url(#gradientROI)"
+                    dot={false}
+                    activeDot={{
+                      r: 5,
+                      strokeWidth: 2,
+                      stroke: 'hsl(var(--chart-3))',
+                      fill: 'white',
+                      className: 'dark:fill-slate-900',
+                    }}
+                  />
+                )}
+              </AreaChart>
             </ResponsiveContainer>
           </div>
 
           {/* Legend */}
-          <div className="mt-4 flex flex-wrap items-center gap-4 border-t pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 border-t border-slate-200/60 pt-4 dark:border-slate-700/50">
             {(Object.keys(metricConfig) as MetricKey[]).map((key) => {
               const isEnabled = enabledMetrics.includes(key)
               return (
@@ -347,16 +440,31 @@ export function POProfitabilitySection({
                   key={key}
                   type="button"
                   onClick={() => toggleMetric(key)}
-                  className="flex items-center gap-2"
+                  className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
+                    isEnabled
+                      ? 'bg-slate-100/80 dark:bg-slate-800/50'
+                      : 'opacity-50 hover:opacity-75'
+                  }`}
                 >
-                  <div
-                    className="h-3 w-6 rounded-sm transition-opacity"
-                    style={{
-                      backgroundColor: metricConfig[key].color,
-                      opacity: isEnabled ? 1 : 0.3
-                    }}
-                  />
-                  <span className={`text-xs ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <div className="relative">
+                    <div
+                      className={`h-3 w-3 rounded-full transition-transform duration-200 ${
+                        isEnabled ? 'scale-100' : 'scale-75'
+                      }`}
+                      style={{ backgroundColor: metricConfig[key].color }}
+                    />
+                    {isEnabled && (
+                      <div
+                        className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
+                        style={{ backgroundColor: metricConfig[key].color }}
+                      />
+                    )}
+                  </div>
+                  <span className={`text-xs font-medium transition-colors duration-200 ${
+                    isEnabled
+                      ? 'text-slate-700 dark:text-slate-200'
+                      : 'text-slate-400 dark:text-slate-500'
+                  }`}>
                     {metricConfig[key].label}
                   </span>
                 </button>
