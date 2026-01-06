@@ -13,6 +13,8 @@ import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
+import { NativeSelect } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 
 const SEVERITY_LABELS: Record<string, string> = {
   MINOR: 'Minor',
@@ -58,12 +60,20 @@ export default function DisciplinaryPage() {
   const router = useRouter()
   const [items, setItems] = useState<DisciplinaryAction[]>([])
   const [q, setQ] = useState('')
+  const [status, setStatus] = useState('')
+  const [severity, setSeverity] = useState('')
+  const [violationType, setViolationType] = useState('')
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await DisciplinaryActionsApi.list({ q })
+      const data = await DisciplinaryActionsApi.list({
+        q,
+        status: status || undefined,
+        severity: severity || undefined,
+        violationType: violationType || undefined,
+      })
       setItems(data.items)
     } catch (err) {
       console.error('Error fetching violations:', err)
@@ -71,7 +81,7 @@ export default function DisciplinaryPage() {
     } finally {
       setLoading(false)
     }
-  }, [q])
+  }, [q, status, severity, violationType])
 
   useEffect(() => {
     load()
@@ -173,12 +183,46 @@ export default function DisciplinaryPage() {
 
       <div className="space-y-6">
         <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={load}
-            placeholder="Search by employee name or violation type..."
-          />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <SearchForm
+                value={q}
+                onChange={setQ}
+                onSubmit={load}
+                placeholder="Search by employee or reporter..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="w-32">
+                <Label htmlFor="status-filter" className="sr-only">Status</Label>
+                <NativeSelect
+                  id="status-filter"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">All Status</option>
+                  <option value="OPEN">Open</option>
+                  <option value="PENDING_HR_REVIEW">Pending HR</option>
+                  <option value="ACTION_TAKEN">Action Taken</option>
+                  <option value="CLOSED">Closed</option>
+                </NativeSelect>
+              </div>
+              <div className="w-32">
+                <Label htmlFor="severity-filter" className="sr-only">Severity</Label>
+                <NativeSelect
+                  id="severity-filter"
+                  value={severity}
+                  onChange={(e) => setSeverity(e.target.value)}
+                >
+                  <option value="">All Severity</option>
+                  <option value="MINOR">Minor</option>
+                  <option value="MODERATE">Moderate</option>
+                  <option value="MAJOR">Major</option>
+                  <option value="CRITICAL">Critical</option>
+                </NativeSelect>
+              </div>
+            </div>
+          </div>
         </Card>
 
         <ResultsCount

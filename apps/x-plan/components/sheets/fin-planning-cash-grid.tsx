@@ -166,6 +166,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   }, [weekly])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const clipboardRef = useRef<HTMLTextAreaElement | null>(null)
+  const pasteStartRef = useRef<CellCoords | null>(null)
   const getScrollElement = useCallback(() => scrollRef.current, [])
   usePersistentScroll(`hot:cash-flow:${strategyId}`, true, getScrollElement)
 
@@ -287,10 +289,76 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
     [data.length, columnKeys.length]
   )
 
+  const buildClipboardText = useCallback(
+    (range: CellRange): string => {
+      const { top, bottom, left, right } = normalizeRange(range)
+      const lines: string[] = []
+      for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+        const row = data[rowIndex]
+        if (!row) continue
+        const cells: string[] = []
+        for (let colIndex = left; colIndex <= right; colIndex += 1) {
+          const key = columnKeys[colIndex]
+          cells.push(key ? row[key] : '')
+        }
+        lines.push(cells.join('\t'))
+      }
+      return lines.join('\n')
+    },
+    [data, columnKeys]
+  )
+
+  const copySelectionToClipboard = useCallback(async () => {
+    const range = selection ?? (activeCell ? { from: activeCell, to: activeCell } : null)
+    if (!range) return
+
+    const text = buildClipboardText(range)
+    if (!text) return
+
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // Fallback for browsers that block clipboard writes.
+    }
+
+    const clipboard = clipboardRef.current
+    if (!clipboard) return
+
+    clipboard.value = text
+    clipboard.focus()
+    clipboard.select()
+
+    try {
+      document.execCommand('copy')
+    } finally {
+      clipboard.value = ''
+      requestAnimationFrame(() => scrollRef.current?.focus())
+    }
+  }, [activeCell, selection, buildClipboardText])
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return
       if (editingCell) return
       if (!activeCell) return
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault()
+        copySelectionToClipboard().catch(() => {})
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
+        const clipboard = clipboardRef.current
+        if (!clipboard) return
+        e.preventDefault()
+        pasteStartRef.current = activeCell
+        clipboard.value = ''
+        clipboard.focus()
+        clipboard.select()
+        return
+      }
 
       if (e.key === 'Enter' || e.key === 'F2') {
         e.preventDefault()
@@ -376,7 +444,16 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         setActiveCell(null)
       }
     },
-    [activeCell, data, editingCell, moveActiveCell, pendingRef, scheduleFlush, selection]
+    [
+      activeCell,
+      copySelectionToClipboard,
+      data,
+      editingCell,
+      moveActiveCell,
+      pendingRef,
+      scheduleFlush,
+      selection,
+    ]
   )
 
   const handleCopy = useCallback(
@@ -384,27 +461,17 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       if (e.target !== e.currentTarget) return
       if (!selection) return
       e.preventDefault()
-      const { top, bottom, left, right } = normalizeRange(selection)
-      const lines: string[] = []
-      for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
-        const row = data[rowIndex]
-        if (!row) continue
-        const cells: string[] = []
-        for (let colIndex = left; colIndex <= right; colIndex += 1) {
-          const key = columnKeys[colIndex]
-          cells.push(key ? row[key] : '')
-        }
-        lines.push(cells.join('\t'))
-      }
-      e.clipboardData.setData('text/plain', lines.join('\n'))
+      e.clipboardData.setData('text/plain', buildClipboardText(selection))
     },
-    [data, columnKeys, selection]
+    [selection, buildClipboardText]
   )
 
   const handlePaste = useCallback(
-    (e: ClipboardEvent<HTMLDivElement>) => {
+    (e: ClipboardEvent<HTMLElement>) => {
       if (e.target !== e.currentTarget) return
-      if (!activeCell) return
+      const start = pasteStartRef.current ?? activeCell
+      if (!start) return
+      pasteStartRef.current = null
       const text = e.clipboardData.getData('text/plain')
       if (!text) return
       e.preventDefault()
@@ -422,8 +489,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
       for (let r = 0; r < rows.length; r += 1) {
         for (let c = 0; c < rows[r]!.length; c += 1) {
-          const targetRow = activeCell.row + r
-          const targetCol = activeCell.col + c
+          const targetRow = start.row + r
+          const targetCol = start.col + c
           if (targetRow >= data.length) continue
           if (targetCol >= columnConfig.length) continue
 
@@ -465,6 +532,12 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       })
 
       scheduleFlush()
+
+      const clipboard = clipboardRef.current
+      if (clipboard && e.currentTarget === clipboard) {
+        clipboard.value = ''
+        requestAnimationFrame(() => scrollRef.current?.focus())
+      }
     },
     [activeCell, data, pendingRef, scheduleFlush]
   )
@@ -525,6 +598,13 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
+        <textarea
+          ref={clipboardRef}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="absolute -left-[9999px] top-0 h-1 w-1 opacity-0"
+          onPaste={handlePaste}
+        />
         <div
           ref={scrollRef}
           tabIndex={0}
