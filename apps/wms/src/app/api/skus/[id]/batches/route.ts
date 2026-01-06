@@ -6,6 +6,18 @@ import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-d
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
+const packagingTypeSchema = z.preprocess(value => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+  if (normalized === 'BOX') return 'BOX'
+  if (normalized === 'POLYBAG') return 'POLYBAG'
+  return trimmed
+}, z.enum(['BOX', 'POLYBAG']).nullable().optional())
+
 type DimensionRefineShape = {
   unitLengthCm: z.ZodTypeAny
   unitWidthCm: z.ZodTypeAny
@@ -47,12 +59,12 @@ const createBatchSchema = refineDimensions(
     packSize: z.number().int().positive(),
     unitsPerCarton: z.number().int().positive(),
     material: z.string().trim().max(120).optional().nullable(),
-    packagingType: z.string().trim().max(80).optional().nullable(),
+    packagingType: packagingTypeSchema,
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
     unitLengthCm: optionalDimensionValueSchema,
     unitWidthCm: optionalDimensionValueSchema,
     unitHeightCm: optionalDimensionValueSchema,
-    unitWeightKg: z.number().positive().optional().nullable(),
+    unitWeightKg: z.number().positive(),
     cartonDimensionsCm: z.string().trim().max(120).optional().nullable(),
     cartonLengthCm: optionalDimensionValueSchema,
     cartonWidthCm: optionalDimensionValueSchema,
@@ -234,13 +246,13 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
         unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
         unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-        unitWeightKg: payload.unitWeightKg ?? null,
+        unitWeightKg: payload.unitWeightKg,
         cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
         cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
         cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: payload.cartonWeightKg ?? null,
-        packagingType: payload.packagingType ? sanitizeForDisplay(payload.packagingType) : null,
+        packagingType: payload.packagingType ?? null,
         isActive: true,
       },
     })

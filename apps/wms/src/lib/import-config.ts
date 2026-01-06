@@ -57,6 +57,15 @@ const transformers = {
     if (value === null || value === undefined) return null
     return String(value).toUpperCase()
   },
+  toPackagingType: (value: unknown): string | null => {
+    if (value === null || value === undefined) return null
+    const trimmed = String(value).trim()
+    if (!trimmed) return null
+    const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+    if (normalized === 'BOX') return 'BOX'
+    if (normalized === 'POLYBAG') return 'POLYBAG'
+    return null
+  },
 }
 
 // Import configurations for each entity
@@ -139,6 +148,7 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
         excelColumns: ['Packaging_Type', 'packaging_type', 'Packaging Type'],
         type: 'string',
         required: false,
+        transform: transformers.toPackagingType,
       },
     ],
   },
