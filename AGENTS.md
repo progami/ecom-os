@@ -1,35 +1,19 @@
-# Repository Guidelines
+# Claude Code Instructions
 
-## Project Structure & Module Organization
-- Root workspace uses pnpm and Turborepo; run shared tasks from the repository root so caches stay coherent.
-- Each product app lives in `apps/<name>` with its own Next.js config, Prisma schema, and `tests/` folder.
-- Shared libraries sit in `packages/*` (config, logger, soon auth/ui); put cross-cutting logic here instead of duplicating inside apps.
-- `docs/` holds canonical references (architecture, testing, workflows); consult it before adding patterns.
+## Testing
 
-## Build, Test, and Development Commands
-- Install dependencies once with `pnpm install`.
-- Start all dev servers via `pnpm dev`; scope to one workspace using `pnpm --filter @ecom-os/website dev`.
-- Produce production bundles with `pnpm build`; run `pnpm --filter <package> build` before merging app-specific changes.
-- Quality gates: `pnpm lint`, `pnpm typecheck`, and `pnpm format` (Prettier fan-out) must succeed pre-commit.
-- Execute Playwright suites through `pnpm test` or `pnpm --filter @ecom-os/wms test` for targeted runs.
+All testing should be done via Chrome browser directly to `https://ecomos.targonglobal.com/<app>` (e.g., `https://ecomos.targonglobal.com/x-plan`). Do not test on localhost.
 
-## Coding Style & Naming Conventions
-- TypeScript runs in strict mode; prefer typed services, narrow interfaces, and `async/await` over raw promises.
-- ESLint extends `next/core-web-vitals`; resolve all warnings and avoid disabling rules without justification.
-- Format code with Prettier defaults (2-space indent, trailing commas, JSX double quotes) using `pnpm format`.
-- Keep workspace package names under the `@ecom-os/*` scope; directories use kebab-case, React components PascalCase, hooks camelCase.
-- Use Next path aliases (`@/*`) for intra-app imports, reserving relative paths for co-located files.
+## Git Workflow
 
-## Testing Guidelines
-- Store every test asset inside the lone `tests/` directory with `unit/`, `integration/`, `e2e/`, and `fixtures/` subfolders.
-- Maintain `tests/ui-inventory.json` so Playwright coverage matches real UI surfaces.
-- Validate flows locally with `pnpm --filter <app> test`; ensure Playwright config targets the dev server’s port and base URL.
-- Do not commit `logs/`, `coverage/`, or trace artifacts; extend `.gitignore` when new tooling emits files.
+Once work is complete:
 
-## Commit & Pull Request Guidelines
-- Follow `type(scope): imperative summary` (e.g., `auth(login): harden redirect flow`) and explain context plus follow-up actions in the body.
-- Group changes by app or shared package and mention additional workspaces touched when scopes differ.
-- PRs should include purpose, testing evidence (`pnpm lint && pnpm test`), screenshots for UI shifts, and linked GitHub issues.
-- Request owners of affected apps and shared packages as reviewers; flag infra updates for DevOps before merge.
-- Use concise, descriptive PR titles that capture the change (e.g., “WMS: show warehouse codes in ledger”, not “Misc fixes”).
-- Branching: use short-lived `app-name/feature-name` branches off `dev` (e.g., `website/website-hydration`, `hrms/test-feature`), merge via PR with passing checks, and advance `main` only through deliberate release PRs; never push directly to `main`.
+1. **PR to dev** - Create a pull request targeting the `dev` branch
+2. **Wait for GitHub CI to pass** - Do not proceed until all checks are green
+3. **Merge to dev** - Merge the PR yourself without waiting for approval
+4. **PR to main** - Create a pull request from `dev` to `main`
+5. **Wait for GitHub CI to pass** - Ensure all checks pass on the main PR
+6. **Merge to main** - Merge the PR yourself without waiting for approval
+7. **Fast-forward dev to main** - Ensure `dev` and `main` are on the same commit
+
+Always wait for CI to pass before merging. Merge PRs yourself without requiring approval.
