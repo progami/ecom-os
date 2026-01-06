@@ -16,9 +16,11 @@ import {
 export type PurchaseOrderTypeOption = 'PURCHASE' | 'ADJUSTMENT' | 'FULFILLMENT'
 export type PurchaseOrderStatusOption =
   | 'DRAFT'
+  | 'ISSUED'
   | 'MANUFACTURING'
   | 'OCEAN'
   | 'WAREHOUSE'
+  | 'REJECTED'
   | 'CANCELLED'
 export type PurchaseOrderLineStatusOption = 'PENDING' | 'POSTED' | 'CANCELLED'
 
@@ -122,17 +124,21 @@ export function PurchaseOrdersPanel({
     return orders.reduce(
       (acc, order) => {
         if (order.status === 'DRAFT') acc.draftCount += 1
+        if (order.status === 'ISSUED') acc.issuedCount += 1
         if (order.status === 'MANUFACTURING') acc.manufacturingCount += 1
         if (order.status === 'OCEAN') acc.oceanCount += 1
         if (order.status === 'WAREHOUSE') acc.warehouseCount += 1
+        if (order.status === 'REJECTED') acc.rejectedCount += 1
         if (order.status === 'CANCELLED') acc.cancelledCount += 1
         return acc
       },
       {
         draftCount: 0,
+        issuedCount: 0,
         manufacturingCount: 0,
         oceanCount: 0,
         warehouseCount: 0,
+        rejectedCount: 0,
         cancelledCount: 0,
       }
     )
@@ -164,6 +170,10 @@ export function PurchaseOrdersPanel({
               <span className="font-semibold text-foreground">{statusCounts.draftCount}</span> draft
             </span>
             <span>
+              <span className="font-semibold text-foreground">{statusCounts.issuedCount}</span>{' '}
+              issued
+            </span>
+            <span>
               <span className="font-semibold text-foreground">
                 {statusCounts.manufacturingCount}
               </span>{' '}
@@ -176,6 +186,10 @@ export function PurchaseOrdersPanel({
             <span>
               <span className="font-semibold text-foreground">{statusCounts.warehouseCount}</span>{' '}
               at warehouse
+            </span>
+            <span>
+              <span className="font-semibold text-foreground">{statusCounts.rejectedCount}</span>{' '}
+              rejected
             </span>
             <span>
               <span className="font-semibold text-foreground">{statusCounts.cancelledCount}</span>{' '}
