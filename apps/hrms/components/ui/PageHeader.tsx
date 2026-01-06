@@ -1,9 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { ArrowLeftIcon } from './Icons'
 import { Button } from './button'
 import { useNavigationHistory } from '@/lib/navigation-history'
-import { cn } from '@/lib/utils'
 
 type PageHeaderProps = {
   title: string
@@ -11,6 +11,7 @@ type PageHeaderProps = {
   icon?: React.ReactNode
   actions?: React.ReactNode
   showBack?: boolean
+  backHref?: string // Explicit back href - prefer this over showBack for detail pages
 }
 
 export function PageHeader({
@@ -19,19 +20,29 @@ export function PageHeader({
   icon,
   actions,
   showBack = false,
+  backHref,
 }: PageHeaderProps) {
   const { goBack, canGoBack } = useNavigationHistory()
 
-  const showBackButton = showBack && canGoBack
+  // Prefer explicit backHref, fallback to history-based goBack
+  const hasBackNavigation = backHref || (showBack && canGoBack)
 
   return (
     <header className="mb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          {showBackButton && (
-            <Button variant="outline" size="icon" onClick={goBack} className="h-11 w-11">
-              <ArrowLeftIcon className="h-5 w-5 text-muted-foreground" />
-            </Button>
+          {hasBackNavigation && (
+            backHref ? (
+              <Link href={backHref}>
+                <Button variant="outline" size="icon" className="h-11 w-11">
+                  <ArrowLeftIcon className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </Link>
+            ) : (
+              <Button variant="outline" size="icon" onClick={goBack} className="h-11 w-11">
+                <ArrowLeftIcon className="h-5 w-5 text-muted-foreground" />
+              </Button>
+            )
           )}
           {icon && (
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-md">
