@@ -205,11 +205,13 @@ export default function LeaveDetailPage() {
         </div>
 
         {/* Pending approval info */}
-        {leave.status === 'PENDING' && employee.reportsTo && (
+        {leave.status === 'PENDING' && (
           <div className="py-6 border-t border-border">
             <p className="text-sm font-medium text-muted-foreground mb-2">Pending approval from</p>
             <p className="text-base text-foreground">
-              {employee.reportsTo.firstName} {employee.reportsTo.lastName}
+              {employee.reportsTo
+                ? `${employee.reportsTo.firstName} ${employee.reportsTo.lastName}`
+                : 'HR'}
             </p>
           </div>
         )}
