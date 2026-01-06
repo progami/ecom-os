@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -20,7 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar';
+import {
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SELECT,
+} from '@/components/sheet-toolbar';
+import { usePersistentState } from '@/hooks/usePersistentState';
 
 export type POStatus = 'PLANNED' | 'PRODUCTION' | 'IN_TRANSIT' | 'ARRIVED' | 'CLOSED' | 'CANCELLED';
 
@@ -98,13 +103,118 @@ const statusFilters: StatusFilter[] = [
   'CLOSED',
 ];
 
+type POProfitabilityFiltersContextValue = {
+  statusFilter: StatusFilter;
+  setStatusFilter: (value: StatusFilter) => void;
+  focusSkuId: string;
+  setFocusSkuId: (value: string) => void;
+};
+
+const POProfitabilityFiltersContext = createContext<POProfitabilityFiltersContextValue | null>(
+  null,
+);
+
+export function POProfitabilityFiltersProvider({
+  children,
+  strategyId,
+}: {
+  children: ReactNode;
+  strategyId: string;
+}) {
+  const [statusFilter, setStatusFilter] = usePersistentState<StatusFilter>(
+    `xplan:po-profitability:${strategyId}:status-filter`,
+    'ALL',
+  );
+  const [focusSkuId, setFocusSkuId] = usePersistentState<string>(
+    `xplan:po-profitability:${strategyId}:focus-sku`,
+    'ALL',
+  );
+
+  const value = useMemo(
+    () => ({
+      statusFilter,
+      setStatusFilter,
+      focusSkuId,
+      setFocusSkuId,
+    }),
+    [focusSkuId, setFocusSkuId, setStatusFilter, statusFilter],
+  );
+
+  return (
+    <POProfitabilityFiltersContext.Provider value={value}>
+      {children}
+    </POProfitabilityFiltersContext.Provider>
+  );
+}
+
+export function POProfitabilityHeaderControls({
+  productOptions,
+}: {
+  productOptions: Array<{ id: string; name: string }>;
+}) {
+  const context = useContext(POProfitabilityFiltersContext);
+  const focusSkuId = context?.focusSkuId ?? 'ALL';
+
+  useEffect(() => {
+    if (!context) return;
+    if (focusSkuId === 'ALL') return;
+    if (!productOptions.some((option) => option.id === focusSkuId)) {
+      context.setFocusSkuId('ALL');
+    }
+  }, [context, focusSkuId, productOptions]);
+
+  if (!context) return null;
+
+  const { statusFilter, setStatusFilter, setFocusSkuId } = context;
+
+  return (
+    <>
+      <div className={SHEET_TOOLBAR_GROUP}>
+        <span className={SHEET_TOOLBAR_LABEL}>Status</span>
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+          className={`${SHEET_TOOLBAR_SELECT} min-w-[8.5rem]`}
+          aria-label="Filter by purchase order status"
+        >
+          {statusFilters.map((status) => (
+            <option key={status} value={status}>
+              {status === 'ALL' ? 'All' : statusLabels[status]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {productOptions.length > 0 ? (
+        <div className={SHEET_TOOLBAR_GROUP}>
+          <span className={SHEET_TOOLBAR_LABEL}>Focus SKU</span>
+          <select
+            value={focusSkuId}
+            onChange={(event) => setFocusSkuId(event.target.value)}
+            className={`${SHEET_TOOLBAR_SELECT} min-w-[10rem]`}
+            aria-label="Focus on a single SKU"
+          >
+            <option value="ALL">Show all</option>
+            {productOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 export function POProfitabilitySection({
   data,
   title = 'PO Profitability Analysis',
   description = 'Compare purchase order performance and profitability metrics',
 }: POProfitabilitySectionProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-  const [skuFilter, setSkuFilter] = useState<string>('ALL');
+  const filters = useContext(POProfitabilityFiltersContext);
+  const statusFilter = filters?.statusFilter ?? 'ALL';
+  const skuFilter = filters?.focusSkuId ?? 'ALL';
   const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>([
     'grossMarginPercent',
     'netMarginPercent',
@@ -112,17 +222,6 @@ export function POProfitabilitySection({
   ]);
   const [sortField, setSortField] = useState<SortField>('grossRevenue');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-
-  // Get unique products for SKU dropdown
-  const productOptions = useMemo(() => {
-    const productMap = new Map<string, string>();
-    data.forEach((row) => {
-      if (!productMap.has(row.productId)) {
-        productMap.set(row.productId, row.productName);
-      }
-    });
-    return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }));
-  }, [data]);
 
   // When "All SKUs" selected, aggregate to per-PO view
   // When specific SKU selected, show per-batch view filtered to that SKU
@@ -264,50 +363,6 @@ export function POProfitabilitySection({
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className={SHEET_TOOLBAR_GROUP}>
-          <span className="text-xs font-medium text-muted-foreground">Status</span>
-          {statusFilters.map((status) => {
-            const isActive = statusFilter === status;
-            const label = status === 'ALL' ? 'All' : statusLabels[status];
-            return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => setStatusFilter(status)}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-accent'
-                }`}
-              >
-                {isActive && <Check className="h-3 w-3" />}
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
-        {productOptions.length > 0 && (
-          <div className={SHEET_TOOLBAR_GROUP}>
-            <span className="text-xs font-medium text-muted-foreground">SKU</span>
-            <select
-              value={skuFilter}
-              onChange={(e) => setSkuFilter(e.target.value)}
-              className="h-8 rounded-md border border-input bg-background px-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="ALL">All SKUs</option>
-              {productOptions.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
       {/* Chart Card */}
       <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
         <CardHeader className="pb-2">

@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit, safeErrorResponse, validateBody } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isSuperAdmin } from '@/lib/permissions'
+import { z } from 'zod'
 
 /**
  * Super Admin Review endpoint for disciplinary actions
  * 3-tier workflow: Manager raises -> HR reviews -> Super Admin approves -> Employee acknowledges
  */
 type RouteContext = { params: Promise<{ id: string }> }
+
+const SuperAdminReviewBodySchema = z.object({
+  approved: z.boolean(),
+  notes: z.string().max(2000).nullable().optional(),
+})
 
 export async function POST(req: Request, context: RouteContext) {
   const rateLimitError = withRateLimit(req)
@@ -17,14 +23,10 @@ export async function POST(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params
     const body = await req.json()
-    const { approved, notes } = body
+    const validation = validateBody(SuperAdminReviewBodySchema, body)
+    if (!validation.success) return validation.error
 
-    if (typeof approved !== 'boolean') {
-      return NextResponse.json(
-        { error: 'approved field is required (boolean)' },
-        { status: 400 }
-      )
-    }
+    const { approved, notes } = validation.data
 
     // Check if current user is Super Admin
     const currentEmployeeId = await getCurrentEmployeeId()
@@ -192,6 +194,11 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const isAdmin = await isSuperAdmin(currentEmployeeId)
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const action = await prisma.disciplinaryAction.findUnique({
       where: { id },
       select: {
@@ -208,10 +215,8 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Disciplinary action not found' }, { status: 404 })
     }
 
-    const isAdmin = await isSuperAdmin(currentEmployeeId)
-
     return NextResponse.json({
-      canReview: action.status === 'PENDING_SUPER_ADMIN' && isAdmin,
+      canReview: action.status === 'PENDING_SUPER_ADMIN',
       superAdminReview: {
         approvedAt: action.superAdminApprovedAt,
         approvedById: action.superAdminApprovedById,

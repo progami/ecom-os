@@ -34,6 +34,21 @@ test('disciplinary: PENDING_HR_REVIEW blocks non-HR', () => {
   assert.match(actions.primary?.disabledReason ?? '', /HR must review/i)
 })
 
+test('disciplinary: PENDING_SUPER_ADMIN blocks non-super-admin', () => {
+  const actions = buildDisciplinaryNextActions(action({ status: 'PENDING_SUPER_ADMIN', employeeId: 'emp' }), baseViewer)
+  assert.equal(actions.primary?.disabled, true)
+})
+
+test('disciplinary: PENDING_SUPER_ADMIN lets super admin approve', () => {
+  const actions = buildDisciplinaryNextActions(
+    action({ status: 'PENDING_SUPER_ADMIN', employeeId: 'emp' }),
+    { ...baseViewer, isSuperAdmin: true }
+  )
+
+  assert.equal(actions.primary?.id, 'disciplinary.superAdminApprove')
+  assert.equal(actions.primary?.disabled, false)
+})
+
 test('disciplinary: PENDING_ACKNOWLEDGMENT gives employee acknowledge + appeal', () => {
   const actions = buildDisciplinaryNextActions(
     action({
@@ -64,4 +79,3 @@ test('disciplinary: PENDING_ACKNOWLEDGMENT gives manager acknowledge', () => {
   assert.equal(actions.primary?.label, 'Acknowledge as manager')
   assert.equal(actions.primary?.disabled, false)
 })
-
