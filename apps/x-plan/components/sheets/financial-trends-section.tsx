@@ -231,7 +231,14 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 11, fill: '#64748b' }}
-                  interval="preserveStartEnd"
+                  interval={granularity === 'weekly' ? 3 : 0}
+                  label={{
+                    value: granularity === 'weekly' ? 'Week' : granularity === 'monthly' ? 'Month' : 'Quarter',
+                    position: 'insideBottom',
+                    offset: -5,
+                    fontSize: 11,
+                    fill: '#64748b'
+                  }}
                 />
                 <YAxis
                   tickLine={false}
@@ -243,9 +250,11 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload) return null
+                    const prefix = granularity === 'weekly' ? 'Week' : granularity === 'monthly' ? 'Month' : 'Quarter'
+                    const displayLabel = label === '0' ? 'Opening' : `${prefix} ${label}`
                     return (
                       <div className="rounded-lg border bg-background p-2 shadow-md">
-                        <p className="mb-1 text-xs font-medium">{label}</p>
+                        <p className="mb-1 text-xs font-medium">{displayLabel}</p>
                         {payload.map((entry) => (
                           <p key={entry.dataKey} className="text-xs" style={{ color: entry.color }}>
                             {metrics.find(m => m.key === entry.dataKey)?.title}: {formatValue(entry.value as number, metrics.find(m => m.key === entry.dataKey)?.format ?? 'currency')}
@@ -302,7 +311,16 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
 
 function getShortLabel(label: string) {
   const parts = label.split(' · ')
-  return parts[0] || label
+  const shortLabel = parts[0] || label
+  // Strip "W" prefix from week labels (e.g., "W1" -> "1")
+  if (/^W\d+$/.test(shortLabel)) {
+    return shortLabel.slice(1)
+  }
+  // Strip "Opening" prefix for cash flow
+  if (shortLabel.startsWith('Opening ')) {
+    return '0'
+  }
+  return shortLabel
 }
 
 function exportChart(title: string, granularity: string) {
