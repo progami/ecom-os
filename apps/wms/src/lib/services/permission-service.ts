@@ -1,9 +1,31 @@
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Permission, UserPermission, User } from '@ecom-os/prisma-wms'
+import { Permission, UserPermission, User, UserRole } from '@ecom-os/prisma-wms'
 import { NotFoundError, ValidationError } from '@/lib/api'
 
 // Super admin emails - these users have all permissions automatically
 const SUPER_ADMIN_EMAILS = ['jarrar@targonglobal.com']
+
+// Baseline permissions by role (in addition to explicit user grants)
+const STAFF_BASELINE_PERMISSIONS = new Set<string>([
+  'po.create',
+  'po.edit',
+  'po.cancel',
+  'fo.create',
+  'fo.edit',
+  'fo.stage',
+])
+
+function roleHasBaselinePermission(role: UserRole, permissionCode: string): boolean {
+  if (role === UserRole.admin) {
+    return permissionCode.startsWith('po.') || permissionCode.startsWith('fo.')
+  }
+
+  if (role === UserRole.staff) {
+    return STAFF_BASELINE_PERMISSIONS.has(permissionCode)
+  }
+
+  return false
+}
 
 /**
  * Check if an email belongs to a super admin
@@ -124,10 +146,18 @@ export async function hasPermission(
   // First check if user is super admin
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { email: true, role: true },
   })
 
-  if (user && isSuperAdmin(user.email)) {
+  if (!user) {
+    return false
+  }
+
+  if (isSuperAdmin(user.email)) {
+    return true
+  }
+
+  if (roleHasBaselinePermission(user.role, permissionCode)) {
     return true
   }
 
@@ -154,10 +184,18 @@ export async function hasAnyPermission(
   // First check if user is super admin
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { email: true, role: true },
   })
 
-  if (user && isSuperAdmin(user.email)) {
+  if (!user) {
+    return false
+  }
+
+  if (isSuperAdmin(user.email)) {
+    return true
+  }
+
+  if (permissionCodes.some((code) => roleHasBaselinePermission(user.role, code))) {
     return true
   }
 
@@ -184,10 +222,19 @@ export async function hasAllPermissions(
   // First check if user is super admin
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true },
+    select: { email: true, role: true },
   })
 
-  if (user && isSuperAdmin(user.email)) {
+  if (!user) {
+    return false
+  }
+
+  if (isSuperAdmin(user.email)) {
+    return true
+  }
+
+  const remaining = permissionCodes.filter((code) => !roleHasBaselinePermission(user.role, code))
+  if (remaining.length === 0) {
     return true
   }
 
@@ -195,11 +242,11 @@ export async function hasAllPermissions(
   const count = await prisma.userPermission.count({
     where: {
       userId,
-      permission: { code: { in: permissionCodes } },
+      permission: { code: { in: remaining } },
     },
   })
 
-  return count === permissionCodes.length
+  return count === remaining.length
 }
 
 /**
