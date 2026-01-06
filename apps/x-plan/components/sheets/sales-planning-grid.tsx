@@ -2058,7 +2058,7 @@ export function SalesPlanningGrid({
                   <TableHead
                     key={product.id}
                     colSpan={columnIds.length}
-                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b border-l-2 border-r-2 border-l-cyan-400 border-r-cyan-400 bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:border-l-cyan-500 dark:border-r-cyan-500 dark:text-cyan-300/80"
+                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b border-l-2 !border-r-2 !border-l-cyan-400 !border-r-cyan-400 bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:!border-l-cyan-500 dark:!border-r-cyan-500 dark:text-cyan-300/80"
                   >
                     {renderProductGroupHeader(product)}
                   </TableHead>
@@ -2078,8 +2078,8 @@ export function SalesPlanningGrid({
                         className={cn(
                           'sticky top-10 z-20 h-10 whitespace-nowrap border-b border-r px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80',
                           isInputColumn ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
-                          isFirstMetric && 'border-l-2 border-l-cyan-400 dark:border-l-cyan-500',
-                          isLastMetric && 'border-r-2 border-r-cyan-400 dark:border-r-cyan-500',
+                          isFirstMetric && 'border-l-2 !border-l-cyan-400 dark:!border-l-cyan-500',
+                          isLastMetric && '!border-r-2 !border-r-cyan-400 dark:!border-r-cyan-500',
                         )}
                       >
                         {renderMetricHeader(field)}
@@ -2172,9 +2172,9 @@ export function SalesPlanningGrid({
                           meta?.sticky && 'sticky z-10',
                           colIndex === 2 && 'border-r-2',
                           productBoundaryColumns.firstColIndices.has(colIndex) &&
-                            'border-l-2 border-l-cyan-400 dark:border-l-cyan-500',
+                            'border-l-2 !border-l-cyan-400 dark:!border-l-cyan-500',
                           productBoundaryColumns.lastColIndices.has(colIndex) &&
-                            'border-r-2 border-r-cyan-400 dark:border-r-cyan-500',
+                            '!border-r-2 !border-r-cyan-400 dark:!border-r-cyan-500',
                           presentation.isEditable && 'cursor-text font-medium',
                           presentation.isEditable &&
                             presentation.highlight === 'none' &&
