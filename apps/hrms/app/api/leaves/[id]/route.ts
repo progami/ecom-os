@@ -74,7 +74,23 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json(dto)
     }
 
-    return NextResponse.json(leaveRequest)
+    // Fetch manager info if exists
+    let reportsTo = null
+    if (leaveRequest.employee.reportsToId) {
+      const manager = await prisma.employee.findUnique({
+        where: { id: leaveRequest.employee.reportsToId },
+        select: { id: true, firstName: true, lastName: true },
+      })
+      reportsTo = manager
+    }
+
+    return NextResponse.json({
+      ...leaveRequest,
+      employee: {
+        ...leaveRequest.employee,
+        reportsTo,
+      },
+    })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to fetch leave request')
   }

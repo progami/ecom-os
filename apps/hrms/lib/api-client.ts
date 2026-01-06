@@ -807,6 +807,11 @@ export type LeaveRequest = {
     lastName: string
     employeeId: string
     avatar: string | null
+    reportsTo?: {
+      id: string
+      firstName: string
+      lastName: string
+    } | null
   }
   leaveType: string
   startDate: string
