@@ -72,7 +72,10 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
  }
 
  try {
- const updated = await updatePurchaseOrderDetails(id, normalized)
+ const updated = await updatePurchaseOrderDetails(id, normalized, {
+   id: session.user.id,
+   name: session.user.name ?? session.user.email ?? null,
+ })
  return ApiResponses.success(serializeWithStageData(updated))
  } catch (error) {
  return ApiResponses.handleError(error)
