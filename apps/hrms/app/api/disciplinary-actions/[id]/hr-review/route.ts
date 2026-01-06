@@ -91,14 +91,14 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      const recordLink = `/performance/disciplinary/${id}`
+      const recordLink = `/performance/violations/${id}`
 
       // Notify employee to acknowledge
       await prisma.notification.create({
         data: {
           type: 'VIOLATION_APPROVED',
-          title: 'Disciplinary Action Requires Acknowledgment',
-          message: `A disciplinary action has been issued to you. Please review and acknowledge.`,
+          title: 'Violation Requires Acknowledgment',
+          message: `A violation record has been issued to you. Please review and acknowledge.`,
           link: recordLink,
           employeeId: updated.employee.id,
           relatedId: id,
@@ -135,7 +135,7 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      const recordLink = `/performance/disciplinary/${id}`
+      const recordLink = `/performance/violations/${id}`
 
       // Notify the manager who raised it (reportedBy field contains their name, but we need to find by reportsToId)
       if (action.employee.reportsToId) {

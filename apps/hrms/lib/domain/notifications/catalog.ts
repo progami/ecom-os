@@ -143,15 +143,16 @@ function deriveDeepLink(input: NotificationCatalogInput): string | null {
   if (input.link) return input.link
 
   if (input.relatedType && input.relatedId) {
+    if (input.relatedType === 'CASE') return '/work'
+
     const map: Record<string, string> = {
       POLICY: '/policies',
       REVIEW: '/performance/reviews',
-      DISCIPLINARY: '/performance/disciplinary',
+      DISCIPLINARY: '/performance/violations',
       LEAVE: '/leaves',
       TASK: '/tasks',
       RESOURCE: '/resources',
       EMPLOYEE: '/employees',
-      CASE: '/cases',
     }
     const base = map[input.relatedType]
     if (base) return `${base}/${input.relatedId}`
@@ -182,4 +183,3 @@ export function getNotificationCatalogEntry(input: NotificationCatalogInput): No
     isReminder,
   }
 }
-

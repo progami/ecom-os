@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { getAuthorizedReporters } from '@/lib/permissions'
+import { prisma } from '@/lib/prisma'
+import { canViewEmployeeDirectory, getAuthorizedReporters, isHROrAbove } from '@/lib/permissions'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 
 export async function GET(
@@ -18,7 +19,29 @@ export async function GET(
 
     const { id: targetEmployeeId } = await params
 
-    const reporters = await getAuthorizedReporters(targetEmployeeId)
+    const [isHR, base] = await Promise.all([
+      isHROrAbove(currentEmployeeId),
+      prisma.employee.findFirst({
+        where: { OR: [{ id: targetEmployeeId }, { employeeId: targetEmployeeId }] },
+        select: { id: true, status: true },
+      }),
+    ])
+
+    if (!base) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const isSelf = currentEmployeeId === base.id
+    if (!isHR && !isSelf && base.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const canView = await canViewEmployeeDirectory(currentEmployeeId, base.id)
+    if (!canView) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const reporters = await getAuthorizedReporters(base.id)
 
     return NextResponse.json({
       items: reporters,

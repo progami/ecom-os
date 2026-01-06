@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
-import { isHROrAbove } from '@/lib/permissions'
+import { getOrgVisibleEmployeeIds, isHROrAbove } from '@/lib/permissions'
 
 type SearchResult =
   | { type: 'EMPLOYEE'; id: string; title: string; subtitle?: string; href: string }
@@ -32,6 +32,8 @@ export async function GET(req: Request) {
     const isHR = await isHROrAbove(actorId)
     const take = 6
 
+    const visibleIds = isHR ? null : await getOrgVisibleEmployeeIds(actorId)
+
     const employeeWhere = isHR
       ? {
           status: 'ACTIVE',
@@ -44,19 +46,12 @@ export async function GET(req: Request) {
         }
       : {
           status: 'ACTIVE',
+          id: { in: visibleIds ?? [actorId] },
           OR: [
-            { id: actorId },
-            { reportsToId: actorId },
-          ],
-          AND: [
-            {
-              OR: [
-                { firstName: { contains: q, mode: 'insensitive' as const } },
-                { lastName: { contains: q, mode: 'insensitive' as const } },
-                { email: { contains: q, mode: 'insensitive' as const } },
-                { employeeId: { contains: q, mode: 'insensitive' as const } },
-              ],
-            },
+            { firstName: { contains: q, mode: 'insensitive' as const } },
+            { lastName: { contains: q, mode: 'insensitive' as const } },
+            { email: { contains: q, mode: 'insensitive' as const } },
+            { employeeId: { contains: q, mode: 'insensitive' as const } },
           ],
         }
 

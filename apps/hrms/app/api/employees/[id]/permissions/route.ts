@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canEditField, isManagerOf, isSuperAdmin, FIELD_PERMISSIONS, type AttributePermission } from '@/lib/permissions'
+import { canEditField, canViewEmployeeDirectory, isManagerOf, isSuperAdmin, FIELD_PERMISSIONS, type AttributePermission } from '@/lib/permissions'
 import { prisma } from '@/lib/prisma'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -33,6 +33,11 @@ export async function GET(req: Request, context: RouteContext) {
     }
 
     const targetEmployeeId = base.id
+
+    const canView = await canViewEmployeeDirectory(actorId, targetEmployeeId)
+    if (!canView) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
 
     const isEditingSelf = actorId === targetEmployeeId
     const isManager = await isManagerOf(actorId, targetEmployeeId)

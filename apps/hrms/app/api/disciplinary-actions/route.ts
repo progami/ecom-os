@@ -263,7 +263,7 @@ export async function POST(req: Request) {
           type: 'VIOLATION_PENDING_HR',
           title: 'Violation Pending Review',
           message: `A new violation has been raised for ${item.employee.firstName} ${item.employee.lastName}. Please review.`,
-          link: `/performance/disciplinary/${item.id}`,
+          link: `/performance/violations/${item.id}`,
           employeeId: hr.id,
           relatedId: item.id,
           relatedType: 'DISCIPLINARY',
