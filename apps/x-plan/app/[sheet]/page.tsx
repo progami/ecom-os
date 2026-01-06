@@ -551,16 +551,21 @@ async function resolveStrategyId(
 
     markStrategyAssignmentFieldsUnavailable();
 
-    // Legacy fallback when assignment fields are missing (migration not deployed).
+    const where = buildStrategyAccessWhere(actor);
+
     if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
       const exists = await prismaAny.strategy.findFirst({
-        where: { id: searchParamStrategy },
+        where: {
+          id: searchParamStrategy,
+          ...where,
+        },
         select: { id: true },
       });
       if (exists) return searchParamStrategy;
     }
 
     const firstStrategy = await prismaAny.strategy.findFirst({
+      where,
       orderBy: { updatedAt: 'desc' },
       select: { id: true },
     });
