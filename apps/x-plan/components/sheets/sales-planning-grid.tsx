@@ -1856,6 +1856,24 @@ export function SalesPlanningGrid({
     });
   }, [displayedProducts, keyByProductField, metricSequence]);
 
+  // Compute which column indices are at the start/end of each product group for border styling
+  const productBoundaryColumns = useMemo(() => {
+    const firstColIndices = new Set<number>();
+    const lastColIndices = new Set<number>();
+    const pinnedCount = 3; // weekLabel, weekDate, arrivalDetail
+    let currentIndex = pinnedCount;
+
+    for (const { columnIds } of productMetricColumnIds) {
+      if (columnIds.length > 0) {
+        firstColIndices.add(currentIndex);
+        lastColIndices.add(currentIndex + columnIds.length - 1);
+        currentIndex += columnIds.length;
+      }
+    }
+
+    return { firstColIndices, lastColIndices };
+  }, [productMetricColumnIds]);
+
   const baseHeaderColumns = useMemo(() => {
     const pinned = leafColumns.filter((column) => {
       const meta = column.columnDef.meta as { kind?: string } | undefined;
@@ -2040,7 +2058,7 @@ export function SalesPlanningGrid({
                   <TableHead
                     key={product.id}
                     colSpan={columnIds.length}
-                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b border-r bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b border-l-2 border-r-2 border-l-slate-300 border-r-slate-300 bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:border-l-slate-600 dark:border-r-slate-600 dark:text-cyan-300/80"
                   >
                     {renderProductGroupHeader(product)}
                   </TableHead>
@@ -2048,16 +2066,20 @@ export function SalesPlanningGrid({
               </TableRow>
               <TableRow className="hover:bg-transparent">
                 {productMetricColumnIds.flatMap(({ product, columnIds }) =>
-                  columnIds.map((columnId) => {
+                  columnIds.map((columnId, metricIndex) => {
                     const meta = columnMeta[columnId];
                     const field = meta?.field ?? '';
                     const isInputColumn = field === 'actualSales' || field === 'forecastSales';
+                    const isFirstMetric = metricIndex === 0;
+                    const isLastMetric = metricIndex === columnIds.length - 1;
                     return (
                       <TableHead
                         key={`${product.id}:${columnId}`}
                         className={cn(
                           'sticky top-10 z-20 h-10 whitespace-nowrap border-b border-r px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80',
                           isInputColumn ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
+                          isFirstMetric && 'border-l-2 border-l-slate-300 dark:border-l-slate-600',
+                          isLastMetric && 'border-r-2 border-r-slate-300 dark:border-r-slate-600',
                         )}
                       >
                         {renderMetricHeader(field)}
@@ -2149,6 +2171,10 @@ export function SalesPlanningGrid({
                               : 'bg-card',
                           meta?.sticky && 'sticky z-10',
                           colIndex === 2 && 'border-r-2',
+                          productBoundaryColumns.firstColIndices.has(colIndex) &&
+                            'border-l-2 border-l-slate-300 dark:border-l-slate-600',
+                          productBoundaryColumns.lastColIndices.has(colIndex) &&
+                            'border-r-2 border-r-slate-300 dark:border-r-slate-600',
                           presentation.isEditable && 'cursor-text font-medium',
                           presentation.isEditable &&
                             presentation.highlight === 'none' &&
