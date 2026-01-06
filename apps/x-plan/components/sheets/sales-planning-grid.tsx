@@ -2058,7 +2058,11 @@ export function SalesPlanningGrid({
                   <TableHead
                     key={product.id}
                     colSpan={columnIds.length}
-                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b border-l-2 border-r-2 border-l-slate-300 border-r-slate-300 bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:border-l-slate-600 dark:border-r-slate-600 dark:text-cyan-300/80"
+                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    style={{
+                      borderLeft: '2px solid #22d3ee',
+                      borderRight: '2px solid #22d3ee',
+                    }}
                   >
                     {renderProductGroupHeader(product)}
                   </TableHead>
@@ -2078,9 +2082,11 @@ export function SalesPlanningGrid({
                         className={cn(
                           'sticky top-10 z-20 h-10 whitespace-nowrap border-b border-r px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80',
                           isInputColumn ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
-                          isFirstMetric && 'border-l-2 border-l-slate-300 dark:border-l-slate-600',
-                          isLastMetric && 'border-r-2 border-r-slate-300 dark:border-r-slate-600',
                         )}
+                        style={{
+                          ...(isFirstMetric && { borderLeft: '2px solid #22d3ee' }),
+                          ...(isLastMetric && { borderRight: '2px solid #22d3ee' }),
+                        }}
                       >
                         {renderMetricHeader(field)}
                       </TableHead>
@@ -2157,6 +2163,9 @@ export function SalesPlanningGrid({
                       </span>
                     );
 
+                    const isFirstProductCol = productBoundaryColumns.firstColIndices.has(colIndex);
+                    const isLastProductCol = productBoundaryColumns.lastColIndices.has(colIndex);
+
                     const cell = (
                       <TableCell
                         key={column.id}
@@ -2171,10 +2180,6 @@ export function SalesPlanningGrid({
                               : 'bg-card',
                           meta?.sticky && 'sticky z-10',
                           colIndex === 2 && 'border-r-2',
-                          productBoundaryColumns.firstColIndices.has(colIndex) &&
-                            'border-l-2 border-l-slate-300 dark:border-l-slate-600',
-                          productBoundaryColumns.lastColIndices.has(colIndex) &&
-                            'border-r-2 border-r-slate-300 dark:border-r-slate-600',
                           presentation.isEditable && 'cursor-text font-medium',
                           presentation.isEditable &&
                             presentation.highlight === 'none' &&
@@ -2194,6 +2199,8 @@ export function SalesPlanningGrid({
                           width: meta?.width,
                           minWidth: meta?.width,
                           maxWidth: meta?.width,
+                          ...(isFirstProductCol && { borderLeft: '2px solid #22d3ee' }),
+                          ...(isLastProductCol && { borderRight: '2px solid #22d3ee' }),
                         }}
                         onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
