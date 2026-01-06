@@ -52,6 +52,14 @@ const COMPANY_VALUES = [
   'Innovation',
 ]
 
+type AuthorizedReporter = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  position: string
+}
+
 const ViolationSchema = z.object({
   employeeId: z.string().min(1, 'Employee is required'),
   violationType: z.string().min(1, 'Violation type is required'),
@@ -74,6 +82,8 @@ function AddViolationContent() {
   const preselectedEmployeeId = searchParams.get('employeeId')
 
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [authorizedReporters, setAuthorizedReporters] = useState<AuthorizedReporter[]>([])
+  const [loadingReporters, setLoadingReporters] = useState(false)
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedValues, setSelectedValues] = useState<string[]>([])
@@ -81,6 +91,7 @@ function AddViolationContent() {
   const {
     register,
     handleSubmit,
+    watch,
     setValue,
     formState: { errors, isSubmitting },
     setError,
@@ -92,9 +103,13 @@ function AddViolationContent() {
       severity: '',
       actionTaken: '',
       valuesBreached: [],
+      reportedBy: '',
     },
   })
 
+  const selectedEmployeeId = watch('employeeId')
+
+  // Load initial data
   useEffect(() => {
     async function load() {
       try {
@@ -104,10 +119,6 @@ function AddViolationContent() {
         ])
         setEmployees(empRes.items)
         setMe(meData)
-
-        if (meData) {
-          setValue('reportedBy', `${meData.firstName} ${meData.lastName}`)
-        }
       } catch (e: any) {
         setError('root', { message: e.message })
       } finally {
@@ -115,7 +126,40 @@ function AddViolationContent() {
       }
     }
     load()
-  }, [setValue, setError])
+  }, [setError])
+
+  // Load authorized reporters when employee is selected
+  useEffect(() => {
+    async function loadReporters() {
+      if (!selectedEmployeeId) {
+        setAuthorizedReporters([])
+        setValue('reportedBy', '')
+        return
+      }
+
+      setLoadingReporters(true)
+      try {
+        const res = await EmployeesApi.getAuthorizedReporters(selectedEmployeeId)
+        setAuthorizedReporters(res.items)
+
+        // Auto-select current user if they're in the list
+        if (me) {
+          const currentUserInList = res.items.find((r) => r.id === me.id)
+          if (currentUserInList) {
+            setValue('reportedBy', `${currentUserInList.firstName} ${currentUserInList.lastName}`)
+          } else {
+            setValue('reportedBy', '')
+          }
+        }
+      } catch (e: any) {
+        console.error('Failed to load authorized reporters:', e)
+        setAuthorizedReporters([])
+      } finally {
+        setLoadingReporters(false)
+      }
+    }
+    loadReporters()
+  }, [selectedEmployeeId, me, setValue])
 
   const toggleValue = (value: string) => {
     const newValues = selectedValues.includes(value)
@@ -267,12 +311,31 @@ function AddViolationContent() {
             </div>
             <div>
               <Label htmlFor="reportedBy">Reported By</Label>
-              <Input
+              <NativeSelect
                 {...register('reportedBy')}
+                disabled={!selectedEmployeeId || loadingReporters}
                 className={cn('mt-1.5', errors.reportedBy && 'border-destructive')}
-              />
+              >
+                <option value="">
+                  {!selectedEmployeeId
+                    ? 'Select employee first...'
+                    : loadingReporters
+                      ? 'Loading reporters...'
+                      : 'Select reporter...'}
+                </option>
+                {authorizedReporters.map((reporter) => (
+                  <option key={reporter.id} value={`${reporter.firstName} ${reporter.lastName}`}>
+                    {reporter.firstName} {reporter.lastName} ({reporter.position})
+                  </option>
+                ))}
+              </NativeSelect>
               {errors.reportedBy && (
                 <p className="text-xs text-destructive mt-1">{errors.reportedBy.message}</p>
+              )}
+              {selectedEmployeeId && !loadingReporters && authorizedReporters.length === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  No authorized reporters found for this employee
+                </p>
               )}
             </div>
           </div>
