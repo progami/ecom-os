@@ -394,7 +394,9 @@ export function StrategiesWorkspace({
                           ? directoryConfigured
                             ? 'Loading assignees...'
                             : 'Directory unavailable'
-                          : 'Select assignee'}
+                          : directoryConfigured
+                            ? 'Select assignee'
+                            : 'Directory unavailable (limited list)'}
                       </option>
                       {assignees.map((assignee) => (
                         <option key={assignee.id} value={assignee.id}>
@@ -541,7 +543,9 @@ export function StrategiesWorkspace({
                                 ? directoryConfigured
                                   ? 'Loading assignees...'
                                   : 'Directory unavailable'
-                                : 'Select assignee'}
+                                : directoryConfigured
+                                  ? 'Select assignee'
+                                  : 'Directory unavailable (limited list)'}
                             </option>
                             {assignees.map((assignee) => (
                               <option key={assignee.id} value={assignee.id}>
