@@ -362,7 +362,7 @@ export function FinancialTrendsSection({
           </div>
 
           {/* Legend */}
-          <div className="mt-4 flex flex-wrap items-center gap-4 border-t pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 border-t border-slate-200/60 pt-4 dark:border-slate-700/50">
             {metrics.map((metric) => {
               const isEnabled = enabledMetrics.some((m) => m.key === metric.key);
               return (
@@ -370,17 +370,32 @@ export function FinancialTrendsSection({
                   key={metric.key}
                   type="button"
                   onClick={() => toggleMetric(metric.key)}
-                  className="flex items-center gap-2"
+                  className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
+                    isEnabled
+                      ? 'bg-slate-100/80 dark:bg-slate-800/50'
+                      : 'opacity-50 hover:opacity-75'
+                  }`}
                 >
-                  <div
-                    className="h-3 w-6 rounded-sm transition-opacity"
-                    style={{
-                      backgroundColor: accentColors[metric.accent].stroke,
-                      opacity: isEnabled ? 1 : 0.3,
-                    }}
-                  />
+                  <div className="relative">
+                    <div
+                      className={`h-3 w-3 rounded-full transition-transform duration-200 ${
+                        isEnabled ? 'scale-100' : 'scale-75'
+                      }`}
+                      style={{ backgroundColor: accentColors[metric.accent].stroke }}
+                    />
+                    {isEnabled && (
+                      <div
+                        className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
+                        style={{ backgroundColor: accentColors[metric.accent].stroke }}
+                      />
+                    )}
+                  </div>
                   <span
-                    className={`text-xs ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}
+                    className={`text-xs font-medium transition-colors duration-200 ${
+                      isEnabled
+                        ? 'text-slate-700 dark:text-slate-200'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}
                   >
                     {metric.title}
                   </span>
