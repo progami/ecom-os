@@ -35,6 +35,15 @@ export type FileContext = {
     stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
     documentType: string;
 } | {
+    type: 'fulfillment-order';
+    fulfillmentOrderId: string;
+    /** Optional tenant code (e.g., US/UK) to keep multi-tenant uploads organized in S3. */
+    tenantCode?: string;
+    /** Optional public order number (e.g., FO-0001) to keep FO uploads human-navigable in S3. */
+    fulfillmentOrderNumber?: string;
+    stage: 'PACKING' | 'SHIPPING' | 'DELIVERY';
+    documentType: string;
+} | {
     type: 'warehouse-rate-list';
     warehouseId: string;
 } | {

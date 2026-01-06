@@ -60,6 +60,8 @@ interface SkuFormState {
   asin: string
   defaultSupplierId: string
   secondarySupplierId: string
+  storageCartonsPerPallet: string
+  shippingCartonsPerPallet: string
 }
 
 function buildFormState(sku?: SkuRow | null): SkuFormState {
@@ -69,6 +71,8 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     asin: sku?.asin ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
+    storageCartonsPerPallet: '',
+    shippingCartonsPerPallet: '',
   }
 }
 
@@ -91,6 +95,13 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [formState, setFormState] = useState<SkuFormState>(() => buildFormState())
 
   const [confirmDelete, setConfirmDelete] = useState<SkuRow | null>(null)
+
+  const parsePositiveInt = (value: string) => {
+    if (!value.trim()) return null
+    const parsed = Number(value)
+    if (!Number.isInteger(parsed) || parsed <= 0) return null
+    return parsed
+  }
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -218,6 +229,33 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
+    let storageCartonsPerPallet: number | null = null
+    let shippingCartonsPerPallet: number | null = null
+
+    if (!editingSku) {
+      const storageRaw = formState.storageCartonsPerPallet.trim()
+      if (!storageRaw) {
+        toast.error('Storage cartons per pallet is required')
+        return
+      }
+      storageCartonsPerPallet = parsePositiveInt(storageRaw)
+      if (!storageCartonsPerPallet) {
+        toast.error('Storage cartons per pallet must be a positive integer')
+        return
+      }
+
+      const shippingRaw = formState.shippingCartonsPerPallet.trim()
+      if (!shippingRaw) {
+        toast.error('Shipping cartons per pallet is required')
+        return
+      }
+      shippingCartonsPerPallet = parsePositiveInt(shippingRaw)
+      if (!shippingCartonsPerPallet) {
+        toast.error('Shipping cartons per pallet must be a positive integer')
+        return
+      }
+    }
+
     setIsSubmitting(true)
     try {
       const payload: Record<string, unknown> = {
@@ -226,6 +264,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         description,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
+      }
+      if (!editingSku) {
+        payload.storageCartonsPerPallet = storageCartonsPerPallet
+        payload.shippingCartonsPerPallet = shippingCartonsPerPallet
       }
 
       let endpoint = '/api/skus'
@@ -466,6 +508,46 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       />
                     </div>
 
+                    {!editingSku ? (
+                      <>
+                        <div className="space-y-1">
+                          <Label htmlFor="storageCartonsPerPallet">Storage Cartons / Pallet</Label>
+                          <Input
+                            id="storageCartonsPerPallet"
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={formState.storageCartonsPerPallet}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                storageCartonsPerPallet: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="shippingCartonsPerPallet">Shipping Cartons / Pallet</Label>
+                          <Input
+                            id="shippingCartonsPerPallet"
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={formState.shippingCartonsPerPallet}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                shippingCartonsPerPallet: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+                      </>
+                    ) : null}
+
                     <div className="space-y-1">
                       <Label htmlFor="defaultSupplierId">Default Supplier</Label>
                       <select
@@ -518,9 +600,9 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                         </>
                       ) : (
                         <>
-                          A default batch is created automatically. Configure pack specs,
-                          dimensions, and cartons-per-pallet on the Batches page after creating the
-                          SKU.
+                          A default batch is created automatically using the cartons-per-pallet
+                          values above. Configure pack specs, dimensions, and other batch details on
+                          the Batches page after creating the SKU.
                         </>
                       )}
                     </div>

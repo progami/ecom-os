@@ -52,6 +52,16 @@ export type FileContext =
       stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
       documentType: string;
     }
+  | {
+      type: 'fulfillment-order';
+      fulfillmentOrderId: string;
+      /** Optional tenant code (e.g., US/UK) to keep multi-tenant uploads organized in S3. */
+      tenantCode?: string;
+      /** Optional public order number (e.g., FO-0001) to keep FO uploads human-navigable in S3. */
+      fulfillmentOrderNumber?: string;
+      stage: 'PACKING' | 'SHIPPING' | 'DELIVERY';
+      documentType: string;
+    }
   | { type: 'warehouse-rate-list'; warehouseId: string }
   | { type: 'export-temp'; userId: string; exportType: string }
   | { type: 'export-scheduled'; frequency: 'daily' | 'weekly' | 'monthly'; date: Date; reportType: string }
@@ -105,6 +115,19 @@ export class S3Service {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const documentType = this.sanitizeFilename(context.documentType);
         return `transactions/${year}/${month}/${context.transactionId}/${documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
+      }
+      case 'fulfillment-order': {
+        const tenant = context.tenantCode ? this.sanitizeFilename(context.tenantCode) : 'unknown';
+        const fulfillmentOrderNumber = context.fulfillmentOrderNumber
+          ? this.sanitizeFilename(context.fulfillmentOrderNumber)
+          : null;
+        const fulfillmentOrderFolder = fulfillmentOrderNumber
+          ? `${fulfillmentOrderNumber}--${context.fulfillmentOrderId}`
+          : context.fulfillmentOrderId;
+        const stage = this.sanitizeFilename(context.stage);
+        const documentType = this.sanitizeFilename(context.documentType);
+
+        return `fulfillment-orders/${tenant}/${fulfillmentOrderFolder}/${stage}/${documentType}/${timestamp}_${hash}_${sanitizedFilename}`;
       }
       case 'purchase-order': {
         const tenant = context.tenantCode ? this.sanitizeFilename(context.tenantCode) : 'unknown';
@@ -415,6 +438,12 @@ export function isValidFileContext(context: unknown): context is FileContext {
       return (
         typeof c.purchaseOrderId === 'string' &&
         ['MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED'].includes(c.stage) &&
+        typeof c.documentType === 'string'
+      );
+    case 'fulfillment-order':
+      return (
+        typeof c.fulfillmentOrderId === 'string' &&
+        ['PACKING', 'SHIPPING', 'DELIVERY'].includes(c.stage) &&
         typeof c.documentType === 'string'
       );
     case 'warehouse-rate-list':
