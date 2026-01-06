@@ -583,6 +583,8 @@ export function CustomOpsPlanningGrid({
   const selectionAnchorRef = useRef<CellCoords | null>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const clipboardRef = useRef<HTMLTextAreaElement | null>(null)
+  const pasteStartRef = useRef<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
 
   usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
 
@@ -1143,6 +1145,47 @@ export function CustomOpsPlanningGrid({
     [rows, stageMode]
   )
 
+  // Programmatic copy to clipboard (for Ctrl+C shortcut)
+  const copySelectionToClipboard = useCallback(async () => {
+    const currentSelection =
+      selection ??
+      (activeCell
+        ? (() => {
+            const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
+            const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
+            if (rowIndex < 0 || colIndex < 0) return null
+            const coords = { row: rowIndex, col: colIndex }
+            return { from: coords, to: coords }
+          })()
+        : null)
+
+    if (!currentSelection) return
+
+    const text = buildClipboardText(currentSelection)
+    if (!text) return
+
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // Fallback for browsers that block clipboard writes.
+    }
+
+    const clipboard = clipboardRef.current
+    if (!clipboard) return
+
+    clipboard.value = text
+    clipboard.focus()
+    clipboard.select()
+
+    try {
+      document.execCommand('copy')
+    } finally {
+      clipboard.value = ''
+      requestAnimationFrame(() => tableScrollRef.current?.focus())
+    }
+  }, [activeCell, rows, selection, buildClipboardText])
+
   const clearSelectionValues = useCallback(() => {
     const currentSelection =
       selection ??
@@ -1226,9 +1269,22 @@ export function CustomOpsPlanningGrid({
 
       if (!activeCell) return
 
-      // Handle Ctrl+V for paste - let native handler take over
+      // Handle Ctrl+C for copy
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
+        event.preventDefault()
+        copySelectionToClipboard().catch(() => {})
+        return
+      }
+
+      // Handle Ctrl+V for paste via hidden clipboard textarea
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        // Don't prevent default - let the native paste event fire
+        const clipboard = clipboardRef.current
+        if (!clipboard) return
+        event.preventDefault()
+        pasteStartRef.current = activeCell
+        clipboard.value = ''
+        clipboard.focus()
+        clipboard.select()
         return
       }
 
@@ -1278,6 +1334,7 @@ export function CustomOpsPlanningGrid({
       moveSelection,
       moveSelectionTab,
       startEditingActiveCell,
+      copySelectionToClipboard,
       undo,
       redo,
     ]
@@ -1307,9 +1364,11 @@ export function CustomOpsPlanningGrid({
 
   // Paste handler
   const handlePaste = useCallback(
-    (e: ClipboardEvent<HTMLDivElement>) => {
+    (e: ClipboardEvent<HTMLElement>) => {
       if (e.target !== e.currentTarget) return
-      if (!activeCell) return
+      const start = pasteStartRef.current ?? activeCell
+      if (!start) return
+      pasteStartRef.current = null
       const text = e.clipboardData.getData('text/plain')
       if (!text) return
       e.preventDefault()
@@ -1323,8 +1382,8 @@ export function CustomOpsPlanningGrid({
 
       if (pasteRows.length === 0) return
 
-      const startRowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
-      const startColIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
+      const startRowIndex = rows.findIndex((r) => r.id === start.rowId)
+      const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey)
       if (startRowIndex < 0 || startColIndex < 0) return
 
       const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = []
@@ -1450,6 +1509,12 @@ export function CustomOpsPlanningGrid({
       onRowsChange?.(updatedRows)
       scheduleFlush()
       toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`)
+
+      const clipboard = clipboardRef.current
+      if (clipboard && e.currentTarget === clipboard) {
+        clipboard.value = ''
+        requestAnimationFrame(() => tableScrollRef.current?.focus())
+      }
     },
     [activeCell, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, recordEdits]
   )
@@ -1542,6 +1607,13 @@ export function CustomOpsPlanningGrid({
       </div>
 
       <div className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <textarea
+          ref={clipboardRef}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="absolute -left-[9999px] top-0 h-1 w-1 opacity-0"
+          onPaste={handlePaste}
+        />
         <div
           ref={tableScrollRef}
           tabIndex={0}
