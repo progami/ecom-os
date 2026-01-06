@@ -9,21 +9,30 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { Button } from '@/components/ui/button'
 import { PageTabs } from '@/components/ui/page-tabs'
 import { PageLoading } from '@/components/ui/loading-spinner'
-import {
-  FileText,
-  Plus,
-  FileEdit,
-  Factory,
-  Ship,
-  Warehouse,
-  XCircle,
-} from '@/lib/lucide-icons'
+	import {
+	  FileText,
+	  Plus,
+	  FileEdit,
+	  Send,
+	  Factory,
+	  Ship,
+	  Warehouse,
+	  PackageX,
+	  XCircle,
+	} from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
 import type { LucideIcon } from 'lucide-react'
 
-// 5-Stage State Machine Status Types
-type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'CANCELLED'
+	// 5-Stage State Machine Status Types
+	type POStageStatus =
+	  | 'DRAFT'
+	  | 'ISSUED'
+	  | 'MANUFACTURING'
+	  | 'OCEAN'
+	  | 'WAREHOUSE'
+	  | 'REJECTED'
+	  | 'CANCELLED'
 
 type StatusConfig = {
   value: POStageStatus
@@ -33,18 +42,24 @@ type StatusConfig = {
 }
 
 // Main pipeline stages (5-stage state machine)
-const PIPELINE_STAGES: StatusConfig[] = [
-  {
-    value: 'DRAFT',
-    label: 'Draft',
-    description: 'Purchase orders being prepared with initial details',
-    icon: FileEdit,
-  },
-  {
-    value: 'MANUFACTURING',
-    label: 'Manufacturing',
-    description: 'Goods in production at manufacturer',
-    icon: Factory,
+	const PIPELINE_STAGES: StatusConfig[] = [
+	  {
+	    value: 'DRAFT',
+	    label: 'Draft',
+	    description: 'Purchase orders being prepared with initial details',
+	    icon: FileEdit,
+	  },
+	  {
+	    value: 'ISSUED',
+	    label: 'Issued',
+	    description: 'Purchase orders sent to suppliers, awaiting confirmation',
+	    icon: Send,
+	  },
+	  {
+	    value: 'MANUFACTURING',
+	    label: 'Manufacturing',
+	    description: 'Goods in production at manufacturer',
+	    icon: Factory,
   },
   {
     value: 'OCEAN',
@@ -61,11 +76,17 @@ const PIPELINE_STAGES: StatusConfig[] = [
 ]
 
 // Terminal statuses
-const TERMINAL_STATUSES: StatusConfig[] = [
-  {
-    value: 'CANCELLED',
-    label: 'Cancelled',
-    description: 'Purchase orders cancelled before completion',
+	const TERMINAL_STATUSES: StatusConfig[] = [
+	  {
+	    value: 'REJECTED',
+	    label: 'Rejected',
+	    description: 'Purchase orders declined by the supplier',
+	    icon: PackageX,
+	  },
+	  {
+	    value: 'CANCELLED',
+	    label: 'Cancelled',
+	    description: 'Purchase orders cancelled before completion',
     icon: XCircle,
   },
 ]

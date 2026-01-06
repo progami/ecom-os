@@ -776,10 +776,12 @@ enum PurchaseOrderType {
 enum PurchaseOrderStatus {
   // New 5-stage workflow statuses
   DRAFT
+  ISSUED
   MANUFACTURING
   OCEAN
   WAREHOUSE
   SHIPPED
+  REJECTED
   CANCELLED
   ARCHIVED
 

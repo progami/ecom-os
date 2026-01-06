@@ -107,16 +107,24 @@ type SerializedStageData = {
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
-  DRAFT: [PurchaseOrderStatus.MANUFACTURING, PurchaseOrderStatus.CANCELLED],
+  DRAFT: [PurchaseOrderStatus.ISSUED, PurchaseOrderStatus.CANCELLED],
+  ISSUED: [
+    PurchaseOrderStatus.MANUFACTURING,
+    PurchaseOrderStatus.REJECTED,
+    PurchaseOrderStatus.DRAFT,
+    PurchaseOrderStatus.CANCELLED,
+  ],
   MANUFACTURING: [PurchaseOrderStatus.OCEAN, PurchaseOrderStatus.CANCELLED],
   OCEAN: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CANCELLED],
   WAREHOUSE: [PurchaseOrderStatus.CANCELLED],
   SHIPPED: [], // Terminal state
+  REJECTED: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.CANCELLED], // Terminal unless reopened
   CANCELLED: [], // Terminal state
 }
 
 // Stage-specific required fields for transition
 export const STAGE_REQUIREMENTS: Record<string, string[]> = {
+  ISSUED: ['expectedDate'],
   // Stage 2: Manufacturing
   MANUFACTURING: ['proformaInvoiceNumber', 'manufacturingStartDate'],
   // Stage 3: Ocean
@@ -140,6 +148,7 @@ export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, st
 
 // Field labels for error messages
 const FIELD_LABELS: Record<string, string> = {
+  expectedDate: 'Expected Date',
   // Stage 2
   proformaInvoiceNumber: 'Proforma Invoice Number',
   manufacturingStartDate: 'Manufacturing Start Date',
@@ -1044,14 +1053,14 @@ export async function transitionPurchaseOrderStage(
   }
 
   // Set approval tracking based on target status
-  const now = new Date()
-  switch (targetStatus) {
-    case PurchaseOrderStatus.MANUFACTURING:
-      updateData.draftApprovedAt = now
-      updateData.draftApprovedById = user.id
-      updateData.draftApprovedByName = user.name
-      break
-    case PurchaseOrderStatus.OCEAN:
+	  const now = new Date()
+	  switch (targetStatus) {
+	    case PurchaseOrderStatus.ISSUED:
+	      updateData.draftApprovedAt = now
+	      updateData.draftApprovedById = user.id
+	      updateData.draftApprovedByName = user.name
+	      break
+	    case PurchaseOrderStatus.OCEAN:
       updateData.manufacturingApprovedAt = now
       updateData.manufacturingApprovedById = user.id
       updateData.manufacturingApprovedByName = user.name
@@ -1394,20 +1403,20 @@ export async function transitionPurchaseOrderStage(
 /**
  * Get stage approval history for a Purchase Order
  */
-export function getStageApprovalHistory(order: PurchaseOrder): {
+	export function getStageApprovalHistory(order: PurchaseOrder): {
   stage: string
   approvedAt: Date | null
   approvedBy: string | null
 }[] {
   const history = []
 
-  if (order.draftApprovedAt) {
-    history.push({
-      stage: 'DRAFT → MANUFACTURING',
-      approvedAt: order.draftApprovedAt,
-      approvedBy: order.draftApprovedByName,
-    })
-  }
+	  if (order.draftApprovedAt) {
+	    history.push({
+	      stage: 'DRAFT → ISSUED',
+	      approvedAt: order.draftApprovedAt,
+	      approvedBy: order.draftApprovedByName,
+	    })
+	  }
 
   if (order.manufacturingApprovedAt) {
     history.push({
