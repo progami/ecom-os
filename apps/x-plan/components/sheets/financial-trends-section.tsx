@@ -6,6 +6,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -124,6 +125,18 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
     })
   }, [enabledMetrics, granularity])
 
+  // Calculate Y-axis bounds and zero offset for split gradients
+  const yAxisBounds = useMemo(() => {
+    const allValues = enabledMetrics.flatMap((metric) => metric.series[granularity].values.filter(Number.isFinite))
+    if (allValues.length === 0) return { min: 0, max: 0, zeroOffset: 0.5 }
+    const min = Math.min(...allValues)
+    const max = Math.max(...allValues)
+    const range = max - min
+    // zeroOffset is where 0 falls as a percentage from top (max) to bottom (min)
+    const zeroOffset = range > 0 ? max / range : 0.5
+    return { min, max, zeroOffset: Math.max(0, Math.min(1, zeroOffset)) }
+  }, [enabledMetrics, granularity])
+
   const formatValue = (value: number, format: TrendFormat) => {
     if (!Number.isFinite(value)) return '—'
     if (format === 'currency') {
@@ -218,12 +231,27 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                 margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
               >
                 <defs>
-                  {enabledMetrics.map((metric) => (
-                    <linearGradient key={metric.key} id={`gradient-${metric.key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={accentColors[metric.accent].fill} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={accentColors[metric.accent].fill} stopOpacity={0} />
-                    </linearGradient>
-                  ))}
+                  {enabledMetrics.map((metric) => {
+                    const hasNegative = yAxisBounds.min < 0
+                    const zeroPoint = yAxisBounds.zeroOffset
+                    return (
+                      <linearGradient key={metric.key} id={`gradient-${metric.key}`} x1="0" y1="0" x2="0" y2="1">
+                        {hasNegative ? (
+                          <>
+                            <stop offset="0%" stopColor={accentColors[metric.accent].fill} stopOpacity={0.3} />
+                            <stop offset={`${zeroPoint * 100}%`} stopColor={accentColors[metric.accent].fill} stopOpacity={0.1} />
+                            <stop offset={`${zeroPoint * 100}%`} stopColor="#ef4444" stopOpacity={0.1} />
+                            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
+                          </>
+                        ) : (
+                          <>
+                            <stop offset="5%" stopColor={accentColors[metric.accent].fill} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={accentColors[metric.accent].fill} stopOpacity={0} />
+                          </>
+                        )}
+                      </linearGradient>
+                    )
+                  })}
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
                 <XAxis
@@ -264,6 +292,9 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                     )
                   }}
                 />
+                {yAxisBounds.min < 0 && (
+                  <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                )}
                 {enabledMetrics.map((metric) => (
                   <Area
                     key={metric.key}
