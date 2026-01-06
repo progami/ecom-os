@@ -10,34 +10,40 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { SearchForm } from '@/components/ui/SearchForm'
-import { DataTable } from '@/components/ui/DataTable'
+import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
-import { NativeSelect } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 
-const SEVERITY_LABELS: Record<string, string> = {
-  MINOR: 'Minor',
-  MODERATE: 'Moderate',
-  MAJOR: 'Major',
-  CRITICAL: 'Critical',
-}
+const SEVERITY_OPTIONS: FilterOption[] = [
+  { value: 'MINOR', label: 'Minor' },
+  { value: 'MODERATE', label: 'Moderate' },
+  { value: 'MAJOR', label: 'Major' },
+  { value: 'CRITICAL', label: 'Critical' },
+]
+
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: 'REPORTED', label: 'Reported' },
+  { value: 'UNDER_REVIEW', label: 'Under Review' },
+  { value: 'PENDING_HR_REVIEW', label: 'Pending HR' },
+  { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Ack' },
+  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
+  { value: 'RESOLVED', label: 'Resolved' },
+  { value: 'CLOSED', label: 'Closed' },
+]
+
+const SEVERITY_LABELS: Record<string, string> = Object.fromEntries(
+  SEVERITY_OPTIONS.map((o) => [o.value, o.label])
+)
+
+const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  STATUS_OPTIONS.map((o) => [o.value, o.label])
+)
 
 const SEVERITY_COLORS: Record<string, string> = {
   MINOR: 'bg-muted text-muted-foreground',
   MODERATE: 'bg-warning-100 text-warning-800',
   MAJOR: 'bg-danger-100 text-danger-700',
   CRITICAL: 'bg-danger-500 text-white',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  REPORTED: 'Reported',
-  UNDER_REVIEW: 'Under Review',
-  PENDING_HR_REVIEW: 'Pending HR',
-  PENDING_ACKNOWLEDGMENT: 'Pending Ack',
-  ACKNOWLEDGED: 'Acknowledged',
-  RESOLVED: 'Resolved',
-  CLOSED: 'Closed',
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
@@ -60,9 +66,7 @@ export default function DisciplinaryPage() {
   const router = useRouter()
   const [items, setItems] = useState<DisciplinaryAction[]>([])
   const [q, setQ] = useState('')
-  const [status, setStatus] = useState('')
-  const [severity, setSeverity] = useState('')
-  const [violationType, setViolationType] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -70,9 +74,8 @@ export default function DisciplinaryPage() {
       setLoading(true)
       const data = await DisciplinaryActionsApi.list({
         q,
-        status: status || undefined,
-        severity: severity || undefined,
-        violationType: violationType || undefined,
+        status: filters.status || undefined,
+        severity: filters.severity || undefined,
       })
       setItems(data.items)
     } catch (err) {
@@ -81,7 +84,7 @@ export default function DisciplinaryPage() {
     } finally {
       setLoading(false)
     }
-  }, [q, status, severity, violationType])
+  }, [q, filters.status, filters.severity])
 
   useEffect(() => {
     load()
@@ -107,7 +110,6 @@ export default function DisciplinaryPage() {
         id: 'reportedBy',
         header: 'Reported By',
         accessorFn: (row) => {
-          // Use createdBy relation if available, otherwise fall back to reportedBy text
           if (row.createdBy) {
             return `${row.createdBy.firstName} ${row.createdBy.lastName}`
           }
@@ -129,6 +131,10 @@ export default function DisciplinaryPage() {
       {
         accessorKey: 'severity',
         header: 'Severity',
+        meta: {
+          filterKey: 'severity',
+          filterOptions: SEVERITY_OPTIONS,
+        },
         cell: ({ getValue }) => <SeverityBadge severity={getValue<string>()} />,
         enableSorting: true,
       },
@@ -151,6 +157,10 @@ export default function DisciplinaryPage() {
       {
         accessorKey: 'status',
         header: 'Status',
+        meta: {
+          filterKey: 'status',
+          filterOptions: STATUS_OPTIONS,
+        },
         cell: ({ getValue }) => {
           const status = getValue<string>()
           return <StatusBadge status={STATUS_LABELS[status] ?? status} />
@@ -181,48 +191,14 @@ export default function DisciplinaryPage() {
         }
       />
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card padding="md">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <SearchForm
-                value={q}
-                onChange={setQ}
-                onSubmit={load}
-                placeholder="Search by employee or reporter..."
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="w-32">
-                <Label htmlFor="status-filter" className="sr-only">Status</Label>
-                <NativeSelect
-                  id="status-filter"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="">All Status</option>
-                  <option value="OPEN">Open</option>
-                  <option value="PENDING_HR_REVIEW">Pending HR</option>
-                  <option value="ACTION_TAKEN">Action Taken</option>
-                  <option value="CLOSED">Closed</option>
-                </NativeSelect>
-              </div>
-              <div className="w-32">
-                <Label htmlFor="severity-filter" className="sr-only">Severity</Label>
-                <NativeSelect
-                  id="severity-filter"
-                  value={severity}
-                  onChange={(e) => setSeverity(e.target.value)}
-                >
-                  <option value="">All Severity</option>
-                  <option value="MINOR">Minor</option>
-                  <option value="MODERATE">Moderate</option>
-                  <option value="MAJOR">Major</option>
-                  <option value="CRITICAL">Critical</option>
-                </NativeSelect>
-              </div>
-            </div>
-          </div>
+          <SearchForm
+            value={q}
+            onChange={setQ}
+            onSubmit={load}
+            placeholder="Search by employee or reporter..."
+          />
         </Card>
 
         <ResultsCount
@@ -238,6 +214,8 @@ export default function DisciplinaryPage() {
           loading={loading}
           skeletonRows={5}
           onRowClick={handleRowClick}
+          filters={filters}
+          onFilterChange={setFilters}
           emptyState={
             <TableEmptyContent
               icon={<ExclamationTriangleIcon className="h-10 w-10" />}
