@@ -1325,6 +1325,13 @@ export function SalesPlanningGrid({
         clipboard.value = ''
         clipboard.focus()
         clipboard.select()
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null
+            clipboard.value = ''
+            scrollRef.current?.focus()
+          }
+        }, 250)
         return
       }
 
@@ -1475,13 +1482,21 @@ export function SalesPlanningGrid({
   const handleClipboardPaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
       const start = pasteStartRef.current ?? activeCell
-      if (!start) return
+      pasteStartRef.current = null
 
       const text = event.clipboardData.getData('text/plain')
-      if (!text) return
-
       event.preventDefault()
-      pasteStartRef.current = null
+
+      const clipboard = clipboardRef.current
+      const refocusClipboard = () => {
+        if (clipboard) clipboard.value = ''
+        requestAnimationFrame(() => scrollRef.current?.focus())
+      }
+
+      if (!start || !text) {
+        refocusClipboard()
+        return
+      }
 
       const rowsMatrix = text
         .replace(/\r\n/g, '\n')
@@ -1510,10 +1525,7 @@ export function SalesPlanningGrid({
       }
 
       applyEdits(edits)
-
-      const clipboard = clipboardRef.current
-      if (clipboard) clipboard.value = ''
-      requestAnimationFrame(() => scrollRef.current?.focus())
+      refocusClipboard()
     },
     [activeCell, applyEdits, leafColumnIds, visibleRows.length]
   )
