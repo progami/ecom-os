@@ -6,6 +6,18 @@ import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-d
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
+const packagingTypeSchema = z.preprocess(value => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+  if (normalized === 'BOX') return 'BOX'
+  if (normalized === 'POLYBAG') return 'POLYBAG'
+  return trimmed
+}, z.enum(['BOX', 'POLYBAG']).nullable().optional())
+
 type DimensionRefineShape = {
   unitLengthCm: z.ZodTypeAny
   unitWidthCm: z.ZodTypeAny
@@ -47,12 +59,12 @@ const updateSchema = refineDimensions(
     packSize: z.number().int().positive().optional().nullable(),
     unitsPerCarton: z.number().int().positive().optional().nullable(),
     material: z.string().trim().max(120).optional().nullable(),
-    packagingType: z.string().trim().max(80).optional().nullable(),
+    packagingType: packagingTypeSchema,
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
     unitLengthCm: optionalDimensionValueSchema,
     unitWidthCm: optionalDimensionValueSchema,
     unitHeightCm: optionalDimensionValueSchema,
-    unitWeightKg: z.number().positive().optional().nullable(),
+    unitWeightKg: z.number().positive().optional(),
     cartonDimensionsCm: z.string().trim().max(120).optional().nullable(),
     cartonLengthCm: optionalDimensionValueSchema,
     cartonWidthCm: optionalDimensionValueSchema,
@@ -160,13 +172,11 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
   }
 
   if (parsed.data.packagingType !== undefined) {
-    data.packagingType = parsed.data.packagingType
-      ? sanitizeForDisplay(parsed.data.packagingType)
-      : null
+    data.packagingType = parsed.data.packagingType ?? null
   }
 
   if (parsed.data.unitWeightKg !== undefined) {
-    data.unitWeightKg = parsed.data.unitWeightKg ?? null
+    data.unitWeightKg = parsed.data.unitWeightKg
   }
 
   if (parsed.data.cartonWeightKg !== undefined) {

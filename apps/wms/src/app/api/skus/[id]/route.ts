@@ -4,6 +4,17 @@ import { getTenantPrisma } from '@/lib/tenant/server'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 export const dynamic = 'force-dynamic'
 
+const normalizePackagingType = (value: unknown): 'BOX' | 'POLYBAG' | null => {
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+  if (normalized === 'BOX') return 'BOX'
+  if (normalized === 'POLYBAG') return 'POLYBAG'
+  return null
+}
+
 // GET /api/skus/[id] - Get a single SKU by ID
 export const GET = withAuthAndParams(async (_request, params, _session) => {
   try {
@@ -103,6 +114,22 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
       )
     }
 
+    let packagingType: 'BOX' | 'POLYBAG' | null | undefined = undefined
+    if (Object.prototype.hasOwnProperty.call(body, 'packagingType')) {
+      if (body.packagingType === null || body.packagingType === '') {
+        packagingType = null
+      } else {
+        const normalized = normalizePackagingType(body.packagingType)
+        if (!normalized) {
+          return NextResponse.json(
+            { error: 'Invalid packaging type. Must be BOX or POLYBAG.' },
+            { status: 400 }
+          )
+        }
+        packagingType = normalized
+      }
+    }
+
     const updatedSku = await prisma.sku.update({
       where: { id },
       data: {
@@ -122,7 +149,7 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
         cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: body.cartonWeightKg,
-        packagingType: body.packagingType,
+        packagingType,
       },
     })
 

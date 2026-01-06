@@ -50,7 +50,7 @@ interface BatchFormState {
   packSize: string
   unitsPerCarton: string
   material: string
-  packagingType: string
+  packagingType: PackagingTypeOption
   unitLength: string
   unitWidth: string
   unitHeight: string
@@ -74,9 +74,19 @@ type BatchMeasurementState = {
   cartonWeightKg: number | null
 }
 
+type PackagingTypeOption = '' | 'BOX' | 'POLYBAG'
+
 const UNIT_SYSTEM_STORAGE_KEY = 'wms:unit-system'
 const CM_PER_INCH = 2.54
 const LB_PER_KG = 2.2046226218
+
+function normalizePackagingType(value: string | null | undefined): PackagingTypeOption {
+  if (!value) return ''
+  const normalized = value.trim().toUpperCase().replace(/[^A-Z]/g, '')
+  if (normalized === 'BOX') return 'BOX'
+  if (normalized === 'POLYBAG') return 'POLYBAG'
+  return ''
+}
 
 function stripTrailingZeros(value: string): string {
   return value.includes('.') ? value.replace(/\.?0+$/, '') : value
@@ -163,7 +173,7 @@ function buildBatchFormState(
     packSize: batch?.packSize?.toString() ?? '1',
     unitsPerCarton: batch?.unitsPerCarton?.toString() ?? '1',
     material: batch?.material ?? '',
-    packagingType: batch?.packagingType ?? '',
+    packagingType: normalizePackagingType(batch?.packagingType),
     ...formatMeasurementFields(measurements, unitSystem),
   }
 }
@@ -444,9 +454,8 @@ function SkuBatchesManager({
       return
     }
 
-    const unitWeightProvided = Boolean(formState.unitWeight.trim())
-    if (unitWeightProvided && !parsePositiveNumber(formState.unitWeight)) {
-      toast.error('Unit weight must be a positive number')
+    if (!parsePositiveNumber(formState.unitWeight)) {
+      toast.error('Unit weight is required and must be a positive number')
       return
     }
 
@@ -505,6 +514,12 @@ function SkuBatchesManager({
       const roundWeightKg = (value: number | null): number | null =>
         value === null ? null : Number(value.toFixed(3))
 
+      const unitWeightKg = roundWeightKg(measurements.unitWeightKg)
+      if (unitWeightKg === null || unitWeightKg <= 0) {
+        toast.error('Unit weight is required and must be a positive number')
+        return
+      }
+
       const payload = {
         batchCode: formState.batchCode.trim(),
         description: formState.description.trim() ? formState.description.trim() : null,
@@ -513,11 +528,11 @@ function SkuBatchesManager({
         packSize,
         unitsPerCarton,
         material: formState.material.trim() ? formState.material.trim() : null,
-        packagingType: formState.packagingType.trim() ? formState.packagingType.trim() : null,
+        packagingType: formState.packagingType ? formState.packagingType : null,
         unitLengthCm: roundDimensionCm(measurements.unitLengthCm),
         unitWidthCm: roundDimensionCm(measurements.unitWidthCm),
         unitHeightCm: roundDimensionCm(measurements.unitHeightCm),
-        unitWeightKg: roundWeightKg(measurements.unitWeightKg),
+        unitWeightKg,
         cartonLengthCm: roundDimensionCm(measurements.cartonLengthCm),
         cartonWidthCm: roundDimensionCm(measurements.cartonWidthCm),
         cartonHeightCm: roundDimensionCm(measurements.cartonHeightCm),
@@ -739,7 +754,7 @@ function SkuBatchesManager({
 
       {isFormOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
+          <div className="flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div className="flex flex-col">
                 <h2 className="text-lg font-semibold text-slate-900">
@@ -782,8 +797,9 @@ function SkuBatchesManager({
               </div>
             </div>
 
-            <form onSubmit={submitBatch} className="space-y-6 p-6">
-              <div className="grid gap-4 md:grid-cols-2">
+            <form onSubmit={submitBatch} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label htmlFor="batchCode">Batch Code</Label>
                   <Input
@@ -877,14 +893,21 @@ function SkuBatchesManager({
 
                 <div className="space-y-1">
                   <Label htmlFor="packagingType">Packaging Type</Label>
-                  <Input
+                  <select
                     id="packagingType"
                     value={formState.packagingType}
                     onChange={event =>
-                      setFormState(prev => ({ ...prev, packagingType: event.target.value }))
+                      setFormState(prev => ({
+                        ...prev,
+                        packagingType: event.target.value as PackagingTypeOption,
+                      }))
                     }
-                    placeholder="Optional"
-                  />
+                    className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">Optional</option>
+                    <option value="BOX">Box</option>
+                    <option value="POLYBAG">Polybag</option>
+                  </select>
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
@@ -920,9 +943,10 @@ function SkuBatchesManager({
                     type="number"
                     step="0.001"
                     min={0.001}
+                    required
                     value={formState.unitWeight}
                     onChange={event => handleWeightChange('unitWeight', event.target.value)}
-                    placeholder="Optional"
+                    placeholder="Required"
                   />
                 </div>
 
@@ -965,9 +989,10 @@ function SkuBatchesManager({
                   />
                 </div>
 
+                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t pt-6">
+              <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
