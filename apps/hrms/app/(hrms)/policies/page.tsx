@@ -8,8 +8,6 @@ import { DocumentIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
@@ -33,7 +31,6 @@ const REGION_LABELS: Record<string, string> = Object.fromEntries(
 export default function PoliciesPage() {
   const router = useRouter()
   const [items, setItems] = useState<Policy[]>([])
-  const [q, setQ] = useState('')
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [canManagePolicies, setCanManagePolicies] = useState(false)
@@ -41,7 +38,7 @@ export default function PoliciesPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await PoliciesApi.list({ q })
+      const data = await PoliciesApi.list({})
       setItems(data.items)
     } catch (e) {
       console.error('Failed to load policies', e)
@@ -49,7 +46,7 @@ export default function PoliciesPage() {
     } finally {
       setLoading(false)
     }
-  }, [q])
+  }, [])
 
   useEffect(() => {
     load()
@@ -176,15 +173,6 @@ export default function PoliciesPage() {
       />
 
       <div className="space-y-4">
-        <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={load}
-            placeholder="Search policies by title..."
-          />
-        </Card>
-
         <ResultsCount
           count={filteredItems.length}
           singular="policy"
