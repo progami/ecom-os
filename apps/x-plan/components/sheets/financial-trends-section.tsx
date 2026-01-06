@@ -215,7 +215,7 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
               >
                 <defs>
                   {enabledMetrics.map((metric) => (
@@ -230,20 +230,20 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                   dataKey="label"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   interval={granularity === 'weekly' ? 3 : 0}
                   label={{
                     value: granularity === 'weekly' ? 'Week' : granularity === 'monthly' ? 'Month' : 'Quarter',
-                    position: 'insideBottom',
-                    offset: -5,
-                    fontSize: 11,
-                    fill: '#64748b'
+                    position: 'bottom',
+                    offset: 10,
+                    fontSize: 12,
+                    fill: 'hsl(var(--muted-foreground))'
                   }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={formatAxisValue}
                   width={60}
                 />
