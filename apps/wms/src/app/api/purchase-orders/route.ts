@@ -28,6 +28,9 @@ const LineItemSchema = z.object({
 
 const CreatePOSchema = z.object({
   counterpartyName: z.string().min(1),
+  expectedDate: z.string().trim().optional(),
+  incoterms: z.string().trim().optional(),
+  paymentTerms: z.string().trim().optional(),
   notes: z.string().optional(),
   lines: z.array(LineItemSchema).min(1, 'At least one line item is required'),
 })
@@ -62,6 +65,9 @@ export const POST = withAuth(async (request: NextRequest, session) => {
     const order = await createPurchaseOrder(
       {
         counterpartyName: result.data.counterpartyName,
+        expectedDate: result.data.expectedDate,
+        incoterms: result.data.incoterms,
+        paymentTerms: result.data.paymentTerms,
         notes: result.data.notes,
         lines: result.data.lines.map(line => ({
           skuCode: line.skuCode,
