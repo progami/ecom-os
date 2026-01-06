@@ -16,6 +16,12 @@ If you are in a git worktree, always use port 3206 to avoid conflicts with dev (
 
 You are only allowed to work on the `apps/hrms` folder. Do not modify files outside this directory.
 
+## Git Workflow
+
+1. Create feature branches from `dev`
+2. PRs target `dev` branch
+3. After CI passes and PR is merged to `dev`, merge `dev` to `main`
+
 ## Code Style
 
 - no OR statements as fallbacks - let the code fail
