@@ -235,7 +235,7 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
       <Tooltip
         key={order.id}
         content={tooltipContent}
-        position="top"
+        position="bottom"
         className="absolute h-full"
         style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 2)}%` }}
       >
@@ -272,8 +272,8 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
             )
           })}
           {/* Order code label inside bar */}
-          <div className="relative z-10 flex h-full w-full items-center justify-center px-2">
-            <span className="truncate text-[10px] font-semibold text-white drop-shadow-sm">
+          <div className="relative z-10 flex h-full w-full items-center px-3">
+            <span className="truncate text-xs font-bold text-white" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>
               {order.orderCode}
             </span>
           </div>
@@ -366,16 +366,16 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
       )}
 
       {/* Gantt bars - stacked vertically */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {timelineOrders.map((order) => (
-          <div key={order.id} className="relative h-7">
+          <div key={order.id} className="relative h-10">
             {renderTimelineBackground()}
             <div className="absolute inset-0">
               {renderConsolidatedBar(order)}
             </div>
             {order.segments.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[10px] text-muted-foreground/60">No dates set</span>
+                <span className="text-xs text-muted-foreground/60">No dates set</span>
               </div>
             )}
           </div>
