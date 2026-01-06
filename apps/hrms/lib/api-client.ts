@@ -819,6 +819,30 @@ export type LeaveRequest = {
   totalDays: number
   reason?: string | null
   status: string
+  // Manager approval (Level 1)
+  managerApprovedById?: string | null
+  managerApprovedAt?: string | null
+  managerNotes?: string | null
+  // HR approval (Level 2)
+  hrApprovedById?: string | null
+  hrApprovedAt?: string | null
+  hrNotes?: string | null
+  // Super Admin approval (Level 3)
+  superAdminApprovedById?: string | null
+  superAdminApprovedAt?: string | null
+  superAdminNotes?: string | null
+  // Approvers (populated by API)
+  managerApprovedBy?: { id: string; firstName: string; lastName: string } | null
+  hrApprovedBy?: { id: string; firstName: string; lastName: string } | null
+  superAdminApprovedBy?: { id: string; firstName: string; lastName: string } | null
+  // Permissions (populated by API)
+  permissions?: {
+    canCancel: boolean
+    canManagerApprove: boolean
+    canHRApprove: boolean
+    canSuperAdminApprove: boolean
+  }
+  // Legacy fields
   reviewedById?: string | null
   reviewedBy?: {
     id: string
@@ -883,6 +907,27 @@ export const LeavesApi = {
   delete(id: string) {
     return request<{ ok: boolean }>(`/api/leaves/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    })
+  },
+  managerApprove(id: string, payload: { approved: boolean; notes?: string }) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}/manager-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  hrApprove(id: string, payload: { approved: boolean; notes?: string }) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}/hr-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  superAdminApprove(id: string, payload: { approved: boolean; notes?: string }) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}/super-admin-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
   },
   getBalance(params: { employeeId: string; year?: number } = { employeeId: '' }) {

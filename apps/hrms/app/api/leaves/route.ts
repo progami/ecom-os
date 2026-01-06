@@ -274,7 +274,7 @@ export async function POST(req: Request) {
         endDate: end,
         totalDays: computedTotalDays,
         reason,
-        status: 'PENDING',
+        status: 'PENDING_MANAGER',
       },
       include: {
         employee: {
