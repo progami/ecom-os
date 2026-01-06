@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
 import { EmployeesApi, type Employee } from '@/lib/api-client'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { UsersIcon } from '@/components/ui/Icons'
@@ -88,22 +87,6 @@ export function EmployeesClientPage() {
         },
         enableSorting: true,
       },
-      {
-        id: 'actions',
-        header: 'Profile',
-        meta: { align: 'right' as const },
-        cell: ({ row }) => (
-          <Button
-            variant="secondary"
-            size="sm"
-            href={`/employees/${row.original.id}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            Profile
-          </Button>
-        ),
-        enableSorting: false,
-      },
     ],
     []
   )
@@ -119,7 +102,7 @@ export function EmployeesClientPage() {
     <>
       <ListPageHeader
         title="Employees"
-        description="Open employee profiles to view documents like offer letters, contracts, and IDs."
+        description="Click on a row to view employee profile."
         icon={<UsersIcon className="h-6 w-6 text-white" />}
       />
 
@@ -136,7 +119,6 @@ export function EmployeesClientPage() {
             <TableEmptyContent
               icon={<UsersIcon className="h-10 w-10" />}
               title="No employees found"
-              description="Try a different search term."
             />
           }
         />
