@@ -32,6 +32,7 @@ import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { withBasePath } from '@/lib/utils/base-path'
 
 // 5-Stage State Machine Types
 type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
@@ -256,7 +257,10 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      redirectToPortal('/login', `${window.location.origin}/operations/purchase-orders/${params.id}`)
+      redirectToPortal(
+        '/login',
+        `${window.location.origin}/operations/purchase-orders/${params.id}`
+      )
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
@@ -729,9 +733,7 @@ export default function PurchaseOrderDetailPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h5 className="text-sm font-semibold text-slate-900">Required Documents</h5>
-              {documentsLoading && (
-                <span className="text-xs text-muted-foreground">Loading…</span>
-              )}
+              {documentsLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
             </div>
             <div className="space-y-2">
               {requiredDocs.map(doc => {
@@ -802,7 +804,9 @@ export default function PurchaseOrderDetailPage() {
     return (
       <div className="mt-4 pt-4 border-t">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Documents
+          </h4>
           {documentsLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
         </div>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -868,9 +872,10 @@ export default function PurchaseOrderDetailPage() {
               <p className="text-sm text-muted-foreground">
                 {order.warehouseCode || order.warehouseName ? (
                   <>
-                    Warehouse:{' '}
-                    {order.warehouseName ?? order.warehouseCode}
-                    {order.warehouseName && order.warehouseCode ? ` (${order.warehouseCode})` : null}
+                    Warehouse: {order.warehouseName ?? order.warehouseCode}
+                    {order.warehouseName && order.warehouseCode
+                      ? ` (${order.warehouseCode})`
+                      : null}
                   </>
                 ) : (
                   'Warehouse: Not assigned'
@@ -881,7 +886,7 @@ export default function PurchaseOrderDetailPage() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <a
-                href={`/api/purchase-orders/${order.id}/pdf`}
+                href={withBasePath(`/api/purchase-orders/${order.id}/pdf`)}
                 download
                 className="flex items-center"
               >
@@ -937,9 +942,7 @@ export default function PurchaseOrderDetailPage() {
                   >
                     <div
                       className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
-                        isViewing
-                          ? 'ring-2 ring-offset-2 ring-emerald-400'
-                          : ''
+                        isViewing ? 'ring-2 ring-offset-2 ring-emerald-400' : ''
                       } ${
                         isCompleted
                           ? 'bg-emerald-500 border-emerald-500 text-white group-hover:bg-emerald-600'
@@ -1044,7 +1047,12 @@ export default function PurchaseOrderDetailPage() {
               <div className="flex items-center gap-2">
                 {isEditingDetails ? (
                   <>
-                    <Button size="sm" onClick={handleSaveDetails} disabled={detailsSaving} className="gap-1.5">
+                    <Button
+                      size="sm"
+                      onClick={handleSaveDetails}
+                      disabled={detailsSaving}
+                      className="gap-1.5"
+                    >
                       <Save className="h-3.5 w-3.5" />
                       {detailsSaving ? 'Saving...' : 'Save'}
                     </Button>
@@ -1060,7 +1068,12 @@ export default function PurchaseOrderDetailPage() {
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={handleEditDetails} className="gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleEditDetails}
+                    className="gap-1.5"
+                  >
                     <FileEdit className="h-3.5 w-3.5" />
                     Edit
                   </Button>
@@ -1084,21 +1097,33 @@ export default function PurchaseOrderDetailPage() {
                     <Input value={order.counterpartyName || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Expected Date
+                    </label>
                     {isEditingDetails ? (
                       <Input
                         type="date"
                         value={detailsDraft.expectedDate}
-                        onChange={e => setDetailsDraft(d => ({ ...d, expectedDate: e.target.value }))}
+                        onChange={e =>
+                          setDetailsDraft(d => ({ ...d, expectedDate: e.target.value }))
+                        }
                         disabled={detailsSaving}
                       />
                     ) : (
-                      <Input value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'} disabled readOnly />
+                      <Input
+                        value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
+                        disabled
+                        readOnly
+                      />
                     )}
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">Created</label>
-                    <Input value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`} disabled readOnly />
+                    <Input
+                      value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
+                      disabled
+                      readOnly
+                    />
                   </div>
                 </div>
 
@@ -1114,7 +1139,9 @@ export default function PurchaseOrderDetailPage() {
                     />
                   ) : (
                     <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
-                      {order.notes || <span className="text-muted-foreground italic">No notes</span>}
+                      {order.notes || (
+                        <span className="text-muted-foreground italic">No notes</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1126,22 +1153,39 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proforma Invoice</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.manufacturing?.proformaInvoiceNumber || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Proforma Invoice
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.manufacturing?.proformaInvoiceNumber || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Supplier
+                    </label>
                     <p className="text-sm font-medium text-slate-900">
                       {order.stageData.manufacturing?.factoryName || order.counterpartyName || '—'}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Manufacturing Start</label>
-                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.manufacturing?.manufacturingStartDate || order.stageData.manufacturing?.manufacturingStart) || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Manufacturing Start
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatDateOnly(
+                        order.stageData.manufacturing?.manufacturingStartDate ||
+                          order.stageData.manufacturing?.manufacturingStart
+                      ) || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</label>
-                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.manufacturing?.expectedCompletionDate) || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Expected Completion
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatDateOnly(order.stageData.manufacturing?.expectedCompletionDate) || '—'}
+                    </p>
                   </div>
                 </div>
 
@@ -1155,32 +1199,58 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">House B/L</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.houseBillOfLading || '—'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Master B/L</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.masterBillOfLading || '—'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commercial Invoice</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.commercialInvoiceNumber || '—'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vessel</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.vesselName || '—'}{order.stageData.ocean?.voyageNumber ? ` (${order.stageData.ocean.voyageNumber})` : ''}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Route</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      House B/L
+                    </label>
                     <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.ocean?.portOfLoading && order.stageData.ocean?.portOfDischarge
+                      {order.stageData.ocean?.houseBillOfLading || '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Master B/L
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.ocean?.masterBillOfLading || '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Commercial Invoice
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.ocean?.commercialInvoiceNumber || '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Vessel
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.ocean?.vesselName || '—'}
+                      {order.stageData.ocean?.voyageNumber
+                        ? ` (${order.stageData.ocean.voyageNumber})`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Route
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.ocean?.portOfLoading &&
+                      order.stageData.ocean?.portOfDischarge
                         ? `${order.stageData.ocean.portOfLoading} → ${order.stageData.ocean.portOfDischarge}`
                         : '—'}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETA</label>
-                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.ocean?.estimatedArrival) || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      ETA
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatDateOnly(order.stageData.ocean?.estimatedArrival) || '—'}
+                    </p>
                   </div>
                 </div>
 
@@ -1194,29 +1264,48 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warehouse</label>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Warehouse
+                    </label>
                     <p className="text-sm font-medium text-slate-900">
                       {order.stageData.warehouse?.warehouseName || order.warehouseName || '—'}
-                      {(order.stageData.warehouse?.warehouseCode || order.warehouseCode) ? ` (${order.stageData.warehouse?.warehouseCode || order.warehouseCode})` : ''}
+                      {order.stageData.warehouse?.warehouseCode || order.warehouseCode
+                        ? ` (${order.stageData.warehouse?.warehouseCode || order.warehouseCode})`
+                        : ''}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Entry</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.warehouse?.customsEntryNumber || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Customs Entry
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.warehouse?.customsEntryNumber || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Cleared</label>
-                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.warehouse?.customsClearedDate) || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Customs Cleared
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatDateOnly(order.stageData.warehouse?.customsClearedDate) || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Received Date</label>
-                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.warehouse?.receivedDate) || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Received Date
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatDateOnly(order.stageData.warehouse?.receivedDate) || '—'}
+                    </p>
                   </div>
                   {order.stageData.warehouse?.dutyAmount != null && (
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duty</label>
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Duty
+                      </label>
                       <p className="text-sm font-medium text-slate-900">
-                        {order.stageData.warehouse.dutyCurrency || ''} {order.stageData.warehouse.dutyAmount.toLocaleString()}
+                        {order.stageData.warehouse.dutyCurrency || ''}{' '}
+                        {order.stageData.warehouse.dutyAmount.toLocaleString()}
                       </p>
                     </div>
                   )}
@@ -1232,23 +1321,43 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ship To</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.shipped?.shipToName || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Ship To
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.shipped?.shipToName || '—'}
+                    </p>
                     {order.stageData.shipped?.shipToAddress && (
-                      <p className="text-xs text-muted-foreground">{order.stageData.shipped.shipToAddress}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {order.stageData.shipped.shipToAddress}
+                      </p>
                     )}
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Carrier</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.shipped?.shippingCarrier || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Carrier
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.shipped?.shippingCarrier || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tracking</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.shipped?.trackingNumber || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Tracking
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.shipped?.trackingNumber || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Shipped Date</label>
-                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.shipped?.shippedDate || order.stageData.shipped?.shippedAt) || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Shipped Date
+                    </label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatDateOnly(
+                        order.stageData.shipped?.shippedDate || order.stageData.shipped?.shippedAt
+                      ) || '—'}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1261,7 +1370,9 @@ export default function PurchaseOrderDetailPage() {
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div className="flex items-center gap-3">
               <h3 className="text-sm font-semibold text-foreground">Cargo</h3>
-              <Badge variant="outline" className="text-xs">{order.lines.length} items</Badge>
+              <Badge variant="outline" className="text-xs">
+                {order.lines.length} items
+              </Badge>
             </div>
             <span className="text-sm text-muted-foreground">
               Total: {totalQuantity.toLocaleString()} units
@@ -1325,7 +1436,9 @@ export default function PurchaseOrderDetailPage() {
             >
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-foreground">Approval History</h3>
-                <Badge variant="outline" className="text-xs">{order.approvalHistory.length}</Badge>
+                <Badge variant="outline" className="text-xs">
+                  {order.approvalHistory.length}
+                </Badge>
               </div>
               {showApprovalHistory ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -1379,7 +1492,8 @@ export default function PurchaseOrderDetailPage() {
                   Advance to {nextStage.label}
                 </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} → {nextStage.label}
+                  {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} →{' '}
+                  {nextStage.label}
                 </p>
               </div>
               <button
@@ -1393,9 +1507,7 @@ export default function PurchaseOrderDetailPage() {
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">
-              {renderStageTransitionForm()}
-            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5">{renderStageTransitionForm()}</div>
 
             {/* Footer */}
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
