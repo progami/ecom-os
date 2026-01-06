@@ -6,8 +6,6 @@ import { ColumnDef } from '@tanstack/react-table'
 import { EmployeesApi, type Employee } from '@/lib/api-client'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { UsersIcon } from '@/components/ui/Icons'
@@ -19,16 +17,15 @@ function fullName(emp: Pick<Employee, 'firstName' | 'lastName'>) {
   return `${emp.firstName} ${emp.lastName}`.trim()
 }
 
-export function EmployeesClientPage(props: { initialQuery?: string }) {
+export function EmployeesClientPage() {
   const router = useRouter()
   const [items, setItems] = useState<Employee[]>([])
-  const [q, setQ] = useState(props.initialQuery ?? '')
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await EmployeesApi.list({ q })
+      const data = await EmployeesApi.list({})
       setItems(data.items)
     } catch (e) {
       console.error('Failed to load employees', e)
@@ -36,7 +33,7 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
     } finally {
       setLoading(false)
     }
-  }, [q])
+  }, [])
 
   useEffect(() => {
     load()
@@ -127,15 +124,6 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
       />
 
       <div className="space-y-6">
-        <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={load}
-            placeholder="Search by name, email, or employee ID..."
-          />
-        </Card>
-
         <ResultsCount count={items.length} singular="employee" plural="employees" loading={loading} />
 
         <DataTable
