@@ -1059,32 +1059,55 @@ export default function PurchaseOrderDetailPage() {
               })}
             </div>
 
-            {/* Action Buttons - Primary advance action only */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-6">
-              <div className="flex items-center gap-3">
-                {nextStage && (
-                  <Button
-                    onClick={() => setAdvanceModalOpen(true)}
-                    disabled={transitioning}
-                    className="gap-2"
-                  >
-                    Advance to {nextStage.label}
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+            {/* Action Buttons - All grouped together */}
+            <div className="flex flex-wrap items-center gap-2 mt-6">
+              {/* Primary: Advance */}
+              {nextStage && (
+                <Button
+                  onClick={() => setAdvanceModalOpen(true)}
+                  disabled={transitioning}
+                  className="gap-2"
+                >
+                  Advance to {nextStage.label}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
 
-              {/* Secondary actions dropdown - Cancel Order */}
+              {/* Secondary: Back to Draft (ISSUED only) */}
+              {order.status === 'ISSUED' && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleTransition('DRAFT')}
+                  disabled={transitioning}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Draft
+                </Button>
+              )}
+
+              {/* Secondary: Mark Rejected (ISSUED only) */}
+              {order.status === 'ISSUED' && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleTransition('REJECTED')}
+                  disabled={transitioning}
+                  className="gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                >
+                  <PackageX className="h-4 w-4" />
+                  Mark Rejected
+                </Button>
+              )}
+
+              {/* Destructive: Cancel Order dropdown */}
               {!isTerminal && (
                 <div className="relative">
                   <Button
                     variant="ghost"
-                    size="sm"
                     onClick={() => setActionsDropdownOpen(!actionsDropdownOpen)}
                     className="gap-2 text-muted-foreground hover:text-foreground"
                   >
                     <MoreHorizontal className="h-4 w-4" />
-                    More Actions
                   </Button>
                   {actionsDropdownOpen && (
                     <>
@@ -1092,7 +1115,7 @@ export default function PurchaseOrderDetailPage() {
                         className="fixed inset-0 z-10"
                         onClick={() => setActionsDropdownOpen(false)}
                       />
-                      <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-md border bg-white shadow-lg">
+                      <div className="absolute left-0 top-full mt-1 z-20 w-44 rounded-md border bg-white shadow-lg">
                         <button
                           type="button"
                           onClick={() => {
@@ -1213,31 +1236,6 @@ export default function PurchaseOrderDetailPage() {
                     Edit
                   </Button>
                 )}
-              </div>
-            )}
-            {/* Contextual actions for ISSUED stage */}
-            {activeViewStage === 'ISSUED' && order.status === 'ISSUED' && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleTransition('DRAFT')}
-                  disabled={transitioning}
-                  className="gap-1.5"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Back to Draft
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleTransition('REJECTED')}
-                  disabled={transitioning}
-                  className="gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                >
-                  <PackageX className="h-3.5 w-3.5" />
-                  Mark Rejected
-                </Button>
               </div>
             )}
           </div>
