@@ -1,5 +1,13 @@
-import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, FileSpreadsheet, LineChart, Package, Target, TrendingUp, Wallet2 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react';
+import {
+  ClipboardList,
+  FileSpreadsheet,
+  LineChart,
+  Package,
+  Target,
+  TrendingUp,
+  Wallet2,
+} from 'lucide-react';
 
 export type SheetSlug =
   | '0-strategies'
@@ -8,13 +16,13 @@ export type SheetSlug =
   | '3-sales-planning'
   | '4-fin-planning-pl'
   | '5-fin-planning-cash-flow'
-  | '6-po-profitability'
+  | '6-po-profitability';
 
 export interface SheetConfig {
-  slug: SheetSlug
-  label: string
-  description: string
-  icon: LucideIcon
+  slug: SheetSlug;
+  label: string;
+  description: string;
+  icon: LucideIcon;
 }
 
 export const SHEETS: SheetConfig[] = [
@@ -60,8 +68,8 @@ export const SHEETS: SheetConfig[] = [
     description: '',
     icon: TrendingUp,
   },
-]
+];
 
 export function getSheetConfig(slug: string): SheetConfig | undefined {
-  return SHEETS.find((sheet) => sheet.slug === slug)
+  return SHEETS.find((sheet) => sheet.slug === slug);
 }

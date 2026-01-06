@@ -3,14 +3,18 @@ export const OPS_STAGE_DEFAULT_LABELS = {
   source: 'Source Stage Default (weeks)',
   ocean: 'Ocean Stage Default (weeks)',
   final: 'Final Stage Default (weeks)',
-} as const
+} as const;
 
-export type OpsStageDefaultLabel = (typeof OPS_STAGE_DEFAULT_LABELS)[keyof typeof OPS_STAGE_DEFAULT_LABELS]
+export type OpsStageDefaultLabel =
+  (typeof OPS_STAGE_DEFAULT_LABELS)[keyof typeof OPS_STAGE_DEFAULT_LABELS];
 
 export function normalizeLabel(label: string | null | undefined): string {
-  return label?.trim().toLowerCase() ?? ''
+  return label?.trim().toLowerCase() ?? '';
 }
 
-export function matchesStageDefaultLabel(label: string | null | undefined, target: string): boolean {
-  return normalizeLabel(label) === normalizeLabel(target)
+export function matchesStageDefaultLabel(
+  label: string | null | undefined,
+  target: string,
+): boolean {
+  return normalizeLabel(label) === normalizeLabel(target);
 }

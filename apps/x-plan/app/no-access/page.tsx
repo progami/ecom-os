@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { ShieldX, ArrowLeft, ExternalLink } from 'lucide-react'
+import Link from 'next/link';
+import { ShieldX, ArrowLeft, ExternalLink } from 'lucide-react';
 
 export default function NoAccessPage() {
-  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || process.env.PORTAL_AUTH_URL || '/'
+  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || process.env.PORTAL_AUTH_URL || '/';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8">
@@ -20,7 +20,9 @@ export default function NoAccessPage() {
         </div>
 
         <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-4 text-left">
-          <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">What does this mean?</h2>
+          <h2 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            What does this mean?
+          </h2>
           <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1.5">
             <li className="flex items-start gap-2">
               <span className="text-slate-400 dark:text-slate-500 mt-0.5">•</span>
@@ -55,5 +57,5 @@ export default function NoAccessPage() {
         </p>
       </div>
     </div>
-  )
+  );
 }

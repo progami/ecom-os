@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server'
-import { Prisma } from '@ecom-os/prisma-x-plan'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
-import { withXPlanAuth } from '@/lib/api/auth'
-import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
-import { loadPlanningCalendar } from '@/lib/planning'
-import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar'
-import { weekStartsOnForRegion } from '@/lib/strategy-region'
+import { NextResponse } from 'next/server';
+import { Prisma } from '@ecom-os/prisma-x-plan';
+import { z } from 'zod';
+import prisma from '@/lib/prisma';
+import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels';
+import { withXPlanAuth } from '@/lib/api/auth';
+import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';
+import { loadPlanningCalendar } from '@/lib/planning';
+import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar';
+import { weekStartsOnForRegion } from '@/lib/strategy-region';
 
 const allowedFields = [
   'productId',
@@ -52,7 +52,7 @@ const allowedFields = [
   'overrideFbaFee',
   'overrideReferralRate',
   'overrideStoragePerMonth',
-] as const
+] as const;
 
 const percentFields: Record<string, true> = {
   pay1Percent: true,
@@ -61,7 +61,7 @@ const percentFields: Record<string, true> = {
   overrideTariffRate: true,
   overrideTacosPercent: true,
   overrideReferralRate: true,
-}
+};
 
 const decimalFields: Record<string, true> = {
   productionWeeks: true,
@@ -76,7 +76,7 @@ const decimalFields: Record<string, true> = {
   overrideFreightCost: true,
   overrideFbaFee: true,
   overrideStoragePerMonth: true,
-}
+};
 
 const weekNumberFields: Record<string, true> = {
   poWeekNumber: true,
@@ -85,7 +85,7 @@ const weekNumberFields: Record<string, true> = {
   portEtaWeekNumber: true,
   inboundEtaWeekNumber: true,
   availableWeekNumber: true,
-}
+};
 
 const dateFields: Record<string, true> = {
   poDate: true,
@@ -98,7 +98,7 @@ const dateFields: Record<string, true> = {
   portEta: true,
   inboundEta: true,
   availableDate: true,
-}
+};
 
 const DATE_TO_WEEK_FIELD: Record<string, string> = {
   poDate: 'poWeekNumber',
@@ -107,20 +107,20 @@ const DATE_TO_WEEK_FIELD: Record<string, string> = {
   portEta: 'portEtaWeekNumber',
   inboundEta: 'inboundEtaWeekNumber',
   availableDate: 'availableWeekNumber',
-}
+};
 
 const WEEK_TO_DATE_FIELD: Record<string, string> = Object.fromEntries(
   Object.entries(DATE_TO_WEEK_FIELD).map(([dateField, weekField]) => [weekField, dateField]),
-)
+);
 
 const updateSchema = z.object({
   updates: z.array(
     z.object({
       id: z.string().min(1),
       values: z.record(z.string(), z.string().nullable().optional()),
-    })
+    }),
   ),
-})
+});
 
 const createSchema = z.object({
   strategyId: z.string().min(1),
@@ -128,96 +128,104 @@ const createSchema = z.object({
   orderCode: z.string().trim().min(1).optional(),
   poDate: z.string().trim().optional(),
   quantity: z.coerce.number().int().min(0).optional(),
-})
+});
 
 const deleteSchema = z.object({
   id: z.string().min(1),
-})
+});
 
-const STAGE_DEFAULT_LABEL_SET = Object.values(OPS_STAGE_DEFAULT_LABELS)
-const REQUIRED_STAGE_WEEK_FIELDS = new Set(['productionWeeks', 'sourceWeeks', 'oceanWeeks', 'finalWeeks'])
+const STAGE_DEFAULT_LABEL_SET = Object.values(OPS_STAGE_DEFAULT_LABELS);
+const REQUIRED_STAGE_WEEK_FIELDS = new Set([
+  'productionWeeks',
+  'sourceWeeks',
+  'oceanWeeks',
+  'finalWeeks',
+]);
 
 function parseNumber(value: string | null | undefined) {
-  if (!value) return null
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const cleaned = trimmed.replace(/[$,%\s]/g, '').replace(/,/g, '')
-  const parsed = Number(cleaned)
-  return Number.isNaN(parsed) ? null : parsed
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const cleaned = trimmed.replace(/[$,%\s]/g, '').replace(/,/g, '');
+  const parsed = Number(cleaned);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 function parseDate(value: string | null | undefined) {
-  if (!value) return null
-  const trimmed = value.trim()
-  if (!trimmed) return null
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    const parsed = new Date(`${trimmed}T00:00:00.000Z`)
-    return Number.isNaN(parsed.getTime()) ? null : parsed
+    const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
-  const parsed = new Date(trimmed)
-  if (Number.isNaN(parsed.getTime())) return null
-  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
 }
 
-type StageDefaultsMap = Record<string, number>
+type StageDefaultsMap = Record<string, number>;
 
 type StageParameterRow = {
-  label?: string | null
-  valueNumeric?: Prisma.Decimal | number | null
-}
+  label?: string | null;
+  valueNumeric?: Prisma.Decimal | number | null;
+};
 
 function buildStageDefaultsMap(rows: StageParameterRow[]): StageDefaultsMap {
   return rows.reduce((map, row) => {
-    const key = row.label?.trim().toLowerCase()
-    if (!key) return map
-    const numericValue = row.valueNumeric
-    let numeric: number
+    const key = row.label?.trim().toLowerCase();
+    if (!key) return map;
+    const numericValue = row.valueNumeric;
+    let numeric: number;
     if (numericValue == null) {
-      numeric = NaN
+      numeric = NaN;
     } else if (typeof numericValue === 'number') {
-      numeric = numericValue
+      numeric = numericValue;
     } else {
-      numeric = Number(numericValue)
+      numeric = Number(numericValue);
     }
     if (Number.isFinite(numeric) && numeric > 0) {
-      map[key] = numeric
+      map[key] = numeric;
     }
-    return map
-  }, {} as StageDefaultsMap)
+    return map;
+  }, {} as StageDefaultsMap);
 }
 
 function resolveStageDefaultWeeks(map: StageDefaultsMap, label: string): number {
-  const key = label.trim().toLowerCase()
-  const value = map[key]
+  const key = label.trim().toLowerCase();
+  const value = map[key];
   if (Number.isFinite(value) && value && value > 0) {
-    return value
+    return value;
   }
-  return 1
+  return 1;
 }
 
 export const PUT = withXPlanAuth(async (request: Request, session) => {
-  const debug = process.env.NODE_ENV !== 'production'
-  const body = await request.json().catch(() => null)
+  const debug = process.env.NODE_ENV !== 'production';
+  const body = await request.json().catch(() => null);
   if (debug) {
-    console.log('[PUT /purchase-orders] body:', JSON.stringify(body, null, 2))
+    console.log('[PUT /purchase-orders] body:', JSON.stringify(body, null, 2));
   }
-  const parsed = updateSchema.safeParse(body)
+  const parsed = updateSchema.safeParse(body);
 
   if (!parsed.success) {
     if (debug) {
-      console.log('[PUT /purchase-orders] validation error:', parsed.error.format())
+      console.log('[PUT /purchase-orders] validation error:', parsed.error.format());
     }
-    return NextResponse.json({ error: 'Invalid payload', details: parsed.error.format() }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Invalid payload', details: parsed.error.format() },
+      { status: 400 },
+    );
   }
 
   for (const update of parsed.data.updates) {
     for (const field of REQUIRED_STAGE_WEEK_FIELDS) {
-      if (!(field in update.values)) continue
-      const incoming = update.values[field]
-      if (incoming === null || incoming === undefined || incoming === '') continue
-      const parsedNumber = parseNumber(incoming)
+      if (!(field in update.values)) continue;
+      const incoming = update.values[field];
+      if (incoming === null || incoming === undefined || incoming === '') continue;
+      const parsedNumber = parseNumber(incoming);
       if (parsedNumber == null || !Number.isFinite(parsedNumber) || parsedNumber <= 0) {
-        return NextResponse.json({ error: `${field} must be a positive number` }, { status: 400 })
+        return NextResponse.json({ error: `${field} must be a positive number` }, { status: 400 });
       }
     }
   }
@@ -226,42 +234,45 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
     const orderMeta = await prisma.purchaseOrder.findMany({
       where: { id: { in: parsed.data.updates.map(({ id }) => id) } },
       select: { id: true, strategyId: true, strategy: { select: { region: true } } },
-    })
+    });
 
     const { response } = await requireXPlanStrategiesAccess(
       orderMeta.map((order) => order.strategyId),
       session,
-    )
-    if (response) return response
+    );
+    if (response) return response;
 
-    const weekStartsOnByOrder = new Map<string, 0 | 1>()
-    const weekStartsOnSet = new Set<0 | 1>()
+    const weekStartsOnByOrder = new Map<string, 0 | 1>();
+    const weekStartsOnSet = new Set<0 | 1>();
     for (const row of orderMeta) {
-      const weekStartsOn = weekStartsOnForRegion(row.strategy?.region === 'UK' ? 'UK' : 'US')
-      weekStartsOnByOrder.set(row.id, weekStartsOn)
-      weekStartsOnSet.add(weekStartsOn)
+      const weekStartsOn = weekStartsOnForRegion(row.strategy?.region === 'UK' ? 'UK' : 'US');
+      weekStartsOnByOrder.set(row.id, weekStartsOn);
+      weekStartsOnSet.add(weekStartsOn);
     }
 
-    const calendarsByStart = new Map<0 | 1, Awaited<ReturnType<typeof loadPlanningCalendar>>['calendar']>()
+    const calendarsByStart = new Map<
+      0 | 1,
+      Awaited<ReturnType<typeof loadPlanningCalendar>>['calendar']
+    >();
     await Promise.all(
       Array.from(weekStartsOnSet).map(async (weekStartsOn) => {
-        const planning = await loadPlanningCalendar(weekStartsOn)
-        calendarsByStart.set(weekStartsOn, planning.calendar)
+        const planning = await loadPlanningCalendar(weekStartsOn);
+        calendarsByStart.set(weekStartsOn, planning.calendar);
       }),
-    )
+    );
 
     // Pre-validate orderCode uniqueness before attempting batch update
     const orderCodeUpdates = parsed.data.updates
       .filter(({ values }) => values.orderCode && values.orderCode.trim() !== '')
-      .map(({ id, values }) => ({ id, orderCode: values.orderCode!.trim() }))
+      .map(({ id, values }) => ({ id, orderCode: values.orderCode!.trim() }));
 
     if (orderCodeUpdates.length > 0) {
       // Get the strategyId from one of the orders being updated
       const ordersBeingUpdated = (await prisma.purchaseOrder.findMany({
         where: { id: { in: orderCodeUpdates.map((u) => u.id) } },
         select: { id: true, strategyId: true },
-      })) as unknown as { id: string; strategyId: string }[]
-      const strategyIds = [...new Set(ordersBeingUpdated.map((o) => o.strategyId))]
+      })) as unknown as { id: string; strategyId: string }[];
+      const strategyIds = [...new Set(ordersBeingUpdated.map((o) => o.strategyId))];
 
       const existingOrders = (await prisma.purchaseOrder.findMany({
         where: {
@@ -269,206 +280,209 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
           orderCode: { in: orderCodeUpdates.map((u) => u.orderCode) },
         },
         select: { id: true, orderCode: true, strategyId: true },
-      })) as unknown as { id: string; orderCode: string; strategyId: string }[]
+      })) as unknown as { id: string; orderCode: string; strategyId: string }[];
 
       // Check if any orderCode would conflict with a different PO in the same strategy
       for (const update of orderCodeUpdates) {
-        const orderBeingUpdated = ordersBeingUpdated.find((o) => o.id === update.id)
+        const orderBeingUpdated = ordersBeingUpdated.find((o) => o.id === update.id);
         const conflict = existingOrders.find(
           (existing) =>
             existing.orderCode === update.orderCode &&
             existing.id !== update.id &&
-            existing.strategyId === orderBeingUpdated?.strategyId
-        )
+            existing.strategyId === orderBeingUpdated?.strategyId,
+        );
         if (conflict) {
-          const errorMessage = `Order code "${update.orderCode}" is already in use by another purchase order.`
+          const errorMessage = `Order code "${update.orderCode}" is already in use by another purchase order.`;
           if (debug) {
-            console.log('[PUT /purchase-orders] returning 409:', errorMessage)
+            console.log('[PUT /purchase-orders] returning 409:', errorMessage);
           }
           return new Response(JSON.stringify({ error: errorMessage }), {
             status: 409,
             headers: { 'Content-Type': 'application/json' },
-          })
+          });
         }
       }
     }
 
     await prisma.$transaction(
       parsed.data.updates.map(({ id, values }) => {
-        const data: Record<string, unknown> = {}
-        const weekStartsOn = weekStartsOnByOrder.get(id) ?? 0
-        const calendar = calendarsByStart.get(weekStartsOn)
+        const data: Record<string, unknown> = {};
+        const weekStartsOn = weekStartsOnByOrder.get(id) ?? 0;
+        const calendar = calendarsByStart.get(weekStartsOn);
         for (const field of allowedFields) {
-          if (!(field in values)) continue
-          const incoming = values[field]
+          if (!(field in values)) continue;
+          const incoming = values[field];
           if (incoming === null || incoming === undefined || incoming === '') {
             if (REQUIRED_STAGE_WEEK_FIELDS.has(field)) {
-              continue
+              continue;
             }
-            data[field] = null
+            data[field] = null;
             if (field in DATE_TO_WEEK_FIELD) {
-              data[DATE_TO_WEEK_FIELD[field]] = null
+              data[DATE_TO_WEEK_FIELD[field]] = null;
             }
             if (field in WEEK_TO_DATE_FIELD) {
-              data[WEEK_TO_DATE_FIELD[field]] = null
+              data[WEEK_TO_DATE_FIELD[field]] = null;
             }
-            continue
+            continue;
           }
 
           if (field === 'quantity') {
-            data[field] = parseNumber(incoming) ?? null
+            data[field] = parseNumber(incoming) ?? null;
           } else if (weekNumberFields[field]) {
-            const parsedWeek = parseNumber(incoming)
-            const weekNumber = parsedWeek == null ? null : Math.round(parsedWeek)
-            data[field] = weekNumber
-            const dateField = WEEK_TO_DATE_FIELD[field]
+            const parsedWeek = parseNumber(incoming);
+            const weekNumber = parsedWeek == null ? null : Math.round(parsedWeek);
+            data[field] = weekNumber;
+            const dateField = WEEK_TO_DATE_FIELD[field];
             if (calendar && dateField && weekNumber != null) {
-              data[dateField] = getCalendarDateForWeek(weekNumber, calendar)
+              data[dateField] = getCalendarDateForWeek(weekNumber, calendar);
             }
           } else if (percentFields[field]) {
-            const parsedNumber = parseNumber(incoming)
+            const parsedNumber = parseNumber(incoming);
             if (parsedNumber === null) {
-              data[field] = null
+              data[field] = null;
             } else {
-              data[field] = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber
+              data[field] = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber;
             }
           } else if (decimalFields[field]) {
-            data[field] = parseNumber(incoming)
+            data[field] = parseNumber(incoming);
           } else if (dateFields[field]) {
-            const parsedDate = parseDate(incoming)
+            const parsedDate = parseDate(incoming);
             if (!parsedDate) {
-              data[field] = null
+              data[field] = null;
               if (field in DATE_TO_WEEK_FIELD) {
-                data[DATE_TO_WEEK_FIELD[field]] = null
+                data[DATE_TO_WEEK_FIELD[field]] = null;
               }
-              continue
+              continue;
             }
 
             if (calendar && field in DATE_TO_WEEK_FIELD) {
-              const weekNumber = weekNumberForDate(parsedDate, calendar)
+              const weekNumber = weekNumberForDate(parsedDate, calendar);
               if (weekNumber != null) {
-                data[DATE_TO_WEEK_FIELD[field]] = weekNumber
-                data[field] = getCalendarDateForWeek(weekNumber, calendar)
-                continue
+                data[DATE_TO_WEEK_FIELD[field]] = weekNumber;
+                data[field] = getCalendarDateForWeek(weekNumber, calendar);
+                continue;
               }
             }
 
-            data[field] = parsedDate
+            data[field] = parsedDate;
           } else if (field === 'status') {
-            data[field] = incoming as string
+            data[field] = incoming as string;
           } else if (field === 'productId') {
-            data[field] = incoming
+            data[field] = incoming;
           } else if (
             field === 'orderCode' ||
             field === 'transportReference' ||
             field === 'shipName' ||
             field === 'containerNumber'
           ) {
-            data[field] = incoming
+            data[field] = incoming;
           } else if (field === 'notes') {
-            data[field] = incoming
+            data[field] = incoming;
           }
         }
 
-        return prisma.purchaseOrder.update({ where: { id }, data })
-      })
-    )
+        return prisma.purchaseOrder.update({ where: { id }, data });
+      }),
+    );
     if (debug) {
-      console.log('[PUT /purchase-orders] success')
+      console.log('[PUT /purchase-orders] success');
     }
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error('[PUT /purchase-orders] error:', error)
+    console.error('[PUT /purchase-orders] error:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      const errorMessage = 'A purchase order with this code already exists.'
+      const errorMessage = 'A purchase order with this code already exists.';
       if (debug) {
-        console.log('[PUT /purchase-orders] returning 409 (Prisma P2002):', errorMessage)
+        console.log('[PUT /purchase-orders] returning 409 (Prisma P2002):', errorMessage);
       }
       return new Response(JSON.stringify({ error: errorMessage }), {
         status: 409,
         headers: { 'Content-Type': 'application/json' },
-      })
+      });
     }
-    return NextResponse.json({ error: 'Database error', details: String(error) }, { status: 500 })
+    return NextResponse.json({ error: 'Database error', details: String(error) }, { status: 500 });
   }
-})
+});
 
 function generateOrderCode() {
-  const random = Math.random().toString(36).slice(-5).toUpperCase()
-  return `PO-${random}`
+  const random = Math.random().toString(36).slice(-5).toUpperCase();
+  return `PO-${random}`;
 }
 
 async function resolveOrderCode(strategyId: string, requested?: string) {
   if (requested) {
     const existing = await prisma.purchaseOrder.findUnique({
       where: { strategyId_orderCode: { strategyId, orderCode: requested } },
-    })
+    });
     if (existing) {
-      return { error: 'A purchase order with this code already exists.', status: 409 as const }
+      return { error: 'A purchase order with this code already exists.', status: 409 as const };
     }
-    return { orderCode: requested }
+    return { orderCode: requested };
   }
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const candidate = generateOrderCode()
+    const candidate = generateOrderCode();
     const conflict = await prisma.purchaseOrder.findUnique({
       where: { strategyId_orderCode: { strategyId, orderCode: candidate } },
-    })
+    });
     if (!conflict) {
-      return { orderCode: candidate }
+      return { orderCode: candidate };
     }
   }
 
-  return { error: 'Unable to generate a unique purchase order code. Try again.', status: 503 as const }
+  return {
+    error: 'Unable to generate a unique purchase order code. Try again.',
+    status: 503 as const,
+  };
 }
 
 export const POST = withXPlanAuth(async (request: Request, session) => {
-  const body = await request.json().catch(() => null)
-  const parsed = createSchema.safeParse(body)
+  const body = await request.json().catch(() => null);
+  const parsed = createSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  const { strategyId, productId, orderCode, quantity, poDate } = parsed.data
+  const { strategyId, productId, orderCode, quantity, poDate } = parsed.data;
 
-  const { response } = await requireXPlanStrategyAccess(strategyId, session)
-  if (response) return response
+  const { response } = await requireXPlanStrategyAccess(strategyId, session);
+  if (response) return response;
 
   const productRow = await prisma.product.findUnique({
     where: { id: productId },
     select: { id: true, strategyId: true },
-  })
+  });
   if (!productRow) {
-    return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Product not found' }, { status: 404 });
   }
   if (productRow.strategyId !== strategyId) {
-    return NextResponse.json({ error: 'Product does not belong to strategy' }, { status: 400 })
+    return NextResponse.json({ error: 'Product does not belong to strategy' }, { status: 400 });
   }
 
-  const orderCodeResult = await resolveOrderCode(strategyId, orderCode)
+  const orderCodeResult = await resolveOrderCode(strategyId, orderCode);
   if ('error' in orderCodeResult) {
-    return NextResponse.json({ error: orderCodeResult.error }, { status: orderCodeResult.status })
+    return NextResponse.json({ error: orderCodeResult.error }, { status: orderCodeResult.status });
   }
 
   const stageDefaultsRows = await prisma.businessParameter.findMany({
     where: { strategyId, label: { in: STAGE_DEFAULT_LABEL_SET } },
     select: { label: true, valueNumeric: true },
-  })
-  const stageDefaults = buildStageDefaultsMap(stageDefaultsRows)
+  });
+  const stageDefaults = buildStageDefaultsMap(stageDefaultsRows);
 
   const strategyRow = await (prisma as unknown as Record<string, any>).strategy?.findUnique?.({
     where: { id: strategyId },
     select: { region: true },
-  })
-  const weekStartsOn = weekStartsOnForRegion(strategyRow?.region === 'UK' ? 'UK' : 'US')
-  const planning = await loadPlanningCalendar(weekStartsOn)
-  const parsedPoDate = poDate ? parseDate(poDate) : null
-  const poWeekNumber = parsedPoDate ? weekNumberForDate(parsedPoDate, planning.calendar) : null
+  });
+  const weekStartsOn = weekStartsOnForRegion(strategyRow?.region === 'UK' ? 'UK' : 'US');
+  const planning = await loadPlanningCalendar(weekStartsOn);
+  const parsedPoDate = poDate ? parseDate(poDate) : null;
+  const poWeekNumber = parsedPoDate ? weekNumberForDate(parsedPoDate, planning.calendar) : null;
   const normalizedPoDate =
-    poWeekNumber != null ? getCalendarDateForWeek(poWeekNumber, planning.calendar) : parsedPoDate
+    poWeekNumber != null ? getCalendarDateForWeek(poWeekNumber, planning.calendar) : parsedPoDate;
 
-  const safeQuantity = quantity ?? 0
+  const safeQuantity = quantity ?? 0;
   const data = {
     strategyId,
     productId,
@@ -477,22 +491,22 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
     poDate: normalizedPoDate,
     poWeekNumber,
     productionWeeks: new Prisma.Decimal(
-      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.production)
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.production),
     ),
     sourceWeeks: new Prisma.Decimal(
-      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.source)
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.source),
     ),
     oceanWeeks: new Prisma.Decimal(
-      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.ocean)
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.ocean),
     ),
     finalWeeks: new Prisma.Decimal(
-      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.final)
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.final),
     ),
     status: 'PLANNED' as const,
-  }
+  };
 
   try {
-    const created = await prisma.purchaseOrder.create({ data })
+    const created = await prisma.purchaseOrder.create({ data });
 
     return NextResponse.json({
       order: {
@@ -501,42 +515,45 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
         productId: created.productId,
         quantity: created.quantity,
       },
-    })
+    });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return NextResponse.json({ error: 'A purchase order with this code already exists.' }, { status: 409 })
+      return NextResponse.json(
+        { error: 'A purchase order with this code already exists.' },
+        { status: 409 },
+      );
     }
-    console.error('[POST /purchase-orders] error:', error)
-    return NextResponse.json({ error: 'Unable to create purchase order' }, { status: 500 })
+    console.error('[POST /purchase-orders] error:', error);
+    return NextResponse.json({ error: 'Unable to create purchase order' }, { status: 500 });
   }
-})
+});
 
 export const DELETE = withXPlanAuth(async (request: Request, session) => {
-  const body = await request.json().catch(() => null)
-  const parsed = deleteSchema.safeParse(body)
+  const body = await request.json().catch(() => null);
+  const parsed = deleteSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  const { id } = parsed.data
+  const { id } = parsed.data;
 
   try {
     const existing = await prisma.purchaseOrder.findUnique({
       where: { id },
       select: { id: true, strategyId: true },
-    })
+    });
     if (!existing) {
-      return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 });
     }
 
-    const { response } = await requireXPlanStrategyAccess(existing.strategyId, session)
-    if (response) return response
+    const { response } = await requireXPlanStrategyAccess(existing.strategyId, session);
+    if (response) return response;
 
-    await prisma.purchaseOrder.delete({ where: { id } })
+    await prisma.purchaseOrder.delete({ where: { id } });
   } catch (error) {
-    return NextResponse.json({ error: 'Unable to delete purchase order' }, { status: 400 })
+    return NextResponse.json({ error: 'Unable to delete purchase order' }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true })
-})
+  return NextResponse.json({ ok: true });
+});

@@ -1,59 +1,59 @@
-import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import prisma from '@/lib/prisma'
-import { withXPlanAuth } from '@/lib/api/auth'
-import { requireXPlanStrategyAccess } from '@/lib/api/strategy-guard'
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import prisma from '@/lib/prisma';
+import { withXPlanAuth } from '@/lib/api/auth';
+import { requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';
 
 // Type assertion for Prisma models (some generated client types are not fully resolved at build time)
-const prismaAny = prisma as unknown as Record<string, any>
+const prismaAny = prisma as unknown as Record<string, any>;
 
 const duplicateSchema = z.object({
   id: z.string().min(1),
-})
+});
 
 function generateOrderCode() {
-  const random = Math.random().toString(36).slice(-5).toUpperCase()
-  return `PO-${random}`
+  const random = Math.random().toString(36).slice(-5).toUpperCase();
+  return `PO-${random}`;
 }
 
 function buildCopyCode(base: string, attempt: number) {
-  const trimmed = base.trim()
-  const suffix = attempt === 0 ? '-COPY' : `-COPY-${attempt + 1}`
-  return `${trimmed}${suffix}`
+  const trimmed = base.trim();
+  const suffix = attempt === 0 ? '-COPY' : `-COPY-${attempt + 1}`;
+  return `${trimmed}${suffix}`;
 }
 
 async function resolveDuplicateOrderCode(strategyId: string, sourceOrderCode: string) {
-  const trimmed = sourceOrderCode.trim()
+  const trimmed = sourceOrderCode.trim();
 
   if (trimmed) {
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const candidate = buildCopyCode(trimmed, attempt)
+      const candidate = buildCopyCode(trimmed, attempt);
       const conflict = await prismaAny.purchaseOrder.findUnique({
         where: { strategyId_orderCode: { strategyId, orderCode: candidate } },
         select: { id: true },
-      })
-      if (!conflict) return candidate
+      });
+      if (!conflict) return candidate;
     }
   }
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const candidate = generateOrderCode()
+    const candidate = generateOrderCode();
     const conflict = await prismaAny.purchaseOrder.findUnique({
       where: { strategyId_orderCode: { strategyId, orderCode: candidate } },
       select: { id: true },
-    })
-    if (!conflict) return candidate
+    });
+    if (!conflict) return candidate;
   }
 
-  throw new Error('Unable to generate a unique purchase order code. Try again.')
+  throw new Error('Unable to generate a unique purchase order code. Try again.');
 }
 
 export const POST = withXPlanAuth(async (request: Request, session) => {
-  const body = await request.json().catch(() => null)
-  const parsed = duplicateSchema.safeParse(body)
+  const body = await request.json().catch(() => null);
+  const parsed = duplicateSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
   const source = await prismaAny.purchaseOrder.findUnique({
@@ -63,16 +63,16 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
       batchTableRows: true,
       logisticsEvents: true,
     },
-  })
+  });
 
   if (!source) {
-    return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 })
+    return NextResponse.json({ error: 'Purchase order not found' }, { status: 404 });
   }
 
-  const { response } = await requireXPlanStrategyAccess(source.strategyId, session)
-  if (response) return response
+  const { response } = await requireXPlanStrategyAccess(source.strategyId, session);
+  if (response) return response;
 
-  const orderCode = await resolveDuplicateOrderCode(source.strategyId, source.orderCode)
+  const orderCode = await resolveDuplicateOrderCode(source.strategyId, source.orderCode);
 
   const created = await prismaAny.purchaseOrder.create({
     data: {
@@ -166,7 +166,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
       productId: true,
       quantity: true,
     },
-  })
+  });
 
-  return NextResponse.json({ order: created })
-})
+  return NextResponse.json({ order: created });
+});

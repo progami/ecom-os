@@ -1,7 +1,7 @@
 export type SelectionStats = {
-  rangeCount: number
-  cellCount: number
-  numericCount: number
-  sum: number
-  average: number | null
-}
+  rangeCount: number;
+  cellCount: number;
+  numericCount: number;
+  sum: number;
+  average: number | null;
+};

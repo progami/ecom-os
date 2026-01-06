@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Download } from 'lucide-react'
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Download } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -13,78 +13,87 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useSalesPlanningFocus } from '@/components/sheets/sales-planning-grid'
+} from 'recharts';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSalesPlanningFocus } from '@/components/sheets/sales-planning-grid';
 
 type SalesRow = {
-  weekNumber: string
-  weekLabel: string
-  weekDate: string
-  arrivalDetail?: string
-  [key: string]: string | undefined
-}
+  weekNumber: string;
+  weekLabel: string;
+  weekDate: string;
+  arrivalDetail?: string;
+  [key: string]: string | undefined;
+};
 
-type ColumnMeta = Record<string, { productId: string; field: string }>
+type ColumnMeta = Record<string, { productId: string; field: string }>;
 
 interface SalesPlanningVisualProps {
-  rows: SalesRow[]
-  columnMeta: ColumnMeta
-  columnKeys: string[]
-  productOptions: Array<{ id: string; name: string }>
+  rows: SalesRow[];
+  columnMeta: ColumnMeta;
+  columnKeys: string[];
+  productOptions: Array<{ id: string; name: string }>;
 }
 
 type ShipmentMarker = {
-  weekNumber: number
-  weekDate: string
-  arrivalDetail: string
-}
+  weekNumber: number;
+  weekDate: string;
+  arrivalDetail: string;
+};
 
-export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptions }: SalesPlanningVisualProps) {
-  const searchParams = useSearchParams()
-  const productSetupHref = searchParams ? `/1-product-setup?${searchParams.toString()}` : '/1-product-setup'
-  const defaultProductId = productOptions[0]?.id ?? ''
+export function SalesPlanningVisual({
+  rows,
+  columnMeta,
+  columnKeys,
+  productOptions,
+}: SalesPlanningVisualProps) {
+  const searchParams = useSearchParams();
+  const productSetupHref = searchParams
+    ? `/1-product-setup?${searchParams.toString()}`
+    : '/1-product-setup';
+  const defaultProductId = productOptions[0]?.id ?? '';
 
-  const focusContext = useSalesPlanningFocus()
-  const contextProductId = focusContext?.focusProductId
+  const focusContext = useSalesPlanningFocus();
+  const contextProductId = focusContext?.focusProductId;
 
-  const selectedProductId = contextProductId && contextProductId !== 'ALL'
-    ? contextProductId
-    : defaultProductId
+  const selectedProductId =
+    contextProductId && contextProductId !== 'ALL' ? contextProductId : defaultProductId;
 
-  const [showShipments, setShowShipments] = useState(true)
-  const [showStockLine, setShowStockLine] = useState(true)
+  const [showShipments, setShowShipments] = useState(true);
+  const [showStockLine, setShowStockLine] = useState(true);
 
   const weekLabelByWeekNumber = useMemo(() => {
-    const map = new Map<number, string>()
+    const map = new Map<number, string>();
     rows.forEach((row) => {
-      const week = Number(row.weekNumber)
-      if (!Number.isFinite(week)) return
-      map.set(week, row.weekLabel ?? row.weekNumber)
-    })
-    return map
-  }, [rows])
+      const week = Number(row.weekNumber);
+      if (!Number.isFinite(week)) return;
+      map.set(week, row.weekLabel ?? row.weekNumber);
+    });
+    return map;
+  }, [rows]);
 
   const stockDataPoints = useMemo(() => {
-    if (!selectedProductId) return []
+    if (!selectedProductId) return [];
 
     const productColumnKey = columnKeys.find(
-      (key) => columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'stockEnd'
-    )
+      (key) =>
+        columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'stockEnd',
+    );
 
-    if (!productColumnKey) return []
+    if (!productColumnKey) return [];
 
-    return rows.map((row) => {
-      const stockValue = row[productColumnKey]
-      const weekNumber = Number(row.weekNumber)
-      return {
-        weekNumber,
-        weekLabel: String(weekLabelByWeekNumber.get(weekNumber) ?? weekNumber),
-        weekDate: row.weekDate,
-        stockEnd: stockValue ? Number(stockValue) : 0,
-      }
-    }).filter((point) => Number.isFinite(point.weekNumber) && Number.isFinite(point.stockEnd))
-  }, [selectedProductId, rows, columnKeys, columnMeta, weekLabelByWeekNumber])
+    return rows
+      .map((row) => {
+        const stockValue = row[productColumnKey];
+        const weekNumber = Number(row.weekNumber);
+        return {
+          weekNumber,
+          weekLabel: String(weekLabelByWeekNumber.get(weekNumber) ?? weekNumber),
+          weekDate: row.weekDate,
+          stockEnd: stockValue ? Number(stockValue) : 0,
+        };
+      })
+      .filter((point) => Number.isFinite(point.weekNumber) && Number.isFinite(point.stockEnd));
+  }, [selectedProductId, rows, columnKeys, columnMeta, weekLabelByWeekNumber]);
 
   const shipmentMarkers = useMemo(() => {
     return rows
@@ -94,26 +103,26 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         weekDate: row.weekDate,
         arrivalDetail: row.arrivalDetail || '',
       }))
-      .filter((marker) => Number.isFinite(marker.weekNumber))
-  }, [rows])
+      .filter((marker) => Number.isFinite(marker.weekNumber));
+  }, [rows]);
 
   const shipmentByWeek = useMemo(() => {
-    const map = new Map<number, ShipmentMarker>()
+    const map = new Map<number, ShipmentMarker>();
     shipmentMarkers.forEach((marker) => {
       if (!map.has(marker.weekNumber)) {
-        map.set(marker.weekNumber, marker)
+        map.set(marker.weekNumber, marker);
       }
-    })
-    return map
-  }, [shipmentMarkers])
+    });
+    return map;
+  }, [shipmentMarkers]);
 
   // Transform for Recharts
   const chartData = useMemo(() => {
     return stockDataPoints.map((point) => ({
       ...point,
       hasShipment: shipmentByWeek.has(point.weekNumber),
-    }))
-  }, [stockDataPoints, shipmentByWeek])
+    }));
+  }, [stockDataPoints, shipmentByWeek]);
 
   if (productOptions.length === 0) {
     return (
@@ -132,7 +141,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           </Link>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -159,17 +168,18 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           {/* Chart */}
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
-              >
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
                 <defs>
                   <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#e2e8f0"
+                  className="dark:stroke-slate-700"
+                />
                 <XAxis
                   dataKey="weekLabel"
                   tickLine={false}
@@ -181,47 +191,56 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     position: 'bottom',
                     offset: 10,
                     fontSize: 12,
-                    fill: 'hsl(var(--muted-foreground))'
+                    fill: 'hsl(var(--muted-foreground))',
                   }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()}
+                  tickFormatter={(value) =>
+                    value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()
+                  }
                   width={60}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
-                    if (!active || !payload?.[0]) return null
-                    const data = payload[0].payload
+                    if (!active || !payload?.[0]) return null;
+                    const data = payload[0].payload;
                     return (
                       <div className="rounded-lg border bg-background p-2 shadow-md">
-                        <p className="text-xs font-medium">Week {data.weekLabel} · {data.weekDate}</p>
+                        <p className="text-xs font-medium">
+                          Week {data.weekLabel} · {data.weekDate}
+                        </p>
                         <p className="text-xs text-muted-foreground">
                           Stock: {Math.round(data.stockEnd).toLocaleString()} units
                         </p>
                         {data.hasShipment && (
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400">Shipment arrives</p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                            Shipment arrives
+                          </p>
                         )}
                       </div>
-                    )
+                    );
                   }}
                 />
                 {/* Shipment reference lines */}
-                {showShipments && shipmentMarkers.map((marker) => {
-                  const dataIndex = chartData.findIndex(d => d.weekNumber === marker.weekNumber)
-                  if (dataIndex === -1) return null
-                  return (
-                    <ReferenceLine
-                      key={marker.weekNumber}
-                      x={chartData[dataIndex]?.weekLabel}
-                      stroke="hsl(var(--chart-2))"
-                      strokeDasharray="4 4"
-                      strokeWidth={2}
-                    />
-                  )
-                })}
+                {showShipments &&
+                  shipmentMarkers.map((marker) => {
+                    const dataIndex = chartData.findIndex(
+                      (d) => d.weekNumber === marker.weekNumber,
+                    );
+                    if (dataIndex === -1) return null;
+                    return (
+                      <ReferenceLine
+                        key={marker.weekNumber}
+                        x={chartData[dataIndex]?.weekLabel}
+                        stroke="hsl(var(--chart-2))"
+                        strokeDasharray="4 4"
+                        strokeWidth={2}
+                      />
+                    );
+                  })}
                 {showStockLine && (
                   <Area
                     type="monotone"
@@ -246,10 +265,12 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                 className="h-3 w-6 rounded-sm transition-opacity"
                 style={{
                   backgroundColor: 'hsl(var(--chart-1))',
-                  opacity: showStockLine ? 1 : 0.3
+                  opacity: showStockLine ? 1 : 0.3,
                 }}
               />
-              <span className={`text-xs ${showStockLine ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <span
+                className={`text-xs ${showStockLine ? 'text-foreground' : 'text-muted-foreground'}`}
+              >
                 Stock Level
               </span>
             </button>
@@ -262,10 +283,12 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                 className="h-3 w-6 rounded-sm border-2 border-dashed transition-opacity"
                 style={{
                   borderColor: 'hsl(var(--chart-2))',
-                  opacity: showShipments ? 1 : 0.3
+                  opacity: showShipments ? 1 : 0.3,
                 }}
               />
-              <span className={`text-xs ${showShipments ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <span
+                className={`text-xs ${showShipments ? 'text-foreground' : 'text-muted-foreground'}`}
+              >
                 Shipment Arrival
               </span>
             </button>
@@ -273,18 +296,18 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 
 function exportChart(name: string, productId: string) {
-  const chartElement = document.querySelector('.recharts-wrapper svg') as SVGElement
-  if (!chartElement) return
-  const data = new XMLSerializer().serializeToString(chartElement)
-  const blob = new Blob([data], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${name}-${productId}.svg`
-  a.click()
-  URL.revokeObjectURL(url)
+  const chartElement = document.querySelector('.recharts-wrapper svg') as SVGElement;
+  if (!chartElement) return;
+  const data = new XMLSerializer().serializeToString(chartElement);
+  const blob = new Blob([data], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name}-${productId}.svg`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
