@@ -42,6 +42,9 @@ export async function GET(req: Request) {
     // Access control: restrict what reviews can be viewed
     const employeeIdParam = searchParams.get('employeeId')
 
+    // Build access control constraint
+    let accessConstraint: Record<string, unknown> | null = null
+
     if (employeeIdParam) {
       const isSelf = employeeIdParam === currentEmployeeId
       if (!isSelf && !isHR) {
@@ -50,22 +53,34 @@ export async function GET(req: Request) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
       }
-      where.employeeId = employeeIdParam
-    } else {
-      // No specific employee - restrict to own + subtree unless HR
-      if (!isHR) {
-        const subtreeIds = await getSubtreeEmployeeIds(currentEmployeeId)
-        where.employeeId = { in: [currentEmployeeId, ...subtreeIds] }
+      accessConstraint = { employeeId: employeeIdParam }
+    } else if (!isHR) {
+      // No specific employee - restrict to (own + subtree) OR (assigned as reviewer)
+      const subtreeIds = await getSubtreeEmployeeIds(currentEmployeeId)
+      accessConstraint = {
+        OR: [
+          { employeeId: { in: [currentEmployeeId, ...subtreeIds] } },
+          { assignedReviewerId: currentEmployeeId },
+        ],
       }
     }
 
-    if (q) {
-      where.OR = [
-        { reviewerName: { contains: q, mode: 'insensitive' } },
-        { reviewPeriod: { contains: q, mode: 'insensitive' } },
-        { employee: { firstName: { contains: q, mode: 'insensitive' } } },
-        { employee: { lastName: { contains: q, mode: 'insensitive' } } },
-      ]
+    // Build search constraint
+    const searchConstraint = q
+      ? {
+          OR: [
+            { reviewerName: { contains: q, mode: 'insensitive' } },
+            { reviewPeriod: { contains: q, mode: 'insensitive' } },
+            { employee: { firstName: { contains: q, mode: 'insensitive' } } },
+            { employee: { lastName: { contains: q, mode: 'insensitive' } } },
+          ],
+        }
+      : null
+
+    // Combine constraints with AND
+    const andConditions = [accessConstraint, searchConstraint].filter(Boolean)
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
 
     const reviewTypeParam = searchParams.get('reviewType')
