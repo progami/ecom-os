@@ -105,7 +105,7 @@ export async function GET(req: Request, context: RouteContext) {
     // Determine permissions based on role and status
     const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
     const canCancel = isOwner && pendingStatuses.includes(leaveRequest.status)
-    const canManagerApprove = isManager && leaveRequest.status === 'PENDING_MANAGER'
+    const canManagerApprove = isManager && (leaveRequest.status === 'PENDING_MANAGER' || leaveRequest.status === 'PENDING')
     const canHRApprove = isHR && leaveRequest.status === 'PENDING_HR'
     const canSuperAdminApprove = isAdmin && leaveRequest.status === 'PENDING_SUPER_ADMIN'
 
