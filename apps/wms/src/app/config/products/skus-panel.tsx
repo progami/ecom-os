@@ -322,7 +322,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="rounded-xl border bg-white shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
