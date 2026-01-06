@@ -13,6 +13,8 @@ import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
+import { NativeSelect } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 
 // Simplified for small team (15-20 people)
 const REVIEW_TYPE_LABELS: Record<string, string> = {
@@ -103,12 +105,18 @@ export default function PerformanceReviewsPage() {
   const router = useRouter()
   const [items, setItems] = useState<PerformanceReview[]>([])
   const [q, setQ] = useState('')
+  const [status, setStatus] = useState('')
+  const [reviewType, setReviewType] = useState('')
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await PerformanceReviewsApi.list({ q })
+      const data = await PerformanceReviewsApi.list({
+        q,
+        status: status || undefined,
+        reviewType: reviewType || undefined,
+      })
       setItems(data.items)
     } catch (err) {
       console.error('Error fetching reviews:', err)
@@ -116,7 +124,7 @@ export default function PerformanceReviewsPage() {
     } finally {
       setLoading(false)
     }
-  }, [q])
+  }, [q, status, reviewType])
 
   useEffect(() => {
     load()
@@ -218,12 +226,45 @@ export default function PerformanceReviewsPage() {
 
       <div className="space-y-6">
         <Card padding="md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={load}
-            placeholder="Search by employee name or manager..."
-          />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <SearchForm
+                value={q}
+                onChange={setQ}
+                onSubmit={load}
+                placeholder="Search by employee or reviewer..."
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="w-32">
+                <Label htmlFor="status-filter" className="sr-only">Status</Label>
+                <NativeSelect
+                  id="status-filter"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">All Status</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="PENDING_REVIEW">Pending</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="ACKNOWLEDGED">Acknowledged</option>
+                </NativeSelect>
+              </div>
+              <div className="w-32">
+                <Label htmlFor="type-filter" className="sr-only">Type</Label>
+                <NativeSelect
+                  id="type-filter"
+                  value={reviewType}
+                  onChange={(e) => setReviewType(e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  <option value="PROBATION">Probation</option>
+                  <option value="QUARTERLY">Quarterly</option>
+                  <option value="ANNUAL">Annual</option>
+                </NativeSelect>
+              </div>
+            </div>
+          </div>
         </Card>
 
         <ResultsCount
