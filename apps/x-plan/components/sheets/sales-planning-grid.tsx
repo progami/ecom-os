@@ -1895,7 +1895,7 @@ export function SalesPlanningGrid({
   )
 
   return (
-    <div className="p-4">
+    <section className="space-y-4">
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
@@ -1910,14 +1910,14 @@ export function SalesPlanningGrid({
         <div
           ref={scrollRef}
           tabIndex={0}
-          className="h-full overflow-auto outline-none"
+          className="h-full overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           onKeyDown={handleKeyDown}
           onCopy={handleCopy}
           onPaste={handlePaste}
         >
           <Table
-            className="relative border-collapse table-fixed"
-            style={{ width: tableWidth, minWidth: tableWidth }}
+            className="relative w-full border-collapse table-fixed"
+            style={{ minWidth: tableWidth }}
           >
             <colgroup>
               {leafColumns.map((column) => {
@@ -2111,6 +2111,6 @@ export function SalesPlanningGrid({
 
         <SelectionStatsBar stats={selectionStats} />
       </div>
-    </div>
+    </section>
   )
 }
