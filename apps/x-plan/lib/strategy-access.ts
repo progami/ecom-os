@@ -12,6 +12,8 @@ type StrategyActor = {
   isSuperAdmin: boolean;
 };
 
+const FORBIDDEN_STRATEGY_ID = '__forbidden__';
+
 export type AllowedAssignee = {
   id: string;
   email: string;
@@ -77,7 +79,8 @@ export function getStrategyActor(session: Session | null): StrategyActor {
 }
 
 export function buildStrategyAccessWhere(actor: StrategyActor) {
-  if (actor.isSuperAdmin || !strategyAssignmentFieldsAvailable) return {};
+  if (actor.isSuperAdmin) return {};
+  if (!strategyAssignmentFieldsAvailable) return { id: FORBIDDEN_STRATEGY_ID };
 
   const or: Array<Record<string, unknown>> = [];
   if (actor.id) {
@@ -88,7 +91,7 @@ export function buildStrategyAccessWhere(actor: StrategyActor) {
   }
 
   if (or.length === 0) {
-    return { id: '__forbidden__' };
+    return { id: FORBIDDEN_STRATEGY_ID };
   }
 
   return { OR: or };
@@ -100,7 +103,7 @@ export async function canAccessStrategy(
 ): Promise<boolean> {
   if (actor.isSuperAdmin) return true;
   if (!strategyId) return false;
-  if (!strategyAssignmentFieldsAvailable) return true;
+  if (!strategyAssignmentFieldsAvailable) return false;
 
   const prismaAny = prisma as unknown as Record<string, any>;
 
@@ -117,7 +120,7 @@ export async function canAccessStrategy(
   } catch (error) {
     if (isStrategyAssignmentFieldsMissingError(error)) {
       markStrategyAssignmentFieldsUnavailable();
-      return true;
+      return false;
     }
     throw error;
   }
