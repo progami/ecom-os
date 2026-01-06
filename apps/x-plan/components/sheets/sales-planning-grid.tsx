@@ -2073,10 +2073,10 @@ export function SalesPlanningGrid({
                           colIndex === 2 && 'border-r-2',
                           presentation.isEditable && 'cursor-text font-medium',
                           presentation.isEditable && presentation.highlight === 'none' && 'bg-cyan-50/80 dark:bg-cyan-950/40',
-                          presentation.highlight === 'warning' && 'bg-danger-100/90 dark:bg-danger-900/35',
-                          presentation.isWarning && 'text-destructive',
-                          presentation.highlight === 'reorder' && 'bg-warning-100/95 dark:bg-warning-900/35',
-                          presentation.highlight === 'inbound' && 'bg-success-100/90 dark:bg-success-900/35',
+                          presentation.highlight === 'warning' && 'bg-danger-100/90 dark:bg-danger-500/15 dark:ring-1 dark:ring-inset dark:ring-danger-400/25',
+                          presentation.isWarning && 'text-danger-700 dark:text-danger-300',
+                          presentation.highlight === 'reorder' && 'bg-warning-100/95 dark:bg-warning-500/15 dark:ring-1 dark:ring-inset dark:ring-warning-400/25',
+                          presentation.highlight === 'inbound' && 'bg-success-100/90 dark:bg-success-500/15 dark:ring-1 dark:ring-inset dark:ring-success-400/25',
                           isSelected && 'bg-accent',
                           isCurrent && 'ring-2 ring-inset ring-ring'
                         )}
