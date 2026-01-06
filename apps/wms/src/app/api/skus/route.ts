@@ -7,6 +7,7 @@ import {
   escapeRegex,
 } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
+import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 export const dynamic = 'force-dynamic'
 
 type SkuWithCounts = Sku & { batches: SkuBatch[]; _count: { inventoryTransactions: number } }
@@ -143,8 +144,6 @@ const createSkuSchema = refineDimensions(
   skuSchemaBase.extend({
     packSize: z.number().int().positive().default(1),
     unitsPerCarton: z.number().int().positive().default(1),
-    storageCartonsPerPallet: z.number().int().positive(),
-    shippingCartonsPerPallet: z.number().int().positive(),
   })
 )
 
@@ -320,11 +319,23 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         cartonHeightCm: created.cartonHeightCm,
         cartonWeightKg: created.cartonWeightKg,
         packagingType: created.packagingType,
-        storageCartonsPerPallet: validatedData.storageCartonsPerPallet,
-        shippingCartonsPerPallet: validatedData.shippingCartonsPerPallet,
         isActive: true,
       },
     })
+
+    const warehouses = await tx.warehouse.findMany({ select: { id: true } })
+    if (warehouses.length > 0) {
+      const defaultCartonsPerPallet = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
+      await tx.warehouseSkuStorageConfig.createMany({
+        data: warehouses.map(warehouse => ({
+          warehouseId: warehouse.id,
+          skuId: created.id,
+          storageCartonsPerPallet: defaultCartonsPerPallet,
+          shippingCartonsPerPallet: defaultCartonsPerPallet,
+        })),
+        skipDuplicates: true,
+      })
+    }
 
     return created
   })

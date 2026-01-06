@@ -3,7 +3,6 @@ import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
-import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
@@ -59,8 +58,6 @@ const createBatchSchema = refineDimensions(
     cartonWidthCm: optionalDimensionValueSchema,
     cartonHeightCm: optionalDimensionValueSchema,
     cartonWeightKg: z.number().positive().optional().nullable(),
-    storageCartonsPerPallet: z.number().int().positive(),
-    shippingCartonsPerPallet: z.number().int().positive(),
   })
 )
 
@@ -98,8 +95,6 @@ export const GET = withAuthAndParams(async (_request, params, session) => {
     return ApiResponses.notFound('SKU not found')
   }
 
-  const defaultCartonsPerPallet = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
-
   await prisma.skuBatch.upsert({
     where: {
       skuId_batchCode: {
@@ -124,8 +119,6 @@ export const GET = withAuthAndParams(async (_request, params, session) => {
       cartonHeightCm: sku.cartonHeightCm,
       cartonWeightKg: sku.cartonWeightKg,
       packagingType: sku.packagingType,
-      storageCartonsPerPallet: defaultCartonsPerPallet,
-      shippingCartonsPerPallet: defaultCartonsPerPallet,
       isActive: true,
     },
     update: {
@@ -248,8 +241,6 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: payload.cartonWeightKg ?? null,
         packagingType: payload.packagingType ? sanitizeForDisplay(payload.packagingType) : null,
-        storageCartonsPerPallet: payload.storageCartonsPerPallet,
-        shippingCartonsPerPallet: payload.shippingCartonsPerPallet,
         isActive: true,
       },
     })
