@@ -1856,22 +1856,20 @@ export function SalesPlanningGrid({
     });
   }, [displayedProducts, keyByProductField, metricSequence]);
 
-  // Compute which column indices are at the start/end of each product group for border styling
+  // Compute which column indices are at the start of each product group for border styling
   const productBoundaryColumns = useMemo(() => {
     const firstColIndices = new Set<number>();
-    const lastColIndices = new Set<number>();
     const pinnedCount = 3; // weekLabel, weekDate, arrivalDetail
     let currentIndex = pinnedCount;
 
     for (const { columnIds } of productMetricColumnIds) {
       if (columnIds.length > 0) {
         firstColIndices.add(currentIndex);
-        lastColIndices.add(currentIndex + columnIds.length - 1);
         currentIndex += columnIds.length;
       }
     }
 
-    return { firstColIndices, lastColIndices };
+    return { firstColIndices };
   }, [productMetricColumnIds]);
 
   const baseHeaderColumns = useMemo(() => {
@@ -2059,9 +2057,6 @@ export function SalesPlanningGrid({
                     key={product.id}
                     colSpan={columnIds.length}
                     className="sticky top-0 z-20 h-10 whitespace-nowrap border-b bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
-                    style={{
-                      boxShadow: 'inset 4px 0 0 0 #06b6d4, inset -4px 0 0 0 #06b6d4',
-                    }}
                   >
                     {renderProductGroupHeader(product)}
                   </TableHead>
@@ -2157,7 +2152,6 @@ export function SalesPlanningGrid({
                     );
 
                     const isFirstProductCol = productBoundaryColumns.firstColIndices.has(colIndex);
-                    const isLastProductCol = productBoundaryColumns.lastColIndices.has(colIndex);
 
                     const cell = (
                       <TableCell
@@ -2192,10 +2186,9 @@ export function SalesPlanningGrid({
                           width: meta?.width,
                           minWidth: meta?.width,
                           maxWidth: meta?.width,
-                          boxShadow: [
-                            isFirstProductCol && 'inset 4px 0 0 0 #06b6d4',
-                            isLastProductCol && 'inset -4px 0 0 0 #06b6d4',
-                          ].filter(Boolean).join(', ') || undefined,
+                          ...(isFirstProductCol && {
+                            boxShadow: 'inset 3px 0 0 0 #06b6d4',
+                          }),
                         }}
                         onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
