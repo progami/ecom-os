@@ -86,8 +86,7 @@ const writeSelect = {
 function strategyAccessUnavailableResponse() {
   return NextResponse.json(
     {
-      error:
-        'Strategy access control is unavailable. Please contact an administrator.',
+      error: 'Strategy access control is unavailable. Please contact an administrator.',
     },
     { status: 503 },
   );

@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { createRequire } from "module";
 
-const appBasePath = process.env.BASE_PATH || ''
+const appBasePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 const require = createRequire(import.meta.url);
 const { version } = require("./package.json") as { version: string };
@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
 
   env: {
     NEXT_PUBLIC_VERSION: resolvedVersion,
+    NEXT_PUBLIC_BASE_PATH: appBasePath,
   },
 
   transpilePackages: [

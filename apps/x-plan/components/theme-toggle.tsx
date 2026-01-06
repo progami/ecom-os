@@ -1,26 +1,24 @@
-'use client'
+'use client';
 
-import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
-import { Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
+import { Moon, Sun } from 'lucide-react';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
-    return (
-      <div className="h-10 w-10 rounded-md border border-input bg-background" />
-    )
+    return <div className="h-10 w-10 rounded-md border border-input bg-background" />;
   }
 
-  const isDark = theme === 'dark'
+  const isDark = theme === 'dark';
 
   return (
     <Button
@@ -30,11 +28,7 @@ export function ThemeToggle() {
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       className="h-10 w-10"
     >
-      {isDark ? (
-        <Sun className="h-5 w-5" aria-hidden />
-      ) : (
-        <Moon className="h-5 w-5" aria-hidden />
-      )}
+      {isDark ? <Sun className="h-5 w-5" aria-hidden /> : <Moon className="h-5 w-5" aria-hidden />}
     </Button>
-  )
+  );
 }

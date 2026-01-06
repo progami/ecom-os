@@ -1,84 +1,85 @@
-import { formatDistanceToNow } from 'date-fns'
-import { SHEETS, type SheetConfig, type SheetSlug } from './sheets'
-import prisma from './prisma'
+import { formatDistanceToNow } from 'date-fns';
+import { SHEETS, type SheetConfig, type SheetSlug } from './sheets';
+import prisma from './prisma';
 
 // Type assertion for models (Prisma types are generated but not resolved correctly at build time)
-const prismaAny = prisma as unknown as Record<string, any>
+const prismaAny = prisma as unknown as Record<string, any>;
 
 type AggregateSummary = {
-  _count: { id: number }
-  _max: { updatedAt: Date | null }
-}
+  _count: { id: number };
+  _max: { updatedAt: Date | null };
+};
 
 type WorkbookStatus = {
-  completedCount: number
-  totalCount: number
-  sheets: WorkbookSheetStatus[]
-}
+  completedCount: number;
+  totalCount: number;
+  sheets: WorkbookSheetStatus[];
+};
 
 export type WorkbookSheetStatus = {
-  slug: SheetSlug
-  label: string
-  description: string
-  recordCount: number
-  lastUpdated?: string
-  status: 'complete' | 'todo'
-  relativeUpdatedAt?: string
-}
+  slug: SheetSlug;
+  label: string;
+  description: string;
+  recordCount: number;
+  lastUpdated?: string;
+  status: 'complete' | 'todo';
+  relativeUpdatedAt?: string;
+};
 
 function formatIso(date?: Date | null) {
-  return date ? date.toISOString() : undefined
+  return date ? date.toISOString() : undefined;
 }
 
 function formatRelative(date?: Date | null) {
-  if (!date) return undefined
-  return formatDistanceToNow(date, { addSuffix: true })
+  if (!date) return undefined;
+  return formatDistanceToNow(date, { addSuffix: true });
 }
 
 function latestDate(dates: Array<Date | null | undefined>): Date | undefined {
   return dates.reduce<Date | undefined>((latest, current) => {
-    if (!current) return latest
-    if (!latest || current.getTime() > latest.getTime()) return current
-    return latest
-  }, undefined)
+    if (!current) return latest;
+    if (!latest || current.getTime() > latest.getTime()) return current;
+    return latest;
+  }, undefined);
 }
 
 export async function getWorkbookStatus(): Promise<WorkbookStatus> {
   try {
-    const [strategyAgg, productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = (await Promise.all([
-      prismaAny.strategy.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.product.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.purchaseOrder.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.salesWeek.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.profitAndLossWeek.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.cashFlowWeek.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-      prisma.businessParameter.aggregate({
-        _count: { id: true },
-        _max: { updatedAt: true },
-      }),
-    ])) as AggregateSummary[]
+    const [strategyAgg, productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] =
+      (await Promise.all([
+        prismaAny.strategy.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+        prisma.product.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+        prisma.purchaseOrder.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+        prisma.salesWeek.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+        prisma.profitAndLossWeek.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+        prisma.cashFlowWeek.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+        prisma.businessParameter.aggregate({
+          _count: { id: true },
+          _max: { updatedAt: true },
+        }),
+      ])) as AggregateSummary[];
 
-    const productUpdatedAt = latestDate([productAgg._max.updatedAt, businessAgg._max.updatedAt])
-    const profitUpdatedAt = latestDate([profitAgg._max.updatedAt, businessAgg._max.updatedAt])
-    const cashUpdatedAt = latestDate([cashAgg._max.updatedAt, businessAgg._max.updatedAt])
+    const productUpdatedAt = latestDate([productAgg._max.updatedAt, businessAgg._max.updatedAt]);
+    const profitUpdatedAt = latestDate([profitAgg._max.updatedAt, businessAgg._max.updatedAt]);
+    const cashUpdatedAt = latestDate([cashAgg._max.updatedAt, businessAgg._max.updatedAt]);
 
     const sheetStatus: Record<SheetSlug, WorkbookSheetStatus> = {
       '0-strategies': {
@@ -144,19 +145,21 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(purchaseOrderAgg._max.updatedAt),
         status: purchaseOrderAgg._count.id > 0 ? 'complete' : 'todo',
       },
-    }
+    };
 
-    const items: WorkbookSheetStatus[] = SHEETS.map((sheet: SheetConfig) => sheetStatus[sheet.slug])
-    const completedCount = items.filter((item) => item.status === 'complete').length
+    const items: WorkbookSheetStatus[] = SHEETS.map(
+      (sheet: SheetConfig) => sheetStatus[sheet.slug],
+    );
+    const completedCount = items.filter((item) => item.status === 'complete').length;
 
     return {
       completedCount,
       totalCount: items.length,
       sheets: items,
-    }
+    };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn('[workbook] Falling back to empty workbook status during build.', message)
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('[workbook] Falling back to empty workbook status during build.', message);
 
     const fallbackSheets: WorkbookSheetStatus[] = SHEETS.map((sheet) => ({
       slug: sheet.slug,
@@ -164,12 +167,12 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       description: sheet.description,
       recordCount: 0,
       status: 'todo',
-    }))
+    }));
 
     return {
       completedCount: 0,
       totalCount: fallbackSheets.length,
       sheets: fallbackSheets,
-    }
+    };
   }
 }
