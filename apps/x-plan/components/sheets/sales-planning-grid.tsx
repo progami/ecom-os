@@ -2060,8 +2060,7 @@ export function SalesPlanningGrid({
                     colSpan={columnIds.length}
                     className="sticky top-0 z-20 h-10 whitespace-nowrap border-b bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     style={{
-                      borderLeft: '3px solid #0891b2',
-                      borderRight: '3px solid #0891b2',
+                      boxShadow: 'inset 4px 0 0 0 #06b6d4, inset -4px 0 0 0 #06b6d4',
                     }}
                   >
                     {renderProductGroupHeader(product)}
@@ -2070,12 +2069,10 @@ export function SalesPlanningGrid({
               </TableRow>
               <TableRow className="hover:bg-transparent">
                 {productMetricColumnIds.flatMap(({ product, columnIds }) =>
-                  columnIds.map((columnId, metricIndex) => {
+                  columnIds.map((columnId) => {
                     const meta = columnMeta[columnId];
                     const field = meta?.field ?? '';
                     const isInputColumn = field === 'actualSales' || field === 'forecastSales';
-                    const isFirstMetric = metricIndex === 0;
-                    const isLastMetric = metricIndex === columnIds.length - 1;
                     return (
                       <TableHead
                         key={`${product.id}:${columnId}`}
@@ -2083,10 +2080,6 @@ export function SalesPlanningGrid({
                           'sticky top-10 z-20 h-10 whitespace-nowrap border-b border-r px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80',
                           isInputColumn ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
                         )}
-                        style={{
-                          ...(isFirstMetric && { borderLeft: '3px solid #0891b2' }),
-                          ...(isLastMetric && { borderRight: '3px solid #0891b2' }),
-                        }}
                       >
                         {renderMetricHeader(field)}
                       </TableHead>
@@ -2199,8 +2192,10 @@ export function SalesPlanningGrid({
                           width: meta?.width,
                           minWidth: meta?.width,
                           maxWidth: meta?.width,
-                          ...(isFirstProductCol && { borderLeft: '3px solid #0891b2' }),
-                          ...(isLastProductCol && { borderRight: '3px solid #0891b2' }),
+                          boxShadow: [
+                            isFirstProductCol && 'inset 4px 0 0 0 #06b6d4',
+                            isLastProductCol && 'inset -4px 0 0 0 #06b6d4',
+                          ].filter(Boolean).join(', ') || undefined,
                         }}
                         onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
