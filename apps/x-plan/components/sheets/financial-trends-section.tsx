@@ -239,9 +239,9 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                         {hasNegative ? (
                           <>
                             <stop offset="0%" stopColor={accentColors[metric.accent].fill} stopOpacity={0.3} />
-                            <stop offset={`${zeroPoint * 100}%`} stopColor={accentColors[metric.accent].fill} stopOpacity={0.1} />
-                            <stop offset={`${zeroPoint * 100}%`} stopColor="#ef4444" stopOpacity={0.1} />
-                            <stop offset="100%" stopColor="#ef4444" stopOpacity={0.4} />
+                            <stop offset={`${zeroPoint * 100}%`} stopColor={accentColors[metric.accent].fill} stopOpacity={0.05} />
+                            <stop offset={`${zeroPoint * 100}%`} stopColor="#dc2626" stopOpacity={0.25} />
+                            <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
                           </>
                         ) : (
                           <>
