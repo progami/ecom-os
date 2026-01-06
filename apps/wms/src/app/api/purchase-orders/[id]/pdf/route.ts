@@ -164,7 +164,7 @@ async function renderPurchaseOrderPdf(params: {
   // Order details grid
   const detailsGrid = [
     { label: 'Order Date', value: formatDate(params.createdAt) },
-    { label: 'Expected Date', value: formatDate(params.expectedDate ?? null) },
+    { label: 'Cargo Ready Date', value: formatDate(params.expectedDate ?? null) },
     { label: 'Incoterms', value: params.incoterms?.trim() || '—' },
     { label: 'Payment Terms', value: params.paymentTerms?.trim() || '—' },
   ]

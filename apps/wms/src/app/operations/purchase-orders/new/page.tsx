@@ -259,7 +259,7 @@ export default function NewPurchaseOrderPage() {
     }
 
     if (!formData.expectedDate) {
-      toast.error('Please set an expected date')
+      toast.error('Please set a cargo ready date')
       return
     }
 
@@ -412,7 +412,7 @@ export default function NewPurchaseOrderPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
-                      Expected Date <span className="text-red-500">*</span>
+                      Cargo Ready Date <span className="text-red-500">*</span>
                     </label>
                     <Input
                       type="date"

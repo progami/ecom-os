@@ -158,7 +158,7 @@ export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, st
 
 // Field labels for error messages
 const FIELD_LABELS: Record<string, string> = {
-  expectedDate: 'Expected Date',
+  expectedDate: 'Cargo Ready Date',
   incoterms: 'Incoterms',
   paymentTerms: 'Payment Terms',
   // Stage 2
@@ -579,7 +579,7 @@ export async function createPurchaseOrder(
     const poNumber = await generatePoNumber()
     const orderNumber = poNumber // Order number is just the PO number now
     const DEFAULT_BATCH_LOT = 'DEFAULT'
-    const expectedDate = resolveDateValue(input.expectedDate, 'Expected Date')
+    const expectedDate = resolveDateValue(input.expectedDate, 'Cargo Ready Date')
     const incoterms =
       typeof input.incoterms === 'string' && input.incoterms.trim().length > 0
         ? input.incoterms.trim().toUpperCase()

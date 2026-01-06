@@ -917,7 +917,7 @@ export default function PurchaseOrderDetailPage() {
 
     if (nextStage.value === 'ISSUED') {
       const missingFields = [
-        !order?.expectedDate ? 'Expected date' : null,
+        !order?.expectedDate ? 'Cargo ready date' : null,
         !order?.incoterms ? 'Incoterms' : null,
         !order?.paymentTerms ? 'Payment terms' : null,
       ].filter((value): value is string => value !== null)
@@ -1542,7 +1542,7 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
-                      Expected Date
+                      Cargo Ready Date
                     </label>
                     {isEditingDetails ? (
                       <Input
@@ -1657,7 +1657,7 @@ export default function PurchaseOrderDetailPage() {
                     <Input value={tenantDestination || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
+                    <label className="text-sm font-medium text-muted-foreground">Cargo Ready Date</label>
                     <Input
                       value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
                       disabled
@@ -1718,7 +1718,7 @@ export default function PurchaseOrderDetailPage() {
                     <Input value={tenantDestination || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
+                    <label className="text-sm font-medium text-muted-foreground">Cargo Ready Date</label>
                     <Input
                       value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
                       disabled
