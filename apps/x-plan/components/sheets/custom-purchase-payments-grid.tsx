@@ -606,6 +606,61 @@ export function CustomPurchasePaymentsGrid({
       if (editingCell) return
       if (!activeCell) return
 
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault()
+
+        const { rowId, colKey } = activeCell
+        const row = rowsRef.current.find((r) => r.id === rowId)
+        const column = COLUMNS.find((c) => c.key === colKey)
+        if (!row || !column || !column.editable) return
+
+        const currentValue =
+          colKey === 'weekNumber' && column.type === 'schedule'
+            ? scheduleMode === 'dates'
+              ? row.dueDateIso ?? ''
+              : row.weekNumber ?? ''
+            : row[colKey] === null || row[colKey] === undefined
+              ? ''
+              : String(row[colKey])
+
+        if (currentValue === '') return
+
+        if (!pendingRef.current.has(rowId)) {
+          pendingRef.current.set(rowId, { id: rowId, values: {} })
+        }
+        const entry = pendingRef.current.get(rowId)!
+
+        const updatedRow = { ...row }
+
+        if (colKey === 'weekNumber') {
+          entry.values.dueDate = ''
+          entry.values.dueDateSource = 'SYSTEM'
+          updatedRow.dueDateIso = null
+          updatedRow.dueDate = ''
+          updatedRow.dueDateSource = 'SYSTEM'
+          updatedRow.weekNumber = ''
+        } else if (colKey === 'amountPaid') {
+          const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0
+          const numericAmount = 0
+
+          if (plannedAmount > 0) {
+            const derivedPercent = numericAmount / plannedAmount
+            const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%'
+            entry.values.percentage = String(derivedPercent)
+            updatedRow.percentage = normalizedPercent
+          }
+
+          entry.values.amountPaid = ''
+          updatedRow.amountPaid = ''
+        }
+
+        const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r))
+        rowsRef.current = updatedRows
+        onRowsChange?.(updatedRows)
+        scheduleFlush()
+        return
+      }
+
       if (event.key === 'Enter' || event.key === 'F2') {
         event.preventDefault()
         startEditingActiveCell()
@@ -639,7 +694,18 @@ export function CustomPurchasePaymentsGrid({
         return
       }
     },
-    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
+    [
+      activeCell,
+      editingCell,
+      moveSelection,
+      moveSelectionTab,
+      onRowsChange,
+      orderSummaries,
+      pendingRef,
+      scheduleFlush,
+      scheduleMode,
+      startEditingActiveCell,
+    ]
   )
 
   const formatDisplayValue = (row: PurchasePaymentRow, column: ColumnDef): string => {

@@ -521,6 +521,48 @@ export function CustomOpsCostGrid({
       if (editingCell) return
       if (!activeCell) return
 
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault()
+
+        const { rowId, colKey } = activeCell
+        const row = localRows.find((r) => r.id === rowId)
+        const column = columns.find((c) => c.key === colKey)
+        if (!row || !column || !column.editable) return
+        if (column.type === 'dropdown') return
+        if ((row[colKey] ?? '') === '') return
+
+        if (!pendingRef.current.has(rowId)) {
+          pendingRef.current.set(rowId, { id: rowId, values: {} })
+        }
+        const entry = pendingRef.current.get(rowId)!
+
+        const updatedRow = { ...row }
+
+        if (colKey === 'tariffCost') {
+          entry.values.overrideTariffCost = null
+          entry.values.overrideTariffRate = null
+          updatedRow.tariffCost = ''
+          updatedRow.tariffRate = ''
+        } else if (colKey === 'tariffRate') {
+          entry.values.overrideTariffRate = null
+          entry.values.overrideTariffCost = null
+          updatedRow.tariffRate = ''
+          updatedRow.tariffCost = ''
+        } else if (isNumericField(colKey) || isPercentField(colKey)) {
+          const serverKey = SERVER_FIELD_MAP[colKey]
+          if (serverKey) {
+            entry.values[serverKey] = null
+          }
+          updatedRow[colKey] = ''
+        }
+
+        const updatedRows = localRows.map((r) => (r.id === rowId ? updatedRow : r))
+        setLocalRows(updatedRows)
+        onRowsChange?.(updatedRows)
+        scheduleFlush()
+        return
+      }
+
       if (event.key === 'Enter' || event.key === 'F2') {
         event.preventDefault()
         startEditingActiveCell()
@@ -554,7 +596,18 @@ export function CustomOpsCostGrid({
         return
       }
     },
-    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
+    [
+      activeCell,
+      columns,
+      editingCell,
+      localRows,
+      moveSelection,
+      moveSelectionTab,
+      onRowsChange,
+      pendingRef,
+      scheduleFlush,
+      startEditingActiveCell,
+    ]
   )
 
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
