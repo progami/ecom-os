@@ -79,7 +79,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
       const weekNumber = Number(row.weekNumber)
       return {
         weekNumber,
-        weekLabel: `W${weekLabelByWeekNumber.get(weekNumber) ?? weekNumber}`,
+        weekLabel: String(weekLabelByWeekNumber.get(weekNumber) ?? weekNumber),
         weekDate: row.weekDate,
         stockEnd: stockValue ? Number(stockValue) : 0,
       }
@@ -175,7 +175,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                   tickLine={false}
                   axisLine={false}
                   tick={{ fontSize: 11, fill: '#64748b' }}
-                  interval="preserveStartEnd"
+                  interval={3}
+                  label={{ value: 'Week', position: 'insideBottom', offset: -5, fontSize: 11, fill: '#64748b' }}
                 />
                 <YAxis
                   tickLine={false}
@@ -190,7 +191,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     const data = payload[0].payload
                     return (
                       <div className="rounded-lg border bg-background p-2 shadow-md">
-                        <p className="text-xs font-medium">{data.weekLabel} · {data.weekDate}</p>
+                        <p className="text-xs font-medium">Week {data.weekLabel} · {data.weekDate}</p>
                         <p className="text-xs text-muted-foreground">
                           Stock: {Math.round(data.stockEnd).toLocaleString()} units
                         </p>
