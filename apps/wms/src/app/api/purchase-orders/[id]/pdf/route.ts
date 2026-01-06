@@ -34,6 +34,8 @@ async function renderPurchaseOrderPdf(params: {
   status: string
   createdAt: Date
   expectedDate?: Date | null
+  incoterms?: string | null
+  paymentTerms?: string | null
   warehouseCode?: string | null
   warehouseName?: string | null
   notes?: string | null
@@ -64,6 +66,8 @@ async function renderPurchaseOrderPdf(params: {
   doc.text(`Status: ${params.status}`)
   doc.text(`Created: ${formatDate(params.createdAt)}`)
   doc.text(`Expected: ${formatDate(params.expectedDate ?? null)}`)
+  doc.text(`Incoterms: ${params.incoterms?.trim() ? params.incoterms.trim() : '—'}`)
+  doc.text(`Payment Terms: ${params.paymentTerms?.trim() ? params.paymentTerms.trim() : '—'}`)
   doc.text(
     `Warehouse: ${
       params.warehouseName ?? params.warehouseCode ?? 'Not assigned'
@@ -194,6 +198,10 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     return ApiResponses.notFound('Purchase order not found')
   }
 
+  if (order.status === 'DRAFT') {
+    return ApiResponses.badRequest('Issue the purchase order before generating a PDF')
+  }
+
   const poNumber = order.poNumber ?? toPublicOrderNumber(order.orderNumber)
   const filename = `${sanitizeFilename(poNumber)}.pdf`
 
@@ -212,6 +220,8 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     status: order.status,
     createdAt: order.createdAt,
     expectedDate: order.expectedDate,
+    incoterms: order.incoterms,
+    paymentTerms: order.paymentTerms,
     warehouseCode: order.warehouseCode,
     warehouseName: order.warehouseName,
     notes: order.notes,

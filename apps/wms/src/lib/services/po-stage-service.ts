@@ -124,7 +124,7 @@ export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrde
 
 // Stage-specific required fields for transition
 export const STAGE_REQUIREMENTS: Record<string, string[]> = {
-  ISSUED: ['expectedDate'],
+  ISSUED: ['expectedDate', 'incoterms', 'paymentTerms'],
   // Stage 2: Manufacturing
   MANUFACTURING: ['proformaInvoiceNumber', 'manufacturingStartDate'],
   // Stage 3: Ocean
@@ -149,6 +149,8 @@ export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, st
 // Field labels for error messages
 const FIELD_LABELS: Record<string, string> = {
   expectedDate: 'Expected Date',
+  incoterms: 'Incoterms',
+  paymentTerms: 'Payment Terms',
   // Stage 2
   proformaInvoiceNumber: 'Proforma Invoice Number',
   manufacturingStartDate: 'Manufacturing Start Date',
@@ -470,6 +472,9 @@ export interface CreatePurchaseOrderLineInput {
 export async function createPurchaseOrder(
   input: {
     counterpartyName?: string
+    expectedDate?: Date | string | null
+    incoterms?: string | null
+    paymentTerms?: string | null
     notes?: string
     lines?: CreatePurchaseOrderLineInput[]
   },
@@ -564,6 +569,15 @@ export async function createPurchaseOrder(
     const poNumber = await generatePoNumber()
     const orderNumber = poNumber // Order number is just the PO number now
     const DEFAULT_BATCH_LOT = 'DEFAULT'
+    const expectedDate = resolveDateValue(input.expectedDate, 'Expected Date')
+    const incoterms =
+      typeof input.incoterms === 'string' && input.incoterms.trim().length > 0
+        ? input.incoterms.trim().toUpperCase()
+        : null
+    const paymentTerms =
+      typeof input.paymentTerms === 'string' && input.paymentTerms.trim().length > 0
+        ? input.paymentTerms.trim()
+        : null
 
     try {
       order = await prisma.$transaction(async tx => {
@@ -685,6 +699,9 @@ export async function createPurchaseOrder(
             type: 'PURCHASE',
             status: 'DRAFT',
             counterpartyName: input.counterpartyName,
+            expectedDate,
+            incoterms,
+            paymentTerms,
             notes: input.notes,
             createdById: user.id,
             createdByName: user.name,
@@ -1588,6 +1605,8 @@ export function serializePurchaseOrder(
     warehouseName: order.warehouseName,
     counterpartyName: order.counterpartyName,
     expectedDate: order.expectedDate?.toISOString() ?? null,
+    incoterms: order.incoterms,
+    paymentTerms: order.paymentTerms,
     notes: order.notes,
     receiveType: order.receiveType,
     isLegacy: order.isLegacy,
