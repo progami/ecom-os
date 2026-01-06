@@ -161,7 +161,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={chartData}
-                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                margin={{ top: 10, right: 10, left: 0, bottom: 25 }}
               >
                 <defs>
                   <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
@@ -174,16 +174,22 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                   dataKey="weekLabel"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   interval={3}
-                  label={{ value: 'Week', position: 'insideBottom', offset: -5, fontSize: 11, fill: '#64748b' }}
+                  label={{
+                    value: 'Week',
+                    position: 'bottom',
+                    offset: 10,
+                    fontSize: 12,
+                    fill: 'hsl(var(--muted-foreground))'
+                  }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()}
-                  width={50}
+                  width={60}
                 />
                 <Tooltip
                   content={({ active, payload }) => {
