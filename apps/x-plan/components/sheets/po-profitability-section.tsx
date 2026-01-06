@@ -217,7 +217,7 @@ export function POProfitabilitySection({
     return (
       <Card className="rounded-xl shadow-sm dark:border-white/10">
         <CardHeader>
-          <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">{title}</CardTitle>
+          <CardTitle className="text-base">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -285,7 +285,7 @@ export function POProfitabilitySection({
       {/* Chart Card */}
       <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Margin Trends</CardTitle>
+          <CardTitle className="text-base">Margin trends</CardTitle>
           <CardDescription>Performance across purchase orders by arrival date</CardDescription>
         </CardHeader>
         <CardContent>
@@ -479,7 +479,7 @@ export function POProfitabilitySection({
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">P&L Breakdown</CardTitle>
+              <CardTitle className="text-base">P&L breakdown</CardTitle>
               <CardDescription>
                 {skuFilter !== 'ALL' ? 'Filtered by SKU' : 'Aggregated by purchase order'}
               </CardDescription>
