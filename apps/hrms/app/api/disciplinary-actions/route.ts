@@ -56,6 +56,9 @@ export async function GET(req: Request) {
     // Access control: restrict what disciplinary actions can be viewed
     const employeeIdParam = searchParams.get('employeeId')
 
+    // Build access control constraint
+    let accessConstraint: Record<string, unknown> | null = null
+
     if (employeeIdParam) {
       const isSelf = employeeIdParam === currentEmployeeId
       if (!isSelf && !isHR) {
@@ -64,22 +67,34 @@ export async function GET(req: Request) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
       }
-      where.employeeId = employeeIdParam
-    } else {
-      // No specific employee - restrict to own + subtree unless HR
-      if (!isHR) {
-        const subtreeIds = await getSubtreeEmployeeIds(currentEmployeeId)
-        where.employeeId = { in: [currentEmployeeId, ...subtreeIds] }
+      accessConstraint = { employeeId: employeeIdParam }
+    } else if (!isHR) {
+      // No specific employee - restrict to (own + subtree) OR (created by me)
+      const subtreeIds = await getSubtreeEmployeeIds(currentEmployeeId)
+      accessConstraint = {
+        OR: [
+          { employeeId: { in: [currentEmployeeId, ...subtreeIds] } },
+          { createdById: currentEmployeeId },
+        ],
       }
     }
 
-    if (q) {
-      where.OR = [
-        { description: { contains: q, mode: 'insensitive' } },
-        { reportedBy: { contains: q, mode: 'insensitive' } },
-        { employee: { firstName: { contains: q, mode: 'insensitive' } } },
-        { employee: { lastName: { contains: q, mode: 'insensitive' } } },
-      ]
+    // Build search constraint
+    const searchConstraint = q
+      ? {
+          OR: [
+            { description: { contains: q, mode: 'insensitive' } },
+            { reportedBy: { contains: q, mode: 'insensitive' } },
+            { employee: { firstName: { contains: q, mode: 'insensitive' } } },
+            { employee: { lastName: { contains: q, mode: 'insensitive' } } },
+          ],
+        }
+      : null
+
+    // Combine constraints with AND
+    const andConditions = [accessConstraint, searchConstraint].filter(Boolean)
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
 
     const violationTypeParam = searchParams.get('violationType')
@@ -121,6 +136,13 @@ export async function GET(req: Request) {
               employeeId: true,
               department: true,
               position: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
             },
           },
         },
@@ -205,6 +227,7 @@ export async function POST(req: Request) {
         data: {
           employeeId: data.employeeId,
           caseId: caseRecord.id,
+          createdById: currentEmployeeId,
           violationType: data.violationType,
           violationReason: data.violationReason,
           valuesBreached: data.valuesBreached,

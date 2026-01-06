@@ -73,6 +73,7 @@ model Employee {
   roles            Role[]
   performanceReviews PerformanceReview[]
   disciplinaryActions DisciplinaryAction[]
+  violationsCreated   DisciplinaryAction[] @relation("ViolationsCreated")
   notifications    Notification[]
   notificationReadReceipts NotificationReadReceipt[]
   notificationEmailDispatches NotificationEmailDispatch[]
@@ -884,6 +885,10 @@ model DisciplinaryAction {
   reportedDate    DateTime            @default(now())
   reportedBy      String
 
+  // Who created this violation record (proper FK for querying)
+  createdById     String?
+  createdBy       Employee?           @relation("ViolationsCreated", fields: [createdById], references: [id])
+
   description     String
   witnesses       String?
   evidence        String?             // file URLs or references
@@ -947,6 +952,7 @@ model DisciplinaryAction {
   @@index([valuesBreached])
   @@index([hrReviewedById])
   @@index([superAdminApprovedById])
+  @@index([createdById])
 }
 
 model HRCalendarEvent {
