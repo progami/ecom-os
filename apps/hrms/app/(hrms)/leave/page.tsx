@@ -7,7 +7,6 @@ import {
   DashboardApi,
   LeavesApi,
   type DashboardData,
-  type LeaveBalance,
   type LeaveRequest,
 } from '@/lib/api-client'
 import {
@@ -24,27 +23,32 @@ import { Alert } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { SearchForm } from '@/components/ui/SearchForm'
-import { DataTable } from '@/components/ui/DataTable'
+import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
-import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
-import { NativeSelect } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  PTO: 'PTO',
-  PARENTAL: 'Parental Leave',
-  BEREAVEMENT_IMMEDIATE: 'Bereavement',
-  UNPAID: 'Unpaid Leave',
-}
+const LEAVE_TYPE_OPTIONS: FilterOption[] = [
+  { value: 'PTO', label: 'PTO' },
+  { value: 'PARENTAL', label: 'Parental Leave' },
+  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement' },
+  { value: 'UNPAID', label: 'Unpaid Leave' },
+]
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Pending',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
-  CANCELLED: 'Cancelled',
-}
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+]
+
+const LEAVE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  LEAVE_TYPE_OPTIONS.map((o) => [o.value, o.label])
+)
+
+const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  STATUS_OPTIONS.map((o) => [o.value, o.label])
+)
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '—'
@@ -139,12 +143,11 @@ function LeavePageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([])
   const [leaveLoading, setLeaveLoading] = useState(true)
   const [showLeavePanel, setShowLeavePanel] = useState(false)
   const [q, setQ] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [processingId, setProcessingId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -160,9 +163,6 @@ function LeavePageContent() {
       setError(null)
       const dashboardData = await DashboardApi.get()
       setData(dashboardData)
-      if (dashboardData.myLeaveBalance) {
-        setLeaveBalances(dashboardData.myLeaveBalance)
-      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load data'
       setError(message)
@@ -180,11 +180,7 @@ function LeavePageContent() {
       if (!data?.currentEmployee?.id) return
       try {
         setLeaveLoading(true)
-        const [balanceData, requestsData] = await Promise.all([
-          LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-          LeavesApi.list({ employeeId: data.currentEmployee.id }),
-        ])
-        setLeaveBalances(balanceData.balances)
+        const requestsData = await LeavesApi.list({ employeeId: data.currentEmployee.id })
         setMyRequests(requestsData.items)
       } catch (e) {
         console.error('Failed to load leave data', e)
@@ -197,11 +193,7 @@ function LeavePageContent() {
 
   const handleLeaveRequestSuccess = async () => {
     if (!data?.currentEmployee?.id) return
-    const [balanceData, requestsData] = await Promise.all([
-      LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-      LeavesApi.list({ employeeId: data.currentEmployee.id }),
-    ])
-    setLeaveBalances(balanceData.balances)
+    const requestsData = await LeavesApi.list({ employeeId: data.currentEmployee.id })
     setMyRequests(requestsData.items)
     await fetchDashboardData()
   }
@@ -211,11 +203,7 @@ function LeavePageContent() {
     setProcessingId(requestId)
     try {
       await LeavesApi.update(requestId, { status: 'CANCELLED' })
-      const [balanceData, requestsData] = await Promise.all([
-        LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-        LeavesApi.list({ employeeId: data.currentEmployee.id }),
-      ])
-      setLeaveBalances(balanceData.balances)
+      const requestsData = await LeavesApi.list({ employeeId: data.currentEmployee.id })
       setMyRequests(requestsData.items)
     } finally {
       setProcessingId(null)
@@ -283,10 +271,7 @@ function LeavePageContent() {
     for (const r of data?.pendingLeaveRequests ?? []) {
       if (!seenIds.has(r.id)) {
         seenIds.add(r.id)
-        items.push({
-          ...r,
-          isOwn: false,
-        })
+        items.push({ ...r, isOwn: false })
       }
     }
 
@@ -294,10 +279,7 @@ function LeavePageContent() {
     for (const r of data?.leaveApprovalHistory ?? []) {
       if (!seenIds.has(r.id)) {
         seenIds.add(r.id)
-        items.push({
-          ...r,
-          isOwn: false,
-        })
+        items.push({ ...r, isOwn: false })
       }
     }
 
@@ -308,8 +290,9 @@ function LeavePageContent() {
   // Apply filters
   const filteredItems = useMemo(() => {
     return allLeaveItems.filter((item) => {
-      // Status filter
-      if (statusFilter && item.status !== statusFilter) return false
+      // Column filters
+      if (filters.status && item.status !== filters.status) return false
+      if (filters.leaveType && item.leaveType !== filters.leaveType) return false
 
       // Search filter
       if (q) {
@@ -327,7 +310,7 @@ function LeavePageContent() {
 
       return true
     })
-  }, [allLeaveItems, statusFilter, q])
+  }, [allLeaveItems, filters, q])
 
   const columns = useMemo<ColumnDef<LeaveItem>[]>(
     () => [
@@ -362,6 +345,10 @@ function LeavePageContent() {
       {
         accessorKey: 'leaveType',
         header: 'Type',
+        meta: {
+          filterKey: 'leaveType',
+          filterOptions: LEAVE_TYPE_OPTIONS,
+        },
         cell: ({ getValue }) => {
           const type = getValue<string>()
           return <span className="text-muted-foreground">{LEAVE_TYPE_LABELS[type] ?? type}</span>
@@ -390,6 +377,10 @@ function LeavePageContent() {
       {
         accessorKey: 'status',
         header: 'Status',
+        meta: {
+          filterKey: 'status',
+          filterOptions: STATUS_OPTIONS,
+        },
         cell: ({ getValue }) => {
           const status = getValue<string>()
           if (status === 'PENDING') {
@@ -472,11 +463,11 @@ function LeavePageContent() {
     return (
       <>
         <ListPageHeader
-          title="Leave Management"
+          title="Leave"
           description="Request and manage time off"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
-        <div className="space-y-6">
+        <div className="space-y-4">
           <Card padding="md">
             <div className="animate-pulse h-10 bg-muted rounded w-full" />
           </Card>
@@ -490,7 +481,7 @@ function LeavePageContent() {
     return (
       <>
         <ListPageHeader
-          title="Leave Management"
+          title="Leave"
           description="Request and manage time off"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
@@ -510,7 +501,7 @@ function LeavePageContent() {
     return (
       <>
         <ListPageHeader
-          title="Leave Management"
+          title="Leave"
           description="Request and manage time off"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
@@ -529,7 +520,7 @@ function LeavePageContent() {
   return (
     <>
       <ListPageHeader
-        title="Leave Management"
+        title="Leave"
         description="Request and manage time off"
         icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         action={
@@ -549,60 +540,20 @@ function LeavePageContent() {
         onSuccess={handleLeaveRequestSuccess}
       />
 
-      <div className="space-y-6">
-        {/* Leave Balance */}
-        <Card padding="lg">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-foreground">My Leave Balance</h3>
-          </div>
-          {leaveLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="animate-pulse bg-card rounded-lg border border-border p-4">
-                  <div className="h-4 bg-muted rounded w-16 mb-3" />
-                  <div className="h-8 bg-muted rounded w-12 mb-3" />
-                  <div className="h-1.5 bg-muted/50 rounded-full" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <LeaveBalanceCards balances={leaveBalances} />
-          )}
-        </Card>
-
-        {/* Pending badge for managers */}
+      <div className="space-y-4">
         {pendingCount > 0 && (
           <Alert variant="warning" title="Pending Approvals">
             You have {pendingCount} leave request{pendingCount !== 1 ? 's' : ''} awaiting your approval.
           </Alert>
         )}
 
-        {/* Search and Filters */}
         <Card padding="md">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <SearchForm
-                value={q}
-                onChange={setQ}
-                onSubmit={() => {}}
-                placeholder="Search by name or leave type..."
-              />
-            </div>
-            <div className="w-36">
-              <Label htmlFor="status-filter" className="sr-only">Status</Label>
-              <NativeSelect
-                id="status-filter"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">All Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="CANCELLED">Cancelled</option>
-              </NativeSelect>
-            </div>
-          </div>
+          <SearchForm
+            value={q}
+            onChange={setQ}
+            onSubmit={() => {}}
+            placeholder="Search by name or leave type..."
+          />
         </Card>
 
         <ResultsCount
@@ -617,6 +568,8 @@ function LeavePageContent() {
           data={filteredItems}
           loading={leaveLoading}
           skeletonRows={5}
+          filters={filters}
+          onFilterChange={setFilters}
           emptyState={
             <TableEmptyContent
               icon={<CalendarDaysIcon className="h-10 w-10" />}
@@ -633,11 +586,11 @@ function LeavePageSkeleton() {
   return (
     <>
       <ListPageHeader
-        title="Leave Management"
+        title="Leave"
         description="Request and manage time off"
         icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
       />
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card padding="md">
           <div className="animate-pulse h-10 bg-muted rounded w-full" />
         </Card>
