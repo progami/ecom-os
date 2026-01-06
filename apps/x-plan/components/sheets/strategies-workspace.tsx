@@ -8,6 +8,7 @@ import { withAppBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
 import { formatDateDisplay } from '@/lib/utils/dates';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -72,11 +73,14 @@ export function StrategiesWorkspace({
   const [editDescription, setEditDescription] = useState('');
   const [editRegion, setEditRegion] = useState<'US' | 'UK'>('US');
   const [editAssigneeId, setEditAssigneeId] = useState<string>('');
+  const [pendingSwitch, setPendingSwitch] = useState<{ id: string; name: string } | null>(null);
 
   const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [directoryConfigured, setDirectoryConfigured] = useState(true);
 
   const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null;
+  const selectedStrategyName =
+    strategies.find((strategy) => strategy.id === selectedStrategyId)?.name ?? null;
   const lastEditedFormatter = useMemo(
     () =>
       new Intl.DateTimeFormat('en-US', {
@@ -259,10 +263,16 @@ export function StrategiesWorkspace({
 
   const handleSelectStrategy = (id: string, name: string) => {
     if (id === selectedStrategyId) return;
+    setPendingSwitch({ id, name });
+  };
+
+  const confirmSelectStrategy = () => {
+    if (!pendingSwitch) return;
     const nextParams = new URLSearchParams(searchParams?.toString() ?? '');
-    nextParams.set('strategy', id);
+    nextParams.set('strategy', pendingSwitch.id);
+    setPendingSwitch(null);
     router.push(`?${nextParams.toString()}`);
-    toast.success(`Switched to "${name}"`);
+    toast.success(`Switched to "${pendingSwitch.name}"`);
   };
 
   const startEdit = (strategy: Strategy) => {
@@ -621,6 +631,24 @@ export function StrategiesWorkspace({
           </Table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingSwitch != null}
+        title="Switch strategy?"
+        description={
+          pendingSwitch == null
+            ? undefined
+            : selectedStrategyName
+              ? `You’re about to switch from “${selectedStrategyName}” to “${pendingSwitch.name}”. Your data is saved automatically.`
+              : `You’re about to switch to “${pendingSwitch.name}”. Your data is saved automatically.`
+        }
+        confirmLabel="Yes"
+        cancelLabel="No"
+        onOpenChange={(open) => {
+          if (!open) setPendingSwitch(null);
+        }}
+        onConfirm={confirmSelectStrategy}
+      />
     </section>
   );
 }
