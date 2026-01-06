@@ -25,10 +25,10 @@ import {
 	ChevronRight,
 	Check,
   XCircle,
-  ChevronDown,
-  ChevronUp,
   Save,
   X,
+  MoreHorizontal,
+  History,
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -266,8 +266,11 @@ export default function PurchaseOrderDetailPage() {
   // Stage-based navigation - which stage view is currently selected
   const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
 
-  // Collapsible sections
-  const [showApprovalHistory, setShowApprovalHistory] = useState(false)
+  // Bottom section tabs
+  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'history'>('cargo')
+
+  // Actions dropdown open state
+  const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false)
 
   // Advance stage modal
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false)
@@ -1056,50 +1059,56 @@ export default function PurchaseOrderDetailPage() {
               })}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-3 mt-6">
-              {nextStage && (
-                <Button
-                  onClick={() => setAdvanceModalOpen(true)}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
-                  Advance to {nextStage.label}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
-              {order.status === 'ISSUED' && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleTransition('DRAFT')}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Draft
-                </Button>
-              )}
-              {order.status === 'ISSUED' && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleTransition('REJECTED')}
-                  disabled={transitioning}
-                  className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-                >
-                  <PackageX className="h-4 w-4" />
-                  Mark Rejected
-                </Button>
-              )}
+            {/* Action Buttons - Primary advance action only */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mt-6">
+              <div className="flex items-center gap-3">
+                {nextStage && (
+                  <Button
+                    onClick={() => setAdvanceModalOpen(true)}
+                    disabled={transitioning}
+                    className="gap-2"
+                  >
+                    Advance to {nextStage.label}
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Secondary actions dropdown - Cancel Order */}
               {!isTerminal && (
-                <Button
-                  variant="destructive"
-                  onClick={() => handleTransition('CANCELLED')}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Cancel Order
-                </Button>
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActionsDropdownOpen(!actionsDropdownOpen)}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                    More Actions
+                  </Button>
+                  {actionsDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setActionsDropdownOpen(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-md border bg-white shadow-lg">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionsDropdownOpen(false)
+                            handleTransition('CANCELLED')
+                          }}
+                          disabled={transitioning}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Cancel Order
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1204,6 +1213,31 @@ export default function PurchaseOrderDetailPage() {
                     Edit
                   </Button>
                 )}
+              </div>
+            )}
+            {/* Contextual actions for ISSUED stage */}
+            {activeViewStage === 'ISSUED' && order.status === 'ISSUED' && (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleTransition('DRAFT')}
+                  disabled={transitioning}
+                  className="gap-1.5"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Back to Draft
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleTransition('REJECTED')}
+                  disabled={transitioning}
+                  className="gap-1.5 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                >
+                  <PackageX className="h-3.5 w-3.5" />
+                  Mark Rejected
+                </Button>
               </div>
             )}
           </div>
@@ -1659,90 +1693,112 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        {/* Cargo Section - Always Visible */}
+        {/* Cargo & Approval History Tabs */}
         <div className="rounded-xl border bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Cargo</h3>
-              <Badge variant="outline" className="text-xs">
-                {order.lines.length} items
-              </Badge>
-            </div>
-            <span className="text-sm text-muted-foreground">
-              Total: {totalQuantity.toLocaleString()} units
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full table-auto text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2 text-left font-semibold">SKU</th>
-                  <th className="px-4 py-2 text-left font-semibold">Description</th>
-                  <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
-                  <th className="px-4 py-2 text-right font-semibold">Ordered</th>
-                  <th className="px-4 py-2 text-right font-semibold">Received</th>
-                  <th className="px-4 py-2 text-left font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {order.lines.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                      No lines added to this order yet.
-                    </td>
-                  </tr>
-                ) : (
-                  order.lines.map(line => (
-                    <tr key={line.id} className="border-t hover:bg-muted/10">
-                      <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                        {line.skuCode}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
-                        {line.skuDescription || '—'}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                        {line.batchLot || '—'}
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
-                        {line.quantity.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-                        {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        <Badge variant="outline">{line.status}</Badge>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Collapsible Approval History */}
-        {order.approvalHistory && order.approvalHistory.length > 0 && (
-          <div className="rounded-xl border bg-white shadow-sm">
+          {/* Tab Headers */}
+          <div className="flex items-center border-b">
             <button
               type="button"
-              onClick={() => setShowApprovalHistory(!showApprovalHistory)}
-              className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-muted/10 transition-colors"
+              onClick={() => setActiveBottomTab('cargo')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'cargo'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-foreground">Approval History</h3>
-                <Badge variant="outline" className="text-xs">
-                  {order.approvalHistory.length}
-                </Badge>
-              </div>
-              {showApprovalHistory ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <Package2 className="h-4 w-4" />
+              Cargo
+              <Badge variant="outline" className="text-xs ml-1">
+                {order.lines.length}
+              </Badge>
+              {activeBottomTab === 'cargo' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-            {showApprovalHistory && (
-              <div className="border-t px-6 py-4 space-y-2">
-                {order.approvalHistory.map((approval, index) => (
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('history')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'history'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <History className="h-4 w-4" />
+              Approval History
+              {order.approvalHistory && order.approvalHistory.length > 0 && (
+                <Badge variant="outline" className="text-xs ml-1">
+                  {order.approvalHistory.length}
+                </Badge>
+              )}
+              {activeBottomTab === 'history' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+            {/* Spacer to push total to the right when cargo tab is active */}
+            {activeBottomTab === 'cargo' && (
+              <div className="ml-auto pr-6">
+                <span className="text-sm text-muted-foreground">
+                  Total: {totalQuantity.toLocaleString()} units
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Tab Content */}
+          {activeBottomTab === 'cargo' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto text-sm">
+                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-semibold">SKU</th>
+                    <th className="px-4 py-2 text-left font-semibold">Description</th>
+                    <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
+                    <th className="px-4 py-2 text-right font-semibold">Ordered</th>
+                    <th className="px-4 py-2 text-right font-semibold">Received</th>
+                    <th className="px-4 py-2 text-left font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.lines.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                        No lines added to this order yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    order.lines.map(line => (
+                      <tr key={line.id} className="border-t hover:bg-muted/10">
+                        <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                          {line.skuCode}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
+                          {line.skuDescription || '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                          {line.batchLot || '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                          {line.quantity.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                          {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          <Badge variant="outline">{line.status}</Badge>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {activeBottomTab === 'history' && (
+            <div className="p-6 space-y-3">
+              {order.approvalHistory && order.approvalHistory.length > 0 ? (
+                order.approvalHistory.map((approval, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between rounded-lg border p-3 bg-muted/20"
@@ -1762,11 +1818,15 @@ export default function PurchaseOrderDetailPage() {
                       {approval.approvedAt ? formatDate(approval.approvedAt) : '—'}
                     </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                ))
+              ) : (
+                <div className="py-6 text-center text-muted-foreground">
+                  No approval history yet.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Advance Stage Modal */}
