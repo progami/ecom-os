@@ -3,6 +3,7 @@ import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
+import { auditLog } from '@/lib/security/audit-logger'
 import { PurchaseOrderDocumentStage, Prisma } from '@ecom-os/prisma-wms'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 
@@ -126,7 +127,17 @@ export const POST = withAuthAndParams(async (request, params, session) => {
 
     const existing = await prisma.purchaseOrderDocument.findUnique({
       where: compositeKey,
-      select: { s3Key: true },
+      select: {
+        id: true,
+        stage: true,
+        documentType: true,
+        fileName: true,
+        contentType: true,
+        size: true,
+        s3Key: true,
+        uploadedAt: true,
+        uploadedByName: true,
+      },
     })
 
     if (existing?.s3Key && existing.s3Key !== uploadResult.key) {
@@ -164,6 +175,35 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         metadata: {
           originalName: file.name,
         } as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    await auditLog({
+      entityType: 'PurchaseOrder',
+      entityId: id,
+      action: existing ? 'DOCUMENT_REPLACE' : 'DOCUMENT_UPLOAD',
+      userId: session.user.id,
+      oldValue: existing
+        ? {
+            documentId: existing.id,
+            stage: existing.stage,
+            documentType: existing.documentType,
+            fileName: existing.fileName,
+            contentType: existing.contentType,
+            size: existing.size,
+            uploadedAt: existing.uploadedAt.toISOString(),
+            uploadedByName: existing.uploadedByName,
+          }
+        : null,
+      newValue: {
+        documentId: stored.id,
+        stage: stored.stage,
+        documentType: stored.documentType,
+        fileName: stored.fileName,
+        contentType: stored.contentType,
+        size: stored.size,
+        uploadedAt: stored.uploadedAt.toISOString(),
+        uploadedByName: stored.uploadedByName,
       },
     })
 

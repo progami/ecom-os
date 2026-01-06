@@ -92,7 +92,8 @@ export async function getPurchaseOrderById(id: string) {
 
 export async function updatePurchaseOrderDetails(
   id: string,
-  input: UpdatePurchaseOrderInput
+  input: UpdatePurchaseOrderInput,
+  user?: UserContext
 ): Promise<PurchaseOrderWithLines> {
   const prisma = await getTenantPrisma()
   const order = await prisma.purchaseOrder.findUnique({
@@ -141,7 +142,26 @@ export async function updatePurchaseOrderDetails(
     input.counterpartyName !== undefined ? input.counterpartyName : order.counterpartyName
   const notes = input.notes !== undefined ? input.notes : order.notes
 
-  return prisma.purchaseOrder.update({
+  const auditOldValue: Record<string, unknown> = {}
+  const auditNewValue: Record<string, unknown> = {}
+
+  const track = (key: string, before: unknown, after: unknown) => {
+    if (before === after) return
+    auditOldValue[key] = before
+    auditNewValue[key] = after
+  }
+
+  track('counterpartyName', order.counterpartyName ?? null, counterpartyName ?? null)
+  track(
+    'expectedDate',
+    order.expectedDate ? order.expectedDate.toISOString() : null,
+    expectedDate ? expectedDate.toISOString() : null
+  )
+  track('incoterms', order.incoterms ?? null, incoterms ?? null)
+  track('paymentTerms', order.paymentTerms ?? null, paymentTerms ?? null)
+  track('notes', order.notes ?? null, notes ?? null)
+
+  const updated = await prisma.purchaseOrder.update({
     where: { id },
     data: {
       counterpartyName,
@@ -152,6 +172,19 @@ export async function updatePurchaseOrderDetails(
     },
     include: { lines: true },
   })
+
+  if (Object.keys(auditNewValue).length > 0) {
+    await auditLog({
+      entityType: 'PurchaseOrder',
+      entityId: order.id,
+      action: 'UPDATE_DETAILS',
+      userId: user?.id || 'SYSTEM',
+      oldValue: auditOldValue,
+      newValue: auditNewValue,
+    })
+  }
+
+  return updated
 }
 
 export async function voidPurchaseOrder(

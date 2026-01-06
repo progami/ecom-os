@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ComponentType } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
@@ -13,22 +13,23 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   ArrowLeft,
   Loader2,
-	Package2,
-	FileEdit,
-	Send,
-	Factory,
-	Ship,
-	Warehouse,
-	PackageX,
-	Upload,
-	Download,
-	ChevronRight,
-	Check,
+  Package2,
+  FileEdit,
+  Send,
+  Factory,
+  Ship,
+  Warehouse,
+  PackageX,
+  Upload,
+  Download,
+  ChevronRight,
+  Check,
   XCircle,
   Save,
   X,
   MoreHorizontal,
   History,
+  RefreshCw,
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -67,6 +68,22 @@ interface StageApproval {
   stage: string
   approvedAt: string | null
   approvedBy: string | null
+}
+
+interface AuditLogUserSummary {
+  id: string
+  fullName: string | null
+}
+
+interface AuditLogEntry {
+  id: string
+  entityType: string
+  entityId: string
+  action: string
+  oldValue: unknown | null
+  newValue: unknown | null
+  changedBy: AuditLogUserSummary | null
+  createdAt: string
 }
 
 interface StageData {
@@ -222,6 +239,234 @@ function formatDate(value: string | null) {
   return parsed.toLocaleString()
 }
 
+function toAuditRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined) return '—'
+  if (typeof value === 'string') return value.trim().length ? value : '—'
+  if (typeof value === 'number') return Number.isFinite(value) ? value.toLocaleString() : String(value)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  try {
+    const json = JSON.stringify(value)
+    if (!json) return '—'
+    return json.length > 140 ? `${json.slice(0, 137)}…` : json
+  } catch {
+    return String(value)
+  }
+}
+
+function formatAuditFieldLabel(field: string): string {
+  return field
+    .replaceAll(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replaceAll(/_/g, ' ')
+    .replaceAll(/\b\w/g, char => char.toUpperCase())
+}
+
+function describeAuditAction(action: string, newValue: Record<string, unknown> | null): string {
+  switch (action) {
+    case 'CREATE':
+      return 'Created purchase order'
+    case 'UPDATE_DETAILS':
+      return 'Updated order details'
+    case 'STATUS_TRANSITION': {
+      const fromStatus = newValue?.fromStatus
+      const toStatus = newValue?.toStatus
+      if (typeof fromStatus === 'string' && typeof toStatus === 'string') {
+        return `Stage: ${fromStatus} → ${toStatus}`
+      }
+      return 'Updated stage'
+    }
+    case 'LINE_ADD':
+      return 'Added line item'
+    case 'LINE_UPDATE':
+      return 'Updated line item'
+    case 'LINE_DELETE':
+      return 'Removed line item'
+    case 'CONTAINER_ADD':
+      return 'Added container'
+    case 'CONTAINER_UPDATE':
+      return 'Updated container'
+    case 'CONTAINER_DELETE':
+      return 'Removed container'
+    case 'DOCUMENT_UPLOAD':
+      return 'Uploaded document'
+    case 'DOCUMENT_REPLACE':
+      return 'Replaced document'
+    case 'VOID':
+      return 'Voided purchase order'
+    default:
+      return action.replaceAll('_', ' ')
+  }
+}
+
+function getAuditActionTheme(action: string): {
+  Icon: ComponentType<{ className?: string }>
+  wrapperClassName: string
+  iconClassName: string
+} {
+  switch (action) {
+    case 'CREATE':
+      return {
+        Icon: FileEdit,
+        wrapperClassName: 'bg-emerald-50 border-emerald-200',
+        iconClassName: 'text-emerald-700',
+      }
+    case 'UPDATE_DETAILS':
+      return {
+        Icon: FileEdit,
+        wrapperClassName: 'bg-slate-50 border-slate-200',
+        iconClassName: 'text-slate-700',
+      }
+    case 'STATUS_TRANSITION':
+      return {
+        Icon: Send,
+        wrapperClassName: 'bg-indigo-50 border-indigo-200',
+        iconClassName: 'text-indigo-700',
+      }
+    case 'LINE_ADD':
+    case 'LINE_UPDATE':
+      return {
+        Icon: Package2,
+        wrapperClassName: 'bg-blue-50 border-blue-200',
+        iconClassName: 'text-blue-700',
+      }
+    case 'LINE_DELETE':
+      return {
+        Icon: PackageX,
+        wrapperClassName: 'bg-blue-50 border-blue-200',
+        iconClassName: 'text-blue-700',
+      }
+    case 'CONTAINER_ADD':
+    case 'CONTAINER_UPDATE':
+    case 'CONTAINER_DELETE':
+      return {
+        Icon: Ship,
+        wrapperClassName: 'bg-purple-50 border-purple-200',
+        iconClassName: 'text-purple-700',
+      }
+    case 'DOCUMENT_UPLOAD':
+    case 'DOCUMENT_REPLACE':
+      return {
+        Icon: Upload,
+        wrapperClassName: 'bg-amber-50 border-amber-200',
+        iconClassName: 'text-amber-800',
+      }
+    case 'VOID':
+      return {
+        Icon: XCircle,
+        wrapperClassName: 'bg-rose-50 border-rose-200',
+        iconClassName: 'text-rose-700',
+      }
+    default:
+      return {
+        Icon: History,
+        wrapperClassName: 'bg-slate-50 border-slate-200',
+        iconClassName: 'text-slate-700',
+      }
+  }
+}
+
+function describeAuditChanges(entry: AuditLogEntry): string[] {
+  const oldValue = toAuditRecord(entry.oldValue)
+  const newValue = toAuditRecord(entry.newValue)
+
+  switch (entry.action) {
+    case 'LINE_ADD': {
+      if (!newValue) return []
+      const skuCode = newValue.skuCode
+      const batchLot = newValue.batchLot
+      const quantity = newValue.quantity
+      const currency = newValue.currency
+      const unitCost = newValue.unitCost
+      const detail = [
+        typeof skuCode === 'string' ? `SKU ${skuCode}` : null,
+        typeof batchLot === 'string' ? `Batch ${batchLot}` : null,
+        typeof quantity === 'number' ? `Qty ${quantity.toLocaleString()}` : null,
+        unitCost != null && typeof currency === 'string'
+          ? `Unit ${formatAuditValue(unitCost)} ${currency}`
+          : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' • ')
+      return detail ? [detail] : []
+    }
+    case 'LINE_DELETE': {
+      if (!oldValue) return []
+      const skuCode = oldValue.skuCode
+      const batchLot = oldValue.batchLot
+      const quantity = oldValue.quantity
+      const detail = [
+        typeof skuCode === 'string' ? `SKU ${skuCode}` : null,
+        typeof batchLot === 'string' ? `Batch ${batchLot}` : null,
+        typeof quantity === 'number' ? `Qty ${quantity.toLocaleString()}` : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' • ')
+      return detail ? [detail] : []
+    }
+    case 'CONTAINER_ADD':
+    case 'CONTAINER_DELETE': {
+      const value = entry.action === 'CONTAINER_DELETE' ? oldValue : newValue
+      if (!value) return []
+      const number = value.containerNumber
+      const size = value.containerSize
+      const seal = value.sealNumber
+      const detail = [
+        typeof number === 'string' ? `#${number}` : null,
+        typeof size === 'string' ? size : null,
+        typeof seal === 'string' && seal.trim() ? `Seal ${seal}` : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' • ')
+      return detail ? [detail] : []
+    }
+    case 'DOCUMENT_UPLOAD':
+    case 'DOCUMENT_REPLACE': {
+      if (!newValue) return []
+      const stage = newValue.stage
+      const documentType = newValue.documentType
+      const fileName = newValue.fileName
+      const detail = [
+        typeof stage === 'string' ? stage : null,
+        typeof documentType === 'string' ? documentType : null,
+        typeof fileName === 'string' ? fileName : null,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' • ')
+      return detail ? [detail] : []
+    }
+  }
+
+  if (!oldValue && !newValue) return []
+
+  const skipKeys = new Set([
+    'approvedBy',
+    'fromStatus',
+    'toStatus',
+    'status',
+    'lineId',
+    'containerId',
+    'documentId',
+    'deleted',
+  ])
+
+  const keys = new Set<string>([...Object.keys(oldValue ?? {}), ...Object.keys(newValue ?? {})])
+  const changes: string[] = []
+
+  for (const key of keys) {
+    if (skipKeys.has(key)) continue
+    const before = oldValue?.[key]
+    const after = newValue?.[key]
+    if (before === after) continue
+    changes.push(`${formatAuditFieldLabel(key)}: ${formatAuditValue(before)} → ${formatAuditValue(after)}`)
+  }
+
+  return changes
+}
+
 function formatDateOnly(value: string | null) {
   if (!value) return ''
   const parsed = new Date(value)
@@ -254,6 +499,8 @@ export default function PurchaseOrderDetailPage() {
   const [documents, setDocuments] = useState<PurchaseOrderDocumentSummary[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState<Record<string, boolean>>({})
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false)
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -391,6 +638,35 @@ export default function PurchaseOrderDetailPage() {
     loadDocuments()
   }, [order?.id])
 
+  const refreshAuditLogs = useCallback(async () => {
+    const orderId = order?.id
+    if (!orderId) return
+
+    try {
+      setAuditLogsLoading(true)
+      const response = await fetch(
+        `/api/audit-logs?entityType=PurchaseOrder&entityId=${encodeURIComponent(orderId)}&limit=200`
+      )
+
+      if (!response.ok) {
+        setAuditLogs([])
+        return
+      }
+
+      const payload = await response.json().catch(() => null)
+      const list = payload?.logs
+      setAuditLogs(Array.isArray(list) ? (list as AuditLogEntry[]) : [])
+    } catch {
+      setAuditLogs([])
+    } finally {
+      setAuditLogsLoading(false)
+    }
+  }, [order?.id])
+
+  useEffect(() => {
+    void refreshAuditLogs()
+  }, [refreshAuditLogs])
+
   useEffect(() => {
     if (!order || isEditingDetails) return
 
@@ -500,6 +776,7 @@ export default function PurchaseOrderDetailPage() {
       const updated = await response.json()
       setOrder(updated)
       setStageFormData({}) // Clear form
+      void refreshAuditLogs()
       toast.success(`Order moved to ${formatStatusLabel(targetStatus)}`)
       return true
     } catch (_error) {
@@ -574,6 +851,7 @@ export default function PurchaseOrderDetailPage() {
       setOrder(updated)
       toast.success('Purchase order updated')
       setIsEditingDetails(false)
+      void refreshAuditLogs()
     } catch (_error) {
       toast.error('Failed to update purchase order')
     } finally {
@@ -602,6 +880,7 @@ export default function PurchaseOrderDetailPage() {
   const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
   const canDownloadPdf = order.status !== 'DRAFT'
+  const historyCount = auditLogs.length || order.approvalHistory?.length || 0
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
@@ -762,6 +1041,7 @@ export default function PurchaseOrderDetailPage() {
         }
 
         await refreshDocuments()
+        void refreshAuditLogs()
         toast.success('Document uploaded')
       } catch {
         toast.error('Failed to upload document')
@@ -1691,7 +1971,7 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        {/* Cargo & Approval History Tabs */}
+        {/* Cargo & History Tabs */}
         <div className="rounded-xl border bg-white shadow-sm">
           {/* Tab Headers */}
           <div className="flex items-center border-b">
@@ -1715,7 +1995,10 @@ export default function PurchaseOrderDetailPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveBottomTab('history')}
+              onClick={() => {
+                setActiveBottomTab('history')
+                void refreshAuditLogs()
+              }}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
                 activeBottomTab === 'history'
                   ? 'text-foreground'
@@ -1723,10 +2006,10 @@ export default function PurchaseOrderDetailPage() {
               }`}
             >
               <History className="h-4 w-4" />
-              Approval History
-              {order.approvalHistory && order.approvalHistory.length > 0 && (
+              History
+              {historyCount > 0 && (
                 <Badge variant="outline" className="text-xs ml-1">
-                  {order.approvalHistory.length}
+                  {historyCount}
                 </Badge>
               )}
               {activeBottomTab === 'history' && (
@@ -1794,32 +2077,108 @@ export default function PurchaseOrderDetailPage() {
           )}
 
           {activeBottomTab === 'history' && (
-            <div className="p-6 space-y-3">
-              {order.approvalHistory && order.approvalHistory.length > 0 ? (
-                order.approvalHistory.map((approval, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-lg border p-3 bg-muted/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">Activity</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Every edit, upload, and stage change is recorded for full transparency.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => void refreshAuditLogs()}
+                  disabled={auditLogsLoading}
+                >
+                  {auditLogsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Refresh
+                </Button>
+              </div>
+
+              {auditLogsLoading ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Loading history…
+                </div>
+              ) : auditLogs.length > 0 ? (
+                <div className="mt-6 space-y-4">
+                  {auditLogs.map((entry, index) => {
+                    const newValue = toAuditRecord(entry.newValue)
+                    const title = describeAuditAction(entry.action, newValue)
+                    const changes = describeAuditChanges(entry)
+                    const actor = entry.changedBy?.fullName || 'Unknown'
+                    const { Icon, wrapperClassName, iconClassName } = getAuditActionTheme(entry.action)
+
+                    return (
+                      <div key={entry.id} className="relative flex gap-4">
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={`flex h-9 w-9 items-center justify-center rounded-full border ${wrapperClassName}`}
+                          >
+                            <Icon className={`h-4 w-4 ${iconClassName}`} />
+                          </div>
+                          {index < auditLogs.length - 1 && (
+                            <div className="mt-2 w-px flex-1 bg-slate-200" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 rounded-xl border bg-white px-4 py-3 shadow-sm">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-[220px]">
+                              <p className="text-sm font-semibold text-slate-900">{title}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">by {actor}</p>
+                            </div>
+                            <span className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</span>
+                          </div>
+
+                          {changes.length > 0 && (
+                            <ul className="mt-2 space-y-1 text-xs text-slate-700">
+                              {changes.map(change => (
+                                <li key={change} className="flex items-start gap-2">
+                                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-300" />
+                                  <span>{change}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{approval.stage}</p>
-                        <p className="text-xs text-muted-foreground">
-                          by {approval.approvedBy || 'Unknown'}
-                        </p>
+                    )
+                  })}
+                </div>
+              ) : order.approvalHistory && order.approvalHistory.length > 0 ? (
+                <div className="mt-6 space-y-3">
+                  {order.approvalHistory.map((approval, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-lg border p-3 bg-muted/20"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{approval.stage}</p>
+                          <p className="text-xs text-muted-foreground">
+                            by {approval.approvedBy || 'Unknown'}
+                          </p>
+                        </div>
                       </div>
+                      <span className="text-xs text-muted-foreground">
+                        {approval.approvedAt ? formatDate(approval.approvedAt) : '—'}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {approval.approvedAt ? formatDate(approval.approvedAt) : '—'}
-                    </span>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div className="py-6 text-center text-muted-foreground">
-                  No approval history yet.
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  No activity recorded yet.
                 </div>
               )}
             </div>

@@ -3,6 +3,7 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
+import { auditLog } from '@/lib/security/audit-logger'
 import { Prisma } from '@ecom-os/prisma-wms'
 
 const CONTAINER_SIZES = ['20FT', '40FT', '40HC', '45HC'] as const
@@ -112,6 +113,40 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     throw error
   }
 
+  const before = {
+    containerId: container.id,
+    containerNumber: container.containerNumber,
+    containerSize: container.containerSize,
+    sealNumber: container.sealNumber ?? null,
+  }
+  const after = {
+    containerId: updated.id,
+    containerNumber: updated.containerNumber,
+    containerSize: updated.containerSize,
+    sealNumber: updated.sealNumber ?? null,
+  }
+
+  const auditOldValue: Record<string, unknown> = { containerId: container.id }
+  const auditNewValue: Record<string, unknown> = { containerId: container.id }
+
+  for (const key of Object.keys(after) as Array<keyof typeof after>) {
+    if (key === 'containerId') continue
+    if (before[key] === after[key]) continue
+    auditOldValue[key] = before[key]
+    auditNewValue[key] = after[key]
+  }
+
+  if (Object.keys(auditNewValue).length > 1) {
+    await auditLog({
+      entityType: 'PurchaseOrder',
+      entityId: id,
+      action: 'CONTAINER_UPDATE',
+      userId: _session.user.id,
+      oldValue: auditOldValue,
+      newValue: auditNewValue,
+    })
+  }
+
   return ApiResponses.success({
     id: updated.id,
     containerNumber: updated.containerNumber,
@@ -161,6 +196,20 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
 
   await prisma.purchaseOrderContainer.delete({
     where: { id: containerId },
+  })
+
+  await auditLog({
+    entityType: 'PurchaseOrder',
+    entityId: id,
+    action: 'CONTAINER_DELETE',
+    userId: _session.user.id,
+    oldValue: {
+      containerId: container.id,
+      containerNumber: container.containerNumber,
+      containerSize: container.containerSize,
+      sealNumber: container.sealNumber ?? null,
+    },
+    newValue: { containerId: container.id, deleted: true },
   })
 
   return ApiResponses.success({ deleted: true })

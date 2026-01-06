@@ -3,6 +3,7 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
+import { auditLog } from '@/lib/security/audit-logger'
 import { Prisma } from '@ecom-os/prisma-wms'
 
 const CONTAINER_SIZES = ['20FT', '40FT', '40HC', '45HC'] as const
@@ -92,6 +93,19 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     }
     throw error
   }
+
+  await auditLog({
+    entityType: 'PurchaseOrder',
+    entityId: id,
+    action: 'CONTAINER_ADD',
+    userId: _session.user.id,
+    newValue: {
+      containerId: container.id,
+      containerNumber: container.containerNumber,
+      containerSize: container.containerSize,
+      sealNumber: container.sealNumber ?? null,
+    },
+  })
 
   return ApiResponses.success({
     id: container.id,
