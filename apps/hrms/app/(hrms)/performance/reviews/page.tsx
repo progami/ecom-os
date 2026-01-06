@@ -10,25 +10,30 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { SearchForm } from '@/components/ui/SearchForm'
-import { DataTable } from '@/components/ui/DataTable'
+import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
-import { NativeSelect } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 
-// Simplified for small team (15-20 people)
-const REVIEW_TYPE_LABELS: Record<string, string> = {
-  PROBATION: 'Probation',
-  QUARTERLY: 'Quarterly',
-  ANNUAL: 'Annual',
-}
+const REVIEW_TYPE_OPTIONS: FilterOption[] = [
+  { value: 'PROBATION', label: 'Probation' },
+  { value: 'QUARTERLY', label: 'Quarterly' },
+  { value: 'ANNUAL', label: 'Annual' },
+]
 
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Draft',
-  PENDING_REVIEW: 'Pending',
-  COMPLETED: 'Completed',
-  ACKNOWLEDGED: 'Acknowledged',
-}
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'PENDING_REVIEW', label: 'Pending' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
+]
+
+const REVIEW_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  REVIEW_TYPE_OPTIONS.map((o) => [o.value, o.label])
+)
+
+const STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  STATUS_OPTIONS.map((o) => [o.value, o.label])
+)
 
 function DeadlineBadge({ review }: { review: PerformanceReview }) {
   const deadline = review.deadline ?? (review as { quarterlyCycle?: { deadline?: string } }).quarterlyCycle?.deadline
@@ -105,8 +110,7 @@ export default function PerformanceReviewsPage() {
   const router = useRouter()
   const [items, setItems] = useState<PerformanceReview[]>([])
   const [q, setQ] = useState('')
-  const [status, setStatus] = useState('')
-  const [reviewType, setReviewType] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -114,8 +118,8 @@ export default function PerformanceReviewsPage() {
       setLoading(true)
       const data = await PerformanceReviewsApi.list({
         q,
-        status: status || undefined,
-        reviewType: reviewType || undefined,
+        status: filters.status || undefined,
+        reviewType: filters.reviewType || undefined,
       })
       setItems(data.items)
     } catch (err) {
@@ -124,7 +128,7 @@ export default function PerformanceReviewsPage() {
     } finally {
       setLoading(false)
     }
-  }, [q, status, reviewType])
+  }, [q, filters.status, filters.reviewType])
 
   useEffect(() => {
     load()
@@ -156,7 +160,11 @@ export default function PerformanceReviewsPage() {
       },
       {
         accessorKey: 'reviewType',
-        header: 'Review Type',
+        header: 'Type',
+        meta: {
+          filterKey: 'reviewType',
+          filterOptions: REVIEW_TYPE_OPTIONS,
+        },
         cell: ({ getValue }) => {
           const type = getValue<string>()
           return <span className="text-muted-foreground">{REVIEW_TYPE_LABELS[type] ?? type}</span>
@@ -188,6 +196,10 @@ export default function PerformanceReviewsPage() {
       {
         accessorKey: 'status',
         header: 'Status',
+        meta: {
+          filterKey: 'status',
+          filterOptions: STATUS_OPTIONS,
+        },
         cell: ({ getValue }) => {
           const status = getValue<string>()
           return <StatusBadge status={STATUS_LABELS[status] ?? status} />
@@ -214,7 +226,7 @@ export default function PerformanceReviewsPage() {
   return (
     <>
       <ListPageHeader
-        title="Performance Reviews"
+        title="Reviews"
         description="Track employee performance evaluations"
         icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
         action={
@@ -224,47 +236,14 @@ export default function PerformanceReviewsPage() {
         }
       />
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card padding="md">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <SearchForm
-                value={q}
-                onChange={setQ}
-                onSubmit={load}
-                placeholder="Search by employee or reviewer..."
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="w-32">
-                <Label htmlFor="status-filter" className="sr-only">Status</Label>
-                <NativeSelect
-                  id="status-filter"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="">All Status</option>
-                  <option value="DRAFT">Draft</option>
-                  <option value="PENDING_REVIEW">Pending</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="ACKNOWLEDGED">Acknowledged</option>
-                </NativeSelect>
-              </div>
-              <div className="w-32">
-                <Label htmlFor="type-filter" className="sr-only">Type</Label>
-                <NativeSelect
-                  id="type-filter"
-                  value={reviewType}
-                  onChange={(e) => setReviewType(e.target.value)}
-                >
-                  <option value="">All Types</option>
-                  <option value="PROBATION">Probation</option>
-                  <option value="QUARTERLY">Quarterly</option>
-                  <option value="ANNUAL">Annual</option>
-                </NativeSelect>
-              </div>
-            </div>
-          </div>
+          <SearchForm
+            value={q}
+            onChange={setQ}
+            onSubmit={load}
+            placeholder="Search by employee or reviewer..."
+          />
         </Card>
 
         <ResultsCount
@@ -280,6 +259,8 @@ export default function PerformanceReviewsPage() {
           loading={loading}
           skeletonRows={5}
           onRowClick={handleRowClick}
+          filters={filters}
+          onFilterChange={setFilters}
           emptyState={
             <TableEmptyContent
               icon={<ClipboardDocumentCheckIcon className="h-10 w-10" />}

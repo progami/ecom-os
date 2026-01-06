@@ -6,6 +6,8 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
+  getFilteredRowModel,
+  ColumnFiltersState,
   SortingState,
   useReactTable,
 } from '@tanstack/react-table'
@@ -19,7 +21,22 @@ import {
   TableRow,
   TableSkeleton,
 } from './table'
-import { ChevronUpIcon, ChevronDownIcon } from './Icons'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './dropdown-menu'
+import { ChevronUpIcon, ChevronDownIcon, ChevronDownIcon as FilterIcon } from './Icons'
+
+export type FilterOption = { value: string; label: string }
+
+export interface ColumnMeta {
+  align?: 'left' | 'center' | 'right'
+  filterKey?: string
+  filterOptions?: FilterOption[]
+}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -28,6 +45,60 @@ interface DataTableProps<TData, TValue> {
   skeletonRows?: number
   emptyState?: React.ReactNode
   onRowClick?: (row: TData) => void
+  filters?: Record<string, string>
+  onFilterChange?: (filters: Record<string, string>) => void
+}
+
+function ColumnFilterDropdown({
+  filterKey,
+  options,
+  currentValue,
+  onSelect,
+}: {
+  filterKey: string
+  options: FilterOption[]
+  currentValue?: string
+  onSelect: (key: string, value: string) => void
+}) {
+  const hasFilter = currentValue && currentValue !== ''
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={cn(
+          'ml-1 p-0.5 rounded hover:bg-muted/50 focus:outline-none',
+          hasFilter && 'text-primary'
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <FilterIcon className={cn('h-3 w-3', hasFilter ? 'text-primary' : 'text-muted-foreground')} />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[120px]">
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelect(filterKey, '')
+          }}
+          className={cn(!hasFilter && 'bg-muted')}
+        >
+          All
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {options.map((option) => (
+          <DropdownMenuItem
+            key={option.value}
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelect(filterKey, option.value)
+            }}
+            className={cn(currentValue === option.value && 'bg-muted')}
+          >
+            {option.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 export function DataTable<TData, TValue>({
@@ -37,19 +108,34 @@ export function DataTable<TData, TValue>({
   skeletonRows = 6,
   emptyState,
   onRowClick,
+  filters = {},
+  onFilterChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
     state: {
       sorting,
+      columnFilters,
     },
   })
+
+  const handleFilterSelect = React.useCallback(
+    (key: string, value: string) => {
+      if (onFilterChange) {
+        onFilterChange({ ...filters, [key]: value })
+      }
+    },
+    [filters, onFilterChange]
+  )
 
   return (
     <Table>
@@ -59,7 +145,10 @@ export function DataTable<TData, TValue>({
             {headerGroup.headers.map((header) => {
               const canSort = header.column.getCanSort()
               const sorted = header.column.getIsSorted()
-              const align = (header.column.columnDef.meta as { align?: 'left' | 'center' | 'right' })?.align
+              const meta = header.column.columnDef.meta as ColumnMeta | undefined
+              const align = meta?.align
+              const filterKey = meta?.filterKey
+              const filterOptions = meta?.filterOptions
 
               return (
                 <TableHead
@@ -72,6 +161,14 @@ export function DataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
+                    {filterKey && filterOptions && filterOptions.length > 0 && (
+                      <ColumnFilterDropdown
+                        filterKey={filterKey}
+                        options={filterOptions}
+                        currentValue={filters[filterKey]}
+                        onSelect={handleFilterSelect}
+                      />
+                    )}
                     {canSort && (
                       <span className="ml-1">
                         {sorted === 'asc' ? (
@@ -112,7 +209,7 @@ export function DataTable<TData, TValue>({
               data-state={row.getIsSelected() && 'selected'}
             >
               {row.getVisibleCells().map((cell) => {
-                const align = (cell.column.columnDef.meta as { align?: 'left' | 'center' | 'right' })?.align
+                const align = (cell.column.columnDef.meta as ColumnMeta | undefined)?.align
 
                 return (
                   <TableCell key={cell.id} align={align}>

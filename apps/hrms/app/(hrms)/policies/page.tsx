@@ -10,20 +10,31 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { SearchForm } from '@/components/ui/SearchForm'
-import { DataTable } from '@/components/ui/DataTable'
+import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
 
-const REGION_LABELS: Record<string, string> = {
-  ALL: 'All Regions',
-  KANSAS_US: 'US (Kansas)',
-  PAKISTAN: 'Pakistan',
-}
+const REGION_OPTIONS: FilterOption[] = [
+  { value: 'ALL', label: 'All Regions' },
+  { value: 'KANSAS_US', label: 'US (Kansas)' },
+  { value: 'PAKISTAN', label: 'Pakistan' },
+]
+
+const STATUS_OPTIONS: FilterOption[] = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'PUBLISHED', label: 'Published' },
+  { value: 'ARCHIVED', label: 'Archived' },
+]
+
+const REGION_LABELS: Record<string, string> = Object.fromEntries(
+  REGION_OPTIONS.map((o) => [o.value, o.label])
+)
 
 export default function PoliciesPage() {
   const router = useRouter()
   const [items, setItems] = useState<Policy[]>([])
   const [q, setQ] = useState('')
+  const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [canManagePolicies, setCanManagePolicies] = useState(false)
 
@@ -56,6 +67,22 @@ export default function PoliciesPage() {
     loadPermissions()
   }, [])
 
+  // Get unique categories from items
+  const categoryOptions = useMemo<FilterOption[]>(() => {
+    const categories = [...new Set(items.map((p) => p.category).filter(Boolean))]
+    return categories.map((c) => ({ value: c, label: c }))
+  }, [items])
+
+  // Apply client-side filters
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      if (filters.region && item.region !== filters.region) return false
+      if (filters.status && item.status !== filters.status) return false
+      if (filters.category && item.category !== filters.category) return false
+      return true
+    })
+  }, [items, filters])
+
   const columns = useMemo<ColumnDef<Policy>[]>(
     () => [
       {
@@ -76,6 +103,10 @@ export default function PoliciesPage() {
       {
         accessorKey: 'category',
         header: 'Category',
+        meta: {
+          filterKey: 'category',
+          filterOptions: categoryOptions,
+        },
         cell: ({ getValue }) => (
           <span className="text-muted-foreground">{getValue<string>()}</span>
         ),
@@ -84,6 +115,10 @@ export default function PoliciesPage() {
       {
         accessorKey: 'region',
         header: 'Region',
+        meta: {
+          filterKey: 'region',
+          filterOptions: REGION_OPTIONS,
+        },
         cell: ({ getValue }) => {
           const region = getValue<string>()
           return (
@@ -107,11 +142,15 @@ export default function PoliciesPage() {
       {
         accessorKey: 'status',
         header: 'Status',
+        meta: {
+          filterKey: 'status',
+          filterOptions: STATUS_OPTIONS,
+        },
         cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
         enableSorting: true,
       },
     ],
-    []
+    [categoryOptions]
   )
 
   const handleRowClick = useCallback(
@@ -136,7 +175,7 @@ export default function PoliciesPage() {
         }
       />
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card padding="md">
           <SearchForm
             value={q}
@@ -147,7 +186,7 @@ export default function PoliciesPage() {
         </Card>
 
         <ResultsCount
-          count={items.length}
+          count={filteredItems.length}
           singular="policy"
           plural="policies"
           loading={loading}
@@ -155,10 +194,12 @@ export default function PoliciesPage() {
 
         <DataTable
           columns={columns}
-          data={items}
+          data={filteredItems}
           loading={loading}
           skeletonRows={5}
           onRowClick={handleRowClick}
+          filters={filters}
+          onFilterChange={setFilters}
           emptyState={
             <TableEmptyContent
               icon={<DocumentIcon className="h-10 w-10" />}
