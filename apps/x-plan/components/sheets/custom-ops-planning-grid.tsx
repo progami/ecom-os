@@ -935,6 +935,9 @@ export function CustomOpsPlanningGrid({
       const nextColKey = COLUMNS[nextColIndex]?.key
       if (!nextRowId || !nextColKey) return
 
+      const coords = { row: nextRowIndex, col: nextColIndex }
+      selectionAnchorRef.current = coords
+      setSelection({ from: coords, to: coords })
       setActiveCell({ rowId: nextRowId, colKey: nextColKey })
       onSelectOrder?.(nextRowId)
       scrollToCell(nextRowId, nextColKey)
@@ -965,6 +968,9 @@ export function CustomOpsPlanningGrid({
       const nextColKey = COLUMNS[nextColIndex]?.key
       if (!nextRowId || !nextColKey) return
 
+      const coords = { row: nextRowIndex, col: nextColIndex }
+      selectionAnchorRef.current = coords
+      setSelection({ from: coords, to: coords })
       setActiveCell({ rowId: nextRowId, colKey: nextColKey })
       onSelectOrder?.(nextRowId)
       scrollToCell(nextRowId, nextColKey)
@@ -1137,28 +1143,6 @@ export function CustomOpsPlanningGrid({
     [rows, stageMode]
   )
 
-  // Programmatic copy to clipboard (for Ctrl+C shortcut)
-  const copySelectionToClipboard = useCallback(async () => {
-    const currentSelection = selection ?? (activeCell ? (() => {
-      const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
-      const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
-      if (rowIndex < 0 || colIndex < 0) return null
-      const coords = { row: rowIndex, col: colIndex }
-      return { from: coords, to: coords }
-    })() : null)
-
-    if (!currentSelection) return
-
-    const text = buildClipboardText(currentSelection)
-    if (!text) return
-
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
-      // Fallback - browser may block clipboard writes
-    }
-  }, [activeCell, rows, selection, buildClipboardText])
-
   const clearSelectionValues = useCallback(() => {
     const currentSelection =
       selection ??
@@ -1242,13 +1226,6 @@ export function CustomOpsPlanningGrid({
 
       if (!activeCell) return
 
-      // Handle Ctrl+C for copy
-      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
-        event.preventDefault()
-        copySelectionToClipboard().catch(() => {})
-        return
-      }
-
       // Handle Ctrl+V for paste - let native handler take over
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
         // Don't prevent default - let the native paste event fire
@@ -1301,7 +1278,6 @@ export function CustomOpsPlanningGrid({
       moveSelection,
       moveSelectionTab,
       startEditingActiveCell,
-      copySelectionToClipboard,
       undo,
       redo,
     ]
@@ -1310,11 +1286,23 @@ export function CustomOpsPlanningGrid({
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
       if (e.target !== e.currentTarget) return
-      if (!selection) return
+      const currentSelection =
+        selection ??
+        (activeCell
+          ? (() => {
+              const rowIndex = rows.findIndex((r) => r.id === activeCell.rowId)
+              const colIndex = COLUMNS.findIndex((c) => c.key === activeCell.colKey)
+              if (rowIndex < 0 || colIndex < 0) return null
+              const coords = { row: rowIndex, col: colIndex }
+              return { from: coords, to: coords }
+            })()
+          : null)
+
+      if (!currentSelection) return
       e.preventDefault()
-      e.clipboardData.setData('text/plain', buildClipboardText(selection))
+      e.clipboardData.setData('text/plain', buildClipboardText(currentSelection))
     },
-    [selection, buildClipboardText]
+    [activeCell, buildClipboardText, rows, selection]
   )
 
   // Paste handler
