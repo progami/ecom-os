@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
+import { readClipboardText } from '@/lib/grid/clipboard';
 import { cn } from '@/lib/utils';
 import {
   formatNumericInput,
@@ -790,19 +791,13 @@ export function CustomOpsCostGrid({
       }
 
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        const clipboard = clipboardRef.current;
-        if (!clipboard) return;
-        pasteStartRef.current = activeCell;
-        clipboard.value = '';
-        clipboard.focus();
-        clipboard.select();
-        window.setTimeout(() => {
-          if (pasteStartRef.current && document.activeElement === clipboard) {
-            pasteStartRef.current = null;
-            clipboard.value = '';
-            tableScrollRef.current?.focus();
-          }
-        }, 250);
+        event.preventDefault();
+        const start = { ...activeCell };
+        void (async () => {
+          const text = await readClipboardText();
+          if (!text) return;
+          applyPastedText(text, start);
+        })();
         return;
       }
 
@@ -893,6 +888,7 @@ export function CustomOpsCostGrid({
       pendingRef,
       scheduleFlush,
       startEditingActiveCell,
+      applyPastedText,
     ],
   );
 
