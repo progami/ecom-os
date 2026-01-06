@@ -58,8 +58,6 @@ const updateSchema = refineDimensions(
     cartonWidthCm: optionalDimensionValueSchema,
     cartonHeightCm: optionalDimensionValueSchema,
     cartonWeightKg: z.number().positive().optional().nullable(),
-    storageCartonsPerPallet: z.number().int().positive().optional(),
-    shippingCartonsPerPallet: z.number().int().positive().optional(),
   })
 )
 
@@ -147,14 +145,6 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
       }
       data.expiryDate = expiry
     }
-  }
-
-  if (parsed.data.storageCartonsPerPallet !== undefined) {
-    data.storageCartonsPerPallet = parsed.data.storageCartonsPerPallet
-  }
-
-  if (parsed.data.shippingCartonsPerPallet !== undefined) {
-    data.shippingCartonsPerPallet = parsed.data.shippingCartonsPerPallet
   }
 
   if (parsed.data.packSize !== undefined) {

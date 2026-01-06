@@ -501,7 +501,7 @@ export async function transitionFulfillmentOrderStage(
 
       const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
       const shippingCartonsPerPallet =
-        storageConfigMap.get(sku.id)?.shippingCartonsPerPallet ?? batch.shippingCartonsPerPallet ?? null
+        storageConfigMap.get(sku.id)?.shippingCartonsPerPallet ?? null
 
       if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
         throw new ValidationError(

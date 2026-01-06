@@ -2,6 +2,7 @@ import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma, WarehouseKind } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, validateAlphanumeric } from '@/lib/security/input-sanitization'
+import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 export const dynamic = 'force-dynamic'
 
 const optionalEmailSchema = z.preprocess(
@@ -179,26 +180,44 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
  }
  }
 
- const warehouse = await prisma.warehouse.create({
- data: {
- code: validatedData.code,
- name: validatedData.name,
- address: validatedData.address || null,
- latitude: validatedData.latitude || null,
- longitude: validatedData.longitude || null,
- contactEmail: validatedData.contactEmail || null,
- contactPhone: validatedData.contactPhone || null,
- kind: validatedData.kind,
- isActive: true
- },
- include: {
- _count: {
- select: {
- users: true,
- costRates: true
- }
- }
- }
+ const warehouse = await prisma.$transaction(async tx => {
+  const created = await tx.warehouse.create({
+   data: {
+    code: validatedData.code,
+    name: validatedData.name,
+    address: validatedData.address || null,
+    latitude: validatedData.latitude || null,
+    longitude: validatedData.longitude || null,
+    contactEmail: validatedData.contactEmail || null,
+    contactPhone: validatedData.contactPhone || null,
+    kind: validatedData.kind,
+    isActive: true
+   },
+   include: {
+    _count: {
+     select: {
+      users: true,
+      costRates: true
+     }
+    }
+   }
+  })
+
+  const skus = await tx.sku.findMany({ select: { id: true } })
+  if (skus.length > 0) {
+   const defaultCartonsPerPallet = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
+   await tx.warehouseSkuStorageConfig.createMany({
+    data: skus.map(sku => ({
+     warehouseId: created.id,
+     skuId: sku.id,
+     storageCartonsPerPallet: defaultCartonsPerPallet,
+     shippingCartonsPerPallet: defaultCartonsPerPallet,
+    })),
+    skipDuplicates: true,
+   })
+  }
+
+  return created
  })
 
  return ApiResponses.created(warehouse)

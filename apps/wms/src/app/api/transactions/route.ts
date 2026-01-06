@@ -482,13 +482,11 @@ export const POST = withAuth(async (request, session) => {
         )
       }
 
-      // For RECEIVE, auto-fill missing cartons-per-pallet from batch defaults (SkuBatch)
+      // For RECEIVE, auto-fill missing units-per-carton from batch defaults (SkuBatch)
       if (txType === 'RECEIVE') {
-        const needsStorage = !item.storageCartonsPerPallet || item.storageCartonsPerPallet <= 0
-        const needsShipping = !item.shippingCartonsPerPallet || item.shippingCartonsPerPallet <= 0
         const needsUnitsPerCarton = !item.unitsPerCarton || item.unitsPerCarton <= 0
 
-        if (needsStorage || needsShipping || needsUnitsPerCarton) {
+        if (needsUnitsPerCarton) {
           const normalizedSkuCode = sanitizeForDisplay(item.skuCode)
           const normalizedBatchCode = sanitizeForDisplay(item.batchLot)
 
@@ -506,45 +504,15 @@ export const POST = withAuth(async (request, session) => {
               },
             },
             select: {
-              storageCartonsPerPallet: true,
-              shippingCartonsPerPallet: true,
               unitsPerCarton: true,
             },
           })
 
           if (defaults) {
-            if (needsStorage && defaults.storageCartonsPerPallet) {
-              item.storageCartonsPerPallet = defaults.storageCartonsPerPallet
-            }
-
-            if (needsShipping && defaults.shippingCartonsPerPallet) {
-              item.shippingCartonsPerPallet = defaults.shippingCartonsPerPallet
-            }
-
             if (needsUnitsPerCarton && defaults.unitsPerCarton) {
               item.unitsPerCarton = defaults.unitsPerCarton
             }
           }
-        }
-      }
-
-      // For RECEIVE transactions, validate storage and shipping configs
-      if (txType === 'RECEIVE') {
-        if (!item.storageCartonsPerPallet || item.storageCartonsPerPallet <= 0) {
-          return NextResponse.json(
-            {
-              error: `Storage configuration required for RECEIVE transactions. Please specify cartons per pallet for storage for SKU ${item.skuCode}`,
-            },
-            { status: 400 }
-          )
-        }
-        if (!item.shippingCartonsPerPallet || item.shippingCartonsPerPallet <= 0) {
-          return NextResponse.json(
-            {
-              error: `Shipping configuration required for RECEIVE transactions. Please specify cartons per pallet for shipping for SKU ${item.skuCode}`,
-            },
-            { status: 400 }
-          )
         }
       }
 
@@ -743,6 +711,20 @@ export const POST = withAuth(async (request, session) => {
       const batchMap = new Map(
         batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch])
       )
+
+      const storageConfigs = await tx.warehouseSkuStorageConfig.findMany({
+        where: {
+          warehouseId: warehouse.id,
+          skuId: { in: skus.map(sku => sku.id) },
+        },
+        select: {
+          skuId: true,
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
+        },
+      })
+      const storageConfigMap = new Map(storageConfigs.map(cfg => [cfg.skuId, cfg]))
+
       let totalStoragePalletsIn = 0
       let totalShippingPalletsOut = 0
 
@@ -757,11 +739,42 @@ export const POST = withAuth(async (request, session) => {
           throw new Error(`Batch/Lot ${item.batchLot} not found for SKU ${item.skuCode}`)
         }
 
-        // Calculate pallet values
-        let batchShippingCartonsPerPallet = item.shippingCartonsPerPallet
+        const skuConfig = storageConfigMap.get(sku.id)
+        const resolvedStorageCartonsPerPallet =
+          item.storageCartonsPerPallet ?? skuConfig?.storageCartonsPerPallet ?? null
+        let resolvedShippingCartonsPerPallet =
+          item.shippingCartonsPerPallet ?? skuConfig?.shippingCartonsPerPallet ?? null
+
+        if (
+          txType === 'RECEIVE' &&
+          (!resolvedStorageCartonsPerPallet || resolvedStorageCartonsPerPallet <= 0)
+        ) {
+          throw new ValidationError(
+            `Storage configuration is required for SKU ${item.skuCode} at warehouse ${warehouse.name}. Set Storage Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+          )
+        }
+
+        if (
+          txType === 'RECEIVE' &&
+          (!resolvedShippingCartonsPerPallet || resolvedShippingCartonsPerPallet <= 0)
+        ) {
+          throw new ValidationError(
+            `Shipping configuration is required for SKU ${item.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+          )
+        }
 
         if (txType === 'SHIP') {
-          // For SHIP, get the batch-specific config from the original RECEIVE transaction
+          const hasPalletOverride =
+            item.shippingPalletsOut !== undefined || item.pallets !== undefined
+          if (
+            !hasPalletOverride &&
+            (!resolvedShippingCartonsPerPallet || resolvedShippingCartonsPerPallet <= 0)
+          ) {
+            throw new ValidationError(
+              `Shipping configuration is required for SKU ${item.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+            )
+          }
+
           const originalReceive = await tx.inventoryTransaction.findFirst({
             where: {
               warehouseCode: warehouse.code,
@@ -770,10 +783,11 @@ export const POST = withAuth(async (request, session) => {
               transactionType: 'RECEIVE',
             },
             orderBy: { transactionDate: 'asc' },
+            select: { shippingCartonsPerPallet: true },
           })
 
           if (originalReceive?.shippingCartonsPerPallet) {
-            batchShippingCartonsPerPallet = originalReceive.shippingCartonsPerPallet
+            resolvedShippingCartonsPerPallet = originalReceive.shippingCartonsPerPallet
           }
         }
 
@@ -783,8 +797,9 @@ export const POST = withAuth(async (request, session) => {
         } = calculatePalletValues({
           transactionType: txType as TransactionTypeForPallets,
           cartons: item.cartons,
-          storageCartonsPerPallet: item.storageCartonsPerPallet,
-          shippingCartonsPerPallet: batchShippingCartonsPerPallet,
+          storageCartonsPerPallet:
+            txType === 'RECEIVE' ? resolvedStorageCartonsPerPallet : item.storageCartonsPerPallet,
+          shippingCartonsPerPallet: resolvedShippingCartonsPerPallet,
           providedStoragePallets: item.storagePalletsIn,
           providedShippingPallets: item.shippingPalletsOut,
           providedPallets: item.pallets,
@@ -827,12 +842,12 @@ export const POST = withAuth(async (request, session) => {
             storagePalletsIn: finalStoragePalletsIn,
             shippingPalletsOut: finalShippingPalletsOut,
             storageCartonsPerPallet:
-              txType === 'RECEIVE' ? (item.storageCartonsPerPallet ?? null) : null,
+              txType === 'RECEIVE' ? (resolvedStorageCartonsPerPallet ?? null) : null,
             shippingCartonsPerPallet:
               txType === 'RECEIVE'
-                ? (item.shippingCartonsPerPallet ?? null)
+                ? (resolvedShippingCartonsPerPallet ?? null)
                 : txType === 'SHIP'
-                  ? batchShippingCartonsPerPallet
+                  ? (resolvedShippingCartonsPerPallet ?? null)
                   : null,
             shipName: sanitizedShipName,
             trackingNumber: sanitizedTrackingNumber || null,

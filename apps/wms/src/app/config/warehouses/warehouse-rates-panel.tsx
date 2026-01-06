@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Package,
   Warehouse as WarehouseIcon,
@@ -10,6 +10,7 @@ import {
   Save,
   X,
   RefreshCw,
+  Search,
 } from '@/lib/lucide-icons'
 import { Badge } from '@/components/ui/badge'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
@@ -453,6 +454,8 @@ export function WarehouseRatesPanel({
           <StorageTab
             templates={RATE_TEMPLATES.storage}
             renderRateRow={renderRateRow}
+            warehouseId={warehouseId}
+            warehouseName={warehouseName}
           />
         )}
         {activeTab === 'outbound' && (
@@ -475,6 +478,11 @@ export function WarehouseRatesPanel({
 interface TabProps {
   templates: typeof RATE_TEMPLATES.inbound
   renderRateRow: (template: typeof RATE_TEMPLATES.inbound[0], showCategory?: boolean) => React.ReactNode
+}
+
+interface StorageTabProps extends TabProps {
+  warehouseId: string
+  warehouseName: string
 }
 
 function InboundTab({ templates, renderRateRow }: TabProps) {
@@ -548,7 +556,142 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
   )
 }
 
-function StorageTab({ templates, renderRateRow }: TabProps) {
+type WarehouseSkuStorageConfigRow = {
+  skuId: string
+  skuCode: string
+  description: string
+  storageCartonsPerPallet: string
+  shippingCartonsPerPallet: string
+  updatedAt: string | null
+}
+
+function StorageTab({ templates, renderRateRow, warehouseId, warehouseName }: StorageTabProps) {
+  const [configs, setConfigs] = useState<WarehouseSkuStorageConfigRow[]>([])
+  const [configsLoading, setConfigsLoading] = useState(true)
+  const [configsSaving, setConfigsSaving] = useState(false)
+  const [dirtyMap, setDirtyMap] = useState<Record<string, true>>({})
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const loadConfigs = useCallback(async () => {
+    setConfigsLoading(true)
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/storage-config`)
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to load storage configuration')
+      }
+
+      const data = await response.json()
+      const rows = Array.isArray(data?.storageConfigs) ? data.storageConfigs : []
+
+      setConfigs(
+        rows.map(
+          (row: {
+            skuId: string
+            skuCode: string
+            description: string
+            storageCartonsPerPallet: number | null
+            shippingCartonsPerPallet: number | null
+            updatedAt: string | null
+          }) => ({
+          skuId: row.skuId,
+          skuCode: row.skuCode,
+          description: row.description,
+          storageCartonsPerPallet:
+            row.storageCartonsPerPallet === null || row.storageCartonsPerPallet === undefined
+              ? ''
+              : String(row.storageCartonsPerPallet),
+          shippingCartonsPerPallet:
+            row.shippingCartonsPerPallet === null || row.shippingCartonsPerPallet === undefined
+              ? ''
+              : String(row.shippingCartonsPerPallet),
+          updatedAt: row.updatedAt ?? null,
+          })
+        )
+      )
+      setDirtyMap({})
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load storage configuration')
+    } finally {
+      setConfigsLoading(false)
+    }
+  }, [warehouseId])
+
+  useEffect(() => {
+    loadConfigs()
+  }, [loadConfigs])
+
+  const filteredConfigs = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return configs
+    return configs.filter(row => {
+      return (
+        row.skuCode.toLowerCase().includes(term) || row.description.toLowerCase().includes(term)
+      )
+    })
+  }, [configs, searchTerm])
+
+  const updateConfigValue = (
+    skuId: string,
+    key: 'storageCartonsPerPallet' | 'shippingCartonsPerPallet',
+    value: string
+  ) => {
+    setConfigs(prev =>
+      prev.map(row => (row.skuId === skuId ? { ...row, [key]: value } : row))
+    )
+    setDirtyMap(prev => ({ ...prev, [skuId]: true }))
+  }
+
+  const hasUnsavedChanges = Object.keys(dirtyMap).length > 0
+
+  const parseOptionalPositiveInt = (label: string, value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${label} must be a positive integer`)
+    }
+    return parsed
+  }
+
+  const saveConfigs = async () => {
+    if (!hasUnsavedChanges) return
+
+    setConfigsSaving(true)
+    try {
+      const updates = configs
+        .filter(row => dirtyMap[row.skuId])
+        .map(row => ({
+          skuId: row.skuId,
+          storageCartonsPerPallet: parseOptionalPositiveInt(
+            'Storage cartons / pallet',
+            row.storageCartonsPerPallet
+          ),
+          shippingCartonsPerPallet: parseOptionalPositiveInt(
+            'Shipping cartons / pallet',
+            row.shippingCartonsPerPallet
+          ),
+        }))
+
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/storage-config`, {
+        method: 'PATCH',
+        body: JSON.stringify({ updates }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to save storage configuration')
+      }
+
+      toast.success('Storage configuration saved')
+      await loadConfigs()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save storage configuration')
+    } finally {
+      setConfigsSaving(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -566,6 +709,133 @@ function StorageTab({ templates, renderRateRow }: TabProps) {
             {templates.map(t => renderRateRow(t))}
           </tbody>
         </table>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Storage Configuration</h3>
+            <p className="text-xs text-muted-foreground">
+              Used to calculate pallets for receiving and shipping at {warehouseName}.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="bg-muted/50 text-foreground border-border">
+              {configs.length} SKUs
+            </Badge>
+            <button
+              type="button"
+              onClick={() => void loadConfigs()}
+              disabled={configsLoading || configsSaving}
+              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={configsLoading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => void saveConfigs()}
+              disabled={!hasUnsavedChanges || configsLoading || configsSaving}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              <Save className={configsSaving ? 'h-3.5 w-3.5 animate-pulse' : 'h-3.5 w-3.5'} />
+              Save changes
+            </button>
+          </div>
+        </div>
+
+        <div className="px-4 py-3">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchTerm}
+              onChange={event => setSearchTerm(event.target.value)}
+              placeholder="Search SKUs…"
+              className="w-full rounded-md border border-border bg-background pl-10 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
+            <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold w-[18%]">SKU</th>
+                <th className="px-4 py-2 text-left font-semibold w-[34%]">Description</th>
+                <th className="px-4 py-2 text-right font-semibold w-[16%]">
+                  Storage cartons/pallet
+                </th>
+                <th className="px-4 py-2 text-right font-semibold w-[18%]">
+                  Shipping cartons/pallet
+                </th>
+                <th className="px-4 py-2 text-left font-semibold w-[14%]">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {configsLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    Loading storage configuration…
+                  </td>
+                </tr>
+              ) : filteredConfigs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    No SKUs found.
+                  </td>
+                </tr>
+              ) : (
+                filteredConfigs.map(row => (
+                  <tr
+                    key={row.skuId}
+                    className="odd:bg-muted/10 hover:bg-primary/5 transition-colors"
+                  >
+                    <td className="px-4 py-2 font-medium text-foreground truncate">
+                      {row.skuCode}
+                    </td>
+                    <td className="px-4 py-2 text-foreground truncate">{row.description}</td>
+                    <td className="px-4 py-2">
+                      <input
+                        inputMode="numeric"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={row.storageCartonsPerPallet}
+                        onChange={event =>
+                          updateConfigValue(row.skuId, 'storageCartonsPerPallet', event.target.value)
+                        }
+                        className="w-full max-w-[140px] ml-auto block rounded-md border border-border bg-background px-2 py-1.5 text-right text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        placeholder="—"
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        inputMode="numeric"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={row.shippingCartonsPerPallet}
+                        onChange={event =>
+                          updateConfigValue(
+                            row.skuId,
+                            'shippingCartonsPerPallet',
+                            event.target.value
+                          )
+                        }
+                        className="w-full max-w-[160px] ml-auto block rounded-md border border-border bg-background px-2 py-1.5 text-right text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        placeholder="—"
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">
+                      {row.updatedAt ? row.updatedAt.slice(0, 10) : '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
@@ -648,4 +918,3 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
     </div>
   )
 }
-
