@@ -255,21 +255,36 @@ export function SalesPlanningVisual({
           </div>
 
           {/* Legend */}
-          <div className="mt-4 flex flex-wrap items-center gap-4 border-t pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 border-t border-slate-200/60 pt-4 dark:border-slate-700/50">
             <button
               type="button"
               onClick={() => setShowStockLine(!showStockLine)}
-              className="flex items-center gap-2"
+              className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
+                showStockLine
+                  ? 'bg-slate-100/80 dark:bg-slate-800/50'
+                  : 'opacity-50 hover:opacity-75'
+              }`}
             >
-              <div
-                className="h-3 w-6 rounded-sm transition-opacity"
-                style={{
-                  backgroundColor: 'hsl(var(--chart-1))',
-                  opacity: showStockLine ? 1 : 0.3,
-                }}
-              />
+              <div className="relative">
+                <div
+                  className={`h-3 w-3 rounded-full transition-transform duration-200 ${
+                    showStockLine ? 'scale-100' : 'scale-75'
+                  }`}
+                  style={{ backgroundColor: 'hsl(var(--chart-1))' }}
+                />
+                {showStockLine && (
+                  <div
+                    className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
+                    style={{ backgroundColor: 'hsl(var(--chart-1))' }}
+                  />
+                )}
+              </div>
               <span
-                className={`text-xs ${showStockLine ? 'text-foreground' : 'text-muted-foreground'}`}
+                className={`text-xs font-medium transition-colors duration-200 ${
+                  showStockLine
+                    ? 'text-slate-700 dark:text-slate-200'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
               >
                 Stock Level
               </span>
@@ -277,17 +292,32 @@ export function SalesPlanningVisual({
             <button
               type="button"
               onClick={() => setShowShipments(!showShipments)}
-              className="flex items-center gap-2"
+              className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
+                showShipments
+                  ? 'bg-slate-100/80 dark:bg-slate-800/50'
+                  : 'opacity-50 hover:opacity-75'
+              }`}
             >
-              <div
-                className="h-3 w-6 rounded-sm border-2 border-dashed transition-opacity"
-                style={{
-                  borderColor: 'hsl(var(--chart-2))',
-                  opacity: showShipments ? 1 : 0.3,
-                }}
-              />
+              <div className="relative">
+                <div
+                  className={`h-3 w-3 rounded-full border-2 border-dashed transition-transform duration-200 ${
+                    showShipments ? 'scale-100' : 'scale-75'
+                  }`}
+                  style={{ borderColor: 'hsl(var(--chart-2))' }}
+                />
+                {showShipments && (
+                  <div
+                    className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
+                    style={{ backgroundColor: 'hsl(var(--chart-2))' }}
+                  />
+                )}
+              </div>
               <span
-                className={`text-xs ${showShipments ? 'text-foreground' : 'text-muted-foreground'}`}
+                className={`text-xs font-medium transition-colors duration-200 ${
+                  showShipments
+                    ? 'text-slate-700 dark:text-slate-200'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}
               >
                 Shipment Arrival
               </span>

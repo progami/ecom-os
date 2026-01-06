@@ -368,14 +368,25 @@ export function PurchaseTimeline({
         <header className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-foreground">PO Timeline</h2>
           {/* Legend */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {(Object.keys(stagePalette) as TimelineStageKey[]).map((key) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <div
-                  className="h-2.5 w-2.5 rounded-sm"
-                  style={{ backgroundColor: getStageColor(key) }}
-                />
-                <span className="text-[10px] text-muted-foreground">{stagePalette[key].label}</span>
+              <div
+                key={key}
+                className="flex items-center gap-2 rounded-lg bg-slate-100/80 px-2.5 py-1 dark:bg-slate-800/50"
+              >
+                <div className="relative">
+                  <div
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: getStageColor(key) }}
+                  />
+                  <div
+                    className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
+                    style={{ backgroundColor: getStageColor(key) }}
+                  />
+                </div>
+                <span className="text-[10px] font-medium text-slate-700 dark:text-slate-200">
+                  {stagePalette[key].label}
+                </span>
               </div>
             ))}
           </div>
