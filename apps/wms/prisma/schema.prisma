@@ -78,6 +78,7 @@ model Warehouse {
   createdAt          DateTime   @default(now()) @map("created_at")
   updatedAt          DateTime   @updatedAt @map("updated_at")
   costRates          CostRate[]
+  skuStorageConfigs  WarehouseSkuStorageConfig[]
   users              User[]
 
   @@index([code])
@@ -113,12 +114,31 @@ model Sku {
   fbaStock            Int?       @map("fba_stock")
   fbaStockLastUpdated DateTime?  @map("fba_stock_last_updated")
   batches             SkuBatch[]
+  warehouseStorageConfigs WarehouseSkuStorageConfig[]
 
   @@index([skuCode])
   @@index([asin])
   @@index([defaultSupplierId])
   @@index([secondarySupplierId])
   @@map("skus")
+}
+
+model WarehouseSkuStorageConfig {
+  id                       String   @id @default(uuid())
+  warehouseId              String   @map("warehouse_id")
+  skuId                    String   @map("sku_id")
+  storageCartonsPerPallet  Int?     @map("storage_cartons_per_pallet")
+  shippingCartonsPerPallet Int?     @map("shipping_cartons_per_pallet")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  sku       Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, skuId])
+  @@index([warehouseId])
+  @@index([skuId])
+  @@map("warehouse_sku_storage_configs")
 }
 
 model SkuBatch {
@@ -143,8 +163,8 @@ model SkuBatch {
   cartonHeightCm           Decimal?  @map("carton_height_cm") @db.Decimal(8, 2)
   cartonWeightKg           Decimal?  @map("carton_weight_kg") @db.Decimal(8, 3)
   packagingType            String?   @map("packaging_type")
-  storageCartonsPerPallet  Int       @map("storage_cartons_per_pallet")
-  shippingCartonsPerPallet Int       @map("shipping_cartons_per_pallet")
+  storageCartonsPerPallet  Int?      @map("storage_cartons_per_pallet")
+  shippingCartonsPerPallet Int?      @map("shipping_cartons_per_pallet")
   isActive                 Boolean   @default(true) @map("is_active")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")

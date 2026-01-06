@@ -616,25 +616,6 @@ export async function createPurchaseOrder(
               continue
             }
 
-            const txDefaults = await tx.inventoryTransaction.findFirst({
-              where: {
-                skuCode: sku.skuCode,
-                storageCartonsPerPallet: { not: null },
-                shippingCartonsPerPallet: { not: null },
-              },
-              orderBy: { transactionDate: 'desc' },
-              select: {
-                storageCartonsPerPallet: true,
-                shippingCartonsPerPallet: true,
-              },
-            })
-
-            if (!txDefaults) {
-              throw new ValidationError(
-                `DEFAULT batch is missing for SKU ${sku.skuCode}. Create it in Config → Products → Batches before creating purchase orders.`
-              )
-            }
-
             await tx.skuBatch.create({
               data: {
                 sku: { connect: { id: skuId } },
@@ -653,8 +634,6 @@ export async function createPurchaseOrder(
                 cartonHeightCm: sku.cartonHeightCm,
                 cartonWeightKg: sku.cartonWeightKg,
                 packagingType: sku.packagingType,
-                storageCartonsPerPallet: txDefaults.storageCartonsPerPallet,
-                shippingCartonsPerPallet: txDefaults.shippingCartonsPerPallet,
                 isActive: true,
               },
             })
@@ -1180,11 +1159,22 @@ export async function transitionPurchaseOrderStage(
           cartonDimensionsCm: true,
           cartonWeightKg: true,
           packagingType: true,
+        },
+      })
+      const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
+
+      const storageConfigs = await tx.warehouseSkuStorageConfig.findMany({
+        where: {
+          warehouseId: warehouse.id,
+          skuId: { in: skus.map(sku => sku.id) },
+        },
+        select: {
+          skuId: true,
           storageCartonsPerPallet: true,
           shippingCartonsPerPallet: true,
         },
       })
-      const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
+      const storageConfigMap = new Map(storageConfigs.map(cfg => [cfg.skuId, cfg]))
 
       const createdTransactions: Array<{
         id: string
@@ -1217,15 +1207,19 @@ export async function transitionPurchaseOrderStage(
           )
         }
 
-        if (!batch.storageCartonsPerPallet || batch.storageCartonsPerPallet <= 0) {
+        const skuConfig = storageConfigMap.get(sku.id)
+        const storageCartonsPerPallet = skuConfig?.storageCartonsPerPallet ?? null
+        const shippingCartonsPerPallet = skuConfig?.shippingCartonsPerPallet ?? null
+
+        if (!storageCartonsPerPallet || storageCartonsPerPallet <= 0) {
           throw new ValidationError(
-            `Storage cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}`
+            `Storage configuration is required for SKU ${line.skuCode} at warehouse ${warehouse.name}. Set Storage Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
           )
         }
 
-        if (!batch.shippingCartonsPerPallet || batch.shippingCartonsPerPallet <= 0) {
+        if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
           throw new ValidationError(
-            `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}`
+            `Shipping configuration is required for SKU ${line.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
           )
         }
 
@@ -1239,7 +1233,7 @@ export async function transitionPurchaseOrderStage(
         const { storagePalletsIn } = calculatePalletValues({
           transactionType: 'RECEIVE',
           cartons,
-          storageCartonsPerPallet: batch.storageCartonsPerPallet,
+          storageCartonsPerPallet,
         })
 
         if (storagePalletsIn <= 0) {
@@ -1266,8 +1260,8 @@ export async function transitionPurchaseOrderStage(
             cartonsOut: 0,
             storagePalletsIn,
             shippingPalletsOut: 0,
-            storageCartonsPerPallet: batch.storageCartonsPerPallet,
-            shippingCartonsPerPallet: batch.shippingCartonsPerPallet,
+            storageCartonsPerPallet,
+            shippingCartonsPerPallet,
             shipName: null,
             trackingNumber: null,
             supplier: nextOrder.counterpartyName ?? null,

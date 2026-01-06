@@ -5,7 +5,6 @@ import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
 import { Prisma } from '@ecom-os/prisma-wms'
-import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 const UpdateLineSchema = z.object({
   skuCode: z.string().trim().min(1).optional(),
@@ -126,7 +125,6 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
 
   if (order.status === 'DRAFT') {
     const DEFAULT_BATCH_LOT = 'DEFAULT'
-    const defaultCartonsPerPallet = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
     const skuCodeChanged =
       result.data.skuCode !== undefined &&
       result.data.skuCode.trim().toLowerCase() !== line.skuCode.trim().toLowerCase()
@@ -198,8 +196,6 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
         cartonHeightCm: sku.cartonHeightCm,
         cartonWeightKg: sku.cartonWeightKg,
         packagingType: sku.packagingType,
-        storageCartonsPerPallet: defaultCartonsPerPallet,
-        shippingCartonsPerPallet: defaultCartonsPerPallet,
         isActive: true,
       },
       update: { isActive: true },

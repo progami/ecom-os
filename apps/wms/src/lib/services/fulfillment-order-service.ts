@@ -460,6 +460,18 @@ export async function transitionFulfillmentOrderStage(
   })
   const batchMap = new Map(batchRecords.map((batch) => [`${batch.skuId}::${batch.batchCode}`, batch]))
 
+  const storageConfigs = await prisma.warehouseSkuStorageConfig.findMany({
+    where: {
+      warehouseId: warehouse.id,
+      skuId: { in: skus.map(sku => sku.id) },
+    },
+    select: {
+      skuId: true,
+      shippingCartonsPerPallet: true,
+    },
+  })
+  const storageConfigMap = new Map(storageConfigs.map(cfg => [cfg.skuId, cfg]))
+
   const referenceId = stageData.trackingNumber?.trim()
     ? sanitizeForDisplay(stageData.trackingNumber.trim())
     : order.trackingNumber ?? order.foNumber
@@ -488,11 +500,12 @@ export async function transitionFulfillmentOrderStage(
       }
 
       const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
-      const shippingCartonsPerPallet = batch.shippingCartonsPerPallet ?? null
+      const shippingCartonsPerPallet =
+        storageConfigMap.get(sku.id)?.shippingCartonsPerPallet ?? null
 
       if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
         throw new ValidationError(
-          `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${line.batchLot}`
+          `Shipping configuration is required for SKU ${line.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
         )
       }
 

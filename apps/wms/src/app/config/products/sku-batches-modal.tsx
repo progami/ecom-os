@@ -38,8 +38,6 @@ interface BatchRow {
   cartonWidthCm: number | string | null
   cartonHeightCm: number | string | null
   cartonWeightKg: number | string | null
-  storageCartonsPerPallet: number | null
-  shippingCartonsPerPallet: number | null
   createdAt: string
   updatedAt: string
 }
@@ -61,8 +59,6 @@ interface BatchFormState {
   cartonWidth: string
   cartonHeight: string
   cartonWeight: string
-  storageCartonsPerPallet: string
-  shippingCartonsPerPallet: string
 }
 
 type UnitSystem = 'metric' | 'imperial'
@@ -169,8 +165,6 @@ function buildBatchFormState(
     material: batch?.material ?? '',
     packagingType: batch?.packagingType ?? '',
     ...formatMeasurementFields(measurements, unitSystem),
-    storageCartonsPerPallet: batch?.storageCartonsPerPallet?.toString() ?? '',
-    shippingCartonsPerPallet: batch?.shippingCartonsPerPallet?.toString() ?? '',
   }
 }
 
@@ -503,28 +497,6 @@ function SkuBatchesManager({
       return
     }
 
-    const storageRaw = formState.storageCartonsPerPallet.trim()
-    if (!storageRaw) {
-      toast.error('Storage cartons per pallet is required')
-      return
-    }
-    const storage = parsePositiveInt(storageRaw)
-    if (storage === null) {
-      toast.error('Storage cartons per pallet must be a positive integer')
-      return
-    }
-
-    const shippingRaw = formState.shippingCartonsPerPallet.trim()
-    if (!shippingRaw) {
-      toast.error('Shipping cartons per pallet is required')
-      return
-    }
-    const shipping = parsePositiveInt(shippingRaw)
-    if (shipping === null) {
-      toast.error('Shipping cartons per pallet must be a positive integer')
-      return
-    }
-
     setIsSubmitting(true)
     try {
       const roundDimensionCm = (value: number | null): number | null =>
@@ -550,8 +522,6 @@ function SkuBatchesManager({
         cartonWidthCm: roundDimensionCm(measurements.cartonWidthCm),
         cartonHeightCm: roundDimensionCm(measurements.cartonHeightCm),
         cartonWeightKg: roundWeightKg(measurements.cartonWeightKg),
-        storageCartonsPerPallet: storage,
-        shippingCartonsPerPallet: shipping,
       }
 
       const endpoint = editingBatch
@@ -682,8 +652,6 @@ function SkuBatchesManager({
                         <th className="px-3 py-2 text-right font-semibold">Units/Carton</th>
                         <th className="px-3 py-2 text-right font-semibold">Item Dims (cm)</th>
                         <th className="px-3 py-2 text-right font-semibold">Carton Dims (cm)</th>
-                        <th className="px-3 py-2 text-right font-semibold">Storage C/P</th>
-                        <th className="px-3 py-2 text-right font-semibold">Shipping C/P</th>
                         <th className="px-3 py-2 text-right font-semibold">Actions</th>
                       </tr>
                     </thead>
@@ -741,12 +709,6 @@ function SkuBatchesManager({
                             </td>
                             <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
                               {formatTriplet(cartonTriplet)}
-                            </td>
-                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                              {batch.storageCartonsPerPallet ?? '—'}
-                            </td>
-                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                              {batch.shippingCartonsPerPallet ?? '—'}
                             </td>
                             <td className="px-3 py-2 text-right whitespace-nowrap">
                               <div className="inline-flex items-center gap-2">
@@ -1003,41 +965,6 @@ function SkuBatchesManager({
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="storageCartonsPerPallet">Storage Cartons / Pallet</Label>
-                  <Input
-                    id="storageCartonsPerPallet"
-                    type="number"
-                    min={1}
-                    required
-                    value={formState.storageCartonsPerPallet}
-                    onChange={event =>
-                      setFormState(prev => ({
-                        ...prev,
-                        storageCartonsPerPallet: event.target.value,
-                      }))
-                    }
-                    placeholder="Required"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="shippingCartonsPerPallet">Shipping Cartons / Pallet</Label>
-                  <Input
-                    id="shippingCartonsPerPallet"
-                    type="number"
-                    min={1}
-                    required
-                    value={formState.shippingCartonsPerPallet}
-                    onChange={event =>
-                      setFormState(prev => ({
-                        ...prev,
-                        shippingCartonsPerPallet: event.target.value,
-                      }))
-                    }
-                    placeholder="Required"
-                  />
-                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 border-t pt-6">

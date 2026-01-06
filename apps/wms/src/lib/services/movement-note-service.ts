@@ -452,6 +452,42 @@ export async function postMovementNote(id: string, _user: UserContext) {
 
       const unitsPerCarton = batchRecord.unitsPerCarton ?? sku.unitsPerCarton ?? 1
 
+      const skuConfig = await tx.warehouseSkuStorageConfig.findUnique({
+        where: {
+          warehouseId_skuId: {
+            warehouseId: warehouse.id,
+            skuId: sku.id,
+          },
+        },
+        select: {
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
+        },
+      })
+
+      const storageCartonsPerPallet =
+        line.storageCartonsPerPallet ?? skuConfig?.storageCartonsPerPallet ?? null
+      const shippingCartonsPerPallet =
+        line.shippingCartonsPerPallet ?? skuConfig?.shippingCartonsPerPallet ?? null
+
+      if (isInbound && (!storageCartonsPerPallet || storageCartonsPerPallet <= 0)) {
+        throw new ValidationError(
+          `Storage configuration is required for SKU ${poLine.skuCode} at warehouse ${warehouse.name}. Set Storage Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+        )
+      }
+
+      if (isInbound && (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0)) {
+        throw new ValidationError(
+          `Shipping configuration is required for SKU ${poLine.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+        )
+      }
+
+      if (!isInbound && (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0)) {
+        throw new ValidationError(
+          `Shipping configuration is required for SKU ${poLine.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+        )
+      }
+
       const createdTx = await tx.inventoryTransaction.create({
         data: {
           warehouseCode: po.warehouseCode,
@@ -471,15 +507,15 @@ export async function postMovementNote(id: string, _user: UserContext) {
           cartonsIn: isInbound ? line.quantity : 0,
           cartonsOut: isInbound ? 0 : line.quantity,
           storagePalletsIn: isInbound
-            ? Math.ceil(line.quantity / Math.max(1, line.storageCartonsPerPallet ?? unitsPerCarton))
+            ? Math.ceil(line.quantity / Math.max(1, storageCartonsPerPallet ?? unitsPerCarton))
             : 0,
           shippingPalletsOut: !isInbound
             ? Math.ceil(
-                line.quantity / Math.max(1, line.shippingCartonsPerPallet ?? unitsPerCarton)
+                line.quantity / Math.max(1, shippingCartonsPerPallet ?? unitsPerCarton)
               )
             : 0,
-          storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
-          shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
+          storageCartonsPerPallet: isInbound ? (storageCartonsPerPallet ?? null) : null,
+          shippingCartonsPerPallet: shippingCartonsPerPallet ?? null,
           transactionDate,
           pickupDate: transactionDate,
           shipName: !isInbound
