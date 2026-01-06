@@ -52,6 +52,7 @@ export default function NewPurchaseOrderPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
+  const [tenantDestination, setTenantDestination] = useState<string>('United States (US)')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [skus, setSkus] = useState<Sku[]>([])
   const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, string[]>>({})
@@ -99,6 +100,8 @@ export default function NewPurchaseOrderPage() {
         if (tenantRes.ok) {
           const tenantData = await tenantRes.json().catch(() => null)
           const currency = tenantData?.current?.currency
+          const tenantName = tenantData?.current?.name
+          const tenantCode = tenantData?.current?.displayName ?? tenantData?.current?.code
           if (typeof currency === 'string' && currency.trim()) {
             const normalized = currency.trim().toUpperCase()
             setTenantCurrency(normalized)
@@ -107,6 +110,13 @@ export default function NewPurchaseOrderPage() {
                 ? prev.map(item => ({ ...item, currency: normalized }))
                 : prev
             )
+          }
+          if (typeof tenantName === 'string' && tenantName.trim()) {
+            const label =
+              typeof tenantCode === 'string' && tenantCode.trim()
+                ? `${tenantName.trim()} (${tenantCode.trim().toUpperCase()})`
+                : tenantName.trim()
+            setTenantDestination(label)
           }
         }
 
@@ -393,6 +403,11 @@ export default function NewPurchaseOrderPage() {
                         </Link>
                       </p>
                     )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Destination Country</label>
+                    <Input value={tenantDestination} disabled readOnly />
                   </div>
 
                   <div className="space-y-2">
