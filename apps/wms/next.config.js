@@ -197,7 +197,7 @@ const nextConfig = {
   },
   
   // Server external packages (moved from experimental in Next.js 15)
-  serverExternalPackages: ['@ecom-os/prisma-wms', 'bcryptjs'],
+  serverExternalPackages: ['@ecom-os/prisma-wms', 'bcryptjs', 'pdfkit'],
   
   // Additional production optimizations
   compiler: {
