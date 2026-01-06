@@ -34,7 +34,6 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
-import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 import { StatusBadge } from '@/components/ui/badge'
 import { TabButton } from '@/components/ui/TabButton'
 import { SelectField } from '@/components/ui/FormField'
@@ -45,7 +44,7 @@ const visibilityOptions = [
   { value: 'EMPLOYEE_AND_HR', label: 'Employee + HR' },
 ]
 
-type Tab = 'overview' | 'job' | 'documents' | 'timeline' | 'performance' | 'timeoff'
+type Tab = 'overview' | 'job' | 'documents' | 'timeline' | 'performance' | 'leave'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -79,13 +78,14 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const id = employeeId
 
   const tabParam = (searchParams.get('tab') ?? '').toLowerCase()
+  const normalizedTabParam = tabParam === 'timeoff' ? 'leave' : tabParam
   const initialTab: Tab =
-    tabParam === 'job' ||
-    tabParam === 'documents' ||
-    tabParam === 'timeline' ||
-    tabParam === 'performance' ||
-    tabParam === 'timeoff'
-      ? (tabParam as Tab)
+    normalizedTabParam === 'job' ||
+    normalizedTabParam === 'documents' ||
+    normalizedTabParam === 'timeline' ||
+    normalizedTabParam === 'performance' ||
+    normalizedTabParam === 'leave'
+      ? (normalizedTabParam as Tab)
       : 'overview'
 
   const [activeTab, setActiveTab] = useState<Tab>(initialTab)
@@ -101,7 +101,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [leaveLoading, setLeaveLoading] = useState(false)
-  const [showLeaveForm, setShowLeaveForm] = useState(false)
 
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
   const [timelineLoading, setTimelineLoading] = useState(false)
@@ -120,13 +119,21 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const canViewDocuments = isSelf || isHR
   const canViewTimeline = canViewSensitive
   const canViewPerformance = canViewSensitive
-  const canViewTimeOff = canViewSensitive
+  const canViewLeave = canViewSensitive
   const permissionsReady = Boolean(employee && me && permissions)
 
   useEffect(() => {
     setActiveTab(initialTab)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabParam])
+
+  useEffect(() => {
+    if (tabParam !== 'timeoff') return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', 'leave')
+    const qs = params.toString()
+    router.replace(qs ? `?${qs}` : '')
+  }, [router, searchParams, tabParam])
 
   useEffect(() => {
     if (!isHR && isSelf) {
@@ -141,9 +148,9 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       { id: 'documents' as Tab, label: 'Documents', icon: FolderIcon, visible: canViewDocuments },
       { id: 'timeline' as Tab, label: 'Timeline', icon: CalendarIcon, visible: canViewTimeline },
       { id: 'performance' as Tab, label: 'Performance', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
-      { id: 'timeoff' as Tab, label: 'Time off', icon: CalendarDaysIcon, visible: canViewTimeOff },
+      { id: 'leave' as Tab, label: 'Leave', icon: CalendarDaysIcon, visible: canViewLeave },
     ],
-    [canViewDocuments, canViewTimeline, canViewPerformance, canViewTimeOff]
+    [canViewDocuments, canViewTimeline, canViewPerformance, canViewLeave]
   )
 
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible), [tabs])
@@ -222,7 +229,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
   useEffect(() => {
     async function loadLeave() {
-      if (!employee || activeTab !== 'timeoff' || !canViewTimeOff) return
+      if (!employee || activeTab !== 'leave' || !canViewLeave) return
       try {
         setLeaveLoading(true)
         const [balanceData, requestsData] = await Promise.all([
@@ -240,7 +247,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       }
     }
     loadLeave()
-  }, [activeTab, canViewTimeOff, employee])
+  }, [activeTab, canViewLeave, employee])
 
   useEffect(() => {
     async function loadTimeline() {
@@ -275,17 +282,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     }
     loadFiles()
   }, [activeTab, canViewDocuments, employee])
-
-  async function handleLeaveRequestSuccess() {
-    if (!employee) return
-    setShowLeaveForm(false)
-    const [balanceData, requestsData] = await Promise.all([
-      LeavesApi.getBalance({ employeeId: employee.id }),
-      LeavesApi.list({ employeeId: employee.id }),
-    ])
-    setLeaveBalances(balanceData.balances || [])
-    setLeaveRequests(requestsData.items || [])
-  }
 
   async function uploadDocument() {
     if (!employee || !uploadFile) return
@@ -418,7 +414,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
       {!canViewSensitive ? (
         <Alert variant="info" className="mb-6">
-          You have limited access to this profile. Sensitive records (time off, performance, timeline) are visible only to managers and HR.
+          You have limited access to this profile. Sensitive records (leave, performance, timeline) are visible only to managers and HR.
         </Alert>
       ) : null}
 
@@ -640,11 +636,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
               <h2 className="text-sm font-semibold text-foreground">Performance</h2>
               <p className="text-xs text-muted-foreground mt-1">Performance reviews and cycles for this employee.</p>
             </div>
-            {isHR ? (
-              <Button href={`/performance/reviews/add?employeeId=${employee.id}`} icon={<ClipboardDocumentCheckIcon className="h-4 w-4" />}>
-                Add review
-              </Button>
-            ) : null}
           </div>
 
           {reviewsLoading ? (
@@ -674,34 +665,20 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
         </Card>
       ) : null}
 
-      {activeTab === 'timeoff' && canViewTimeOff ? (
+      {activeTab === 'leave' && canViewLeave ? (
         <div className="space-y-6">
           <Card padding="md">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Time off</h2>
-                <p className="text-xs text-muted-foreground mt-1">Balances and leave history.</p>
+                <h2 className="text-sm font-semibold text-foreground">Leave</h2>
+                <p className="text-xs text-muted-foreground mt-1">Balances and request history.</p>
               </div>
-              <Button onClick={() => setShowLeaveForm(true)}>Request leave</Button>
+              {isSelf ? <Button href="/leave?request=true">Request leave</Button> : null}
             </div>
             <div className="mt-4">
               {leaveLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : <LeaveBalanceCards balances={leaveBalances} />}
             </div>
           </Card>
-
-          {showLeaveForm ? (
-            <Card padding="md">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-foreground">Request leave</h3>
-                <Button variant="secondary" onClick={() => setShowLeaveForm(false)}>
-                  Cancel
-                </Button>
-              </div>
-              <div className="mt-4">
-                <LeaveRequestForm employeeId={employee.id} onSuccess={handleLeaveRequestSuccess} onCancel={() => setShowLeaveForm(false)} />
-              </div>
-            </Card>
-          ) : null}
 
           <Card padding="md">
             <h3 className="text-sm font-semibold text-foreground">History</h3>
@@ -712,9 +689,10 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
             ) : (
               <div className="mt-4 space-y-3">
                 {leaveRequests.map((request) => (
-                  <div
+                  <Link
                     key={request.id}
-                    className="rounded-lg border border-border bg-card p-4"
+                    href={`/leaves/${request.id}`}
+                    className="block rounded-lg border border-border bg-card p-4 hover:border-input"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -724,13 +702,13 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                         <div className="text-sm text-muted-foreground">
                           {formatDate(request.startDate)} — {formatDate(request.endDate)} · {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
                         </div>
-                        {request.reason && (
+                        {request.reason ? (
                           <div className="text-xs text-muted-foreground mt-1 truncate">{request.reason}</div>
-                        )}
+                        ) : null}
                       </div>
                       <StatusBadge status={request.status} />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

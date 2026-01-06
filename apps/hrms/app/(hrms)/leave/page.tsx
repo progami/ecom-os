@@ -147,6 +147,7 @@ function LeavePageContent() {
   const [showLeavePanel, setShowLeavePanel] = useState(false)
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const currentEmployeeId = data?.currentEmployee?.id
 
   useEffect(() => {
     if (searchParams.get('request') === 'true') {
@@ -175,10 +176,10 @@ function LeavePageContent() {
 
   useEffect(() => {
     async function loadLeave() {
-      if (!data?.currentEmployee?.id) return
+      if (!currentEmployeeId) return
       try {
         setLeaveLoading(true)
-        const requestsData = await LeavesApi.list({ employeeId: data.currentEmployee.id })
+        const requestsData = await LeavesApi.list({ employeeId: currentEmployeeId })
         setMyRequests(requestsData.items)
       } catch (e) {
         console.error('Failed to load leave data', e)
@@ -187,28 +188,28 @@ function LeavePageContent() {
       }
     }
     loadLeave()
-  }, [data?.currentEmployee?.id])
+  }, [currentEmployeeId])
 
-  const handleLeaveRequestSuccess = async () => {
-    if (!data?.currentEmployee?.id) return
-    const requestsData = await LeavesApi.list({ employeeId: data.currentEmployee.id })
+  const handleLeaveRequestSuccess = useCallback(async () => {
+    if (!currentEmployeeId) return
+    const requestsData = await LeavesApi.list({ employeeId: currentEmployeeId })
     setMyRequests(requestsData.items)
     await fetchDashboardData()
-  }
+  }, [currentEmployeeId, fetchDashboardData])
 
-  const handleCancelLeave = async (requestId: string) => {
-    if (!data?.currentEmployee?.id) return
+  const handleCancelLeave = useCallback(async (requestId: string) => {
+    if (!currentEmployeeId) return
     setProcessingId(requestId)
     try {
       await LeavesApi.update(requestId, { status: 'CANCELLED' })
-      const requestsData = await LeavesApi.list({ employeeId: data.currentEmployee.id })
+      const requestsData = await LeavesApi.list({ employeeId: currentEmployeeId })
       setMyRequests(requestsData.items)
     } finally {
       setProcessingId(null)
     }
-  }
+  }, [currentEmployeeId])
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = useCallback(async (id: string) => {
     setProcessingId(id)
     try {
       await LeavesApi.update(id, { status: 'APPROVED' })
@@ -218,9 +219,9 @@ function LeavePageContent() {
     } finally {
       setProcessingId(null)
     }
-  }
+  }, [fetchDashboardData])
 
-  const handleReject = async (id: string) => {
+  const handleReject = useCallback(async (id: string) => {
     setProcessingId(id)
     try {
       await LeavesApi.update(id, { status: 'REJECTED' })
@@ -230,7 +231,14 @@ function LeavePageContent() {
     } finally {
       setProcessingId(null)
     }
-  }
+  }, [fetchDashboardData])
+
+  const handleRowClick = useCallback(
+    (item: LeaveItem) => {
+      router.push(`/leaves/${item.id}`)
+    },
+    [router]
+  )
 
   // Combine my requests + team requests into unified list
   const allLeaveItems = useMemo<LeaveItem[]>(() => {
@@ -389,7 +397,10 @@ function LeavePageContent() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleCancelLeave(item.id)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void handleCancelLeave(item.id)
+                }}
                 disabled={processingId === item.id}
                 className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 title="Cancel request"
@@ -406,7 +417,10 @@ function LeavePageContent() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => handleReject(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleReject(item.id)
+                  }}
                   disabled={processingId === item.id}
                   className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 >
@@ -414,7 +428,10 @@ function LeavePageContent() {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => handleApprove(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void handleApprove(item.id)
+                  }}
                   disabled={processingId === item.id}
                 >
                   <CheckIcon className="h-4 w-4 mr-1" />
@@ -438,7 +455,7 @@ function LeavePageContent() {
         enableSorting: false,
       },
     ],
-    [processingId]
+    [handleApprove, handleCancelLeave, handleReject, processingId]
   )
 
   if (loading) {
@@ -446,7 +463,7 @@ function LeavePageContent() {
       <>
         <ListPageHeader
           title="Leave"
-          description="Request and manage time off"
+          description="Request and manage leave"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
         <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
@@ -459,7 +476,7 @@ function LeavePageContent() {
       <>
         <ListPageHeader
           title="Leave"
-          description="Request and manage time off"
+          description="Request and manage leave"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
         <div className="flex flex-col items-center justify-center h-64">
@@ -479,7 +496,7 @@ function LeavePageContent() {
       <>
         <ListPageHeader
           title="Leave"
-          description="Request and manage time off"
+          description="Request and manage leave"
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
         <Card padding="lg">
@@ -498,7 +515,7 @@ function LeavePageContent() {
     <>
       <ListPageHeader
         title="Leave"
-        description="Request and manage time off"
+        description="Request and manage leave"
         icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         action={
           <Button
@@ -536,6 +553,7 @@ function LeavePageContent() {
           data={filteredItems}
           loading={leaveLoading}
           skeletonRows={5}
+          onRowClick={handleRowClick}
           filters={filters}
           onFilterChange={setFilters}
           emptyState={
@@ -555,7 +573,7 @@ function LeavePageSkeleton() {
     <>
       <ListPageHeader
         title="Leave"
-        description="Request and manage time off"
+        description="Request and manage leave"
         icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
       />
       <div className="animate-pulse h-64 bg-muted/50 rounded-lg" />
