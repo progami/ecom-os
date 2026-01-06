@@ -2060,8 +2060,8 @@ export function SalesPlanningGrid({
                     colSpan={columnIds.length}
                     className="sticky top-0 z-20 h-10 whitespace-nowrap border-b bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     style={{
-                      borderLeft: '2px solid #22d3ee',
-                      borderRight: '2px solid #22d3ee',
+                      borderLeft: '3px solid #0891b2',
+                      borderRight: '3px solid #0891b2',
                     }}
                   >
                     {renderProductGroupHeader(product)}
@@ -2084,8 +2084,8 @@ export function SalesPlanningGrid({
                           isInputColumn ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
                         )}
                         style={{
-                          ...(isFirstMetric && { borderLeft: '2px solid #22d3ee' }),
-                          ...(isLastMetric && { borderRight: '2px solid #22d3ee' }),
+                          ...(isFirstMetric && { borderLeft: '3px solid #0891b2' }),
+                          ...(isLastMetric && { borderRight: '3px solid #0891b2' }),
                         }}
                       >
                         {renderMetricHeader(field)}
@@ -2199,8 +2199,8 @@ export function SalesPlanningGrid({
                           width: meta?.width,
                           minWidth: meta?.width,
                           maxWidth: meta?.width,
-                          ...(isFirstProductCol && { borderLeft: '2px solid #22d3ee' }),
-                          ...(isLastProductCol && { borderRight: '2px solid #22d3ee' }),
+                          ...(isFirstProductCol && { borderLeft: '3px solid #0891b2' }),
+                          ...(isLastProductCol && { borderRight: '3px solid #0891b2' }),
                         }}
                         onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
