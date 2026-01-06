@@ -36,19 +36,20 @@ type FormData = z.infer<typeof LeaveRequestSchema>
 
 function calculateBusinessDays(startDate: string, endDate: string): number {
   if (!startDate || !endDate) return 0
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  // Parse as UTC noon to match API calculation
+  const start = new Date(`${startDate}T12:00:00.000Z`)
+  const end = new Date(`${endDate}T12:00:00.000Z`)
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
   if (start > end) return 0
 
   let count = 0
   const current = new Date(start)
   while (current <= end) {
-    const day = current.getDay()
+    const day = current.getUTCDay()
     if (day !== 0 && day !== 6) {
       count++
     }
-    current.setDate(current.getDate() + 1)
+    current.setUTCDate(current.getUTCDate() + 1)
   }
   return count
 }
