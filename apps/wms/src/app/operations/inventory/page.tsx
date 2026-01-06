@@ -259,7 +259,7 @@ function InventoryPage() {
  />
  </StatsCardGrid>
 
- <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft overflow-x-auto flex-1">
+ <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft overflow-x-auto flex-1">
  {/* Scrollable table area */}
  <div
  className="relative min-h-0 overflow-y-auto flex-1"
