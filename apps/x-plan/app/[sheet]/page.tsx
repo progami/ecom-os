@@ -2263,7 +2263,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
-      controls.push(weeklyLabelControl('Weekly Sales Planning'));
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>;
       tabularContent = (
         <SalesPlanningGrid
@@ -2303,7 +2302,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
-      controls.push(weeklyLabelControl('Weekly P&L'));
       tabularContent = <ProfitAndLossGrid strategyId={strategyId} weekly={view.weekly} />;
 
       const segmentStart = activeSegment?.startWeekNumber ?? null;
@@ -2371,7 +2369,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getCashFlowView(data, activeSegment, activeYear);
-      controls.push(weeklyLabelControl('Weekly Cash Flow'));
       tabularContent = <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />;
 
       const cashSegmentStart = activeSegment?.startWeekNumber ?? null;
