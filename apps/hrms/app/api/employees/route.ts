@@ -10,7 +10,7 @@ import {
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { isHROrAbove } from '@/lib/permissions'
+import { getOrgVisibleEmployeeIds, isHROrAbove } from '@/lib/permissions'
 import { createTemporaryEmployeeId, formatEmployeeId } from '@/lib/employee-identifiers'
 
 export async function GET(req: Request) {
@@ -39,6 +39,11 @@ export async function GET(req: Request) {
     const q = paginationResult.success ? paginationResult.data.q?.toLowerCase() : ''
 
     const where: Record<string, unknown> = {}
+
+    if (!isHR) {
+      const visibleIds = await getOrgVisibleEmployeeIds(actorId)
+      where.id = { in: visibleIds }
+    }
 
     if (q) {
       where.OR = [
@@ -83,7 +88,7 @@ export async function GET(req: Request) {
         where,
         take: Math.min(take, MAX_PAGINATION_LIMIT),
         skip,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { employeeNumber: 'asc' },
         select: {
           id: true,
           employeeId: true,

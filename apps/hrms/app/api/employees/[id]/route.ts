@@ -5,7 +5,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
 import { checkAndNotifyMissingFields } from '@/lib/notification-service'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { filterAllowedFields, canReassignEmployee, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
+import { canReassignEmployee, canViewEmployeeDirectory, filterAllowedFields, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -45,6 +45,11 @@ export async function GET(req: Request, context: EmployeeRouteContext) {
 
     // Non-HR users can only view ACTIVE employees (except themselves).
     if (!isHR && !isSelf && base.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const canView = await canViewEmployeeDirectory(actorId, base.id)
+    if (!canView) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 

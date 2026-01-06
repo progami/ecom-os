@@ -56,7 +56,7 @@ const navigation: NavSection[] = [
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
-      { name: 'Violations', href: '/performance/disciplinary', icon: ExclamationTriangleIcon },
+      { name: 'Violations', href: '/performance/violations', icon: ExclamationTriangleIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     ],

@@ -119,7 +119,7 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
 
-        const recordLink = `/performance/disciplinary/${id}`
+        const recordLink = `/performance/violations/${id}`
 
         // Notify employee of appeal decision
         await prisma.notification.create({
@@ -267,7 +267,7 @@ export async function POST(req: Request, context: RouteContext) {
 	        },
 	      })
 
-      const recordLink = `/performance/disciplinary/${id}`
+      const recordLink = `/performance/violations/${id}`
 
 	      // Notify HR about the appeal
 	      const hrEmployees = await getHREmployees()

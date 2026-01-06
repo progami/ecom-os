@@ -124,6 +124,27 @@ export async function getSubtreeEmployeeIds(managerId: string): Promise<string[]
   return subtree
 }
 
+export async function getOrgVisibleEmployeeIds(actorId: string): Promise<string[]> {
+  const [managerChain, subtree] = await Promise.all([
+    getManagerChain(actorId),
+    getSubtreeEmployeeIds(actorId),
+  ])
+
+  return Array.from(new Set([actorId, ...managerChain, ...subtree]))
+}
+
+export async function canViewEmployeeDirectory(actorId: string, targetEmployeeId: string): Promise<boolean> {
+  if (actorId === targetEmployeeId) return true
+
+  const actor = await getUserPermissionInfo(actorId)
+  if (!actor) return false
+
+  if (actor.isHROrAbove) return true
+
+  const visibleIds = await getOrgVisibleEmployeeIds(actorId)
+  return visibleIds.includes(targetEmployeeId)
+}
+
 // Check if actor is in the management chain above target
 export async function isManagerOf(actorId: string, targetEmployeeId: string): Promise<boolean> {
   if (actorId === targetEmployeeId) return false

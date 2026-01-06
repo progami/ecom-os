@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentUser } from '@/lib/current-user'
+import { getManagerChain, getOrgVisibleEmployeeIds, isHROrAbove } from '@/lib/permissions'
 
 type HierarchyEmployee = {
   id: string
@@ -27,6 +28,7 @@ export async function GET(req: Request) {
 
     const user = await getCurrentUser()
     const currentEmployeeId = user?.employee?.id
+    const isHR = currentEmployeeId ? await isHROrAbove(currentEmployeeId) : false
 
     if (type === 'direct-reports') {
       if (!currentEmployeeId) {
@@ -98,9 +100,23 @@ export async function GET(req: Request) {
     }
 
     if (type === 'full') {
-      // Get all active employees for the full org chart
+      if (!currentEmployeeId) {
+        return NextResponse.json({
+          items: [],
+          currentEmployeeId: null,
+          managerChainIds: [],
+          directReportIds: [],
+        })
+      }
+
+      const visibleIds = isHR ? null : await getOrgVisibleEmployeeIds(currentEmployeeId)
+
+      // Get all active employees (HR) or only visible slice (non-HR).
       const employees = await prisma.employee.findMany({
-        where: { status: 'ACTIVE' },
+        where: {
+          status: 'ACTIVE',
+          ...(visibleIds ? { id: { in: visibleIds } } : {}),
+        },
         select: {
           id: true,
           employeeId: true,
@@ -114,29 +130,13 @@ export async function GET(req: Request) {
           reportsToId: true,
           status: true,
         },
-        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+        orderBy: [{ employeeNumber: 'asc' }],
       })
 
-      // Also get the current user's manager chain for highlighting
-      const managerChainIds: string[] = []
-      if (currentEmployeeId) {
-        let managerId: string | null = null
-        const currentEmp = employees.find((emp: HierarchyEmployee) => emp.id === currentEmployeeId)
-        if (currentEmp) {
-          managerId = currentEmp.reportsToId
-        }
-
-        while (managerId) {
-          managerChainIds.push(managerId)
-          const manager = employees.find((emp: HierarchyEmployee) => emp.id === managerId)
-          managerId = manager?.reportsToId ?? null
-        }
-      }
-
-      // Get direct report IDs for the current user
-      const directReportIds = currentEmployeeId
-        ? employees.filter((emp: HierarchyEmployee) => emp.reportsToId === currentEmployeeId).map((emp: HierarchyEmployee) => emp.id)
-        : []
+      const managerChainIds = await getManagerChain(currentEmployeeId)
+      const directReportIds = employees
+        .filter((emp: HierarchyEmployee) => emp.reportsToId === currentEmployeeId)
+        .map((emp: HierarchyEmployee) => emp.id)
 
       return NextResponse.json({
         items: employees,
