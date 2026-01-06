@@ -202,7 +202,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                           Stock: {Math.round(data.stockEnd).toLocaleString()} units
                         </p>
                         {data.hasShipment && (
-                          <p className="text-xs text-emerald-600">Shipment arrives</p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">Shipment arrives</p>
                         )}
                       </div>
                     )

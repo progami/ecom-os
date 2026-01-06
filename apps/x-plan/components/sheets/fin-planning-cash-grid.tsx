@@ -736,7 +736,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                             isPinned && 'sticky z-10',
                             colIndex === 1 && 'border-r-2',
                             config.editable && 'cursor-text font-medium bg-accent/50',
-                            hasInbound && !isPinned && 'bg-success-100/90 dark:bg-success-900/35',
+                            hasInbound && !isPinned && 'bg-success-100/90 dark:bg-success-500/15 dark:ring-1 dark:ring-inset dark:ring-success-400/25',
                             isSelected && 'bg-accent',
                             isCurrent && 'ring-2 ring-inset ring-ring'
                           )}

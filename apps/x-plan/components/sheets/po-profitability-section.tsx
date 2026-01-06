@@ -486,7 +486,7 @@ export function POProfitabilitySection({
             </div>
             <div className="text-right text-xs text-muted-foreground">
               <div>Total Revenue: <span className="font-semibold text-foreground">{formatCurrency(summary.totalRevenue)}</span></div>
-              <div>Total Profit: <span className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatCurrency(summary.totalProfit)}</span></div>
+              <div>Total Profit: <span className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrency(summary.totalProfit)}</span></div>
             </div>
           </div>
         </CardHeader>
@@ -543,13 +543,13 @@ export function POProfitabilitySection({
                   <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <TableCell className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                     {formatCurrency(row.netProfit)}
                   </TableCell>
-                  <TableCell className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
+                  <TableCell className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
                     {formatPercent(row.netMarginPercent)}
                   </TableCell>
-                  <TableCell className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600' : ''}`}>
+                  <TableCell className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
                     {formatPercent(row.roi)}
                   </TableCell>
                 </TableRow>
@@ -571,13 +571,13 @@ export function POProfitabilitySection({
                 <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcCost, 0))}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                <TableCell className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                   {formatCurrency(summary.totalProfit)}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600' : ''}`}>
+                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
                   {formatPercent(summary.avgMargin)}
                 </TableCell>
-                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600' : ''}`}>
+                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
                   {formatPercent(summary.avgROI)}
                 </TableCell>
               </TableRow>
