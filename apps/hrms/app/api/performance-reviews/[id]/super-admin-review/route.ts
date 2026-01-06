@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canHRReview } from '@/lib/permissions'
+import { isSuperAdmin } from '@/lib/permissions'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 /**
- * HR Review endpoint for performance reviews
+ * Super Admin Review endpoint for performance reviews
  * 3-tier workflow: Manager creates -> HR reviews -> Super Admin approves -> Employee acknowledges
  */
 export async function POST(req: Request, context: RouteContext) {
@@ -26,16 +26,16 @@ export async function POST(req: Request, context: RouteContext) {
       )
     }
 
-    // Check if current user is HR
+    // Check if current user is Super Admin
     const currentEmployeeId = await getCurrentEmployeeId()
     if (!currentEmployeeId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const permissionCheck = await canHRReview(currentEmployeeId)
-    if (!permissionCheck.allowed) {
+    const isAdmin = await isSuperAdmin(currentEmployeeId)
+    if (!isAdmin) {
       return NextResponse.json(
-        { error: `Permission denied: ${permissionCheck.reason}` },
+        { error: 'Permission denied: Only Super Admin can give final approval' },
         { status: 403 }
       )
     }
@@ -59,24 +59,24 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Performance review not found' }, { status: 404 })
     }
 
-    // Verify review is in correct state for HR review
-    if (review.status !== 'PENDING_HR_REVIEW') {
+    // Verify review is in correct state for Super Admin review
+    if (review.status !== 'PENDING_SUPER_ADMIN') {
       return NextResponse.json(
-        { error: `Cannot review: review is in ${review.status} status, expected PENDING_HR_REVIEW` },
+        { error: `Cannot review: review is in ${review.status} status, expected PENDING_SUPER_ADMIN` },
         { status: 400 }
       )
     }
 
     if (approved) {
-      // HR approves - move to PENDING_SUPER_ADMIN for final approval
+      // Super Admin approves - move to PENDING_ACKNOWLEDGMENT
       const updated = await prisma.performanceReview.update({
         where: { id },
         data: {
-          status: 'PENDING_SUPER_ADMIN',
-          hrReviewedAt: new Date(),
-          hrReviewedById: currentEmployeeId,
-          hrReviewNotes: notes ?? null,
-          hrApproved: true,
+          status: 'PENDING_ACKNOWLEDGMENT',
+          superAdminApprovedAt: new Date(),
+          superAdminApprovedById: currentEmployeeId,
+          superAdminNotes: notes ?? null,
+          superAdminApproved: true,
         },
         include: {
           employee: {
@@ -90,43 +90,34 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      // Notify Super Admins for final approval
-      const superAdmins = await prisma.employee.findMany({
-        where: { isSuperAdmin: true, status: 'ACTIVE' },
-        select: { id: true },
+      // Notify employee to acknowledge
+      await prisma.notification.create({
+        data: {
+          type: 'REVIEW_APPROVED',
+          title: 'Performance Review Ready',
+          message: `Your performance review is ready for acknowledgment.`,
+          link: `/performance/reviews/${id}`,
+          employeeId: updated.employee.id,
+          relatedId: id,
+          relatedType: 'REVIEW',
+        },
       })
-
-      await Promise.all(
-        superAdmins.map((admin) =>
-          prisma.notification.create({
-            data: {
-              type: 'REVIEW_PENDING_ADMIN',
-              title: 'Review Pending Final Approval',
-              message: `A performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been approved by HR and requires your final approval.`,
-              link: `/performance/reviews/${id}`,
-              employeeId: admin.id,
-              relatedId: id,
-              relatedType: 'REVIEW',
-            },
-          })
-        )
-      )
 
       return NextResponse.json({
         success: true,
-        message: 'Review approved by HR, sent to Super Admin for final approval',
+        message: 'Review approved by Super Admin, sent to employee for acknowledgment',
         review: updated,
       })
     } else {
-      // HR rejects - move back to DRAFT (manager can revise)
+      // Super Admin rejects - move back to DRAFT (manager can revise)
       const updated = await prisma.performanceReview.update({
         where: { id },
         data: {
           status: 'DRAFT',
-          hrReviewedAt: new Date(),
-          hrReviewedById: currentEmployeeId,
-          hrReviewNotes: notes ?? null,
-          hrApproved: false,
+          superAdminApprovedAt: new Date(),
+          superAdminApprovedById: currentEmployeeId,
+          superAdminNotes: notes ?? null,
+          superAdminApproved: false,
         },
         include: {
           employee: {
@@ -145,10 +136,25 @@ export async function POST(req: Request, context: RouteContext) {
         await prisma.notification.create({
           data: {
             type: 'REVIEW_REJECTED',
-            title: 'Review Returned by HR',
-            message: `The performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been returned by HR for revision.`,
+            title: 'Review Returned by Super Admin',
+            message: `The performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been returned by Super Admin for revision.`,
             link: `/performance/reviews/${id}`,
             employeeId: review.employee.reportsToId,
+            relatedId: id,
+            relatedType: 'REVIEW',
+          },
+        })
+      }
+
+      // Notify HR who approved it
+      if (review.hrReviewedById) {
+        await prisma.notification.create({
+          data: {
+            type: 'REVIEW_REJECTED',
+            title: 'Review Returned by Super Admin',
+            message: `The performance review for ${updated.employee.firstName} ${updated.employee.lastName} that you approved has been returned by Super Admin for revision.`,
+            link: `/performance/reviews/${id}`,
+            employeeId: review.hrReviewedById,
             relatedId: id,
             relatedType: 'REVIEW',
           },
@@ -162,12 +168,12 @@ export async function POST(req: Request, context: RouteContext) {
       })
     }
   } catch (e) {
-    return safeErrorResponse(e, 'Failed to process HR review')
+    return safeErrorResponse(e, 'Failed to process Super Admin review')
   }
 }
 
 /**
- * GET - Get HR review status for a performance review
+ * GET - Get Super Admin review status for a performance review
  */
 export async function GET(req: Request, context: RouteContext) {
   const rateLimitError = withRateLimit(req)
@@ -176,15 +182,20 @@ export async function GET(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params
 
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const review = await prisma.performanceReview.findUnique({
       where: { id },
       select: {
         id: true,
         status: true,
-        hrReviewedAt: true,
-        hrReviewedById: true,
-        hrReviewNotes: true,
-        hrApproved: true,
+        superAdminApprovedAt: true,
+        superAdminApprovedById: true,
+        superAdminNotes: true,
+        superAdminApproved: true,
       },
     })
 
@@ -192,16 +203,18 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Performance review not found' }, { status: 404 })
     }
 
+    const isAdmin = await isSuperAdmin(currentEmployeeId)
+
     return NextResponse.json({
-      canReview: review.status === 'PENDING_HR_REVIEW',
-      hrReview: {
-        reviewedAt: review.hrReviewedAt,
-        reviewedById: review.hrReviewedById,
-        notes: review.hrReviewNotes,
-        approved: review.hrApproved,
+      canReview: review.status === 'PENDING_SUPER_ADMIN' && isAdmin,
+      superAdminReview: {
+        approvedAt: review.superAdminApprovedAt,
+        approvedById: review.superAdminApprovedById,
+        notes: review.superAdminNotes,
+        approved: review.superAdminApproved,
       },
     })
   } catch (e) {
-    return safeErrorResponse(e, 'Failed to get HR review status')
+    return safeErrorResponse(e, 'Failed to get Super Admin review status')
   }
 }
