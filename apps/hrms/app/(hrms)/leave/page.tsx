@@ -13,7 +13,6 @@ import {
 import {
   CalendarDaysIcon,
   PlusIcon,
-  UsersIcon,
   XIcon,
   CheckIcon,
   ClockIcon,
@@ -28,13 +27,11 @@ import { SearchForm } from '@/components/ui/SearchForm'
 import { DataTable } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
-import { TabButton } from '@/components/ui/TabButton'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
+import { NativeSelect } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 
-type Tab = 'my-leave' | 'team'
-
-// Simplified leave types for small team (15-20 people)
 const LEAVE_TYPE_LABELS: Record<string, string> = {
   PTO: 'PTO',
   PARENTAL: 'Parental Leave',
@@ -76,9 +73,7 @@ function formatDateRange(start: string, end: string): string {
   return `${formatDate(start)} - ${formatDate(end)}`
 }
 
-type TeamFilter = 'pending' | 'all'
-
-type TeamLeaveRequest = {
+type LeaveItem = {
   id: string
   leaveType: string
   startDate: string
@@ -86,83 +81,287 @@ type TeamLeaveRequest = {
   totalDays: number
   status: string
   reason?: string | null
+  createdAt?: string
   employee: { id: string; firstName: string; lastName: string; avatar?: string | null }
+  reviewedBy?: { id: string; firstName: string; lastName: string } | null
+  isOwn: boolean
 }
 
-// Team Leave Section with unified table
-function TeamLeaveSection({
-  pendingRequests,
-  approvalHistory,
-  loading,
-  processingId,
-  onApprove,
-  onReject,
+function RequestLeavePanel({
+  isOpen,
+  onClose,
+  employeeId,
+  onSuccess,
 }: {
-  pendingRequests: TeamLeaveRequest[]
-  approvalHistory: TeamLeaveRequest[]
-  loading: boolean
-  processingId: string | null
-  onApprove: (id: string) => void
-  onReject: (id: string) => void
+  isOpen: boolean
+  onClose: () => void
+  employeeId: string
+  onSuccess: () => void
 }) {
-  const [filter, setFilter] = useState<TeamFilter>('pending')
+  if (!isOpen) return null
+
+  return (
+    <div className="relative z-50">
+      <div
+        className="fixed inset-0 bg-foreground/50 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+        <div className="w-screen max-w-md">
+          <div className="flex h-full flex-col bg-card shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Request Leave</h2>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <XIcon className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <LeaveRequestForm
+                employeeId={employeeId}
+                onSuccess={() => {
+                  onSuccess()
+                  onClose()
+                }}
+                onCancel={onClose}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LeavePageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+  const [myRequests, setMyRequests] = useState<LeaveRequest[]>([])
+  const [leaveLoading, setLeaveLoading] = useState(true)
+  const [showLeavePanel, setShowLeavePanel] = useState(false)
   const [q, setQ] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
-  // Combine and dedupe requests
-  const allRequests = [
-    ...pendingRequests,
-    ...approvalHistory.filter(h => !pendingRequests.find(p => p.id === h.id)),
-  ]
+  useEffect(() => {
+    if (searchParams.get('request') === 'true') {
+      setShowLeavePanel(true)
+      router.replace('/leave', { scroll: false })
+    }
+  }, [searchParams, router])
 
-  const displayRequests = filter === 'pending' ? pendingRequests : allRequests
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const dashboardData = await DashboardApi.get()
+      setData(dashboardData)
+      if (dashboardData.myLeaveBalance) {
+        setLeaveBalances(dashboardData.myLeaveBalance)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load data'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const filteredRequests = displayRequests.filter((r) => {
-    if (!q) return true
-    const searchLower = q.toLowerCase()
-    const name = `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase()
-    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType
-    return (
-      name.includes(searchLower) ||
-      leaveType.toLowerCase().includes(searchLower) ||
-      r.reason?.toLowerCase().includes(searchLower)
-    )
-  })
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
-  const columns = useMemo<ColumnDef<TeamLeaveRequest>[]>(
+  useEffect(() => {
+    async function loadLeave() {
+      if (!data?.currentEmployee?.id) return
+      try {
+        setLeaveLoading(true)
+        const [balanceData, requestsData] = await Promise.all([
+          LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
+          LeavesApi.list({ employeeId: data.currentEmployee.id }),
+        ])
+        setLeaveBalances(balanceData.balances)
+        setMyRequests(requestsData.items)
+      } catch (e) {
+        console.error('Failed to load leave data', e)
+      } finally {
+        setLeaveLoading(false)
+      }
+    }
+    loadLeave()
+  }, [data?.currentEmployee?.id])
+
+  const handleLeaveRequestSuccess = async () => {
+    if (!data?.currentEmployee?.id) return
+    const [balanceData, requestsData] = await Promise.all([
+      LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
+      LeavesApi.list({ employeeId: data.currentEmployee.id }),
+    ])
+    setLeaveBalances(balanceData.balances)
+    setMyRequests(requestsData.items)
+    await fetchDashboardData()
+  }
+
+  const handleCancelLeave = async (requestId: string) => {
+    if (!data?.currentEmployee?.id) return
+    setProcessingId(requestId)
+    try {
+      await LeavesApi.update(requestId, { status: 'CANCELLED' })
+      const [balanceData, requestsData] = await Promise.all([
+        LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
+        LeavesApi.list({ employeeId: data.currentEmployee.id }),
+      ])
+      setLeaveBalances(balanceData.balances)
+      setMyRequests(requestsData.items)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleApprove = async (id: string) => {
+    setProcessingId(id)
+    try {
+      await LeavesApi.update(id, { status: 'APPROVED' })
+      await fetchDashboardData()
+    } catch (e) {
+      console.error('Failed to approve leave', e)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    setProcessingId(id)
+    try {
+      await LeavesApi.update(id, { status: 'REJECTED' })
+      await fetchDashboardData()
+    } catch (e) {
+      console.error('Failed to reject leave', e)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  // Combine my requests + team requests into unified list
+  const allLeaveItems = useMemo<LeaveItem[]>(() => {
+    const currentEmployeeId = data?.currentEmployee?.id
+    if (!currentEmployeeId) return []
+
+    const items: LeaveItem[] = []
+    const seenIds = new Set<string>()
+
+    // Add my requests
+    for (const r of myRequests) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id)
+        items.push({
+          id: r.id,
+          leaveType: r.leaveType,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          totalDays: r.totalDays,
+          status: r.status,
+          reason: r.reason,
+          createdAt: r.createdAt,
+          employee: {
+            id: currentEmployeeId,
+            firstName: data?.currentEmployee?.firstName ?? '',
+            lastName: data?.currentEmployee?.lastName ?? '',
+            avatar: data?.currentEmployee?.avatar,
+          },
+          reviewedBy: r.reviewedBy,
+          isOwn: true,
+        })
+      }
+    }
+
+    // Add team's pending requests
+    for (const r of data?.pendingLeaveRequests ?? []) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id)
+        items.push({
+          ...r,
+          isOwn: false,
+        })
+      }
+    }
+
+    // Add team's approval history
+    for (const r of data?.leaveApprovalHistory ?? []) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id)
+        items.push({
+          ...r,
+          isOwn: false,
+        })
+      }
+    }
+
+    // Sort by date descending
+    return items.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+  }, [data, myRequests])
+
+  // Apply filters
+  const filteredItems = useMemo(() => {
+    return allLeaveItems.filter((item) => {
+      // Status filter
+      if (statusFilter && item.status !== statusFilter) return false
+
+      // Search filter
+      if (q) {
+        const searchLower = q.toLowerCase()
+        const name = `${item.employee.firstName} ${item.employee.lastName}`.toLowerCase()
+        const leaveType = (LEAVE_TYPE_LABELS[item.leaveType] ?? item.leaveType).toLowerCase()
+        if (
+          !name.includes(searchLower) &&
+          !leaveType.includes(searchLower) &&
+          !item.reason?.toLowerCase().includes(searchLower)
+        ) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [allLeaveItems, statusFilter, q])
+
+  const columns = useMemo<ColumnDef<LeaveItem>[]>(
     () => [
       {
-        id: 'avatar',
-        header: '',
-        cell: ({ row }) => (
-          <Avatar
-            src={row.original.employee.avatar}
-            alt={`${row.original.employee.firstName} ${row.original.employee.lastName}`}
-            size="sm"
-          />
-        ),
-        enableSorting: false,
-      },
-      {
-        accessorFn: (row) => `${row.employee.firstName} ${row.employee.lastName}`,
         id: 'employee',
         header: 'Employee',
+        accessorFn: (row) => `${row.employee.firstName} ${row.employee.lastName}`,
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-foreground">
-              {row.original.employee.firstName} {row.original.employee.lastName}
-            </p>
-            {row.original.reason && (
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                {row.original.reason}
+          <div className="flex items-center gap-3">
+            <Avatar
+              src={row.original.employee.avatar}
+              alt={`${row.original.employee.firstName} ${row.original.employee.lastName}`}
+              size="sm"
+            />
+            <div>
+              <p className="font-medium text-foreground">
+                {row.original.employee.firstName} {row.original.employee.lastName}
+                {row.original.isOwn && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">(You)</span>
+                )}
               </p>
-            )}
+              {row.original.reason && (
+                <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                  {row.original.reason}
+                </p>
+              )}
+            </div>
           </div>
         ),
         enableSorting: true,
       },
       {
         accessorKey: 'leaveType',
-        header: 'Leave Type',
+        header: 'Type',
         cell: ({ getValue }) => {
           const type = getValue<string>()
           return <span className="text-muted-foreground">{LEAVE_TYPE_LABELS[type] ?? type}</span>
@@ -207,354 +406,18 @@ function TeamLeaveSection({
       },
       {
         id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => {
-          if (row.original.status === 'PENDING') {
-            return (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onReject(row.original.id)}
-                  disabled={processingId === row.original.id}
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                >
-                  <XIcon className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => onApprove(row.original.id)}
-                  disabled={processingId === row.original.id}
-                >
-                  <CheckIcon className="h-4 w-4 mr-1" />
-                  Approve
-                </Button>
-              </div>
-            )
-          }
-          return <span className="text-xs text-muted-foreground">—</span>
-        },
-        enableSorting: false,
-      },
-    ],
-    [processingId, onApprove, onReject]
-  )
-
-  return (
-    <div className="space-y-6">
-      {/* Filter tabs */}
-      <div className="flex items-center gap-1 p-1 bg-muted rounded-lg w-fit">
-        <button
-          onClick={() => setFilter('pending')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            filter === 'pending'
-              ? 'bg-card text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Pending
-          {pendingRequests.length > 0 && (
-            <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-warning-100 text-warning-800 rounded-full">
-              {pendingRequests.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-            filter === 'all'
-              ? 'bg-card text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          All Requests
-        </button>
-      </div>
-
-      {/* Search */}
-      <Card padding="md">
-        <SearchForm
-          value={q}
-          onChange={setQ}
-          onSubmit={() => {}}
-          placeholder="Search by name or leave type..."
-        />
-      </Card>
-
-      <ResultsCount
-        count={filteredRequests.length}
-        singular="request"
-        plural="requests"
-        loading={loading}
-      />
-
-      <DataTable
-        columns={columns}
-        data={filteredRequests}
-        loading={loading}
-        skeletonRows={5}
-        emptyState={
-          <TableEmptyContent
-            icon={<UsersIcon className="h-10 w-10" />}
-            title={
-              filter === 'pending'
-                ? 'No pending requests. All team leave requests have been processed.'
-                : 'No leave requests found.'
-            }
-          />
-        }
-      />
-    </div>
-  )
-}
-
-// Slide-over panel for Request Leave form
-function RequestLeavePanel({
-  isOpen,
-  onClose,
-  employeeId,
-  onSuccess,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  employeeId: string
-  onSuccess: () => void
-}) {
-  if (!isOpen) return null
-
-  return (
-    <div className="relative z-50">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-foreground/50 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Panel */}
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
-        <div className="w-screen max-w-md">
-          <div className="flex h-full flex-col bg-card shadow-xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Request Leave</h2>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <XIcon className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-              <LeaveRequestForm
-                employeeId={employeeId}
-                onSuccess={() => {
-                  onSuccess()
-                  onClose()
-                }}
-                onCancel={onClose}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function LeavePageContent() {
-  const searchParams = useSearchParams()
-  const router = useRouter()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('my-leave')
-
-  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
-  const [leaveLoading, setLeaveLoading] = useState(true)
-  const [showLeavePanel, setShowLeavePanel] = useState(false)
-  const [q, setQ] = useState('')
-  const [processingId, setProcessingId] = useState<string | null>(null)
-
-  // Open panel if request=true query param is present
-  useEffect(() => {
-    if (searchParams.get('request') === 'true') {
-      setShowLeavePanel(true)
-      router.replace('/leave', { scroll: false })
-    }
-  }, [searchParams, router])
-
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const dashboardData = await DashboardApi.get()
-      setData(dashboardData)
-      if (dashboardData.myLeaveBalance) {
-        setLeaveBalances(dashboardData.myLeaveBalance)
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load data'
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchDashboardData()
-  }, [fetchDashboardData])
-
-  // Load leave data
-  useEffect(() => {
-    async function loadLeave() {
-      if (!data?.currentEmployee?.id) return
-      try {
-        setLeaveLoading(true)
-        const [balanceData, requestsData] = await Promise.all([
-          LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-          LeavesApi.list({ employeeId: data.currentEmployee.id }),
-        ])
-        setLeaveBalances(balanceData.balances)
-        setLeaveRequests(requestsData.items)
-      } catch (e) {
-        console.error('Failed to load leave data', e)
-      } finally {
-        setLeaveLoading(false)
-      }
-    }
-    loadLeave()
-  }, [data?.currentEmployee?.id])
-
-  const handleLeaveRequestSuccess = async () => {
-    if (!data?.currentEmployee?.id) return
-    const [balanceData, requestsData] = await Promise.all([
-      LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-      LeavesApi.list({ employeeId: data.currentEmployee.id }),
-    ])
-    setLeaveBalances(balanceData.balances)
-    setLeaveRequests(requestsData.items)
-    await fetchDashboardData()
-  }
-
-  const handleCancelLeave = async (requestId: string) => {
-    if (!data?.currentEmployee?.id) return
-    setProcessingId(requestId)
-    try {
-      await LeavesApi.update(requestId, { status: 'CANCELLED' })
-      const [balanceData, requestsData] = await Promise.all([
-        LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-        LeavesApi.list({ employeeId: data.currentEmployee.id }),
-      ])
-      setLeaveBalances(balanceData.balances)
-      setLeaveRequests(requestsData.items)
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  const handleApprove = async (id: string) => {
-    setProcessingId(id)
-    try {
-      await LeavesApi.update(id, { status: 'APPROVED' })
-      await fetchDashboardData()
-    } catch (e) {
-      console.error('Failed to approve leave', e)
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  const handleReject = async (id: string) => {
-    setProcessingId(id)
-    try {
-      await LeavesApi.update(id, { status: 'REJECTED' })
-      await fetchDashboardData()
-    } catch (e) {
-      console.error('Failed to reject leave', e)
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  // Filter requests based on search
-  const filteredRequests = leaveRequests.filter((r) => {
-    if (!q) return true
-    const searchLower = q.toLowerCase()
-    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] ?? r.leaveType
-    return (
-      leaveType.toLowerCase().includes(searchLower) ||
-      r.status.toLowerCase().includes(searchLower) ||
-      r.reason?.toLowerCase().includes(searchLower)
-    )
-  })
-
-  // My Leave table columns
-  const myLeaveColumns = useMemo<ColumnDef<LeaveRequest>[]>(
-    () => [
-      {
-        accessorKey: 'leaveType',
-        header: 'Leave Type',
-        cell: ({ row }) => (
-          <div>
-            <p className="font-medium text-foreground">
-              {LEAVE_TYPE_LABELS[row.original.leaveType] ?? row.original.leaveType.replace(/_/g, ' ')}
-            </p>
-            {row.original.reason && (
-              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                {row.original.reason}
-              </p>
-            )}
-          </div>
-        ),
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'startDate',
-        header: 'Dates',
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">
-            {formatDateRange(row.original.startDate, row.original.endDate)}
-          </span>
-        ),
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'totalDays',
-        header: 'Days',
-        cell: ({ getValue }) => {
-          const days = getValue<number>()
-          return <span className="text-muted-foreground">{days} day{days !== 1 ? 's' : ''}</span>
-        },
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'createdAt',
-        header: 'Submitted',
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground">{formatDate(getValue<string>())}</span>
-        ),
-        enableSorting: true,
-      },
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ getValue }) => {
-          const status = getValue<string>()
-          return <StatusBadge status={STATUS_LABELS[status] ?? status} />
-        },
-        enableSorting: true,
-      },
-      {
-        id: 'actions',
         header: '',
         cell: ({ row }) => {
-          if (row.original.status === 'PENDING') {
+          const item = row.original
+
+          // Own pending request - can cancel
+          if (item.isOwn && item.status === 'PENDING') {
             return (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => handleCancelLeave(row.original.id)}
-                disabled={processingId === row.original.id}
+                onClick={() => handleCancelLeave(item.id)}
+                disabled={processingId === item.id}
                 className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 title="Cancel request"
               >
@@ -562,13 +425,41 @@ function LeavePageContent() {
               </Button>
             )
           }
-          if (row.original.status === 'APPROVED' && row.original.reviewedBy) {
+
+          // Team's pending request - can approve/reject
+          if (!item.isOwn && item.status === 'PENDING') {
+            return (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleReject(item.id)}
+                  disabled={processingId === item.id}
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleApprove(item.id)}
+                  disabled={processingId === item.id}
+                >
+                  <CheckIcon className="h-4 w-4 mr-1" />
+                  Approve
+                </Button>
+              </div>
+            )
+          }
+
+          // Approved - show who approved
+          if (item.status === 'APPROVED' && item.reviewedBy) {
             return (
               <span className="text-xs text-muted-foreground">
-                by {row.original.reviewedBy.firstName}
+                by {item.reviewedBy.firstName}
               </span>
             )
           }
+
           return null
         },
         enableSorting: false,
@@ -614,7 +505,6 @@ function LeavePageContent() {
   }
 
   const currentEmployee = data?.currentEmployee
-  const pendingCount = data?.pendingLeaveRequests?.length ?? 0
 
   if (!currentEmployee) {
     return (
@@ -634,6 +524,8 @@ function LeavePageContent() {
     )
   }
 
+  const pendingCount = allLeaveItems.filter(i => i.status === 'PENDING' && !i.isOwn).length
+
   return (
     <>
       <ListPageHeader
@@ -650,7 +542,6 @@ function LeavePageContent() {
         }
       />
 
-      {/* Request Leave Slide-over Panel */}
       <RequestLeavePanel
         isOpen={showLeavePanel}
         onClose={() => setShowLeavePanel(false)}
@@ -659,100 +550,80 @@ function LeavePageContent() {
       />
 
       <div className="space-y-6">
-        {/* Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <TabButton
-            active={activeTab === 'my-leave'}
-            onClick={() => setActiveTab('my-leave')}
-            icon={CalendarDaysIcon}
-          >
-            My Leave
-          </TabButton>
-          {data?.isManager && (
-            <TabButton
-              active={activeTab === 'team'}
-              onClick={() => setActiveTab('team')}
-              icon={UsersIcon}
-              badge={pendingCount}
-            >
-              Team
-            </TabButton>
-          )}
-        </div>
-
-        {/* My Leave Tab */}
-        {activeTab === 'my-leave' && (
-          <div className="space-y-6">
-            {/* Leave Balance Summary */}
-            <Card padding="lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground">Leave Balance</h3>
-                {!leaveLoading && (
-                  <span className="text-xs text-muted-foreground">
-                    {leaveBalances.filter(b => b.leaveType !== 'UNPAID').length} types available
-                  </span>
-                )}
-              </div>
-              {leaveLoading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="animate-pulse bg-card rounded-lg border border-border p-4">
-                      <div className="h-4 bg-muted rounded w-16 mb-3" />
-                      <div className="h-8 bg-muted rounded w-12 mb-3" />
-                      <div className="h-1.5 bg-muted/50 rounded-full" />
-                    </div>
-                  ))}
+        {/* Leave Balance */}
+        <Card padding="lg">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-foreground">My Leave Balance</h3>
+          </div>
+          {leaveLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse bg-card rounded-lg border border-border p-4">
+                  <div className="h-4 bg-muted rounded w-16 mb-3" />
+                  <div className="h-8 bg-muted rounded w-12 mb-3" />
+                  <div className="h-1.5 bg-muted/50 rounded-full" />
                 </div>
-              ) : (
-                <LeaveBalanceCards balances={leaveBalances} />
-              )}
-            </Card>
+              ))}
+            </div>
+          ) : (
+            <LeaveBalanceCards balances={leaveBalances} />
+          )}
+        </Card>
 
-            {/* Search */}
-            <Card padding="md">
+        {/* Pending badge for managers */}
+        {pendingCount > 0 && (
+          <Alert variant="warning" title="Pending Approvals">
+            You have {pendingCount} leave request{pendingCount !== 1 ? 's' : ''} awaiting your approval.
+          </Alert>
+        )}
+
+        {/* Search and Filters */}
+        <Card padding="md">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
               <SearchForm
                 value={q}
                 onChange={setQ}
                 onSubmit={() => {}}
-                placeholder="Search by leave type, status, or reason..."
+                placeholder="Search by name or leave type..."
               />
-            </Card>
-
-            {/* Results count */}
-            <ResultsCount
-              count={filteredRequests.length}
-              singular="request"
-              plural="requests"
-              loading={leaveLoading}
-            />
-
-            {/* Leave Requests Table */}
-            <DataTable
-              columns={myLeaveColumns}
-              data={filteredRequests}
-              loading={leaveLoading}
-              skeletonRows={5}
-              emptyState={
-                <TableEmptyContent
-                  icon={<CalendarDaysIcon className="h-10 w-10" />}
-                  title="No leave requests yet. Click 'Request Leave' to submit your first request."
-                />
-              }
-            />
+            </div>
+            <div className="w-36">
+              <Label htmlFor="status-filter" className="sr-only">Status</Label>
+              <NativeSelect
+                id="status-filter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All Status</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+              </NativeSelect>
+            </div>
           </div>
-        )}
+        </Card>
 
-        {/* Team Tab */}
-        {activeTab === 'team' && data?.isManager && (
-          <TeamLeaveSection
-            pendingRequests={data.pendingLeaveRequests ?? []}
-            approvalHistory={data.leaveApprovalHistory ?? []}
-            loading={loading}
-            processingId={processingId}
-            onApprove={handleApprove}
-            onReject={handleReject}
-          />
-        )}
+        <ResultsCount
+          count={filteredItems.length}
+          singular="request"
+          plural="requests"
+          loading={leaveLoading}
+        />
+
+        <DataTable
+          columns={columns}
+          data={filteredItems}
+          loading={leaveLoading}
+          skeletonRows={5}
+          emptyState={
+            <TableEmptyContent
+              icon={<CalendarDaysIcon className="h-10 w-10" />}
+              title="No leave requests found"
+            />
+          }
+        />
       </div>
     </>
   )
