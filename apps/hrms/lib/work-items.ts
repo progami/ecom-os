@@ -3,15 +3,18 @@ import { PermissionLevel } from '@/lib/permissions'
 import type { WorkItemAction, WorkItemDTO, WorkItemPriority, WorkItemsResponse } from '@/lib/contracts/work-items'
 import { rankWorkItems } from '@/lib/domain/work-items/rank'
 
-// Simplified work item types for small teams (no super admin stage)
 export type WorkItemType =
   | 'TASK_ASSIGNED'
   | 'POLICY_ACK_REQUIRED'
-  | 'LEAVE_APPROVAL_REQUIRED'
+  | 'LEAVE_PENDING_MANAGER'
+  | 'LEAVE_PENDING_HR'
+  | 'LEAVE_PENDING_SUPER_ADMIN'
   | 'REVIEW_DUE'
   | 'REVIEW_PENDING_HR'
+  | 'REVIEW_PENDING_SUPER_ADMIN'
   | 'REVIEW_ACK_REQUIRED'
   | 'VIOLATION_PENDING_HR'
+  | 'VIOLATION_PENDING_SUPER_ADMIN'
   | 'VIOLATION_ACK_REQUIRED'
 
 const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
@@ -65,11 +68,15 @@ function toTypeLabel(type: WorkItemType): string {
   const map: Record<WorkItemType, string> = {
     TASK_ASSIGNED: 'Task',
     POLICY_ACK_REQUIRED: 'Policy',
-    LEAVE_APPROVAL_REQUIRED: 'Leave',
+    LEAVE_PENDING_MANAGER: 'Leave',
+    LEAVE_PENDING_HR: 'Leave',
+    LEAVE_PENDING_SUPER_ADMIN: 'Leave',
     REVIEW_DUE: 'Review',
     REVIEW_PENDING_HR: 'Review',
+    REVIEW_PENDING_SUPER_ADMIN: 'Review',
     REVIEW_ACK_REQUIRED: 'Review',
     VIOLATION_PENDING_HR: 'Violation',
+    VIOLATION_PENDING_SUPER_ADMIN: 'Violation',
     VIOLATION_ACK_REQUIRED: 'Violation',
   }
   return map[type] ?? type
@@ -85,11 +92,15 @@ function toStageLabel(type: WorkItemType, options?: { status?: string }): string
   const map: Record<WorkItemType, string> = {
     TASK_ASSIGNED: 'Assigned',
     POLICY_ACK_REQUIRED: 'Acknowledgement required',
-    LEAVE_APPROVAL_REQUIRED: 'Approval required',
+    LEAVE_PENDING_MANAGER: 'Manager approval required',
+    LEAVE_PENDING_HR: 'HR approval required',
+    LEAVE_PENDING_SUPER_ADMIN: 'Final approval required',
     REVIEW_DUE: 'Due',
     REVIEW_PENDING_HR: 'HR review required',
+    REVIEW_PENDING_SUPER_ADMIN: 'Final approval required',
     REVIEW_ACK_REQUIRED: 'Acknowledgement required',
     VIOLATION_PENDING_HR: 'HR review required',
+    VIOLATION_PENDING_SUPER_ADMIN: 'Final approval required',
     VIOLATION_ACK_REQUIRED: 'Acknowledgement required',
   }
 
@@ -119,6 +130,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     return { items: [], meta: { totalCount: 0, actionRequiredCount: 0, overdueCount: 0 } }
   }
 
+  const isSuperAdmin = actor.isSuperAdmin
   const isHR = isEmployeeHrLike(actor)
   const policyRegion = mapEmployeeRegionToPolicyRegion(actor.region)
 
@@ -242,10 +254,10 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     }
   }
 
-  // Leave approvals (direct reports)
-  const pendingLeaves = await prisma.leaveRequest.findMany({
+  // Leave approvals (manager stage - direct reports)
+  const pendingManagerLeaves = await prisma.leaveRequest.findMany({
     where: {
-      status: 'PENDING',
+      status: { in: ['PENDING', 'PENDING_MANAGER'] },
       employee: { reportsToId: employeeId },
     },
     orderBy: [{ createdAt: 'desc' }],
@@ -261,7 +273,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     },
   })
 
-  for (const req of pendingLeaves) {
+  for (const req of pendingManagerLeaves) {
     const createdAt = iso(req.createdAt)
     const dueAt = iso(req.startDate)
     const dueMeta = computeDueMeta(dueAt)
@@ -269,14 +281,14 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     const score = baseScore + (dueMeta.isOverdue ? 30 + Math.min(30, dueMeta.overdueDays ?? 0) : 0)
 
     items.push({
-      id: `LEAVE_APPROVAL_REQUIRED:${req.id}`,
-      type: 'LEAVE_APPROVAL_REQUIRED',
-      typeLabel: toTypeLabel('LEAVE_APPROVAL_REQUIRED'),
+      id: `LEAVE_PENDING_MANAGER:${req.id}`,
+      type: 'LEAVE_PENDING_MANAGER',
+      typeLabel: toTypeLabel('LEAVE_PENDING_MANAGER'),
       title: 'Leave approval required',
       description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
       href: `/leaves/${req.id}`,
       entity: { type: 'LEAVE_REQUEST', id: req.id },
-      stageLabel: toStageLabel('LEAVE_APPROVAL_REQUIRED'),
+      stageLabel: toStageLabel('LEAVE_PENDING_MANAGER'),
       createdAt,
       dueAt,
       isOverdue: dueMeta.isOverdue,
@@ -286,6 +298,94 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       primaryAction: createWorkItemAction({ id: 'leave.approve', label: 'Approve', disabled: false }),
       secondaryActions: [createWorkItemAction({ id: 'leave.reject', label: 'Reject', disabled: false })],
     })
+  }
+
+  if (isHR) {
+    const pendingHrLeaves = await prisma.leaveRequest.findMany({
+      where: { status: 'PENDING_HR' },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 50,
+      select: {
+        id: true,
+        createdAt: true,
+        leaveType: true,
+        startDate: true,
+        endDate: true,
+        totalDays: true,
+        employee: { select: { firstName: true, lastName: true } },
+      },
+    })
+
+    for (const req of pendingHrLeaves) {
+      const createdAt = iso(req.createdAt)
+      const dueAt = iso(req.startDate)
+      const dueMeta = computeDueMeta(dueAt)
+      const baseScore = 80
+      const score = baseScore + (dueMeta.isOverdue ? 20 + Math.min(30, dueMeta.overdueDays ?? 0) : 0)
+
+      items.push({
+        id: `LEAVE_PENDING_HR:${req.id}`,
+        type: 'LEAVE_PENDING_HR',
+        typeLabel: toTypeLabel('LEAVE_PENDING_HR'),
+        title: 'Leave pending HR approval',
+        description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
+        href: `/leaves/${req.id}`,
+        entity: { type: 'LEAVE_REQUEST', id: req.id },
+        stageLabel: toStageLabel('LEAVE_PENDING_HR'),
+        createdAt,
+        dueAt,
+        isOverdue: dueMeta.isOverdue,
+        overdueDays: dueMeta.overdueDays,
+        priority: priorityFromScore(score, dueMeta.isOverdue),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'leave.approve', label: 'Approve (HR)', disabled: false }),
+        secondaryActions: [createWorkItemAction({ id: 'leave.reject', label: 'Reject', disabled: false })],
+      })
+    }
+  }
+
+  if (isSuperAdmin) {
+    const pendingAdminLeaves = await prisma.leaveRequest.findMany({
+      where: { status: 'PENDING_SUPER_ADMIN' },
+      orderBy: [{ createdAt: 'desc' }],
+      take: 50,
+      select: {
+        id: true,
+        createdAt: true,
+        leaveType: true,
+        startDate: true,
+        endDate: true,
+        totalDays: true,
+        employee: { select: { firstName: true, lastName: true } },
+      },
+    })
+
+    for (const req of pendingAdminLeaves) {
+      const createdAt = iso(req.createdAt)
+      const dueAt = iso(req.startDate)
+      const dueMeta = computeDueMeta(dueAt)
+      const baseScore = 90
+      const score = baseScore + (dueMeta.isOverdue ? 20 + Math.min(30, dueMeta.overdueDays ?? 0) : 0)
+
+      items.push({
+        id: `LEAVE_PENDING_SUPER_ADMIN:${req.id}`,
+        type: 'LEAVE_PENDING_SUPER_ADMIN',
+        typeLabel: toTypeLabel('LEAVE_PENDING_SUPER_ADMIN'),
+        title: 'Leave pending final approval',
+        description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
+        href: `/leaves/${req.id}`,
+        entity: { type: 'LEAVE_REQUEST', id: req.id },
+        stageLabel: toStageLabel('LEAVE_PENDING_SUPER_ADMIN'),
+        createdAt,
+        dueAt,
+        isOverdue: dueMeta.isOverdue,
+        overdueDays: dueMeta.overdueDays,
+        priority: priorityFromScore(score, dueMeta.isOverdue),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'leave.approve', label: 'Final approve', disabled: false }),
+        secondaryActions: [createWorkItemAction({ id: 'leave.reject', label: 'Reject', disabled: false })],
+      })
+    }
   }
 
   // HR review / Super Admin review queues
@@ -368,8 +468,86 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
     }
   }
 
-  // Super admin work items removed - simplified workflow for small teams
-  // HR approval goes directly to employee acknowledgement
+  if (isSuperAdmin) {
+    const pendingAdminReviews = await prisma.performanceReview.findMany({
+      where: { status: 'PENDING_SUPER_ADMIN' },
+      orderBy: [{ hrReviewedAt: 'desc' }, { submittedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 50,
+      select: {
+        id: true,
+        createdAt: true,
+        submittedAt: true,
+        hrReviewedAt: true,
+        employee: { select: { firstName: true, lastName: true } },
+      },
+    })
+
+    for (const review of pendingAdminReviews) {
+      const createdAt = iso(review.hrReviewedAt ?? review.submittedAt ?? review.createdAt)
+      const baseScore = 92
+      const score = baseScore
+      items.push({
+        id: `REVIEW_PENDING_SUPER_ADMIN:${review.id}`,
+        type: 'REVIEW_PENDING_SUPER_ADMIN',
+        typeLabel: toTypeLabel('REVIEW_PENDING_SUPER_ADMIN'),
+        title: 'Review pending final approval',
+        description: `Review for ${review.employee.firstName} ${review.employee.lastName}`,
+        href: `/performance/reviews/${review.id}`,
+        entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+        stageLabel: toStageLabel('REVIEW_PENDING_SUPER_ADMIN'),
+        createdAt,
+        dueAt: null,
+        isOverdue: false,
+        overdueDays: null,
+        priority: priorityFromScore(score, false),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'review.superAdminApprove', label: 'Final approve', disabled: false }),
+        secondaryActions: [
+          createWorkItemAction({ id: 'review.superAdminReject', label: 'Reject', disabled: false }),
+        ],
+      })
+    }
+
+    const pendingAdminViolations = await prisma.disciplinaryAction.findMany({
+      where: { status: 'PENDING_SUPER_ADMIN' },
+      orderBy: [{ hrReviewedAt: 'desc' }, { reportedDate: 'desc' }, { createdAt: 'desc' }],
+      take: 50,
+      select: {
+        id: true,
+        createdAt: true,
+        reportedDate: true,
+        hrReviewedAt: true,
+        severity: true,
+        employee: { select: { firstName: true, lastName: true } },
+      },
+    })
+
+    for (const action of pendingAdminViolations) {
+      const createdAt = iso(action.hrReviewedAt ?? action.reportedDate ?? action.createdAt)
+      const baseScore = 95
+      const score = baseScore
+      items.push({
+        id: `VIOLATION_PENDING_SUPER_ADMIN:${action.id}`,
+        type: 'VIOLATION_PENDING_SUPER_ADMIN',
+        typeLabel: toTypeLabel('VIOLATION_PENDING_SUPER_ADMIN'),
+        title: 'Violation pending final approval',
+        description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
+        href: `/performance/violations/${action.id}`,
+        entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+        stageLabel: toStageLabel('VIOLATION_PENDING_SUPER_ADMIN'),
+        createdAt,
+        dueAt: null,
+        isOverdue: false,
+        overdueDays: null,
+        priority: priorityFromScore(score, false),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'disciplinary.superAdminApprove', label: 'Final approve', disabled: false }),
+        secondaryActions: [
+          createWorkItemAction({ id: 'disciplinary.superAdminReject', label: 'Reject', disabled: false }),
+        ],
+      })
+    }
+  }
 
   // Employee acknowledgements
   const pendingReviewAcks = await prisma.performanceReview.findMany({

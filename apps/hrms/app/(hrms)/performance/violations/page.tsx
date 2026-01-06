@@ -23,6 +23,7 @@ const STATUS_OPTIONS: FilterOption[] = [
   { value: 'REPORTED', label: 'Reported' },
   { value: 'UNDER_REVIEW', label: 'Under Review' },
   { value: 'PENDING_HR_REVIEW', label: 'Pending HR' },
+  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Admin' },
   { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Ack' },
   { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
   { value: 'RESOLVED', label: 'Resolved' },

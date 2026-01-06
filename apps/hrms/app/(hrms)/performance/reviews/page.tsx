@@ -19,10 +19,15 @@ const REVIEW_TYPE_OPTIONS: FilterOption[] = [
 ]
 
 const STATUS_OPTIONS: FilterOption[] = [
+  { value: 'NOT_STARTED', label: 'Not started' },
+  { value: 'IN_PROGRESS', label: 'In progress' },
   { value: 'DRAFT', label: 'Draft' },
-  { value: 'PENDING_REVIEW', label: 'Pending' },
-  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'PENDING_REVIEW', label: 'Pending (Legacy)' },
+  { value: 'PENDING_HR_REVIEW', label: 'Pending HR' },
+  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Admin' },
+  { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Ack' },
   { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
+  { value: 'COMPLETED', label: 'Completed' },
 ]
 
 const REVIEW_TYPE_LABELS: Record<string, string> = Object.fromEntries(

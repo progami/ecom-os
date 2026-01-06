@@ -35,9 +35,10 @@ export async function leaveToWorkflowRecordDTO(
     }
   }
 
-  const currentStageId = leave.status === 'PENDING' ? 'approval' : 'decision'
+  const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
+  const currentStageId = pendingStatuses.includes(leave.status) ? 'approval' : 'decision'
 
-  const dueAt = leave.status === 'PENDING' ? leave.startDate.toISOString() : undefined
+  const dueAt = pendingStatuses.includes(leave.status) ? leave.startDate.toISOString() : undefined
   const dueMs = dueAt ? Date.parse(dueAt) : null
   const nowMs = Date.now()
   const isOverdue = Boolean(dueMs && dueMs < nowMs)
