@@ -22,6 +22,18 @@ const supplierIdSchema = z.preprocess(value => {
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
+const packagingTypeSchema = z.preprocess(value => {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+  if (normalized === 'BOX') return 'BOX'
+  if (normalized === 'POLYBAG') return 'POLYBAG'
+  return trimmed
+}, z.enum(['BOX', 'POLYBAG']).nullable().optional())
+
 const skuSchemaBase = z.object({
   skuCode: z
     .string()
@@ -94,18 +106,7 @@ const skuSchemaBase = z.object({
   cartonWidthCm: optionalDimensionValueSchema,
   cartonHeightCm: optionalDimensionValueSchema,
   cartonWeightKg: z.number().positive().optional().nullable(),
-  packagingType: z
-    .string()
-    .trim()
-    .max(80)
-    .optional()
-    .nullable()
-    .transform(val => {
-      if (val === undefined) return undefined
-      if (val === null) return null
-      const sanitized = sanitizeForDisplay(val)
-      return sanitized ? sanitized : null
-    }),
+  packagingType: packagingTypeSchema,
 })
 
 type DimensionRefineShape = {
