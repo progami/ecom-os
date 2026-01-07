@@ -972,7 +972,7 @@ export function CustomOpsPlanningGrid({
   }, []);
 
   const moveSelection = useCallback(
-    (deltaRow: number, deltaCol: number) => {
+    (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
       if (!activeCell) return;
 
       const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId);
@@ -987,8 +987,19 @@ export function CustomOpsPlanningGrid({
       if (!nextRowId || !nextColKey) return;
 
       const coords = { row: nextRowIndex, col: nextColIndex };
-      selectionAnchorRef.current = coords;
-      setSelection({ from: coords, to: coords });
+      const currentCoords = { row: currentRowIndex, col: currentColIndex };
+      const extendSelection = Boolean(options.extendSelection);
+
+      const anchor = extendSelection ? (selectionAnchorRef.current ?? currentCoords) : coords;
+
+      if (extendSelection && !selectionAnchorRef.current) {
+        selectionAnchorRef.current = currentCoords;
+      }
+      if (!extendSelection) {
+        selectionAnchorRef.current = coords;
+      }
+
+      setSelection({ from: anchor, to: coords });
       setActiveCell({ rowId: nextRowId, colKey: nextColKey });
       onSelectOrder?.(nextRowId);
       scrollToCell(nextRowId, nextColKey);
@@ -1494,22 +1505,22 @@ export function CustomOpsPlanningGrid({
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        moveSelection(1, 0);
+        moveSelection(1, 0, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        moveSelection(-1, 0);
+        moveSelection(-1, 0, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        moveSelection(0, 1);
+        moveSelection(0, 1, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        moveSelection(0, -1);
+        moveSelection(0, -1, { extendSelection: event.shiftKey });
         return;
       }
     },
