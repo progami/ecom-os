@@ -46,7 +46,7 @@ export function buildLeaveNextActions(leave: LeaveWorkflowRecordInput, viewer: L
       case 'PENDING_MANAGER':
         return viewer.isHR || viewer.isSuperAdmin || isManager
       case 'PENDING_HR':
-        return viewer.isHR || viewer.isSuperAdmin
+        return viewer.isHR
       case 'PENDING_SUPER_ADMIN':
         return viewer.isSuperAdmin
       default:

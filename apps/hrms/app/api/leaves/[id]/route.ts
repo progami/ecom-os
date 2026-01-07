@@ -3,7 +3,7 @@ import prisma from '../../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { z } from 'zod'
-import { isHROrAbove, isSuperAdmin } from '@/lib/permissions'
+import { isHR, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
 import { getViewerContext } from '@/lib/domain/workflow/viewer'
 import { leaveToWorkflowRecordDTO } from '@/lib/domain/leave/workflow-record'
 
@@ -60,11 +60,14 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const isHR = await isHROrAbove(currentEmployeeId)
-    const isAdmin = await isSuperAdmin(currentEmployeeId)
+    const [isHrOrAbove, isAdmin, isHrOnly] = await Promise.all([
+      isHROrAbove(currentEmployeeId),
+      isSuperAdmin(currentEmployeeId),
+      isHR(currentEmployeeId),
+    ])
     const isOwner = leaveRequest.employeeId === currentEmployeeId
     const isManager = leaveRequest.employee.reportsToId === currentEmployeeId
-    const canView = isHR || isOwner || isManager
+    const canView = isHrOrAbove || isAdmin || isOwner || isManager
 
     if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -106,7 +109,7 @@ export async function GET(req: Request, context: RouteContext) {
     const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
     const canCancel = isOwner && pendingStatuses.includes(leaveRequest.status)
     const canManagerApprove = isManager && (leaveRequest.status === 'PENDING_MANAGER' || leaveRequest.status === 'PENDING')
-    const canHRApprove = isHR && leaveRequest.status === 'PENDING_HR'
+    const canHRApprove = isHrOnly && leaveRequest.status === 'PENDING_HR'
     const canSuperAdminApprove = isAdmin && leaveRequest.status === 'PENDING_SUPER_ADMIN'
 
     return NextResponse.json({
@@ -180,10 +183,10 @@ export async function PATCH(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const isHR = await isHROrAbove(currentEmployeeId)
+    const isHrOrAbove = await isHROrAbove(currentEmployeeId)
     const isOwner = leaveRequest.employeeId === currentEmployeeId
     const isManager = leaveRequest.employee.reportsToId === currentEmployeeId
-    const isAdmin = isHR
+    const isAdmin = isHrOrAbove
 
     // Determine what actions are allowed
     if (status === 'CANCELLED') {
@@ -299,8 +302,8 @@ export async function DELETE(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const isHR = await isHROrAbove(currentEmployeeId)
-    if (!isHR) {
+    const isHrOrAbove = await isHROrAbove(currentEmployeeId)
+    if (!isHrOrAbove) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
 

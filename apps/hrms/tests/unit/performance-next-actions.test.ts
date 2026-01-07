@@ -32,6 +32,14 @@ test('performance: PENDING_HR_REVIEW blocks non-HR', () => {
   assert.equal(actions.primary?.disabled, true)
 })
 
+test('performance: PENDING_HR_REVIEW blocks super admin without HR', () => {
+  const actions = buildPerformanceReviewNextActions(
+    review({ status: 'PENDING_HR_REVIEW', employeeId: 'emp' }),
+    { ...baseViewer, isSuperAdmin: true }
+  )
+  assert.equal(actions.primary?.disabled, true)
+})
+
 test('performance: PENDING_SUPER_ADMIN blocks non-super-admin', () => {
   const actions = buildPerformanceReviewNextActions(
     review({ status: 'PENDING_SUPER_ADMIN', employeeId: 'emp' }),
