@@ -566,8 +566,8 @@ export default function PurchaseOrderDetailPage() {
   const [activeBottomTab, setActiveBottomTab] = useState<StageTab>('order')
 
   // Determine which stage tabs are enabled based on current status
-  const STAGE_ORDER: POStageStatus[] = ['DRAFT', 'ISSUED', 'MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED']
-  const currentStageIndex = STAGE_ORDER.indexOf(order?.status ?? 'DRAFT')
+  const STAGE_TAB_ORDER: POStageStatus[] = ['DRAFT', 'ISSUED', 'MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED']
+  const stageTabIndex = STAGE_TAB_ORDER.indexOf(order?.status ?? 'DRAFT')
 
   const isStageTabEnabled = (tab: StageTab): boolean => {
     if (tab === 'order' || tab === 'history') return true
@@ -578,9 +578,9 @@ export default function PurchaseOrderDetailPage() {
       shipped: 'SHIPPED',
     }
     const requiredStage = tabToStageMap[tab]
-    const requiredIndex = STAGE_ORDER.indexOf(requiredStage)
+    const requiredIndex = STAGE_TAB_ORDER.indexOf(requiredStage)
     // Enable tab if current stage is at or past the required stage
-    return currentStageIndex >= requiredIndex
+    return stageTabIndex >= requiredIndex
   }
   const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
 
