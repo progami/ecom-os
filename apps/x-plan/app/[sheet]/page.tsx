@@ -2056,10 +2056,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const activeStrategyRow = strategyId
     ? await prismaAnyLocal.strategy?.findUnique?.({
         where: { id: strategyId },
-        select: { name: true, region: true },
+        select: { name: true, region: true, assigneeEmail: true },
       })
     : null;
   const activeStrategyName: string | null = activeStrategyRow?.name ?? null;
+  const activeStrategyAssignee: string | null = activeStrategyRow?.assigneeEmail ?? null;
   const strategyRegion: StrategyRegion = activeStrategyRow?.region === 'UK' ? 'UK' : 'US';
   const weekStartsOn = weekStartsOnForRegion(strategyRegion);
 
@@ -2571,7 +2572,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   };
 
   const ribbon = activeStrategyName ? (
-    <ActiveStrategyIndicator strategyName={activeStrategyName} />
+    <ActiveStrategyIndicator
+      strategyName={activeStrategyName}
+      region={strategyRegion}
+      assignee={activeStrategyAssignee}
+    />
   ) : null;
 
   const layout = (
