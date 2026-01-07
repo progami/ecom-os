@@ -24,6 +24,7 @@ type UserPermissionInfo = {
   isSuperAdmin: boolean
   permissionLevel: number
   hasHRRole: boolean
+  isHR: boolean
   isHROrAbove: boolean
 }
 
@@ -45,6 +46,7 @@ async function getUserPermissionInfo(userId: string): Promise<UserPermissionInfo
   if (!user) return null
 
   const hasHRRole = (user.roles?.length ?? 0) > 0
+  const isHR = (user.permissionLevel ?? 0) >= PermissionLevel.HR || hasHRRole
   const isHROrAbove = user.isSuperAdmin ||
     (user.permissionLevel ?? 0) >= PermissionLevel.HR ||
     hasHRRole
@@ -54,6 +56,7 @@ async function getUserPermissionInfo(userId: string): Promise<UserPermissionInfo
     isSuperAdmin: user.isSuperAdmin,
     permissionLevel: user.permissionLevel ?? 0,
     hasHRRole,
+    isHR,
     isHROrAbove,
   }
 }
@@ -62,6 +65,12 @@ async function getUserPermissionInfo(userId: string): Promise<UserPermissionInfo
 export async function isHROrAbove(userId: string): Promise<boolean> {
   const info = await getUserPermissionInfo(userId)
   return info?.isHROrAbove ?? false
+}
+
+// Check if user is HR (does not include Super Admin)
+export async function isHR(userId: string): Promise<boolean> {
+  const info = await getUserPermissionInfo(userId)
+  return info?.isHR ?? false
 }
 
 // Check if user is Super Admin
@@ -454,8 +463,7 @@ export async function canHRReview(actorId: string): Promise<{ allowed: boolean; 
     return { allowed: false, reason: 'Actor not found' }
   }
 
-  if (actor.isSuperAdmin) return { allowed: true, reason: 'Super Admin' }
-  if (actor.isHROrAbove) return { allowed: true, reason: 'HR' }
+  if (actor.isHR) return { allowed: true, reason: 'HR' }
 
   return { allowed: false, reason: 'Only HR can perform this action' }
 }

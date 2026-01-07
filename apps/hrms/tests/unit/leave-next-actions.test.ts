@@ -42,6 +42,14 @@ test('leave: HR can approve at HR stage', () => {
   assert.ok(actions.secondary.some((a) => a.id === 'leave.reject'))
 })
 
+test('leave: super admin cannot approve at HR stage without HR', () => {
+  const actions = buildLeaveNextActions(
+    leave({ status: 'PENDING_HR', employeeId: 'emp', employee: { reportsToId: 'mgr' } as any }),
+    { ...baseViewer, isSuperAdmin: true }
+  )
+  assert.equal(actions.primary?.disabled, true)
+})
+
 test('leave: super admin can approve at final stage', () => {
   const actions = buildLeaveNextActions(
     leave({ status: 'PENDING_SUPER_ADMIN', employeeId: 'emp', employee: { reportsToId: 'mgr' } as any }),

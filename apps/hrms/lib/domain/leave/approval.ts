@@ -1,6 +1,6 @@
 import type { LeaveRequest } from '@ecom-os/prisma-hrms'
 import prisma from '@/lib/prisma'
-import { getHREmployees, getSuperAdminEmployees, isHROrAbove, isManagerOf, isSuperAdmin } from '@/lib/permissions'
+import { getHREmployees, getSuperAdminEmployees, isHR, isHROrAbove, isManagerOf, isSuperAdmin } from '@/lib/permissions'
 
 type Result<T> = { ok: true; data: T } | { ok: false; status: number; message: string }
 
@@ -41,9 +41,9 @@ export async function processManagerLeaveApproval(input: LeaveApprovalInput): Pr
   }
 
   const isManager = await isManagerOf(input.actorId, leaveRequest.employeeId)
-  const isHR = await isHROrAbove(input.actorId)
+  const isHrOrAbove = await isHROrAbove(input.actorId)
 
-  if (!isManager && !isHR) {
+  if (!isManager && !isHrOrAbove) {
     return { ok: false, status: 403, message: "Only the employee's manager or HR can approve at this stage" }
   }
 
@@ -133,8 +133,8 @@ export async function processManagerLeaveApproval(input: LeaveApprovalInput): Pr
 }
 
 export async function processHrLeaveApproval(input: LeaveApprovalInput): Promise<Result<LeaveRequest>> {
-  const isHR = await isHROrAbove(input.actorId)
-  if (!isHR) return { ok: false, status: 403, message: 'Only HR can approve at this stage' }
+  const hrAllowed = await isHR(input.actorId)
+  if (!hrAllowed) return { ok: false, status: 403, message: 'Only HR can approve at this stage' }
 
   const leaveRequest = await prisma.leaveRequest.findUnique({
     where: { id: input.leaveId },

@@ -30,7 +30,7 @@ export function buildDisciplinaryNextActions(
   const isEmployee = viewer.employeeId === action.employeeId
 
   if (action.status === 'PENDING_HR_REVIEW') {
-    if (viewer.isHR || viewer.isSuperAdmin) {
+    if (viewer.isHR) {
       actions.primary = {
         id: 'disciplinary.hrApprove',
         label: 'Approve (HR)',
@@ -133,7 +133,7 @@ export function buildDisciplinaryNextActions(
       return actions
     }
 
-    if (viewer.isHR || viewer.isSuperAdmin) {
+    if (viewer.isHR) {
       actions.primary = {
         id: 'disciplinary.appeal.hrDecide',
         label: 'Decide appeal (HR)',
