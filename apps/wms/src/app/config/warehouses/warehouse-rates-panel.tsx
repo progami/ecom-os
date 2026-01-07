@@ -9,7 +9,7 @@ import {
   Edit,
   Save,
   X,
-  RefreshCw,
+  Loader2,
   Search,
 } from '@/lib/lucide-icons'
 import { Badge } from '@/components/ui/badge'
@@ -402,7 +402,7 @@ export function WarehouseRatesPanel({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
+        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
       </div>
     )
   }

@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Download, RefreshCw } from '@/lib/lucide-icons'
+import { Calculator, Download, Loader2 } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PageTabs } from '@/components/ui/page-tabs'
 
@@ -68,14 +67,18 @@ export function StorageLedgerHeader({
        variant="pills"
      />
 
- <Button
- onClick={handleWeeklySync}
- disabled={isCalculating}
- className="gap-2"
- >
- <RefreshCw className={cn('h-4 w-4', isCalculating && 'animate-spin')} />
- {isCalculating ? 'Syncing…' : 'Weekly Sync'}
- </Button>
+	 <Button
+	 onClick={handleWeeklySync}
+	 disabled={isCalculating}
+	 className="gap-2"
+	 >
+	 {isCalculating ? (
+	 <Loader2 className="h-4 w-4 animate-spin" />
+	 ) : (
+	 <Calculator className="h-4 w-4" />
+	 )}
+	 {isCalculating ? 'Syncing…' : 'Weekly Sync'}
+	 </Button>
 
  <Button
  onClick={onExport}
