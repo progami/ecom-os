@@ -133,7 +133,7 @@ function Sidebar({
           {filteredNavigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {section.title && (
-                <div className="px-3 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="px-3 pb-2 text-xs font-semibold text-accent uppercase tracking-wider">
                   {section.title}
                 </div>
               )}
