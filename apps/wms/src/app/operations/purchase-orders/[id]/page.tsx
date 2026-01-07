@@ -16,7 +16,6 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
-  ClipboardList,
   Download,
   ExternalLink,
   Eye,
@@ -24,6 +23,7 @@ import {
   FileEdit,
   FileText,
   History,
+  Info,
   Loader2,
   MoreHorizontal,
   Package2,
@@ -2132,7 +2132,7 @@ export default function PurchaseOrderDetailPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <ClipboardList className="h-4 w-4" />
+              <Info className="h-4 w-4" />
               Details
               {activeBottomTab === 'details' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
