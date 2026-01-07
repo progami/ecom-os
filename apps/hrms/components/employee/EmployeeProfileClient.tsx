@@ -32,7 +32,6 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
-import { StatusBadge } from '@/components/ui/badge'
 import { TabButton } from '@/components/ui/TabButton'
 import { SelectField } from '@/components/ui/FormField'
 import { employmentTypeLabels } from '@/lib/constants'
@@ -49,6 +48,89 @@ function formatDate(value: string | null | undefined): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatDateRange(start: string | null | undefined, end: string | null | undefined): string {
+  if (!start) return '—'
+  const startDate = new Date(start)
+  const endDate = end ? new Date(end) : null
+
+  const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+
+  if (!endDate || startDate.getTime() === endDate.getTime()) {
+    return `${startStr}, ${startDate.getFullYear()}`
+  }
+
+  const sameMonth = startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()
+  const sameYear = startDate.getFullYear() === endDate.getFullYear()
+
+  if (sameMonth) {
+    return `${startDate.toLocaleDateString('en-US', { month: 'short' })} ${startDate.getDate()}–${endDate.getDate()}, ${startDate.getFullYear()}`
+  }
+  if (sameYear) {
+    return `${startStr} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${startDate.getFullYear()}`
+  }
+  return `${startStr}, ${startDate.getFullYear()} – ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${endDate.getFullYear()}`
+}
+
+function getLeaveStatusConfig(status: string): {
+  label: string
+  dotColor: string
+  ringColor: string
+  badgeClass: string
+} {
+  switch (status) {
+    case 'APPROVED':
+      return {
+        label: 'Approved',
+        dotColor: 'bg-success-500',
+        ringColor: 'ring-success-100',
+        badgeClass: 'bg-success-100 text-success-700',
+      }
+    case 'REJECTED':
+      return {
+        label: 'Rejected',
+        dotColor: 'bg-destructive',
+        ringColor: 'ring-red-100',
+        badgeClass: 'bg-red-100 text-red-700',
+      }
+    case 'CANCELLED':
+      return {
+        label: 'Cancelled',
+        dotColor: 'bg-muted-foreground',
+        ringColor: 'ring-muted',
+        badgeClass: 'bg-muted text-muted-foreground',
+      }
+    case 'PENDING':
+    case 'PENDING_MANAGER':
+    case 'PENDING_HR':
+    case 'PENDING_SUPER_ADMIN':
+      return {
+        label: status === 'PENDING' ? 'Pending' : status.replace('PENDING_', '').replace('_', ' '),
+        dotColor: 'bg-warning-500',
+        ringColor: 'ring-warning-100',
+        badgeClass: 'bg-warning-100 text-warning-700',
+      }
+    default:
+      return {
+        label: status.replace(/_/g, ' ').toLowerCase(),
+        dotColor: 'bg-muted-foreground',
+        ringColor: 'ring-muted',
+        badgeClass: 'bg-muted text-muted-foreground',
+      }
+  }
+}
+
+function getLeaveTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    PTO: 'PTO',
+    PARENTAL: 'Parental Leave',
+    BEREAVEMENT_IMMEDIATE: 'Bereavement',
+    BEREAVEMENT_EXTENDED: 'Extended Bereavement',
+    JURY_DUTY: 'Jury Duty',
+    UNPAID: 'Unpaid Leave',
+  }
+  return labels[type] || type.replace(/_/g, ' ').toLowerCase()
 }
 
 function formatBytes(size: number | null | undefined): string {
@@ -612,52 +694,130 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
 
       {activeTab === 'leave' && canViewLeave ? (
         <div className="space-y-6">
-          <Card padding="md">
-            <div className="flex items-start justify-between gap-4">
+          {/* Balances Section */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Leave</h2>
-                <p className="text-xs text-muted-foreground mt-1">Balances and request history.</p>
+                <h2 className="text-base font-semibold text-foreground">Leave Balances</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">Your available time off</p>
               </div>
-              {isSelf ? <Button href="/leave?request=true">Request leave</Button> : null}
+              {isSelf ? (
+                <Button href="/leave?request=true" className="shadow-sm">
+                  <CalendarDaysIcon className="h-4 w-4 mr-2" />
+                  Request Leave
+                </Button>
+              ) : null}
             </div>
-            <div className="mt-4">
-              {leaveLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : <LeaveBalanceCards balances={leaveBalances} />}
-            </div>
-          </Card>
-
-          <Card padding="md">
-            <h3 className="text-sm font-semibold text-foreground">History</h3>
             {leaveLoading ? (
-              <p className="text-sm text-muted-foreground mt-4">Loading…</p>
-            ) : leaveRequests.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-4">No leave requests.</p>
+              <Card padding="lg">
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted border-t-accent" />
+                </div>
+              </Card>
             ) : (
-              <div className="mt-4 space-y-3">
-                {leaveRequests.map((request) => (
-                  <Link
-                    key={request.id}
-                    href={`/leaves/${request.id}`}
-                    className="block rounded-lg border border-border bg-card p-4 hover:border-input"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium text-foreground truncate">
-                          {request.leaveType.replaceAll('_', ' ').toLowerCase()}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {formatDate(request.startDate)} — {formatDate(request.endDate)} · {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
-                        </div>
-                        {request.reason ? (
-                          <div className="text-xs text-muted-foreground mt-1 truncate">{request.reason}</div>
-                        ) : null}
+              <LeaveBalanceCards balances={leaveBalances} />
+            )}
+          </div>
+
+          {/* History Section */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-foreground">Request History</h3>
+              {leaveRequests.length > 0 && (
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  {leaveRequests.length} request{leaveRequests.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            {leaveLoading ? (
+              <Card padding="lg">
+                <div className="animate-pulse space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-4">
+                      <div className="w-1 h-16 bg-muted rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-muted rounded w-1/3" />
+                        <div className="h-3 bg-muted rounded w-2/3" />
                       </div>
-                      <StatusBadge status={request.status} />
                     </div>
-                  </Link>
-                ))}
+                  ))}
+                </div>
+              </Card>
+            ) : leaveRequests.length === 0 ? (
+              <Card padding="lg">
+                <div className="text-center py-8">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
+                    <CalendarDaysIcon className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">No leave requests yet</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Your request history will appear here</p>
+                </div>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {leaveRequests.map((request, index) => {
+                  const statusConfig = getLeaveStatusConfig(request.status)
+                  const leaveTypeLabel = getLeaveTypeLabel(request.leaveType)
+
+                  return (
+                    <Link
+                      key={request.id}
+                      href={`/leaves/${request.id}`}
+                      className="group block"
+                    >
+                      <div className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:bg-muted/30 hover:border-border/80 transition-all duration-200">
+                        {/* Status indicator line */}
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={`w-2.5 h-2.5 rounded-full ring-4 ${statusConfig.dotColor} ${statusConfig.ringColor}`}
+                          />
+                          {index < leaveRequests.length - 1 && (
+                            <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-foreground">
+                                  {leaveTypeLabel}
+                                </span>
+                                <span className={`
+                                  inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider
+                                  ${statusConfig.badgeClass}
+                                `}>
+                                  {statusConfig.label}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span className="font-medium">{formatDateRange(request.startDate, request.endDate)}</span>
+                                <span className="text-muted-foreground/50">•</span>
+                                <span className="tabular-nums">{request.totalDays} day{request.totalDays !== 1 ? 's' : ''}</span>
+                              </div>
+                              {request.reason && (
+                                <p className="text-xs text-muted-foreground mt-2 line-clamp-1 italic">
+                                  "{request.reason}"
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Arrow indicator */}
+                            <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
               </div>
             )}
-          </Card>
+          </div>
         </div>
       ) : null}
     </>
