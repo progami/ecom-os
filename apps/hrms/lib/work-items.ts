@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { PermissionLevel } from '@/lib/permissions'
+import { HR_ROLE_NAMES, PermissionLevel } from '@/lib/permissions'
 import type { WorkItemAction, WorkItemDTO, WorkItemPriority, WorkItemsResponse } from '@/lib/contracts/work-items'
 import { rankWorkItems } from '@/lib/domain/work-items/rank'
 
@@ -17,14 +17,17 @@ export type WorkItemType =
   | 'VIOLATION_PENDING_SUPER_ADMIN'
   | 'VIOLATION_ACK_REQUIRED'
 
-const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
-
 function isEmployeeHrLike(employee: {
   isSuperAdmin: boolean
   permissionLevel: number
   roles: { name: string }[]
 }): boolean {
-  if (employee.permissionLevel >= PermissionLevel.HR) return true
+  if (
+    employee.permissionLevel >= PermissionLevel.HR &&
+    employee.permissionLevel < PermissionLevel.SUPER_ADMIN
+  ) {
+    return true
+  }
   return employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name))
 }
 

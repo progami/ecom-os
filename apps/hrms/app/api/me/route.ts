@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { HR_ROLE_NAMES, PermissionLevel } from '@/lib/permissions'
 
 /**
  * GET /api/me
@@ -36,8 +37,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
-    const isHR = employee.permissionLevel >= 75 || employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name))
+    const isHR =
+      (employee.permissionLevel >= PermissionLevel.HR &&
+        employee.permissionLevel < PermissionLevel.SUPER_ADMIN) ||
+      employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name))
 
     return NextResponse.json({
       id: employee.id,

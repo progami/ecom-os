@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { isSuperAdmin } from '@/lib/permissions'
+import { HR_ROLE_NAMES, PermissionLevel, isSuperAdmin } from '@/lib/permissions'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 
-const HR_ROLE_NAME = 'HR'
+const CANONICAL_HR_ROLE_NAME = 'HR'
 
 /**
  * PATCH /api/admin/access/[id]
@@ -40,9 +40,10 @@ export async function PATCH(
         id: true,
         email: true,
         isSuperAdmin: true,
+        permissionLevel: true,
         roles: {
-          where: { name: HR_ROLE_NAME },
-          select: { id: true },
+          where: { name: { in: HR_ROLE_NAMES } },
+          select: { id: true, name: true },
         },
       },
     })
@@ -50,6 +51,16 @@ export async function PATCH(
     if (!targetEmployee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
+
+    const nextIsSuperAdmin =
+      typeof newSuperAdminStatus === 'boolean' ? newSuperAdminStatus : targetEmployee.isSuperAdmin
+
+    const isHRFromPermissionLevel =
+      targetEmployee.permissionLevel >= PermissionLevel.HR &&
+      targetEmployee.permissionLevel < PermissionLevel.SUPER_ADMIN
+    const hasHRRole = targetEmployee.roles.length > 0
+    const currentIsHR = isHRFromPermissionLevel || hasHRRole
+    const nextIsHR = typeof newHRStatus === 'boolean' ? newHRStatus : currentIsHR
 
     // Prevent removing your own Super Admin status
     if (currentEmployeeId === targetEmployeeId && newSuperAdminStatus === false && targetEmployee.isSuperAdmin) {
@@ -59,61 +70,57 @@ export async function PATCH(
       )
     }
 
-    // Update Super Admin status if provided
+    const shouldUpdatePermissionLevel =
+      typeof newSuperAdminStatus === 'boolean' || typeof newHRStatus === 'boolean'
+
+    const nextPermissionLevel = nextIsSuperAdmin
+      ? PermissionLevel.SUPER_ADMIN
+      : nextIsHR
+        ? PermissionLevel.HR
+        : PermissionLevel.EMPLOYEE
+
+    type EmployeeUpdateData = Parameters<typeof prisma.employee.update>[0]['data']
+    const updateData: EmployeeUpdateData = {}
+
     if (typeof newSuperAdminStatus === 'boolean') {
-      await prisma.employee.update({
-        where: { id: targetEmployeeId },
-        data: {
-          isSuperAdmin: newSuperAdminStatus,
-          // Also update permission level for consistency
-          permissionLevel: newSuperAdminStatus ? 100 : (newHRStatus ? 75 : 0),
-        },
-      })
+      updateData.isSuperAdmin = newSuperAdminStatus
     }
 
-    // Update HR role if provided
+    if (shouldUpdatePermissionLevel) {
+      updateData.permissionLevel = nextPermissionLevel
+    }
+
     if (typeof newHRStatus === 'boolean') {
-      // Find or create HR role
-      let hrRole = await prisma.role.findUnique({
-        where: { name: HR_ROLE_NAME },
+      if (newHRStatus) {
+        let hrRole = await prisma.role.findUnique({
+          where: { name: CANONICAL_HR_ROLE_NAME },
+        })
+
+        if (!hrRole) {
+          hrRole = await prisma.role.create({
+            data: {
+              name: CANONICAL_HR_ROLE_NAME,
+              description: 'Human Resources - Can review violations and access employee records',
+            },
+          })
+        }
+
+        const alreadyHasCanonical = targetEmployee.roles.some((r) => r.name === CANONICAL_HR_ROLE_NAME)
+        if (!alreadyHasCanonical) {
+          updateData.roles = { connect: { id: hrRole.id } }
+        }
+      } else if (targetEmployee.roles.length > 0) {
+        updateData.roles = {
+          disconnect: targetEmployee.roles.map((r) => ({ id: r.id })),
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.employee.update({
+        where: { id: targetEmployeeId },
+        data: updateData,
       })
-
-      if (!hrRole) {
-        hrRole = await prisma.role.create({
-          data: {
-            name: HR_ROLE_NAME,
-            description: 'Human Resources - Can review violations and access employee records',
-          },
-        })
-      }
-
-      const hasHRRole = targetEmployee.roles.length > 0
-
-      if (newHRStatus && !hasHRRole) {
-        // Add HR role
-        await prisma.employee.update({
-          where: { id: targetEmployeeId },
-          data: {
-            roles: {
-              connect: { id: hrRole.id },
-            },
-            // Update permission level if not already Super Admin
-            permissionLevel: newSuperAdminStatus === true || targetEmployee.isSuperAdmin ? 100 : 75,
-          },
-        })
-      } else if (!newHRStatus && hasHRRole) {
-        // Remove HR role
-        await prisma.employee.update({
-          where: { id: targetEmployeeId },
-          data: {
-            roles: {
-              disconnect: { id: hrRole.id },
-            },
-            // Update permission level if not Super Admin
-            permissionLevel: newSuperAdminStatus === true || targetEmployee.isSuperAdmin ? 100 : 0,
-          },
-        })
-      }
     }
 
     // Fetch updated employee
@@ -139,9 +146,22 @@ export async function PATCH(
       },
     })
 
+    if (!updatedEmployee) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+    }
+
+    const updatedIsHR =
+      (updatedEmployee.permissionLevel >= PermissionLevel.HR &&
+        updatedEmployee.permissionLevel < PermissionLevel.SUPER_ADMIN) ||
+      updatedEmployee.roles.some((r) => HR_ROLE_NAMES.includes(r.name))
+
     return NextResponse.json({
       success: true,
-      employee: updatedEmployee,
+      employee: {
+        ...updatedEmployee,
+        isHR: updatedIsHR,
+        hrRoleId: updatedEmployee.roles.find((r) => HR_ROLE_NAMES.includes(r.name))?.id || null,
+      },
     })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to update access')
