@@ -124,7 +124,6 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
   }
 
   if (order.status === 'DRAFT') {
-    const DEFAULT_BATCH_LOT = 'DEFAULT'
     const skuCodeChanged =
       result.data.skuCode !== undefined &&
       result.data.skuCode.trim().toLowerCase() !== line.skuCode.trim().toLowerCase()
@@ -132,18 +131,22 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
     const requestedBatchLot = result.data.batchLot?.trim()
 
-    const nextBatchLot = (
-      requestedBatchLot
-        ? requestedBatchLot
-        : skuCodeChanged
-          ? DEFAULT_BATCH_LOT
-          : line.batchLot ?? DEFAULT_BATCH_LOT
-    )
-      .trim()
-      .toUpperCase()
+    if (skuCodeChanged && !requestedBatchLot) {
+      return ApiResponses.badRequest('Batch / lot is required when changing SKU')
+    }
 
-    if (!line.batchLot || line.batchLot.trim().toUpperCase() !== nextBatchLot) {
-      updateData.batchLot = nextBatchLot
+    const nextBatchLot = requestedBatchLot
+      ? requestedBatchLot.trim().toUpperCase()
+      : line.batchLot?.trim().toUpperCase() ?? ''
+
+    if (requestedBatchLot) {
+      if (nextBatchLot === 'DEFAULT') {
+        return ApiResponses.badRequest('Batch / lot is required')
+      }
+
+      if (!line.batchLot || line.batchLot.trim().toUpperCase() !== nextBatchLot) {
+        updateData.batchLot = nextBatchLot
+      }
     }
 
     const sku = await prisma.sku.findFirst({
@@ -172,50 +175,27 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
       return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
     }
 
-    await prisma.skuBatch.upsert({
-      where: {
-        skuId_batchCode: {
-          skuId: sku.id,
-          batchCode: DEFAULT_BATCH_LOT,
-        },
-      },
-      create: {
-        sku: { connect: { id: sku.id } },
-        batchCode: DEFAULT_BATCH_LOT,
-        packSize: sku.packSize,
-        unitsPerCarton: sku.unitsPerCarton,
-        material: sku.material,
-        unitDimensionsCm: sku.unitDimensionsCm,
-        unitLengthCm: sku.unitLengthCm,
-        unitWidthCm: sku.unitWidthCm,
-        unitHeightCm: sku.unitHeightCm,
-        unitWeightKg: sku.unitWeightKg,
-        cartonDimensionsCm: sku.cartonDimensionsCm,
-        cartonLengthCm: sku.cartonLengthCm,
-        cartonWidthCm: sku.cartonWidthCm,
-        cartonHeightCm: sku.cartonHeightCm,
-        cartonWeightKg: sku.cartonWeightKg,
-        packagingType: sku.packagingType,
-        isActive: true,
-      },
-      update: { isActive: true },
-    })
+    if (skuCodeChanged || requestedBatchLot) {
+      if (!nextBatchLot || nextBatchLot === 'DEFAULT') {
+        return ApiResponses.badRequest('Batch / lot is required')
+      }
 
-    if (nextBatchLot !== DEFAULT_BATCH_LOT) {
-      const existingBatch = await prisma.skuBatch.findUnique({
+      const existingBatch = await prisma.skuBatch.findFirst({
         where: {
-          skuId_batchCode: {
-            skuId: sku.id,
-            batchCode: nextBatchLot,
-          },
+          skuId: sku.id,
+          batchCode: { equals: nextBatchLot, mode: 'insensitive' },
         },
-        select: { id: true },
+        select: { id: true, batchCode: true },
       })
 
       if (!existingBatch) {
         return ApiResponses.badRequest(
           `Batch ${nextBatchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
         )
+      }
+
+      if (requestedBatchLot) {
+        updateData.batchLot = existingBatch.batchCode
       }
     }
   }
