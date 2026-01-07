@@ -720,24 +720,15 @@ function StorageTab({ templates, renderRateRow, warehouseId, warehouseName }: St
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-muted/50 text-foreground border-border">
-              {configs.length} SKUs
-            </Badge>
-            <button
-              type="button"
-              onClick={() => void loadConfigs()}
-              disabled={configsLoading || configsSaving}
-              className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw className={configsLoading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
-              Refresh
-            </button>
-            <button
-              type="button"
-              onClick={() => void saveConfigs()}
-              disabled={!hasUnsavedChanges || configsLoading || configsSaving}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+	          <div className="flex flex-wrap items-center gap-2">
+	            <Badge className="bg-muted/50 text-foreground border-border">
+	              {configs.length} SKUs
+	            </Badge>
+	            <button
+	              type="button"
+	              onClick={() => void saveConfigs()}
+	              disabled={!hasUnsavedChanges || configsLoading || configsSaving}
+	              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               <Save className={configsSaving ? 'h-3.5 w-3.5 animate-pulse' : 'h-3.5 w-3.5'} />
               Save changes
