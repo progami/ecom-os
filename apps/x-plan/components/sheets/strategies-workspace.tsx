@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Check, X, Pencil, Trash2, CheckCircle2, ArrowRightLeft } from 'lucide-react';
+import { Plus, Check, X, Pencil, Trash2, CheckCircle2, ArrowRightLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { withAppBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
@@ -667,61 +667,81 @@ export function StrategiesWorkspace({
           if (!open) setPendingSwitch(null);
         }}
       >
-        <AlertDialogContent className="border-slate-200 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-[#06182b]/95">
-          <AlertDialogHeader className="space-y-0 text-left">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-600 shadow-md dark:bg-[#00c2b9] dark:shadow-[0_12px_24px_rgba(0,194,185,0.22)]">
-                <ArrowRightLeft
-                  className="h-5 w-5 text-white dark:text-[#002430]"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="min-w-0 space-y-1">
-                <AlertDialogTitle className="text-lg font-semibold text-slate-900 dark:text-white">
-                  Switch strategy?
-                </AlertDialogTitle>
-                <AlertDialogDescription asChild>
-                  <div className="space-y-3 text-sm text-muted-foreground">
-                    {pendingSwitch == null ? null : selectedStrategyName ? (
-                      <p className="leading-relaxed">
-                        You’re about to switch from{' '}
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          “{selectedStrategyName}”
-                        </span>{' '}
-                        to{' '}
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          “{pendingSwitch.name}”
-                        </span>
-                        .
-                      </p>
-                    ) : (
-                      <p className="leading-relaxed">
-                        You’re about to switch to{' '}
-                        <span className="font-semibold text-slate-900 dark:text-slate-50">
-                          “{pendingSwitch.name}”
-                        </span>
-                        .
-                      </p>
-                    )}
-                    <div className="rounded-lg border border-cyan-600/20 bg-cyan-50/60 px-3 py-2 text-xs font-medium text-cyan-900 dark:border-[#00c2b9]/25 dark:bg-[#00c2b9]/10 dark:text-cyan-100">
-                      Your data is saved automatically.
-                    </div>
+        <AlertDialogContent className="overflow-hidden border-0 bg-white p-0 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] dark:bg-[#0a1f33] dark:shadow-[0_25px_60px_-12px_rgba(0,0,0,0.5),0_0_40px_rgba(0,194,185,0.08)]">
+          {/* Decorative top gradient bar */}
+          <div className="h-1 w-full bg-gradient-to-r from-cyan-500 via-cyan-400 to-teal-400 dark:from-[#00c2b9] dark:via-[#00d5cb] dark:to-[#00e5d4]" />
+
+          <div className="px-6 pb-6 pt-5">
+            <AlertDialogHeader className="space-y-4">
+              {/* Icon with animated glow */}
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-teal-500/20 blur-md dark:from-[#00c2b9]/30 dark:to-[#00d5cb]/20" />
+                  <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-lg dark:from-[#00c2b9] dark:to-[#00a89d] dark:shadow-[0_8px_24px_rgba(0,194,185,0.3)]">
+                    <ArrowRightLeft className="h-5 w-5 text-white" aria-hidden="true" />
                   </div>
-                </AlertDialogDescription>
+                </div>
+                <div>
+                  <AlertDialogTitle className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
+                    Switch strategy
+                  </AlertDialogTitle>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                    Change your active planning context
+                  </p>
+                </div>
               </div>
-            </div>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4">
-            <AlertDialogCancel className="border-slate-300 bg-white text-slate-900 hover:bg-slate-50 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:hover:bg-white/10">
-              No
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmSelectStrategy}
-              className="bg-cyan-600 text-white hover:bg-cyan-700 dark:bg-[#00c2b9] dark:text-[#002430] dark:hover:bg-[#00d5cb]"
-            >
-              Yes
-            </AlertDialogAction>
-          </AlertDialogFooter>
+
+              <AlertDialogDescription asChild>
+                <div className="space-y-4">
+                  {/* Strategy transition display */}
+                  {pendingSwitch != null && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-[#1a3a54] dark:bg-[#061828]">
+                      {selectedStrategyName ? (
+                        <div className="flex items-center gap-3">
+                          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                            <span className="truncate rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 dark:border-[#2a4a64] dark:bg-[#0a2438] dark:text-slate-300">
+                              {selectedStrategyName}
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
+                            <span className="truncate rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-sm font-medium text-cyan-800 dark:border-[#00c2b9]/40 dark:bg-[#00c2b9]/10 dark:text-cyan-300">
+                              {pendingSwitch.name}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-sm text-slate-500 dark:text-slate-400">Switching to</span>
+                          <span className="truncate rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-sm font-medium text-cyan-800 dark:border-[#00c2b9]/40 dark:bg-[#00c2b9]/10 dark:text-cyan-300">
+                            {pendingSwitch.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Auto-save notice */}
+                  <div className="flex items-center gap-2.5 rounded-lg bg-emerald-50 px-3.5 py-2.5 dark:bg-emerald-500/10">
+                    <Sparkles className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+                      Your data is saved automatically
+                    </span>
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <AlertDialogFooter className="mt-6 flex gap-3 sm:gap-3">
+              <AlertDialogCancel className="flex-1 border-slate-300 bg-white font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow dark:border-[#2a4a64] dark:bg-[#0a2438] dark:text-slate-300 dark:hover:bg-[#0f2d45]">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmSelectStrategy}
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 font-medium text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-600 hover:to-cyan-700 hover:shadow-xl hover:shadow-cyan-500/30 dark:from-[#00c2b9] dark:to-[#00a89d] dark:text-[#002430] dark:shadow-[#00c2b9]/25 dark:hover:from-[#00d5cb] dark:hover:to-[#00c2b9]"
+              >
+                Switch
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </section>
