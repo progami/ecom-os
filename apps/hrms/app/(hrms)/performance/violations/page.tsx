@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/badge'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
+import { DISCIPLINARY_STATUS_OPTIONS } from '@/lib/domain/disciplinary/constants'
 
 const SEVERITY_OPTIONS: FilterOption[] = [
   { value: 'MINOR', label: 'Minor' },
@@ -19,16 +20,7 @@ const SEVERITY_OPTIONS: FilterOption[] = [
   { value: 'CRITICAL', label: 'Critical' },
 ]
 
-const STATUS_OPTIONS: FilterOption[] = [
-  { value: 'REPORTED', label: 'Reported' },
-  { value: 'UNDER_REVIEW', label: 'Under Review' },
-  { value: 'PENDING_HR_REVIEW', label: 'Pending HR' },
-  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Admin' },
-  { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Ack' },
-  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-  { value: 'RESOLVED', label: 'Resolved' },
-  { value: 'CLOSED', label: 'Closed' },
-]
+const STATUS_OPTIONS: FilterOption[] = [...DISCIPLINARY_STATUS_OPTIONS]
 
 const SEVERITY_LABELS: Record<string, string> = Object.fromEntries(
   SEVERITY_OPTIONS.map((o) => [o.value, o.label])
