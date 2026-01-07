@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   ArrowLeft,
   Loader2,
+  Plus,
   Package2,
   FileEdit,
   Send,
@@ -61,6 +63,12 @@ interface PurchaseOrderLineSummary {
   lineNotes?: string | null
   createdAt: string
   updatedAt: string
+}
+
+interface SkuSummary {
+  id: string
+  skuCode: string
+  description: string
 }
 
 interface StageApproval {
@@ -501,6 +509,19 @@ export default function PurchaseOrderDetailPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([])
   const [auditLogsLoading, setAuditLogsLoading] = useState(false)
 
+  const [skus, setSkus] = useState<SkuSummary[]>([])
+  const [skusLoading, setSkusLoading] = useState(false)
+  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, string[]>>({})
+  const [batchesLoadingBySkuId, setBatchesLoadingBySkuId] = useState<Record<string, boolean>>({})
+  const [addLineOpen, setAddLineOpen] = useState(false)
+  const [addLineSubmitting, setAddLineSubmitting] = useState(false)
+  const [newLineDraft, setNewLineDraft] = useState({
+    skuId: '',
+    batchLot: 'DEFAULT',
+    quantity: 1,
+    notes: '',
+  })
+
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean
@@ -665,6 +686,72 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => {
     void refreshAuditLogs()
   }, [refreshAuditLogs])
+
+  const ensureSkusLoaded = useCallback(async () => {
+    if (skusLoading || skus.length > 0) return
+
+    try {
+      setSkusLoading(true)
+      const response = await fetch('/api/skus')
+      if (!response.ok) {
+        setSkus([])
+        return
+      }
+      const payload = await response.json().catch(() => null)
+      setSkus(Array.isArray(payload) ? (payload as SkuSummary[]) : [])
+    } catch {
+      setSkus([])
+    } finally {
+      setSkusLoading(false)
+    }
+  }, [skus.length, skusLoading])
+
+  const ensureSkuBatchesLoaded = useCallback(
+    async (skuId: string) => {
+      if (!skuId) return
+      if (batchesBySkuId[skuId]) return
+      if (batchesLoadingBySkuId[skuId]) return
+
+      setBatchesLoadingBySkuId(prev => ({ ...prev, [skuId]: true }))
+      try {
+        const response = await fetch(`/api/skus/${encodeURIComponent(skuId)}/batches`, {
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          setBatchesBySkuId(prev => ({ ...prev, [skuId]: ['DEFAULT'] }))
+          return
+        }
+
+        const payload = await response.json().catch(() => null)
+        const batches = Array.isArray(payload?.batches) ? payload.batches : []
+        const batchCodes: string[] = batches
+          .map((batch: { batchCode?: unknown }) =>
+            String(batch?.batchCode ?? '')
+              .trim()
+              .toUpperCase()
+          )
+          .filter((batchCode): batchCode is string => Boolean(batchCode))
+
+        const unique: string[] = Array.from(new Set(batchCodes))
+        if (!unique.includes('DEFAULT')) {
+          unique.unshift('DEFAULT')
+        }
+
+        setBatchesBySkuId(prev => ({ ...prev, [skuId]: unique }))
+      } catch {
+        setBatchesBySkuId(prev => ({ ...prev, [skuId]: ['DEFAULT'] }))
+      } finally {
+        setBatchesLoadingBySkuId(prev => ({ ...prev, [skuId]: false }))
+      }
+    },
+    [batchesBySkuId, batchesLoadingBySkuId]
+  )
+
+  useEffect(() => {
+    if (!addLineOpen) return
+    void ensureSkusLoaded()
+  }, [addLineOpen, ensureSkusLoaded])
 
   useEffect(() => {
     if (!order || isEditingDetails) return
@@ -878,12 +965,59 @@ export default function PurchaseOrderDetailPage() {
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
   const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
-  const canDownloadPdf = order.status !== 'DRAFT'
-  const historyCount = auditLogs.length || order.approvalHistory?.length || 0
+	  const canDownloadPdf = order.status !== 'DRAFT'
+	  const historyCount = auditLogs.length || order.approvalHistory?.length || 0
+	  const selectedSku = newLineDraft.skuId ? skus.find(sku => sku.id === newLineDraft.skuId) : undefined
 
-  const breadcrumbItems = [
-    { label: 'Operations', href: '/operations' },
-    { label: 'Purchase Orders', href: '/operations/purchase-orders' },
+	  const handleAddLineItem = async () => {
+	    if (!order) return
+	    if (!selectedSku) {
+	      toast.error('Please select a SKU')
+	      return
+	    }
+
+	    const batchLot = newLineDraft.batchLot.trim() || 'DEFAULT'
+	    const quantity = Number(newLineDraft.quantity)
+	    if (!Number.isFinite(quantity) || quantity <= 0) {
+	      toast.error('Please enter a valid quantity')
+	      return
+	    }
+
+	    setAddLineSubmitting(true)
+	    try {
+	      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}/lines`, {
+	        method: 'POST',
+	        headers: { 'Content-Type': 'application/json' },
+	        body: JSON.stringify({
+	          skuCode: selectedSku.skuCode,
+	          skuDescription: selectedSku.description,
+	          batchLot,
+	          quantity,
+	          notes: newLineDraft.notes.trim() ? newLineDraft.notes.trim() : undefined,
+	        }),
+	      })
+
+	      if (!response.ok) {
+	        const payload = await response.json().catch(() => null)
+	        throw new Error(payload?.error ?? 'Failed to add line item')
+	      }
+
+	      const createdLine = (await response.json()) as PurchaseOrderLineSummary
+	      setOrder(prev => (prev ? { ...prev, lines: [...prev.lines, createdLine] } : prev))
+	      toast.success('Line item added')
+	      setAddLineOpen(false)
+	      setNewLineDraft({ skuId: '', batchLot: 'DEFAULT', quantity: 1, notes: '' })
+	      void refreshAuditLogs()
+	    } catch (error) {
+	      toast.error(error instanceof Error ? error.message : 'Failed to add line item')
+	    } finally {
+	      setAddLineSubmitting(false)
+	    }
+	  }
+
+	  const breadcrumbItems = [
+	    { label: 'Operations', href: '/operations' },
+	    { label: 'Purchase Orders', href: '/operations/purchase-orders' },
     { label: order.poNumber || order.orderNumber },
   ]
 
@@ -2015,15 +2149,151 @@ export default function PurchaseOrderDetailPage() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-            {/* Spacer to push total to the right when cargo tab is active */}
-            {activeBottomTab === 'cargo' && (
-              <div className="ml-auto pr-6">
-                <span className="text-sm text-muted-foreground">
-                  Total: {totalQuantity.toLocaleString()} units
-                </span>
-              </div>
-            )}
-          </div>
+	            {/* Spacer to push total to the right when cargo tab is active */}
+	            {activeBottomTab === 'cargo' && (
+	              <div className="ml-auto flex items-center gap-3 pr-6">
+	                <span className="text-sm text-muted-foreground">
+	                  Total: {totalQuantity.toLocaleString()} units
+	                </span>
+	                {canEdit && (
+	                  <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
+	                    <PopoverTrigger asChild>
+	                      <Button
+	                        type="button"
+	                        size="sm"
+	                        variant="outline"
+	                        className="gap-2"
+	                      >
+	                        <Plus className="h-4 w-4" />
+	                        Add SKU
+	                      </Button>
+	                    </PopoverTrigger>
+	                    <PopoverContent align="end" className="w-[360px] space-y-4">
+	                      <div>
+	                        <h4 className="text-sm font-semibold text-slate-900">Add line item</h4>
+	                        <p className="mt-0.5 text-xs text-muted-foreground">
+	                          Add another SKU to this purchase order.
+	                        </p>
+	                      </div>
+	
+	                      <div className="space-y-2">
+	                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+	                          SKU
+	                        </label>
+	                        <select
+	                          value={newLineDraft.skuId}
+	                          onChange={e => {
+	                            const skuId = e.target.value
+	                            setNewLineDraft(prev => ({
+	                              ...prev,
+	                              skuId,
+	                              batchLot: 'DEFAULT',
+	                            }))
+	                            void ensureSkuBatchesLoaded(skuId)
+	                          }}
+	                          disabled={skusLoading || addLineSubmitting}
+	                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+	                        >
+	                          <option value="">Select SKU</option>
+	                          {skus.map(sku => (
+	                            <option key={sku.id} value={sku.id}>
+	                              {sku.skuCode}
+	                            </option>
+	                          ))}
+	                        </select>
+	                        {selectedSku?.description && (
+	                          <p className="text-xs text-muted-foreground line-clamp-2">
+	                            {selectedSku.description}
+	                          </p>
+	                        )}
+	                      </div>
+	
+	                      <div className="space-y-2">
+	                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+	                          Batch / Lot
+	                        </label>
+	                        <select
+	                          value={newLineDraft.batchLot}
+	                          onChange={e =>
+	                            setNewLineDraft(prev => ({ ...prev, batchLot: e.target.value }))
+	                          }
+	                          disabled={!newLineDraft.skuId || addLineSubmitting}
+	                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
+	                        >
+	                          {!newLineDraft.skuId ? (
+	                            <option value="DEFAULT">DEFAULT</option>
+	                          ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
+	                            <option value={newLineDraft.batchLot || 'DEFAULT'}>Loading…</option>
+	                          ) : (
+	                            (batchesBySkuId[newLineDraft.skuId] ?? ['DEFAULT']).map(batchCode => (
+	                              <option key={batchCode} value={batchCode}>
+	                                {batchCode}
+	                              </option>
+	                            ))
+	                          )}
+	                        </select>
+	                      </div>
+	
+	                      <div className="grid grid-cols-2 gap-3">
+	                        <div className="space-y-2">
+	                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+	                            Qty
+	                          </label>
+	                          <Input
+	                            type="number"
+	                            min="1"
+	                            value={newLineDraft.quantity}
+	                            onChange={e =>
+	                              setNewLineDraft(prev => ({
+	                                ...prev,
+	                                quantity: parseInt(e.target.value) || 0,
+	                              }))
+	                            }
+	                            disabled={addLineSubmitting}
+	                          />
+	                        </div>
+	                        <div className="space-y-2">
+	                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+	                            Notes
+	                          </label>
+	                          <Input
+	                            value={newLineDraft.notes}
+	                            onChange={e =>
+	                              setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
+	                            }
+	                            placeholder="Optional"
+	                            disabled={addLineSubmitting}
+	                          />
+	                        </div>
+	                      </div>
+	
+	                      <div className="flex items-center justify-end gap-2">
+	                        <Button
+	                          type="button"
+	                          variant="outline"
+	                          size="sm"
+	                          onClick={() => setAddLineOpen(false)}
+	                          disabled={addLineSubmitting}
+	                        >
+	                          Cancel
+	                        </Button>
+	                        <Button
+	                          type="button"
+	                          size="sm"
+	                          onClick={() => void handleAddLineItem()}
+	                          disabled={!newLineDraft.skuId || addLineSubmitting}
+	                          className="gap-2"
+	                        >
+	                          {addLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+	                          Add
+	                        </Button>
+	                      </div>
+	                    </PopoverContent>
+	                  </Popover>
+	                )}
+	              </div>
+	            )}
+	          </div>
 
           {/* Tab Content */}
           {activeBottomTab === 'cargo' && (
