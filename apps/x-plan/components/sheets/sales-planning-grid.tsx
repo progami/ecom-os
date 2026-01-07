@@ -1668,14 +1668,88 @@ export function SalesPlanningGrid({
       }
 
       if (columnId === 'arrivalDetail') {
+        const reorderCueEntries: Array<{ productName: string; tooltip: string }> = [];
+
+        if (Number.isFinite(weekNumber)) {
+          for (const product of displayedProducts) {
+            const reorderInfo = reorderCueByProductRef.current.get(product.id);
+            if (!reorderInfo) continue;
+
+            const reorderCueWeekNumber =
+              visibleWeekRange.minWeekNumber != null &&
+              visibleWeekRange.maxWeekNumber != null &&
+              reorderInfo.startWeekNumber >= visibleWeekRange.minWeekNumber &&
+              reorderInfo.startWeekNumber <= visibleWeekRange.maxWeekNumber
+                ? reorderInfo.startWeekNumber
+                : visibleWeekRange.minWeekNumber != null &&
+                    reorderInfo.startWeekNumber < visibleWeekRange.minWeekNumber
+                  ? visibleWeekRange.minWeekNumber
+                  : null;
+            const isReorderWeek =
+              reorderCueWeekNumber != null && reorderCueWeekNumber === weekNumber;
+            if (!isReorderWeek) continue;
+
+            const leadProfile = leadTimeByProduct[product.id];
+            const leadTimeWeeks = leadProfile
+              ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks)))
+              : reorderInfo.leadTimeWeeks;
+            const leadParts = leadProfile
+              ? [
+                  `prod ${Math.max(0, Math.ceil(Number(leadProfile.productionWeeks)))}w`,
+                  `source ${Math.max(0, Math.ceil(Number(leadProfile.sourceWeeks)))}w`,
+                  `ocean ${Math.max(0, Math.ceil(Number(leadProfile.oceanWeeks)))}w`,
+                  `final ${Math.max(0, Math.ceil(Number(leadProfile.finalWeeks)))}w`,
+                ]
+              : [];
+
+            const startLabel = reorderInfo.startWeekLabel
+              ? `W${reorderInfo.startWeekLabel}`
+              : `week ${reorderInfo.startWeekNumber}`;
+            const breachLabel = reorderInfo.breachWeekLabel
+              ? `W${reorderInfo.breachWeekLabel}`
+              : `week ${reorderInfo.breachWeekNumber}`;
+            const lateByWeeks = Math.max(0, reorderCueWeekNumber - reorderInfo.startWeekNumber);
+            const startLine =
+              lateByWeeks > 0
+                ? `Start production: now (late by ${lateByWeeks}w; recommended ${startLabel} · ${reorderInfo.startDate}).`
+                : `Start production: ${startLabel} (${reorderInfo.startDate}).`;
+            const breachLine = `Breach (coverage < ${warningThreshold}w): ${breachLabel} (${reorderInfo.breachDate}).`;
+
+            const lines = [
+              `Reorder signal (target ≥ ${warningThreshold}w coverage).`,
+              startLine,
+              breachLine,
+              `Lead time: ${leadTimeWeeks}w${
+                leadParts.length ? ` (${leadParts.join(' + ')})` : ''
+              }.`,
+            ];
+
+            reorderCueEntries.push({ productName: product.name, tooltip: lines.join('\n') });
+          }
+        }
+
+        const hasReorderCue = reorderCueEntries.length > 0;
+        const reorderTooltip = hasReorderCue
+          ? reorderCueEntries.length === 1
+            ? reorderCueEntries[0]!.tooltip
+            : reorderCueEntries
+                .map((entry) => `${entry.productName}\n${entry.tooltip}`)
+                .join('\n\n')
+          : '';
+        const arrivalNote = row.arrivalNote ?? '';
+        const tooltip = [reorderTooltip, arrivalNote].filter(Boolean).join('\n\n');
+        const display = [(row.arrivalDetail ?? '').trim(), hasReorderCue ? 'Reorder now' : '']
+          .filter(Boolean)
+          .join(' · ');
+
         return {
-          display: row.arrivalDetail ?? '',
+          display,
           isEditable: false,
           isWarning: false,
-          isReorder: false,
+          isReorder: hasReorderCue,
           hasInbound,
-          highlight: 'none' as const,
-          tooltip: row.arrivalNote ?? '',
+          highlight: hasReorderCue ? ('reorder' as const) : ('none' as const),
+          tooltip,
         };
       }
 
@@ -1770,46 +1844,6 @@ export function SalesPlanningGrid({
         }
       }
 
-      if (productId && reorderInfo && isReorderWeek) {
-        const leadProfile = leadTimeByProduct[productId];
-        const leadTimeWeeks = leadProfile
-          ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks)))
-          : reorderInfo.leadTimeWeeks;
-        const leadParts = leadProfile
-          ? [
-              `prod ${Math.max(0, Math.ceil(Number(leadProfile.productionWeeks)))}w`,
-              `source ${Math.max(0, Math.ceil(Number(leadProfile.sourceWeeks)))}w`,
-              `ocean ${Math.max(0, Math.ceil(Number(leadProfile.oceanWeeks)))}w`,
-              `final ${Math.max(0, Math.ceil(Number(leadProfile.finalWeeks)))}w`,
-            ]
-          : [];
-
-        const startLabel = reorderInfo.startWeekLabel
-          ? `W${reorderInfo.startWeekLabel}`
-          : `week ${reorderInfo.startWeekNumber}`;
-        const breachLabel = reorderInfo.breachWeekLabel
-          ? `W${reorderInfo.breachWeekLabel}`
-          : `week ${reorderInfo.breachWeekNumber}`;
-        const lateByWeeks =
-          reorderCueWeekNumber != null
-            ? Math.max(0, reorderCueWeekNumber - reorderInfo.startWeekNumber)
-            : 0;
-        const startLine =
-          lateByWeeks > 0
-            ? `Start production: now (late by ${lateByWeeks}w; recommended ${startLabel} · ${reorderInfo.startDate}).`
-            : `Start production: ${startLabel} (${reorderInfo.startDate}).`;
-        const breachLine = `Breach (coverage < ${warningThreshold}w): ${breachLabel} (${reorderInfo.breachDate}).`;
-
-        const extraTooltip = tooltipText;
-        const lines = [
-          `Reorder signal (target ≥ ${warningThreshold}w coverage).`,
-          startLine,
-          breachLine,
-          `Lead time: ${leadTimeWeeks}w${leadParts.length ? ` (${leadParts.join(' + ')})` : ''}.`,
-        ];
-        tooltipText = extraTooltip ? [...lines, '', extraTooltip].join('\n') : lines.join('\n');
-      }
-
       const raw = row[columnId] ?? '';
       if (field === 'finalSalesError') {
         return {
@@ -1862,6 +1896,7 @@ export function SalesPlanningGrid({
       batchAllocations,
       columnMeta,
       data,
+      displayedProducts,
       hasInboundByWeek,
       inboundWeeksByProduct,
       leadTimeByProduct,
