@@ -57,6 +57,7 @@ import {
 import { getCanonicalSheetSlug, getSheetConfig } from '@/lib/sheets';
 import { getWorkbookStatus } from '@/lib/workbook';
 import { WorkbookLayout } from '@/components/workbook-layout';
+import { ActiveStrategyIndicator } from '@/components/active-strategy-indicator';
 import {
   mapProducts,
   mapLeadStageTemplates,
@@ -2052,13 +2053,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const strategyId = resolvedStrategyId;
 
   const prismaAnyLocal = prisma as unknown as Record<string, any>;
-  const strategyRegionRow = strategyId
+  const activeStrategyRow = strategyId
     ? await prismaAnyLocal.strategy?.findUnique?.({
         where: { id: strategyId },
-        select: { region: true },
+        select: { name: true, region: true },
       })
     : null;
-  const strategyRegion: StrategyRegion = strategyRegionRow?.region === 'UK' ? 'UK' : 'US';
+  const activeStrategyName: string | null = activeStrategyRow?.name ?? null;
+  const strategyRegion: StrategyRegion = activeStrategyRow?.region === 'UK' ? 'UK' : 'US';
   const weekStartsOn = weekStartsOnForRegion(strategyRegion);
 
   const [workbookStatus, planningCalendar] = await Promise.all([
@@ -2568,6 +2570,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     updated: sheetStatus?.lastUpdated,
   };
 
+  const ribbon = activeStrategyName ? (
+    <ActiveStrategyIndicator strategyName={activeStrategyName} />
+  ) : null;
+
   const layout = (
     <WorkbookLayout
       sheets={workbookStatus.sheets}
@@ -2575,6 +2581,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       planningYears={planningCalendar.yearSegments}
       activeYear={activeYear}
       meta={meta}
+      ribbon={ribbon}
       contextPane={contextPane}
       headerControls={headerControls}
     >
