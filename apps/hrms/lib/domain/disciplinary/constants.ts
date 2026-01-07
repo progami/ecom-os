@@ -1,6 +1,8 @@
 // Disciplinary / Violations constants shared by UI + server validation.
 // Keep in sync with Prisma enums in `apps/hrms/prisma/schema.prisma`.
 
+import type { SelectOption, SelectOptionGroup } from '@/lib/domain/shared/options'
+
 export const VIOLATION_TYPE_VALUES = [
   'ATTENDANCE',
   'CONDUCT',
@@ -16,7 +18,7 @@ export const VIOLATION_TYPE_VALUES = [
 
 export type ViolationType = (typeof VIOLATION_TYPE_VALUES)[number]
 
-export const VIOLATION_TYPE_OPTIONS: ReadonlyArray<{ value: ViolationType; label: string }> = [
+export const VIOLATION_TYPE_OPTIONS: ReadonlyArray<SelectOption & { value: ViolationType }> = [
   { value: 'ATTENDANCE', label: 'Attendance' },
   { value: 'CONDUCT', label: 'Conduct' },
   { value: 'PERFORMANCE', label: 'Performance' },
@@ -76,13 +78,10 @@ export const VIOLATION_REASON_VALUES = [
 
 export type ViolationReason = (typeof VIOLATION_REASON_VALUES)[number]
 
-export const VIOLATION_REASON_GROUPS: ReadonlyArray<{
-  label: string
-  reasons: ReadonlyArray<{ value: ViolationReason; label: string }>
-}> = [
+export const VIOLATION_REASON_GROUPS: ReadonlyArray<SelectOptionGroup & { options: ReadonlyArray<SelectOption & { value: ViolationReason }> }> = [
   {
     label: 'Attendance',
-    reasons: [
+    options: [
       { value: 'EXCESSIVE_ABSENCES', label: 'Excessive absences' },
       { value: 'TARDINESS', label: 'Tardiness' },
       { value: 'UNAUTHORIZED_LEAVE', label: 'Unauthorized leave' },
@@ -91,7 +90,7 @@ export const VIOLATION_REASON_GROUPS: ReadonlyArray<{
   },
   {
     label: 'Conduct',
-    reasons: [
+    options: [
       { value: 'UNPROFESSIONAL_BEHAVIOR', label: 'Unprofessional behavior' },
       { value: 'DISRUPTIVE_CONDUCT', label: 'Disruptive conduct' },
       { value: 'INAPPROPRIATE_LANGUAGE', label: 'Inappropriate language' },
@@ -100,7 +99,7 @@ export const VIOLATION_REASON_GROUPS: ReadonlyArray<{
   },
   {
     label: 'Performance',
-    reasons: [
+    options: [
       { value: 'POOR_QUALITY_WORK', label: 'Poor quality work' },
       { value: 'MISSED_DEADLINES', label: 'Missed deadlines' },
       { value: 'FAILURE_TO_FOLLOW_INSTRUCTIONS', label: 'Failure to follow instructions' },
@@ -109,7 +108,7 @@ export const VIOLATION_REASON_GROUPS: ReadonlyArray<{
   },
   {
     label: 'Policy',
-    reasons: [
+    options: [
       { value: 'CONFIDENTIALITY_BREACH', label: 'Confidentiality breach' },
       { value: 'DATA_SECURITY_VIOLATION', label: 'Data security violation' },
       { value: 'EXPENSE_POLICY_VIOLATION', label: 'Expense policy violation' },
@@ -118,14 +117,14 @@ export const VIOLATION_REASON_GROUPS: ReadonlyArray<{
   },
   {
     label: 'Safety',
-    reasons: [
+    options: [
       { value: 'SAFETY_PROTOCOL_VIOLATION', label: 'Safety protocol violation' },
       { value: 'EQUIPMENT_MISUSE', label: 'Equipment misuse' },
     ],
   },
   {
     label: 'Serious',
-    reasons: [
+    options: [
       { value: 'HARASSMENT_DISCRIMINATION', label: 'Harassment / discrimination' },
       { value: 'WORKPLACE_VIOLENCE', label: 'Workplace violence' },
       { value: 'THEFT', label: 'Theft' },
@@ -136,12 +135,12 @@ export const VIOLATION_REASON_GROUPS: ReadonlyArray<{
   },
   {
     label: 'Other',
-    reasons: [{ value: 'OTHER', label: 'Other' }],
+    options: [{ value: 'OTHER', label: 'Other' }],
   },
 ]
 
 export const VIOLATION_REASON_LABELS = Object.fromEntries(
-  VIOLATION_REASON_GROUPS.flatMap((g) => g.reasons.map((r) => [r.value, r.label]))
+  VIOLATION_REASON_GROUPS.flatMap((g) => g.options.map((r) => [r.value, r.label]))
 ) as Record<ViolationReason, string>
 
 export const DISCIPLINARY_ACTION_TYPE_VALUES = [
@@ -158,7 +157,7 @@ export const DISCIPLINARY_ACTION_TYPE_VALUES = [
 
 export type DisciplinaryActionType = (typeof DISCIPLINARY_ACTION_TYPE_VALUES)[number]
 
-export const DISCIPLINARY_ACTION_TYPE_OPTIONS: ReadonlyArray<{ value: DisciplinaryActionType; label: string }> = [
+export const DISCIPLINARY_ACTION_TYPE_OPTIONS: ReadonlyArray<SelectOption & { value: DisciplinaryActionType }> = [
   { value: 'VERBAL_WARNING', label: 'Verbal warning' },
   { value: 'WRITTEN_WARNING', label: 'Written warning' },
   { value: 'FINAL_WARNING', label: 'Final warning' },
@@ -191,7 +190,7 @@ export const DISCIPLINARY_STATUS_VALUES = [
 
 export type DisciplinaryStatus = (typeof DISCIPLINARY_STATUS_VALUES)[number]
 
-export const DISCIPLINARY_STATUS_OPTIONS: ReadonlyArray<{ value: DisciplinaryStatus; label: string }> = [
+export const DISCIPLINARY_STATUS_OPTIONS: ReadonlyArray<SelectOption & { value: DisciplinaryStatus }> = [
   { value: 'PENDING_HR_REVIEW', label: 'Pending HR review' },
   { value: 'PENDING_SUPER_ADMIN', label: 'Pending super admin approval' },
   { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending acknowledgment' },
@@ -219,7 +218,7 @@ export const VALUE_BREACH_VALUES = [
 
 export type ValueBreach = (typeof VALUE_BREACH_VALUES)[number]
 
-export const VALUE_BREACH_OPTIONS: ReadonlyArray<{ value: ValueBreach; label: string; description: string }> = [
+export const VALUE_BREACH_OPTIONS: ReadonlyArray<SelectOption & { value: ValueBreach; description: string }> = [
   { value: 'BREACH_OF_DETAIL', label: 'Attention to detail', description: 'Recurring mistakes, sloppy work, or missed checks.' },
   { value: 'BREACH_OF_HONESTY', label: 'Honesty', description: 'Misrepresentation, hiding facts, or falsifying records.' },
   { value: 'BREACH_OF_INTEGRITY', label: 'Integrity', description: 'Theft, harassment, toxic behavior, or ethics violations.' },
@@ -229,4 +228,3 @@ export const VALUE_BREACH_OPTIONS: ReadonlyArray<{ value: ValueBreach; label: st
 export const VALUE_BREACH_LABELS = Object.fromEntries(
   VALUE_BREACH_OPTIONS.map((o) => [o.value, o.label])
 ) as Record<ValueBreach, string>
-

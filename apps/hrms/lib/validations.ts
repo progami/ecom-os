@@ -6,19 +6,24 @@ import {
   VIOLATION_REASON_VALUES,
   VIOLATION_TYPE_VALUES,
 } from '@/lib/domain/disciplinary/constants'
+import { EMPLOYEE_REGION_VALUES, EMPLOYEE_STATUS_VALUES, EMPLOYMENT_TYPE_VALUES } from '@/lib/domain/employee/constants'
+import { LEAVE_STATUS_VALUES, LEAVE_TYPE_VALUES } from '@/lib/domain/leave/constants'
+import { POLICY_CATEGORY_VALUES, POLICY_REGION_VALUES, POLICY_STATUS_VALUES } from '@/lib/domain/policy/constants'
+import { REVIEW_STATUS_VALUES, REVIEW_TYPE_VALUES } from '@/lib/domain/performance/constants'
+import { getAllowedReviewPeriodTypes, REVIEW_PERIOD_TYPES } from '@/lib/review-period'
 
 // Shared constants
 export const MAX_PAGINATION_LIMIT = 100
 export const DEFAULT_PAGINATION_LIMIT = 50
 
 // Employee schemas
-export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN', 'WORKING_PARTNER'])
-export const EmployeeStatusEnum = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED', 'RESIGNED'])
-export const EmployeeRegionEnum = z.enum(['PAKISTAN', 'KANSAS_USA'])
+export const EmploymentTypeEnum = z.enum(EMPLOYMENT_TYPE_VALUES)
+export const EmployeeStatusEnum = z.enum(EMPLOYEE_STATUS_VALUES)
+export const EmployeeRegionEnum = z.enum(EMPLOYEE_REGION_VALUES)
 
 // Leave schemas - simplified for small team (15-20 people)
-export const LeaveTypeEnum = z.enum(['PTO', 'PARENTAL', 'BEREAVEMENT_IMMEDIATE', 'UNPAID'])
-export const LeaveStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'])
+export const LeaveTypeEnum = z.enum(LEAVE_TYPE_VALUES)
+export const LeaveStatusEnum = z.enum(LEAVE_STATUS_VALUES)
 
 export const CreateLeaveRequestSchema = z.object({
   leaveType: LeaveTypeEnum,
@@ -89,9 +94,9 @@ export const UpdateEmployeeSchema = z.object({
 })
 
 // Policy schemas
-export const PolicyCategoryEnum = z.enum(['LEAVE', 'PERFORMANCE', 'CONDUCT', 'SECURITY', 'COMPENSATION', 'OTHER'])
-export const PolicyStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED'])
-export const RegionEnum = z.enum(['ALL', 'KANSAS_US', 'PAKISTAN'])
+export const PolicyCategoryEnum = z.enum(POLICY_CATEGORY_VALUES)
+export const PolicyStatusEnum = z.enum(POLICY_STATUS_VALUES)
+export const RegionEnum = z.enum(POLICY_REGION_VALUES)
 
 // Version format: major.minor (e.g., "1.0", "2.3")
 export const VersionSchema = z.string().regex(/^\d+\.\d+$/, {
@@ -138,21 +143,9 @@ export const UpdatePolicySchema = z.object({
 
 // ============ PERFORMANCE REVIEW SCHEMAS ============
 // Simplified for small team (15-20 people)
-export const ReviewTypeEnum = z.enum(['PROBATION', 'QUARTERLY', 'ANNUAL'])
-export const ReviewStatusEnum = z.enum(['DRAFT', 'PENDING_REVIEW', 'COMPLETED', 'ACKNOWLEDGED'])
-// Simplified period types
-export const ReviewPeriodTypeEnum = z.enum([
-  'Q1', 'Q2', 'Q3', 'Q4', 'ANNUAL', 'PROBATION',
-])
-
-const REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE: Record<
-  z.infer<typeof ReviewTypeEnum>,
-  readonly z.infer<typeof ReviewPeriodTypeEnum>[]
-> = {
-  PROBATION: ['PROBATION'],
-  QUARTERLY: ['Q1', 'Q2', 'Q3', 'Q4'],
-  ANNUAL: ['ANNUAL'],
-}
+export const ReviewTypeEnum = z.enum(REVIEW_TYPE_VALUES)
+export const ReviewStatusEnum = z.enum(REVIEW_STATUS_VALUES)
+export const ReviewPeriodTypeEnum = z.enum(REVIEW_PERIOD_TYPES)
 
 const RatingSchema = z.coerce.number().int().min(1).max(5)
 const PeriodYearSchema = z.coerce.number().int().min(2000).max(2100)
@@ -192,7 +185,7 @@ export const CreatePerformanceReviewSchema = z.object({
   comments: z.string().max(5000).trim().optional().nullable(),
   status: ReviewStatusEnum.default('DRAFT'),
 }).superRefine((data, ctx) => {
-  const allowedPeriodTypes = REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE[data.reviewType]
+  const allowedPeriodTypes = getAllowedReviewPeriodTypes(data.reviewType)
   if (!allowedPeriodTypes.includes(data.periodType)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -246,7 +239,7 @@ export const UpdatePerformanceReviewSchema = z.object({
   }
 
   if (data.reviewType && data.periodType) {
-    const allowedPeriodTypes = REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE[data.reviewType]
+    const allowedPeriodTypes = getAllowedReviewPeriodTypes(data.reviewType)
     if (!allowedPeriodTypes.includes(data.periodType)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

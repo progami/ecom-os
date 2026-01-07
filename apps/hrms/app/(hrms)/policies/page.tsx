@@ -11,22 +11,23 @@ import { StatusBadge } from '@/components/ui/badge'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
+import {
+  POLICY_CATEGORY_LABELS,
+  POLICY_REGION_LABELS,
+  POLICY_REGION_OPTIONS,
+  POLICY_STATUS_LABELS,
+  POLICY_STATUS_OPTIONS,
+} from '@/lib/domain/policy/constants'
 
-const REGION_OPTIONS: FilterOption[] = [
-  { value: 'ALL', label: 'All Regions' },
-  { value: 'KANSAS_US', label: 'US (Kansas)' },
-  { value: 'PAKISTAN', label: 'Pakistan' },
-]
+const REGION_FILTER_OPTIONS: FilterOption[] = POLICY_REGION_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
-const STATUS_OPTIONS: FilterOption[] = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'PUBLISHED', label: 'Published' },
-  { value: 'ARCHIVED', label: 'Archived' },
-]
-
-const REGION_LABELS: Record<string, string> = Object.fromEntries(
-  REGION_OPTIONS.map((o) => [o.value, o.label])
-)
+const STATUS_FILTER_OPTIONS: FilterOption[] = POLICY_STATUS_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
 export default function PoliciesPage() {
   const router = useRouter()
@@ -67,7 +68,10 @@ export default function PoliciesPage() {
   // Get unique categories from items
   const categoryOptions = useMemo<FilterOption[]>(() => {
     const categories = [...new Set(items.map((p) => p.category).filter(Boolean))]
-    return categories.map((c) => ({ value: c, label: c }))
+    return categories.map((c) => ({
+      value: c,
+      label: POLICY_CATEGORY_LABELS[c as keyof typeof POLICY_CATEGORY_LABELS] ?? c,
+    }))
   }, [items])
 
   // Apply client-side filters
@@ -104,9 +108,14 @@ export default function PoliciesPage() {
           filterKey: 'category',
           filterOptions: categoryOptions,
         },
-        cell: ({ getValue }) => (
-          <span className="text-muted-foreground">{getValue<string>()}</span>
-        ),
+        cell: ({ getValue }) => {
+          const category = getValue<string>()
+          return (
+            <span className="text-muted-foreground">
+              {POLICY_CATEGORY_LABELS[category as keyof typeof POLICY_CATEGORY_LABELS] ?? category}
+            </span>
+          )
+        },
         enableSorting: true,
       },
       {
@@ -114,13 +123,13 @@ export default function PoliciesPage() {
         header: 'Region',
         meta: {
           filterKey: 'region',
-          filterOptions: REGION_OPTIONS,
+          filterOptions: REGION_FILTER_OPTIONS,
         },
         cell: ({ getValue }) => {
           const region = getValue<string>()
           return (
             <span className="text-muted-foreground">
-              {REGION_LABELS[region] ?? region}
+              {POLICY_REGION_LABELS[region as keyof typeof POLICY_REGION_LABELS] ?? region}
             </span>
           )
         },
@@ -141,9 +150,12 @@ export default function PoliciesPage() {
         header: 'Status',
         meta: {
           filterKey: 'status',
-          filterOptions: STATUS_OPTIONS,
+          filterOptions: STATUS_FILTER_OPTIONS,
         },
-        cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
+        cell: ({ getValue }) => {
+          const status = getValue<string>()
+          return <StatusBadge status={POLICY_STATUS_LABELS[status as keyof typeof POLICY_STATUS_LABELS] ?? status} />
+        },
         enableSorting: true,
       },
     ],

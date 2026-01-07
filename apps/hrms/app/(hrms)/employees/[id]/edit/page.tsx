@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { useNavigationHistory } from '@/lib/navigation-history'
-import { employmentTypeOptions, statusOptions, regionOptions } from '@/lib/constants'
+import { EMPLOYEE_REGION_OPTIONS, EMPLOYEE_STATUS_OPTIONS, EMPLOYMENT_TYPE_OPTIONS } from '@/lib/domain/employee/constants'
 
 // Simplified schema for small team
 const EditEmployeeSchema = z.object({
@@ -291,7 +291,7 @@ export default function EditEmployeePage() {
                     disabled={!canEdit('employmentType')}
                     className={cn(errors.employmentType && 'border-destructive')}
                   >
-                    {employmentTypeOptions.map((opt) => (
+                    {EMPLOYMENT_TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </NativeSelect>
@@ -304,7 +304,7 @@ export default function EditEmployeePage() {
                     disabled={!canEdit('status')}
                     className={cn(errors.status && 'border-destructive')}
                   >
-                    {statusOptions.map((opt) => (
+                    {EMPLOYEE_STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </NativeSelect>
@@ -328,7 +328,7 @@ export default function EditEmployeePage() {
                     disabled={!canEdit('region')}
                     className={cn(errors.region && 'border-destructive')}
                   >
-                    {regionOptions.map((opt) => (
+                    {EMPLOYEE_REGION_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </NativeSelect>
