@@ -201,14 +201,18 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
       "warehouse_id",
       "sku_id",
       "storage_cartons_per_pallet",
-      "shipping_cartons_per_pallet"
+      "shipping_cartons_per_pallet",
+      "created_at",
+      "updated_at"
     )
     SELECT
       gen_random_uuid()::text,
       w.id,
       s.id,
       COALESCE(d.storage_cartons_per_pallet, 48),
-      COALESCE(d.shipping_cartons_per_pallet, 48)
+      COALESCE(d.shipping_cartons_per_pallet, 48),
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
     FROM "warehouses" w
     CROSS JOIN "skus" s
     LEFT JOIN "sku_batches" d
@@ -237,4 +241,3 @@ main().catch(error => {
   console.error(error)
   process.exitCode = 1
 })
-
