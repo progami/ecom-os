@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
-import {
- Package, AlertCircle,
- RefreshCw, Clock, BarChart3,
- ArrowUp, Search,
- ShoppingCart, Settings, Link2 as LinkIcon, X, Truck
-} from '@/lib/lucide-icons'
+	import {
+	 Package, AlertCircle,
+	 Download, Loader2, Clock, BarChart3,
+	 ArrowUp, Search,
+	 ShoppingCart, Settings, Link2 as LinkIcon, X, Truck
+	} from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { toast } from 'react-hot-toast'
@@ -193,8 +193,8 @@ export default function ShipmentPlanningPage() {
  setSuggestions(newSuggestions)
  }
 
- const handleRefresh = async () => {
- setRefreshing(true)
+	 const handleRefresh = async () => {
+	 setRefreshing(true)
  
  try {
  // Sync with Amazon
@@ -204,16 +204,16 @@ export default function ShipmentPlanningPage() {
  body: JSON.stringify({ syncType: 'inventory' })
  })
  
- if (syncResponse.ok) {
- toast.success('FBA stock data refreshed')
- await fetchStockData()
- }
- } catch (_error) {
- toast.error('Failed to refresh FBA data')
- } finally {
- setRefreshing(false)
- }
- }
+	 if (syncResponse.ok) {
+	 toast.success('FBA stock data synced')
+	 await fetchStockData()
+	 }
+	 } catch (_error) {
+	 toast.error('Failed to sync FBA data')
+	 } finally {
+	 setRefreshing(false)
+	 }
+	 }
 
  const updateVelocity = (skuCode: string, newVelocity: number) => {
  setStockItems(prevItems => 
@@ -320,14 +320,18 @@ export default function ShipmentPlanningPage() {
  <LinkIcon className="h-4 w-4 mr-2" />
  Amazon Integration
  </button>
- <button
- onClick={handleRefresh}
- disabled={refreshing}
- className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
- >
- <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
- Refresh FBA Data
- </button>
+	 <button
+	 onClick={handleRefresh}
+	 disabled={refreshing}
+	 className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+	 >
+	 {refreshing ? (
+	 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+	 ) : (
+	 <Download className="h-4 w-4 mr-2" />
+	 )}
+	 Sync FBA Data
+	 </button>
  <Link
  href="/operations/purchase-orders"
  className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90 ${selectedItems.size === 0 ? 'opacity-50 pointer-events-none' : ''}`}

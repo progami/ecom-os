@@ -4,7 +4,7 @@ import { use, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { ArrowLeft, DollarSign, RefreshCw, Upload, Download, Trash2 } from '@/lib/lucide-icons'
+import { ArrowLeft, DollarSign, Loader2, Upload, Download, Trash2 } from '@/lib/lucide-icons'
 import { Button } from '@/components/ui/button'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
@@ -134,7 +134,7 @@ export default function WarehouseRatesPage({
     return (
       <DashboardLayout>
         <div className="flex h-64 items-center justify-center">
-          <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
         </div>
       </DashboardLayout>
     )

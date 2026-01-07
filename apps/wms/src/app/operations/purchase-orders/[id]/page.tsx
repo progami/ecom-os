@@ -26,11 +26,10 @@ import {
   Check,
   XCircle,
   Save,
-  X,
-  MoreHorizontal,
-  History,
-  RefreshCw,
-} from '@/lib/lucide-icons'
+	  X,
+	  MoreHorizontal,
+	  History,
+	} from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
@@ -2076,30 +2075,16 @@ export default function PurchaseOrderDetailPage() {
             </div>
           )}
 
-          {activeBottomTab === 'history' && (
-            <div className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900">Activity</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Every edit, upload, and stage change is recorded for full transparency.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => void refreshAuditLogs()}
-                  disabled={auditLogsLoading}
-                >
-                  {auditLogsLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  Refresh
-                </Button>
-              </div>
+	          {activeBottomTab === 'history' && (
+	            <div className="p-6">
+	              <div className="flex flex-wrap items-start justify-between gap-3">
+	                <div>
+	                  <h4 className="text-sm font-semibold text-slate-900">Activity</h4>
+	                  <p className="mt-1 text-xs text-muted-foreground">
+	                    Every edit, upload, and stage change is recorded for full transparency.
+	                  </p>
+	                </div>
+	              </div>
 
               {auditLogsLoading ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
