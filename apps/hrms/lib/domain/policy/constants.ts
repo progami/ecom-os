@@ -33,7 +33,7 @@ export const POLICY_REGION_VALUES = [
 export type PolicyRegion = (typeof POLICY_REGION_VALUES)[number]
 
 export const POLICY_REGION_OPTIONS: ReadonlyArray<SelectOption & { value: PolicyRegion }> = [
-  { value: 'ALL', label: 'All Regions' },
+  { value: 'ALL', label: 'Company-wide' },
   { value: 'KANSAS_US', label: 'US (Kansas)' },
   { value: 'PAKISTAN', label: 'Pakistan' },
 ]
@@ -59,4 +59,3 @@ export const POLICY_STATUS_OPTIONS: ReadonlyArray<SelectOption & { value: Policy
 export const POLICY_STATUS_LABELS = Object.fromEntries(
   POLICY_STATUS_OPTIONS.map((o) => [o.value, o.label])
 ) as Record<PolicyStatus, string>
-

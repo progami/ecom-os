@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ColumnDef } from '@tanstack/react-table'
-import { MeApi, PoliciesApi, type Policy } from '@/lib/api-client'
+import { MeApi, PoliciesAdminApi, PoliciesApi, type Policy } from '@/lib/api-client'
 import { DocumentIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,7 @@ export default function PoliciesPage() {
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [canManagePolicies, setCanManagePolicies] = useState(false)
+  const didConsolidateConduct = useRef(false)
 
   const load = useCallback(async () => {
     try {
@@ -57,13 +58,20 @@ export default function PoliciesPage() {
     async function loadPermissions() {
       try {
         const me = await MeApi.get()
-        setCanManagePolicies(Boolean(me.isSuperAdmin || me.isHR))
+        const canManage = Boolean(me.isSuperAdmin || me.isHR)
+        setCanManagePolicies(canManage)
+
+        if (canManage && !didConsolidateConduct.current) {
+          didConsolidateConduct.current = true
+          await PoliciesAdminApi.consolidateConductCompanyWide().catch(() => null)
+          await load()
+        }
       } catch {
         setCanManagePolicies(false)
       }
     }
     loadPermissions()
-  }, [])
+  }, [load])
 
   // Get unique categories from items
   const categoryOptions = useMemo<FilterOption[]>(() => {

@@ -127,7 +127,7 @@ export async function POST(req: Request) {
       data: {
         title: data.title,
         category: data.category,
-        region: data.region,
+        region: data.category === 'CONDUCT' ? 'ALL' : data.region,
         summary: data.summary ?? null,
         content: data.content ?? null,
         fileUrl: data.fileUrl ?? null,
