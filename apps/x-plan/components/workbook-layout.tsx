@@ -35,6 +35,8 @@ interface WorkbookLayoutProps {
 
 const MIN_CONTEXT_WIDTH = 320;
 const MAX_CONTEXT_WIDTH = 560;
+const LOADING_INDICATOR_DELAY_MS = 200;
+const LOADING_INDICATOR_MIN_VISIBLE_MS = 350;
 const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
   '3-ops-planning',
   '4-sales-planning',
@@ -66,8 +68,72 @@ export function WorkbookLayout({
   const [isResizing, setIsResizing] = useState(false);
   const hasContextPane = Boolean(contextPane);
   const [isPending, startTransition] = useTransition();
+  const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
+  const loadingShownAtRef = useRef<number | null>(null);
+  const loadingShowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   usePersistentScroll(`sheet:${activeSlug}`, true, getScrollElement);
+
+  useEffect(() => {
+    return () => {
+      if (loadingShowTimerRef.current) {
+        clearTimeout(loadingShowTimerRef.current);
+        loadingShowTimerRef.current = null;
+      }
+      if (loadingHideTimerRef.current) {
+        clearTimeout(loadingHideTimerRef.current);
+        loadingHideTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isPending) {
+      if (loadingShowTimerRef.current) {
+        clearTimeout(loadingShowTimerRef.current);
+        loadingShowTimerRef.current = null;
+      }
+
+      if (!showLoadingIndicator) return;
+
+      if (loadingHideTimerRef.current) {
+        clearTimeout(loadingHideTimerRef.current);
+        loadingHideTimerRef.current = null;
+      }
+
+      const shownAt = loadingShownAtRef.current ?? Date.now();
+      const elapsedMs = Date.now() - shownAt;
+      const remainingMs = LOADING_INDICATOR_MIN_VISIBLE_MS - elapsedMs;
+
+      if (remainingMs <= 0) {
+        setShowLoadingIndicator(false);
+        loadingShownAtRef.current = null;
+        return;
+      }
+
+      loadingHideTimerRef.current = setTimeout(() => {
+        setShowLoadingIndicator(false);
+        loadingShownAtRef.current = null;
+        loadingHideTimerRef.current = null;
+      }, remainingMs);
+
+      return;
+    }
+
+    if (loadingHideTimerRef.current) {
+      clearTimeout(loadingHideTimerRef.current);
+      loadingHideTimerRef.current = null;
+    }
+
+    if (showLoadingIndicator || loadingShowTimerRef.current) return;
+
+    loadingShowTimerRef.current = setTimeout(() => {
+      loadingShowTimerRef.current = null;
+      loadingShownAtRef.current = Date.now();
+      setShowLoadingIndicator(true);
+    }, LOADING_INDICATOR_DELAY_MS);
+  }, [isPending, showLoadingIndicator]);
 
   const sortedYears = useMemo(() => {
     if (!planningYears) return [] as YearSegment[];
@@ -409,7 +475,7 @@ export function WorkbookLayout({
                   {ribbon}
 
                   {/* Loading state */}
-                  {isPending && (
+                  {showLoadingIndicator && (
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
                       <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-200/90">
