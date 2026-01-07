@@ -143,8 +143,37 @@ const refineDimensions = <T extends z.ZodRawShape & DimensionRefineShape>(schema
 
 const createSkuSchema = refineDimensions(
   skuSchemaBase.extend({
-    packSize: z.number().int().positive().default(1),
-    unitsPerCarton: z.number().int().positive().default(1),
+    initialBatch: z.object({
+      batchCode: z.string().trim().min(1).max(64),
+      description: z
+        .string()
+        .trim()
+        .max(200)
+        .optional()
+        .nullable()
+        .transform(val => {
+          if (val === undefined) return undefined
+          if (val === null) return null
+          const sanitized = sanitizeForDisplay(val)
+          return sanitized ? sanitized : null
+        }),
+      packSize: z.number().int().positive().default(1),
+      unitsPerCarton: z.number().int().positive().default(1),
+      material: z
+        .string()
+        .trim()
+        .max(120)
+        .optional()
+        .nullable()
+        .transform(val => {
+          if (val === undefined) return undefined
+          if (val === null) return null
+          const sanitized = sanitizeForDisplay(val)
+          return sanitized ? sanitized : null
+        }),
+      unitWeightKg: z.number().positive(),
+      packagingType: packagingTypeSchema,
+    }),
   })
 )
 
@@ -245,35 +274,12 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     return ApiResponses.badRequest('SKU code already exists')
   }
 
-  const unitTriplet = resolveDimensionTripletCm({
-    lengthCm: validatedData.unitLengthCm,
-    widthCm: validatedData.unitWidthCm,
-    heightCm: validatedData.unitHeightCm,
-    legacy: validatedData.unitDimensionsCm,
-  })
-  const cartonTriplet = resolveDimensionTripletCm({
-    lengthCm: validatedData.cartonLengthCm,
-    widthCm: validatedData.cartonWidthCm,
-    heightCm: validatedData.cartonHeightCm,
-    legacy: validatedData.cartonDimensionsCm,
-  })
-
-  const unitInputProvided =
-    validatedData.unitDimensionsCm ||
-    validatedData.unitLengthCm ||
-    validatedData.unitWidthCm ||
-    validatedData.unitHeightCm
-  const cartonInputProvided =
-    validatedData.cartonDimensionsCm ||
-    validatedData.cartonLengthCm ||
-    validatedData.cartonWidthCm ||
-    validatedData.cartonHeightCm
-
-  if (unitInputProvided && !unitTriplet) {
-    return ApiResponses.badRequest('Unit dimensions must be a valid LxWxH triple')
+  const initialBatchCode = sanitizeForDisplay(validatedData.initialBatch.batchCode.toUpperCase())
+  if (!initialBatchCode) {
+    return ApiResponses.badRequest('Invalid batch code')
   }
-  if (cartonInputProvided && !cartonTriplet) {
-    return ApiResponses.badRequest('Carton dimensions must be a valid LxWxH triple')
+  if (initialBatchCode === 'DEFAULT') {
+    return ApiResponses.badRequest('Batch code DEFAULT is not allowed')
   }
 
   const sku = await prisma.$transaction(async tx => {
@@ -282,22 +288,22 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         skuCode: validatedData.skuCode,
         asin: validatedData.asin ?? null,
         description: validatedData.description,
-        packSize: validatedData.packSize,
+        packSize: validatedData.initialBatch.packSize,
         defaultSupplierId: validatedData.defaultSupplierId ?? null,
         secondarySupplierId: validatedData.secondarySupplierId ?? null,
-        material: validatedData.material ?? null,
-        unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-        unitWeightKg: validatedData.unitWeightKg ?? null,
-        unitsPerCarton: validatedData.unitsPerCarton,
-        cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
-        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
-        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
-        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
-        cartonWeightKg: validatedData.cartonWeightKg ?? null,
-        packagingType: validatedData.packagingType ?? null,
+        material: validatedData.initialBatch.material ?? null,
+        unitDimensionsCm: null,
+        unitLengthCm: null,
+        unitWidthCm: null,
+        unitHeightCm: null,
+        unitWeightKg: validatedData.initialBatch.unitWeightKg,
+        unitsPerCarton: validatedData.initialBatch.unitsPerCarton,
+        cartonDimensionsCm: null,
+        cartonLengthCm: null,
+        cartonWidthCm: null,
+        cartonHeightCm: null,
+        cartonWeightKg: null,
+        packagingType: validatedData.initialBatch.packagingType ?? null,
         isActive: true,
       },
     })
@@ -305,21 +311,22 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     await tx.skuBatch.create({
       data: {
         sku: { connect: { id: created.id } },
-        batchCode: 'DEFAULT',
-        packSize: created.packSize,
-        unitsPerCarton: created.unitsPerCarton,
-        material: created.material,
-        unitDimensionsCm: created.unitDimensionsCm,
-        unitLengthCm: created.unitLengthCm,
-        unitWidthCm: created.unitWidthCm,
-        unitHeightCm: created.unitHeightCm,
-        unitWeightKg: created.unitWeightKg,
-        cartonDimensionsCm: created.cartonDimensionsCm,
-        cartonLengthCm: created.cartonLengthCm,
-        cartonWidthCm: created.cartonWidthCm,
-        cartonHeightCm: created.cartonHeightCm,
-        cartonWeightKg: created.cartonWeightKg,
-        packagingType: created.packagingType,
+        batchCode: initialBatchCode,
+        description: validatedData.initialBatch.description ?? null,
+        packSize: validatedData.initialBatch.packSize,
+        unitsPerCarton: validatedData.initialBatch.unitsPerCarton,
+        material: validatedData.initialBatch.material ?? null,
+        unitDimensionsCm: null,
+        unitLengthCm: null,
+        unitWidthCm: null,
+        unitHeightCm: null,
+        unitWeightKg: validatedData.initialBatch.unitWeightKg,
+        cartonDimensionsCm: null,
+        cartonLengthCm: null,
+        cartonWidthCm: null,
+        cartonHeightCm: null,
+        cartonWeightKg: null,
+        packagingType: validatedData.initialBatch.packagingType ?? null,
         isActive: true,
       },
     })

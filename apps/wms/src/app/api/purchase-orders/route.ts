@@ -19,7 +19,11 @@ export const GET = withAuth(async (_request: NextRequest, _session) => {
 const LineItemSchema = z.object({
   skuCode: z.string().min(1),
   skuDescription: z.string().optional(),
-  batchLot: z.string().trim().min(1).optional(),
+  batchLot: z
+    .string()
+    .trim()
+    .min(1)
+    .refine(value => value.trim().toUpperCase() !== 'DEFAULT', 'Batch / lot is required'),
   quantity: z.number().int().positive(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),

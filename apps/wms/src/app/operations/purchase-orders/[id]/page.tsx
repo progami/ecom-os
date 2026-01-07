@@ -545,7 +545,7 @@ export default function PurchaseOrderDetailPage() {
   const [addLineSubmitting, setAddLineSubmitting] = useState(false)
   const [newLineDraft, setNewLineDraft] = useState({
     skuId: '',
-    batchLot: 'DEFAULT',
+    batchLot: '',
     quantity: 1,
     notes: '',
   })
@@ -800,7 +800,7 @@ export default function PurchaseOrderDetailPage() {
         })
 
         if (!response.ok) {
-          setBatchesBySkuId(prev => ({ ...prev, [skuId]: ['DEFAULT'] }))
+          setBatchesBySkuId(prev => ({ ...prev, [skuId]: [] }))
           return
         }
 
@@ -814,20 +814,27 @@ export default function PurchaseOrderDetailPage() {
           )
           .filter((batchCode): batchCode is string => Boolean(batchCode))
 
-        const unique: string[] = Array.from(new Set(batchCodes))
-        if (!unique.includes('DEFAULT')) {
-          unique.unshift('DEFAULT')
-        }
-
-        setBatchesBySkuId(prev => ({ ...prev, [skuId]: unique }))
+        setBatchesBySkuId(prev => ({ ...prev, [skuId]: Array.from(new Set(batchCodes)) }))
       } catch {
-        setBatchesBySkuId(prev => ({ ...prev, [skuId]: ['DEFAULT'] }))
+        setBatchesBySkuId(prev => ({ ...prev, [skuId]: [] }))
       } finally {
         setBatchesLoadingBySkuId(prev => ({ ...prev, [skuId]: false }))
       }
     },
     [batchesBySkuId, batchesLoadingBySkuId]
   )
+
+  useEffect(() => {
+    if (!newLineDraft.skuId) return
+    const options = batchesBySkuId[newLineDraft.skuId]
+    if (!options || options.length === 0) return
+    if (newLineDraft.batchLot && options.includes(newLineDraft.batchLot)) return
+
+    setNewLineDraft(prev => {
+      if (prev.skuId !== newLineDraft.skuId) return prev
+      return { ...prev, batchLot: options[0] }
+    })
+  }, [batchesBySkuId, newLineDraft.batchLot, newLineDraft.skuId])
 
   useEffect(() => {
     if (!addLineOpen) return
@@ -1063,19 +1070,23 @@ export default function PurchaseOrderDetailPage() {
   )
   const previewIsImage = Boolean(previewDocument && previewDocument.contentType.startsWith('image/'))
 
-	  const handleAddLineItem = async () => {
-	    if (!order) return
-	    if (!selectedSku) {
-	      toast.error('Please select a SKU')
-	      return
-	    }
+		  const handleAddLineItem = async () => {
+		    if (!order) return
+		    if (!selectedSku) {
+		      toast.error('Please select a SKU')
+		      return
+		    }
 
-	    const batchLot = newLineDraft.batchLot.trim() || 'DEFAULT'
-	    const quantity = Number(newLineDraft.quantity)
-	    if (!Number.isFinite(quantity) || quantity <= 0) {
-	      toast.error('Please enter a valid quantity')
-	      return
-	    }
+		    const batchLot = newLineDraft.batchLot.trim()
+		    if (!batchLot) {
+		      toast.error('Please select a batch / lot')
+		      return
+		    }
+		    const quantity = Number(newLineDraft.quantity)
+		    if (!Number.isFinite(quantity) || quantity <= 0) {
+		      toast.error('Please enter a valid quantity')
+		      return
+		    }
 
 	    setAddLineSubmitting(true)
 	    try {
@@ -1097,14 +1108,14 @@ export default function PurchaseOrderDetailPage() {
 	      }
 
 	      const createdLine = (await response.json()) as PurchaseOrderLineSummary
-	      setOrder(prev => (prev ? { ...prev, lines: [...prev.lines, createdLine] } : prev))
-	      toast.success('Line item added')
-	      setAddLineOpen(false)
-	      setNewLineDraft({ skuId: '', batchLot: 'DEFAULT', quantity: 1, notes: '' })
-	      void refreshAuditLogs()
-	    } catch (error) {
-	      toast.error(error instanceof Error ? error.message : 'Failed to add line item')
-	    } finally {
+		      setOrder(prev => (prev ? { ...prev, lines: [...prev.lines, createdLine] } : prev))
+		      toast.success('Line item added')
+		      setAddLineOpen(false)
+		      setNewLineDraft({ skuId: '', batchLot: '', quantity: 1, notes: '' })
+		      void refreshAuditLogs()
+		    } catch (error) {
+		      toast.error(error instanceof Error ? error.message : 'Failed to add line item')
+		    } finally {
 	      setAddLineSubmitting(false)
 	    }
 	  }
@@ -2192,17 +2203,17 @@ export default function PurchaseOrderDetailPage() {
 	                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
 	                          SKU
 	                        </label>
-	                        <select
-	                          value={newLineDraft.skuId}
-	                          onChange={e => {
-	                            const skuId = e.target.value
-	                            setNewLineDraft(prev => ({
-	                              ...prev,
-	                              skuId,
-	                              batchLot: 'DEFAULT',
-	                            }))
-	                            void ensureSkuBatchesLoaded(skuId)
-	                          }}
+		                        <select
+		                          value={newLineDraft.skuId}
+		                          onChange={e => {
+		                            const skuId = e.target.value
+		                            setNewLineDraft(prev => ({
+		                              ...prev,
+		                              skuId,
+		                              batchLot: '',
+		                            }))
+		                            void ensureSkuBatchesLoaded(skuId)
+		                          }}
 	                          disabled={skusLoading || addLineSubmitting}
 	                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
 	                        >
@@ -2224,27 +2235,31 @@ export default function PurchaseOrderDetailPage() {
 	                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
 	                          Batch / Lot
 	                        </label>
-	                        <select
-	                          value={newLineDraft.batchLot}
-	                          onChange={e =>
-	                            setNewLineDraft(prev => ({ ...prev, batchLot: e.target.value }))
-	                          }
-	                          disabled={!newLineDraft.skuId || addLineSubmitting}
-	                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
-	                        >
-	                          {!newLineDraft.skuId ? (
-	                            <option value="DEFAULT">DEFAULT</option>
-	                          ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
-	                            <option value={newLineDraft.batchLot || 'DEFAULT'}>Loading…</option>
-	                          ) : (
-	                            (batchesBySkuId[newLineDraft.skuId] ?? ['DEFAULT']).map(batchCode => (
-	                              <option key={batchCode} value={batchCode}>
-	                                {batchCode}
-	                              </option>
-	                            ))
-	                          )}
-	                        </select>
-	                      </div>
+		                        <select
+		                          value={newLineDraft.batchLot}
+		                          onChange={e =>
+		                            setNewLineDraft(prev => ({ ...prev, batchLot: e.target.value }))
+		                          }
+		                          disabled={!newLineDraft.skuId || addLineSubmitting}
+		                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
+		                        >
+		                          {!newLineDraft.skuId ? (
+		                            <option value="">Select SKU first</option>
+		                          ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
+		                            <option value="">Loading…</option>
+		                          ) : (
+		                            (batchesBySkuId[newLineDraft.skuId]?.length ?? 0) > 0 ? (
+		                              batchesBySkuId[newLineDraft.skuId].map(batchCode => (
+		                                <option key={batchCode} value={batchCode}>
+		                                  {batchCode}
+		                                </option>
+		                              ))
+		                            ) : (
+		                              <option value="">No batches found</option>
+		                            )
+		                          )}
+		                        </select>
+		                      </div>
 	
 	                      <div className="grid grid-cols-2 gap-3">
 	                        <div className="space-y-2">
