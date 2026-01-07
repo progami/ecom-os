@@ -1731,10 +1731,25 @@ export function SalesPlanningGrid({
         const hasReorderCue = reorderCueEntries.length > 0;
         const reorderTooltip = hasReorderCue
           ? reorderCueEntries.length === 1
-            ? reorderCueEntries[0]!.tooltip
-            : reorderCueEntries
-                .map((entry) => `${entry.productName}\n${entry.tooltip}`)
-                .join('\n\n')
+            ? `SKU: ${reorderCueEntries[0]!.productName}\n${reorderCueEntries[0]!.tooltip}`
+            : (() => {
+                const grouped = new Map<string, string[]>();
+                for (const entry of reorderCueEntries) {
+                  const existing = grouped.get(entry.tooltip);
+                  if (existing) {
+                    existing.push(entry.productName);
+                  } else {
+                    grouped.set(entry.tooltip, [entry.productName]);
+                  }
+                }
+
+                const blocks = Array.from(grouped.entries()).map(([tooltip, skus]) => {
+                  const label = skus.length === 1 ? 'SKU' : 'SKUs';
+                  return `${label}: ${skus.join(', ')}\n${tooltip}`;
+                });
+
+                return blocks.join('\n\n');
+              })()
           : '';
         const arrivalNote = row.arrivalNote ?? '';
         const tooltip = [reorderTooltip, arrivalNote].filter(Boolean).join('\n\n');
