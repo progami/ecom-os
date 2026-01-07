@@ -1753,7 +1753,11 @@ export function SalesPlanningGrid({
             const startWeekRaw = weekNumber - leadTimeWeeks;
             const startDate =
               weekDateByNumber.get(startWeekRaw) || formatWeekDateFallback(startWeekRaw);
-            tooltipText = `Low stock warning (≤ ${warningThreshold}w).\nSuggested production start: ${startDate}.`;
+            const startWeekLabelRaw = weekLabelByNumber.get(startWeekRaw) || null;
+            const startWeekLabel = startWeekLabelRaw
+              ? `W${startWeekLabelRaw}`
+              : `week ${startWeekRaw}`;
+            tooltipText = `Low stock warning (≤ ${warningThreshold}w).\nStart production by ${startWeekLabel} (${startDate}).`;
           }
         }
       }
@@ -1780,6 +1784,9 @@ export function SalesPlanningGrid({
             ]
           : [];
 
+        const startLabel = reorderInfo.startWeekLabel
+          ? `W${reorderInfo.startWeekLabel}`
+          : `week ${reorderInfo.startWeekNumber}`;
         const breachLabel = reorderInfo.breachWeekLabel
           ? `W${reorderInfo.breachWeekLabel}`
           : `week ${reorderInfo.breachWeekNumber}`;
@@ -1789,18 +1796,18 @@ export function SalesPlanningGrid({
             : 0;
         const startLine =
           lateByWeeks > 0
-            ? `Start production: ASAP (recommended ${reorderInfo.startDate} · late by ${lateByWeeks}w).`
-            : `Start production: ${reorderInfo.startDate}.`;
+            ? `Start production: now (late by ${lateByWeeks}w; recommended ${startLabel} · ${reorderInfo.startDate}).`
+            : `Start production: ${startLabel} (${reorderInfo.startDate}).`;
+        const breachLine = `Breach (coverage < ${warningThreshold}w): ${breachLabel} (${reorderInfo.breachDate}).`;
 
-        tooltipText = [
-          `Reorder signal (target ≥ ${warningThreshold}w).`,
+        const extraTooltip = tooltipText;
+        const lines = [
+          `Reorder signal (target ≥ ${warningThreshold}w coverage).`,
           startLine,
-          `Threshold breach: ${breachLabel} (${reorderInfo.breachDate}).`,
+          breachLine,
           `Lead time: ${leadTimeWeeks}w${leadParts.length ? ` (${leadParts.join(' + ')})` : ''}.`,
-          tooltipText,
-        ]
-          .filter(Boolean)
-          .join('\n\n');
+        ];
+        tooltipText = extraTooltip ? [...lines, '', extraTooltip].join('\n') : lines.join('\n');
       }
 
       const raw = row[columnId] ?? '';
@@ -1865,6 +1872,7 @@ export function SalesPlanningGrid({
       visibleRowIndices,
       warningThreshold,
       weekDateByNumber,
+      weekLabelByNumber,
     ],
   );
 
