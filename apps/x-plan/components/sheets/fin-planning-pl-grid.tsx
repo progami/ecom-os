@@ -29,7 +29,6 @@ import {
   parseNumericInput,
   sanitizeNumeric,
 } from '@/components/sheets/validators';
-import { readClipboardText } from '@/lib/grid/clipboard';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { withAppBasePath } from '@/lib/base-path';
@@ -510,13 +509,19 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       }
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
-        e.preventDefault();
-        const start = { ...activeCell };
-        void (async () => {
-          const text = await readClipboardText();
-          if (!text) return;
-          applyPastedText(text, start);
-        })();
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = { ...activeCell };
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            scrollRef.current?.focus();
+          }
+        }, 250);
         return;
       }
 
@@ -613,7 +618,6 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       activeCell,
       copySelectionToClipboard,
       data,
-      applyPastedText,
       editingCell,
       moveActiveCell,
       pendingRef,
