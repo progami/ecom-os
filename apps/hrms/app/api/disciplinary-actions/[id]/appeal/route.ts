@@ -89,7 +89,7 @@ export async function POST(req: Request, context: RouteContext) {
         if (appealStatus === 'OVERTURNED') {
           newStatus = DisciplinaryStatus.DISMISSED
         } else if (appealStatus === 'UPHELD' || appealStatus === 'MODIFIED') {
-          newStatus = DisciplinaryStatus.CLOSED
+          newStatus = DisciplinaryStatus.PENDING_ACKNOWLEDGMENT
         }
 
         const updated = await prisma.disciplinaryAction.update({
@@ -134,6 +134,23 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
 
+        await prisma.auditLog.create({
+          data: {
+            actorId: currentEmployeeId,
+            action: 'COMPLETE',
+            entityType: 'DISCIPLINARY_ACTION',
+            entityId: id,
+            summary: `Appeal decided by HR: ${appealStatus}`,
+            metadata: {
+              fromStatus: action.status,
+              toStatus: newStatus,
+              note: appealResolution,
+            },
+            ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+            userAgent: req.headers.get('user-agent') ?? null,
+          },
+        })
+
         return NextResponse.json({
           ...updated,
           message: `Appeal ${appealStatus.toLowerCase()} by HR`,
@@ -170,12 +187,12 @@ export async function POST(req: Request, context: RouteContext) {
         if (appealStatus === 'OVERTURNED') {
           newStatus = DisciplinaryStatus.DISMISSED
         } else if (appealStatus === 'UPHELD' || appealStatus === 'MODIFIED') {
-          newStatus = DisciplinaryStatus.CLOSED
+          newStatus = DisciplinaryStatus.PENDING_ACKNOWLEDGMENT
         }
 
-	      const updated = await prisma.disciplinaryAction.update({
-	        where: { id },
-	        data: {
+        const updated = await prisma.disciplinaryAction.update({
+          where: { id },
+          data: {
             appealStatus,
             appealResolution,
             appealResolvedAt: new Date(),
@@ -194,6 +211,23 @@ export async function POST(req: Request, context: RouteContext) {
                 email: true,
               },
             },
+          },
+        })
+
+        await prisma.auditLog.create({
+          data: {
+            actorId: currentEmployeeId,
+            action: 'COMPLETE',
+            entityType: 'DISCIPLINARY_ACTION',
+            entityId: id,
+            summary: `Appeal decided: ${appealStatus}`,
+            metadata: {
+              fromStatus: action.status,
+              toStatus: newStatus,
+              note: appealResolution,
+            },
+            ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+            userAgent: req.headers.get('user-agent') ?? null,
           },
         })
 
@@ -216,9 +250,11 @@ export async function POST(req: Request, context: RouteContext) {
         )
       }
 
-      if (action.status !== 'PENDING_ACKNOWLEDGMENT') {
+      const isUpdate = action.status === 'APPEAL_PENDING_HR'
+
+      if (!isUpdate && action.status !== 'PENDING_ACKNOWLEDGMENT') {
         return NextResponse.json(
-          { error: `Cannot appeal: action is in ${action.status} status, expected PENDING_ACKNOWLEDGMENT` },
+          { error: `Cannot appeal: action is in ${action.status} status` },
           { status: 400 }
         )
       }
@@ -226,13 +262,6 @@ export async function POST(req: Request, context: RouteContext) {
       if (action.employeeAcknowledged) {
         return NextResponse.json(
           { error: 'Cannot appeal after acknowledging' },
-          { status: 400 }
-        )
-      }
-
-      if (action.appealedAt) {
-        return NextResponse.json(
-          { error: 'Appeal already submitted' },
           { status: 400 }
         )
       }
@@ -251,6 +280,12 @@ export async function POST(req: Request, context: RouteContext) {
           appealReason,
           appealedAt: new Date(),
           appealStatus: 'PENDING',
+          appealResolution: null,
+          appealResolvedAt: null,
+          appealResolvedById: null,
+          appealHrReviewedAt: null,
+          appealHrReviewedById: null,
+          appealHrNotes: null,
           status: 'APPEAL_PENDING_HR', // New status: Appeal waiting for HR review
         },
         include: {
@@ -264,30 +299,45 @@ export async function POST(req: Request, context: RouteContext) {
               position: true,
             },
           },
-	        },
-	      })
+        },
+      })
 
       const recordLink = `/performance/violations/${id}`
 
-	      // Notify HR about the appeal
-	      const hrEmployees = await getHREmployees()
-	      for (const hr of hrEmployees) {
-	        await prisma.notification.create({
-	          data: {
-	            type: 'APPEAL_PENDING_HR',
-	            title: 'Appeal Submitted - Review Required',
-	            message: `${updated.employee.firstName} ${updated.employee.lastName} has submitted an appeal for a violation. Please review.`,
-	            link: recordLink,
-	            employeeId: hr.id,
-	            relatedId: id,
-	            relatedType: 'DISCIPLINARY',
-	          },
-	        })
-	      }
+      // Notify HR about the appeal
+      const hrEmployees = await getHREmployees()
+      for (const hr of hrEmployees) {
+        await prisma.notification.create({
+          data: {
+            type: 'APPEAL_PENDING_HR',
+            title: isUpdate ? 'Appeal Updated - Review Required' : 'Appeal Submitted - Review Required',
+            message: `${updated.employee.firstName} ${updated.employee.lastName} has ${isUpdate ? 'updated' : 'submitted'} an appeal for a violation. Please review.`,
+            link: recordLink,
+            employeeId: hr.id,
+            relatedId: id,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'COMMENT',
+          entityType: 'DISCIPLINARY_ACTION',
+          entityId: id,
+          summary: isUpdate ? 'Appeal updated by employee' : 'Appeal submitted by employee',
+          metadata: {
+            note: appealReason,
+          },
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
 
       return NextResponse.json({
         ...updated,
-        message: 'Appeal submitted successfully. HR will review your appeal.',
+        message: isUpdate ? 'Appeal updated successfully. HR will review your appeal.' : 'Appeal submitted successfully. HR will review your appeal.',
       })
     }
   } catch (e) {
@@ -344,11 +394,10 @@ export async function GET(req: Request, context: RouteContext) {
     const isManager = currentEmployeeId === action.employee.reportsToId
     const canResolve = await isHROrAbove(currentEmployeeId) || isManager || await isManagerOf(currentEmployeeId, action.employeeId)
 
-    // Employee can appeal if they haven't acknowledged AND haven't already appealed
+    // Employee can appeal if they haven't acknowledged.
     const canAppeal = isEmployee &&
       action.status === 'PENDING_ACKNOWLEDGMENT' &&
-      !action.employeeAcknowledged &&
-      !action.appealedAt
+      !action.employeeAcknowledged
 
     const hrPermission = await canHRReview(currentEmployeeId)
 

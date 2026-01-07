@@ -138,7 +138,12 @@ export default function EditDisciplinaryPage() {
     }
   }
 
-  const canEdit = Boolean(me?.isHR || me?.isSuperAdmin)
+  const canEdit = Boolean(
+    me &&
+      (me.isHR ||
+        me.isSuperAdmin ||
+        (action?.createdById && me.id === action.createdById))
+  )
 
   if (loading) {
     return (

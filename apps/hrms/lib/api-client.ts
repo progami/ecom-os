@@ -608,16 +608,26 @@ export type DisciplinaryAction = {
   resolution?: string | null
   // Approval chain tracking
   hrReviewedAt?: string | null
+  hrReviewedById?: string | null
+  hrReviewNotes?: string | null
   hrApproved?: boolean | null
   superAdminApprovedAt?: string | null
+  superAdminApprovedById?: string | null
+  superAdminNotes?: string | null
   superAdminApproved?: boolean | null
   // Appeal tracking
   appealReason?: string | null
   appealedAt?: string | null
   appealStatus?: string | null
+  appealResolution?: string | null
+  appealResolvedAt?: string | null
+  appealResolvedById?: string | null
   // Acknowledgment tracking
   employeeAcknowledged?: boolean
   employeeAcknowledgedAt?: string | null
+  managerAcknowledged?: boolean
+  managerAcknowledgedAt?: string | null
+  managerAcknowledgerId?: string | null
   createdAt?: string
   updatedAt?: string
 }

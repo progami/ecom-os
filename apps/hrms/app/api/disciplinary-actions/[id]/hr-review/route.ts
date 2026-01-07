@@ -116,22 +116,37 @@ export async function POST(req: Request, context: RouteContext) {
         )
       )
 
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'APPROVE',
+          entityType: 'DISCIPLINARY_ACTION',
+          entityId: id,
+          summary: 'HR approved violation',
+          metadata: {
+            fromStatus: action.status,
+            toStatus: 'PENDING_SUPER_ADMIN',
+            note: notes ?? null,
+          },
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Violation approved by HR, sent to Super Admin for final approval',
         action: updated,
       })
     } else {
-      // HR rejects - move to DISMISSED
+      // HR requests changes - self-loop on PENDING_HR_REVIEW (do not dismiss)
       const updated = await prisma.disciplinaryAction.update({
         where: { id },
         data: {
-          status: 'DISMISSED',
           hrReviewedAt: new Date(),
           hrReviewedById: currentEmployeeId,
           hrReviewNotes: notes ?? null,
           hrApproved: false,
-          resolution: notes ?? 'Rejected by HR',
         },
         include: {
           employee: {
@@ -147,24 +162,45 @@ export async function POST(req: Request, context: RouteContext) {
 
       const recordLink = `/performance/violations/${id}`
 
-      // Notify the manager who raised it (reportedBy field contains their name, but we need to find by reportsToId)
-      if (action.employee.reportsToId) {
-        await prisma.notification.create({
-          data: {
-            type: 'VIOLATION_REJECTED',
-            title: 'Violation Rejected by HR',
-            message: `The violation you raised for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by HR.`,
-            link: recordLink,
-            employeeId: action.employee.reportsToId,
-            relatedId: id,
-            relatedType: 'DISCIPLINARY',
+      const targets = new Set<string>()
+      if (action.createdById) targets.add(action.createdById)
+      if (!targets.size && action.employee.reportsToId) targets.add(action.employee.reportsToId)
+      targets.delete(currentEmployeeId)
+
+      await Promise.all(
+        Array.from(targets).map((employeeId) =>
+          prisma.notification.create({
+            data: {
+              type: 'VIOLATION_REJECTED',
+              title: 'Violation Needs Changes (HR)',
+              message: `HR requested changes to the violation for ${updated.employee.firstName} ${updated.employee.lastName}.${notes ? ` Notes: ${notes}` : ''}`,
+              link: recordLink,
+              employeeId,
+              relatedId: id,
+              relatedType: 'DISCIPLINARY',
+            },
+          })
+        )
+      )
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'COMMENT',
+          entityType: 'DISCIPLINARY_ACTION',
+          entityId: id,
+          summary: 'HR requested changes',
+          metadata: {
+            note: notes ?? null,
           },
-        })
-      }
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
 
       return NextResponse.json({
         success: true,
-        message: 'Violation rejected by HR',
+        message: 'Changes requested by HR',
         action: updated,
       })
     }

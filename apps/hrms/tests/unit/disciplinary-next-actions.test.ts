@@ -26,6 +26,7 @@ test('disciplinary: PENDING_HR_REVIEW shows HR approve', () => {
 
   assert.equal(actions.primary?.id, 'disciplinary.hrApprove')
   assert.equal(actions.primary?.disabled, false)
+  assert.equal(actions.secondary[0]?.label, 'Request changes')
 })
 
 test('disciplinary: PENDING_HR_REVIEW blocks non-HR', () => {
@@ -47,6 +48,7 @@ test('disciplinary: PENDING_SUPER_ADMIN lets super admin approve', () => {
 
   assert.equal(actions.primary?.id, 'disciplinary.superAdminApprove')
   assert.equal(actions.primary?.disabled, false)
+  assert.equal(actions.secondary[0]?.label, 'Request changes')
 })
 
 test('disciplinary: PENDING_ACKNOWLEDGMENT gives employee acknowledge + appeal', () => {
@@ -65,6 +67,21 @@ test('disciplinary: PENDING_ACKNOWLEDGMENT gives employee acknowledge + appeal',
   assert.ok(actions.secondary.some((a) => a.id === 'disciplinary.appeal'))
 })
 
+test('disciplinary: PENDING_ACKNOWLEDGMENT shows appeal again after resolution', () => {
+  const actions = buildDisciplinaryNextActions(
+    action({
+      status: 'PENDING_ACKNOWLEDGMENT',
+      employeeId: 'viewer',
+      employeeAcknowledged: false,
+      managerAcknowledged: true,
+      appealResolvedAt: new Date(),
+    }),
+    baseViewer
+  )
+
+  assert.equal(actions.secondary[0]?.label, 'Appeal again')
+})
+
 test('disciplinary: PENDING_ACKNOWLEDGMENT gives manager acknowledge', () => {
   const actions = buildDisciplinaryNextActions(
     action({
@@ -77,5 +94,32 @@ test('disciplinary: PENDING_ACKNOWLEDGMENT gives manager acknowledge', () => {
   )
 
   assert.equal(actions.primary?.label, 'Acknowledge as manager')
+  assert.equal(actions.primary?.disabled, false)
+})
+
+test('disciplinary: APPEAL_PENDING_HR lets employee update appeal', () => {
+  const actions = buildDisciplinaryNextActions(
+    action({
+      status: 'APPEAL_PENDING_HR',
+      employeeId: 'viewer',
+    }),
+    baseViewer
+  )
+
+  assert.equal(actions.primary?.id, 'disciplinary.appeal')
+  assert.equal(actions.primary?.label, 'Update appeal')
+  assert.equal(actions.primary?.disabled, false)
+})
+
+test('disciplinary: APPEAL_PENDING_HR lets HR decide', () => {
+  const actions = buildDisciplinaryNextActions(
+    action({
+      status: 'APPEAL_PENDING_HR',
+      employeeId: 'emp',
+    }),
+    { ...baseViewer, isHR: true }
+  )
+
+  assert.equal(actions.primary?.id, 'disciplinary.appeal.hrDecide')
   assert.equal(actions.primary?.disabled, false)
 })

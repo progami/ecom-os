@@ -107,22 +107,37 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'APPROVE',
+          entityType: 'DISCIPLINARY_ACTION',
+          entityId: id,
+          summary: 'Super Admin approved violation',
+          metadata: {
+            fromStatus: action.status,
+            toStatus: 'PENDING_ACKNOWLEDGMENT',
+            note: notes ?? null,
+          },
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Violation approved by Super Admin, sent to employee for acknowledgment',
         action: updated,
       })
     } else {
-      // Super Admin rejects - move to DISMISSED
+      // Super Admin requests changes - self-loop on PENDING_SUPER_ADMIN (do not dismiss)
       const updated = await prisma.disciplinaryAction.update({
         where: { id },
         data: {
-          status: 'DISMISSED',
           superAdminApprovedAt: new Date(),
           superAdminApprovedById: currentEmployeeId,
           superAdminNotes: notes ?? null,
           superAdminApproved: false,
-          resolution: notes ?? 'Rejected by Super Admin',
         },
         include: {
           employee: {
@@ -138,39 +153,46 @@ export async function POST(req: Request, context: RouteContext) {
 
       const recordLink = `/performance/violations/${id}`
 
-      // Notify the manager who raised it
-      if (action.employee.reportsToId) {
-        await prisma.notification.create({
-          data: {
-            type: 'VIOLATION_REJECTED',
-            title: 'Violation Rejected by Super Admin',
-            message: `The violation you raised for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by Super Admin.`,
-            link: recordLink,
-            employeeId: action.employee.reportsToId,
-            relatedId: id,
-            relatedType: 'DISCIPLINARY',
-          },
-        })
-      }
+      const targets = new Set<string>()
+      if (action.createdById) targets.add(action.createdById)
+      if (action.hrReviewedById) targets.add(action.hrReviewedById)
+      if (!targets.size && action.employee.reportsToId) targets.add(action.employee.reportsToId)
+      targets.delete(currentEmployeeId)
 
-      // Notify HR who approved it
-      if (action.hrReviewedById) {
-        await prisma.notification.create({
-          data: {
-            type: 'VIOLATION_REJECTED',
-            title: 'Violation Rejected by Super Admin',
-            message: `The violation for ${updated.employee.firstName} ${updated.employee.lastName} that you approved has been rejected by Super Admin.`,
-            link: recordLink,
-            employeeId: action.hrReviewedById,
-            relatedId: id,
-            relatedType: 'DISCIPLINARY',
+      await Promise.all(
+        Array.from(targets).map((employeeId) =>
+          prisma.notification.create({
+            data: {
+              type: 'VIOLATION_REJECTED',
+              title: 'Violation Needs Changes (Admin)',
+              message: `Final approval requested changes to the violation for ${updated.employee.firstName} ${updated.employee.lastName}.${notes ? ` Notes: ${notes}` : ''}`,
+              link: recordLink,
+              employeeId,
+              relatedId: id,
+              relatedType: 'DISCIPLINARY',
+            },
+          })
+        )
+      )
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'COMMENT',
+          entityType: 'DISCIPLINARY_ACTION',
+          entityId: id,
+          summary: 'Super Admin requested changes',
+          metadata: {
+            note: notes ?? null,
           },
-        })
-      }
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
 
       return NextResponse.json({
         success: true,
-        message: 'Violation rejected by Super Admin',
+        message: 'Changes requested by Super Admin',
         action: updated,
       })
     }
