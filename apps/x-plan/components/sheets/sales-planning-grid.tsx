@@ -54,6 +54,7 @@ import { usePersistentState } from '@/hooks/usePersistentState';
 import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
 import { withAppBasePath } from '@/lib/base-path';
 import type { SelectionStats } from '@/lib/selection-stats';
+import { getSelectionBorderBoxShadow } from '@/lib/grid/selection-border';
 import { formatDateDisplay } from '@/lib/utils/dates';
 
 const PLANNING_ANCHOR_WEEK = 1;
@@ -687,6 +688,7 @@ export function SalesPlanningGrid({
   const selectionAnchorRef = useRef<CellCoords | null>(null);
   const selectionRef = useRef<CellRange | null>(null);
   selectionRef.current = selection;
+  const selectionRange = useMemo(() => (selection ? normalizeRange(selection) : null), [selection]);
 
   const [activeCell, setActiveCell] = useState<CellCoords | null>(null);
   const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null);
@@ -2172,16 +2174,11 @@ export function SalesPlanningGrid({
                       | { sticky?: boolean; stickyOffset?: number; width?: number; field?: string }
                       | undefined;
                     const presentation = getCellPresentation(visibleRowIndex, column.id);
-                    const isSelected = selection
-                      ? (() => {
-                          const range = normalizeRange(selection);
-                          return (
-                            visibleRowIndex >= range.top &&
-                            visibleRowIndex <= range.bottom &&
-                            colIndex >= range.left &&
-                            colIndex <= range.right
-                          );
-                        })()
+                    const isSelected = selectionRange
+                      ? visibleRowIndex >= selectionRange.top &&
+                        visibleRowIndex <= selectionRange.bottom &&
+                        colIndex >= selectionRange.left &&
+                        colIndex <= selectionRange.right
                       : false;
                     const isCurrent =
                       activeCell?.row === visibleRowIndex && activeCell?.col === colIndex;
@@ -2230,6 +2227,13 @@ export function SalesPlanningGrid({
                     );
 
                     const isFirstProductCol = productBoundaryColumns.firstColIndices.has(colIndex);
+                    const boxShadow = getSelectionBorderBoxShadow(
+                      selectionRange,
+                      { row: visibleRowIndex, col: colIndex },
+                      {
+                        existingBoxShadow: isFirstProductCol ? 'inset 3px 0 0 0 #06b6d4' : null,
+                      },
+                    );
 
                     const cell = (
                       <TableCell
@@ -2257,16 +2261,14 @@ export function SalesPlanningGrid({
                           presentation.highlight === 'inbound' &&
                             'bg-success-100/90 dark:bg-success-500/25 dark:ring-1 dark:ring-inset dark:ring-success-300/45',
                           isSelected && 'bg-accent',
-                          isCurrent && 'ring-2 ring-inset ring-ring',
+                          isCurrent && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
                         )}
                         style={{
                           left: meta?.sticky ? meta.stickyOffset : undefined,
                           width: meta?.width,
                           minWidth: meta?.width,
                           maxWidth: meta?.width,
-                          ...(isFirstProductCol && {
-                            boxShadow: 'inset 3px 0 0 0 #06b6d4',
-                          }),
+                          boxShadow,
                         }}
                         onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}

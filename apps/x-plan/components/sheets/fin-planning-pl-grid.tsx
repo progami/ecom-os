@@ -33,6 +33,7 @@ import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { withAppBasePath } from '@/lib/base-path';
 import type { SelectionStats } from '@/lib/selection-stats';
+import { getSelectionBorderBoxShadow } from '@/lib/grid/selection-border';
 
 type WeeklyRow = {
   weekNumber: string;
@@ -288,6 +289,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
   const selectionAnchorRef = useRef<CellCoords | null>(null);
   const [activeCell, setActiveCell] = useState<CellCoords | null>(null);
   const [selectionStats, setSelectionStats] = useState<SelectionStats | null>(null);
+  const selectionRange = useMemo(() => (selection ? normalizeRange(selection) : null), [selection]);
 
   const [editingCell, setEditingCell] = useState<{
     coords: CellCoords;
@@ -768,22 +770,21 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                   className={cn('hover:bg-transparent', rowIndex % 2 === 1 && 'bg-muted/30')}
                 >
                   {columnConfig.map((config, colIndex) => {
-                    const isSelected = selection
-                      ? (() => {
-                          const range = normalizeRange(selection);
-                          return (
-                            rowIndex >= range.top &&
-                            rowIndex <= range.bottom &&
-                            colIndex >= range.left &&
-                            colIndex <= range.right
-                          );
-                        })()
+                    const isSelected = selectionRange
+                      ? rowIndex >= selectionRange.top &&
+                        rowIndex <= selectionRange.bottom &&
+                        colIndex >= selectionRange.left &&
+                        colIndex <= selectionRange.right
                       : false;
                     const isCurrent = activeCell?.row === rowIndex && activeCell?.col === colIndex;
                     const isEditing =
                       editingCell?.coords.row === rowIndex && editingCell?.coords.col === colIndex;
                     const isEvenRow = rowIndex % 2 === 1;
                     const isPinned = config.sticky;
+                    const boxShadow = getSelectionBorderBoxShadow(selectionRange, {
+                      row: rowIndex,
+                      col: colIndex,
+                    });
 
                     const rawValue = row.original[config.key];
                     const displayValue = formatDisplayValue(rawValue, config.format);
@@ -841,11 +842,12 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                           colIndex === 1 && 'border-r-2',
                           config.editable && 'cursor-text font-medium bg-accent/50',
                           isSelected && 'bg-accent',
-                          isCurrent && 'ring-2 ring-inset ring-ring',
+                          isCurrent && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
                         )}
                         style={{
                           left: isPinned ? config.stickyOffset : undefined,
                           minWidth: config.width,
+                          boxShadow,
                         }}
                         onPointerDown={(e) => handlePointerDown(e, rowIndex, colIndex)}
                         onPointerMove={(e) => handlePointerMove(e, rowIndex, colIndex)}
