@@ -36,11 +36,11 @@ interface WorkbookLayoutProps {
 const MIN_CONTEXT_WIDTH = 320;
 const MAX_CONTEXT_WIDTH = 560;
 const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
-  '2-ops-planning',
-  '3-sales-planning',
-  '4-fin-planning-pl',
-  '5-fin-planning-cash-flow',
-  '6-po-profitability',
+  '3-ops-planning',
+  '4-sales-planning',
+  '5-fin-planning-pl',
+  '6-fin-planning-cash-flow',
+  '7-po-profitability',
 ]);
 
 export function WorkbookLayout({
@@ -235,7 +235,7 @@ export function WorkbookLayout({
 
   const yearTraversal = useMemo(() => {
     if (!sortedYears.length) return [] as Array<{ slug: SheetSlug; year: number }>;
-    const sequence = ['3-sales-planning', '4-fin-planning-pl', '5-fin-planning-cash-flow'] as const;
+    const sequence = ['4-sales-planning', '5-fin-planning-pl', '6-fin-planning-cash-flow'] as const;
     const result: Array<{ slug: SheetSlug; year: number }> = [];
     for (const segment of sortedYears) {
       for (const slug of sequence) {

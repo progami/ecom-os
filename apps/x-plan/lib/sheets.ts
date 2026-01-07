@@ -10,6 +10,15 @@ import {
 } from 'lucide-react';
 
 export type SheetSlug =
+  | '1-strategies'
+  | '2-product-setup'
+  | '3-ops-planning'
+  | '4-sales-planning'
+  | '5-fin-planning-pl'
+  | '6-fin-planning-cash-flow'
+  | '7-po-profitability';
+
+export type LegacySheetSlug =
   | '0-strategies'
   | '1-product-setup'
   | '2-ops-planning'
@@ -27,49 +36,67 @@ export interface SheetConfig {
 
 export const SHEETS: SheetConfig[] = [
   {
-    slug: '0-strategies',
+    slug: '1-strategies',
     label: 'Strategies',
     description: '',
     icon: Target,
   },
   {
-    slug: '1-product-setup',
+    slug: '2-product-setup',
     label: 'Product Setup',
     description: '',
     icon: Package,
   },
   {
-    slug: '2-ops-planning',
+    slug: '3-ops-planning',
     label: 'Ops Planning',
     description: '',
     icon: ClipboardList,
   },
   {
-    slug: '3-sales-planning',
+    slug: '4-sales-planning',
     label: 'Sales Planning',
     description: '',
     icon: FileSpreadsheet,
   },
   {
-    slug: '4-fin-planning-pl',
+    slug: '5-fin-planning-pl',
     label: 'P&L',
     description: '',
     icon: LineChart,
   },
   {
-    slug: '5-fin-planning-cash-flow',
+    slug: '6-fin-planning-cash-flow',
     label: 'Cash Flow',
     description: '',
     icon: Wallet2,
   },
   {
-    slug: '6-po-profitability',
+    slug: '7-po-profitability',
     label: 'PO Profitability',
     description: '',
     icon: TrendingUp,
   },
 ];
 
+export const LEGACY_SHEET_SLUG_REDIRECTS: Readonly<Record<LegacySheetSlug, SheetSlug>> = {
+  '0-strategies': '1-strategies',
+  '1-product-setup': '2-product-setup',
+  '2-ops-planning': '3-ops-planning',
+  '3-sales-planning': '4-sales-planning',
+  '4-fin-planning-pl': '5-fin-planning-pl',
+  '5-fin-planning-cash-flow': '6-fin-planning-cash-flow',
+  '6-po-profitability': '7-po-profitability',
+};
+
+export function getCanonicalSheetSlug(slug: string): SheetSlug | undefined {
+  const redirected =
+    (LEGACY_SHEET_SLUG_REDIRECTS as Record<string, SheetSlug | undefined>)[slug] ?? slug;
+  return SHEETS.some((sheet) => sheet.slug === redirected) ? (redirected as SheetSlug) : undefined;
+}
+
 export function getSheetConfig(slug: string): SheetConfig | undefined {
-  return SHEETS.find((sheet) => sheet.slug === slug);
+  const canonical = getCanonicalSheetSlug(slug);
+  if (!canonical) return undefined;
+  return SHEETS.find((sheet) => sheet.slug === canonical);
 }
