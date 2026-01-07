@@ -12,6 +12,8 @@ const SupplierSchema = z.object({
   phone: z.string().trim().optional().nullable(),
   address: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
+  defaultPaymentTerms: z.string().trim().optional().nullable(),
+  defaultIncoterms: z.string().trim().optional().nullable(),
 })
 
 const UpdateSupplierSchema = SupplierSchema.partial()
@@ -81,6 +83,12 @@ export const POST = withAuth(async (request, session) => {
       phone: parsed.data.phone ? sanitizeForDisplay(parsed.data.phone) : null,
       address: parsed.data.address ? sanitizeForDisplay(parsed.data.address) : null,
       notes: parsed.data.notes ? sanitizeForDisplay(parsed.data.notes) : null,
+      defaultPaymentTerms: parsed.data.defaultPaymentTerms
+        ? sanitizeForDisplay(parsed.data.defaultPaymentTerms)
+        : null,
+      defaultIncoterms: parsed.data.defaultIncoterms
+        ? sanitizeForDisplay(parsed.data.defaultIncoterms)
+        : null,
       isActive: true,
     },
   })
@@ -156,6 +164,18 @@ export const PATCH = withAuth(async (request, session) => {
           data.notes !== undefined
             ? data.notes
               ? sanitizeForDisplay(data.notes)
+              : null
+            : undefined,
+        defaultPaymentTerms:
+          data.defaultPaymentTerms !== undefined
+            ? data.defaultPaymentTerms
+              ? sanitizeForDisplay(data.defaultPaymentTerms)
+              : null
+            : undefined,
+        defaultIncoterms:
+          data.defaultIncoterms !== undefined
+            ? data.defaultIncoterms
+              ? sanitizeForDisplay(data.defaultIncoterms)
               : null
             : undefined,
       },
