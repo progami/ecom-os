@@ -92,8 +92,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let msg = (body && (body.error || body.message)) || `${res.status} ${res.statusText}`
     const details = body && Array.isArray(body.details) ? body.details : null
-    if (details && details.some((d: unknown) => typeof d === 'string' && d.trim())) {
-      msg = `${msg}: ${details.filter((d: unknown) => typeof d === 'string' && d.trim()).join(', ')}`
+    if (details) {
+      const detailStrings = details
+        .map((d: unknown) => {
+          if (typeof d === 'string') return d.trim() ? d.trim() : null
+          if (d && typeof d === 'object') {
+            const field = (d as any).field
+            const message = (d as any).message
+            if (typeof message === 'string' && message.trim()) {
+              if (typeof field === 'string' && field.trim()) return `${field}: ${message}`
+              return message
+            }
+          }
+          return null
+        })
+        .filter((s: string | null): s is string => Boolean(s))
+      const unique = Array.from(new Set(detailStrings))
+      if (unique.length) {
+        msg = `${msg}: ${unique.join(', ')}`
+      }
     }
     throw new ApiError(msg, res.status, body)
   }
