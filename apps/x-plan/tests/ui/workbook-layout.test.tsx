@@ -7,7 +7,7 @@ import type { WorkbookSheetStatus } from '@/lib/workbook'
 
 const pushMock = vi.fn()
 let searchParamsInstance: URLSearchParams
-let mockedPathname = '/1-product-setup'
+let mockedPathname = '/2-product-setup'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -31,7 +31,7 @@ const sheetStatus: WorkbookSheetStatus[] = SHEETS.map((sheet, index) => ({
   status: index === 0 ? 'complete' : 'todo',
 }))
 
-function renderLayout(activeYear: number | null, activeSlug: WorkbookSheetStatus['slug'] = '3-sales-planning') {
+function renderLayout(activeYear: number | null, activeSlug: WorkbookSheetStatus['slug'] = '4-sales-planning') {
   searchParamsInstance = activeYear != null ? new URLSearchParams({ year: String(activeYear) }) : new URLSearchParams()
   pushMock.mockReset()
   mockedPathname = `/${activeSlug}`
@@ -66,25 +66,25 @@ describe('WorkbookLayout year navigation', () => {
 
     const yearSelects = screen.getAllByRole('combobox', { name: 'Select year' })
     fireEvent.change(yearSelects[0]!, { target: { value: '2026' } })
-    expect(pushMock).toHaveBeenCalledWith('/3-sales-planning?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/4-sales-planning?year=2026')
 
     pushMock.mockReset()
 
     const nextButtons = screen.getAllByRole('button', { name: 'Next year' })
     fireEvent.click(nextButtons[0]!)
-    expect(pushMock).toHaveBeenCalledWith('/3-sales-planning?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/4-sales-planning?year=2026')
   })
 
   it('renders year controls on ops planning', () => {
-    renderLayout(2025, '2-ops-planning')
+    renderLayout(2025, '3-ops-planning')
 
     const yearSelects = screen.getAllByRole('combobox', { name: 'Select year' })
     fireEvent.change(yearSelects[0]!, { target: { value: '2026' } })
-    expect(pushMock).toHaveBeenCalledWith('/2-ops-planning?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/3-ops-planning?year=2026')
   })
 
   it('hides year controls on time-agnostic sheets', () => {
-    renderLayout(2026, '1-product-setup')
+    renderLayout(2026, '2-product-setup')
 
     expect(screen.queryByRole('button', { name: 'Previous year' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Next year' })).not.toBeInTheDocument()

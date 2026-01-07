@@ -54,7 +54,7 @@ import {
   type PurchaseOrderPayment,
   type SalesWeek,
 } from '@ecom-os/prisma-x-plan';
-import { getSheetConfig } from '@/lib/sheets';
+import { getCanonicalSheetSlug, getSheetConfig } from '@/lib/sheets';
 import { getWorkbookStatus } from '@/lib/workbook';
 import { WorkbookLayout } from '@/components/workbook-layout';
 import {
@@ -1995,16 +1995,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     searchParams ?? Promise.resolve({}),
     auth(),
   ]);
-  const config = getSheetConfig(routeParams.sheet);
-  if (!config) notFound();
-
   const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>;
-  const actor = getStrategyActor(session);
-  const viewer = {
-    id: actor.id,
-    email: actor.email,
-    isSuperAdmin: actor.isSuperAdmin,
-  };
 
   const toQueryString = (params: Record<string, string | string[] | undefined>) => {
     const next = new URLSearchParams();
@@ -2021,20 +2012,41 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     return next;
   };
 
+  const canonicalSlug = getCanonicalSheetSlug(routeParams.sheet);
+  if (!canonicalSlug) notFound();
+
+  if (canonicalSlug !== routeParams.sheet) {
+    const nextParams = toQueryString(parsedSearch);
+    const query = nextParams.toString();
+    redirect(`/${canonicalSlug}${query ? `?${query}` : ''}`);
+  }
+
+  const config = getSheetConfig(canonicalSlug);
+  if (!config) notFound();
+
+  const actor = getStrategyActor(session);
+  const viewer = {
+    id: actor.id,
+    email: actor.email,
+    isSuperAdmin: actor.isSuperAdmin,
+  };
+
   const requestedStrategyId =
     typeof parsedSearch.strategy === 'string' ? parsedSearch.strategy : null;
   const resolvedStrategyId = await resolveStrategyId(parsedSearch.strategy, actor);
 
   if (!resolvedStrategyId) {
-    if (config.slug !== '0-strategies') {
+    if (config.slug !== '1-strategies') {
       const nextParams = toQueryString(parsedSearch);
       nextParams.delete('strategy');
-      redirect(`/0-strategies?${nextParams.toString()}`);
+      const query = nextParams.toString();
+      redirect(`/1-strategies${query ? `?${query}` : ''}`);
     }
   } else if (requestedStrategyId && requestedStrategyId !== resolvedStrategyId) {
     const nextParams = toQueryString(parsedSearch);
     nextParams.set('strategy', resolvedStrategyId);
-    redirect(`/${routeParams.sheet}?${nextParams.toString()}`);
+    const query = nextParams.toString();
+    redirect(`/${canonicalSlug}${query ? `?${query}` : ''}`);
   }
 
   const strategyId = resolvedStrategyId;
@@ -2092,7 +2104,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   );
 
   switch (config.slug) {
-    case '0-strategies': {
+    case '1-strategies': {
       // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
       const prismaAnyLocal = prisma as unknown as Record<string, any>;
 
@@ -2205,7 +2217,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = null;
       break;
     }
-    case '1-product-setup': {
+    case '2-product-setup': {
       const activeStrategyId = requireStrategyId();
       const view = await getProductSetupView(activeStrategyId);
       tabularContent = (
@@ -2221,7 +2233,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = null;
       break;
     }
-    case '2-ops-planning': {
+    case '3-ops-planning': {
       const activeStrategyId = requireStrategyId();
       const view = await getOpsPlanningView(activeStrategyId, planningCalendar, activeSegment);
       tabularContent = (
@@ -2256,7 +2268,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       break;
     }
-    case '3-sales-planning': {
+    case '4-sales-planning': {
       const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
@@ -2303,7 +2315,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       break;
     }
-    case '4-fin-planning-pl': {
+    case '5-fin-planning-pl': {
       const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
@@ -2371,7 +2383,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       break;
     }
-    case '5-fin-planning-cash-flow': {
+    case '6-fin-planning-cash-flow': {
       const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
@@ -2471,7 +2483,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       break;
     }
-    case '6-po-profitability': {
+    case '7-po-profitability': {
       const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (

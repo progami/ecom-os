@@ -82,8 +82,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
     const cashUpdatedAt = latestDate([cashAgg._max.updatedAt, businessAgg._max.updatedAt]);
 
     const sheetStatus: Record<SheetSlug, WorkbookSheetStatus> = {
-      '0-strategies': {
-        slug: '0-strategies',
+      '1-strategies': {
+        slug: '1-strategies',
         label: 'Strategies',
         description: '',
         recordCount: strategyAgg._count.id,
@@ -91,8 +91,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(strategyAgg._max.updatedAt),
         status: strategyAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '1-product-setup': {
-        slug: '1-product-setup',
+      '2-product-setup': {
+        slug: '2-product-setup',
         label: 'Product Setup',
         description: '',
         recordCount: productAgg._count.id,
@@ -100,8 +100,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(productUpdatedAt ?? productAgg._max.updatedAt),
         status: productAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '2-ops-planning': {
-        slug: '2-ops-planning',
+      '3-ops-planning': {
+        slug: '3-ops-planning',
         label: 'Ops Planning',
         description: '',
         recordCount: purchaseOrderAgg._count.id,
@@ -109,8 +109,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(purchaseOrderAgg._max.updatedAt),
         status: purchaseOrderAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '3-sales-planning': {
-        slug: '3-sales-planning',
+      '4-sales-planning': {
+        slug: '4-sales-planning',
         label: 'Sales Planning',
         description: '',
         recordCount: salesAgg._count.id,
@@ -118,8 +118,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(salesAgg._max.updatedAt),
         status: salesAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '4-fin-planning-pl': {
-        slug: '4-fin-planning-pl',
+      '5-fin-planning-pl': {
+        slug: '5-fin-planning-pl',
         label: 'P&L',
         description: '',
         recordCount: profitAgg._count.id,
@@ -127,8 +127,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(profitUpdatedAt ?? profitAgg._max.updatedAt),
         status: profitAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '5-fin-planning-cash-flow': {
-        slug: '5-fin-planning-cash-flow',
+      '6-fin-planning-cash-flow': {
+        slug: '6-fin-planning-cash-flow',
         label: 'Cash Flow',
         description: '',
         recordCount: cashAgg._count.id,
@@ -136,8 +136,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(cashUpdatedAt ?? cashAgg._max.updatedAt),
         status: cashAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '6-po-profitability': {
-        slug: '6-po-profitability',
+      '7-po-profitability': {
+        slug: '7-po-profitability',
         label: 'PO Profitability',
         description: '',
         recordCount: purchaseOrderAgg._count.id,
