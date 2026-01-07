@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -26,6 +26,8 @@ export default function AddPolicyPage() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(CreatePolicySchema),
@@ -34,6 +36,15 @@ export default function AddPolicyPage() {
       status: 'DRAFT',
     },
   })
+
+  const category = watch('category')
+  const region = watch('region')
+
+  useEffect(() => {
+    if (category === 'CONDUCT' && region !== 'ALL') {
+      setValue('region', 'ALL', { shouldValidate: true })
+    }
+  }, [category, region, setValue])
 
   const onSubmit = async (data: FormData) => {
     setSubmitError(null)
@@ -94,6 +105,7 @@ export default function AddPolicyPage() {
                   placeholder="Select region..."
                   options={[...POLICY_REGION_OPTIONS]}
                   error={errors.region?.message}
+                  disabled={category === 'CONDUCT'}
                   {...register('region')}
                 />
 

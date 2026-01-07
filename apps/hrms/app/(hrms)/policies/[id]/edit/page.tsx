@@ -53,11 +53,22 @@ export default function EditPolicyPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
     setError,
   } = useForm<FormData>({
     resolver: zodResolver(EditPolicySchema),
   })
+
+  const category = watch('category')
+  const region = watch('region')
+
+  useEffect(() => {
+    if (category === 'CONDUCT' && region !== 'ALL') {
+      setValue('region', 'ALL', { shouldValidate: true })
+    }
+  }, [category, region, setValue])
 
   useEffect(() => {
     async function load() {
@@ -188,6 +199,7 @@ export default function EditPolicyPage() {
                   required
                   options={[...POLICY_REGION_OPTIONS]}
                   error={errors.region?.message}
+                  disabled={category === 'CONDUCT'}
                   {...register('region')}
                 />
 
