@@ -6,7 +6,7 @@ import { hasPermission } from '@/lib/services/permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
 import { Prisma } from '@ecom-os/prisma-wms'
 
-const LineItemSchema = z.object({
+const CreateLineSchema = z.object({
   skuCode: z.string().trim().min(1),
   skuDescription: z.string().optional(),
   batchLot: z.string().trim().min(1).optional(),
@@ -44,6 +44,7 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
       unitCost: line.unitCost ? Number(line.unitCost) : null,
       currency: line.currency || tenant.currency,
       status: line.status,
+      postedQuantity: line.postedQuantity,
       quantityReceived: line.quantityReceived,
       lineNotes: line.lineNotes,
       createdAt: line.createdAt.toISOString(),
@@ -54,33 +55,33 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
 
 /**
  * POST /api/purchase-orders/[id]/lines
- * Add a new line item to a purchase order
+ * Add a new line item to a DRAFT purchase order
  */
-export const POST = withAuthAndParams(async (request: NextRequest, params, _session) => {
+export const POST = withAuthAndParams(async (request: NextRequest, params, session) => {
   const id = params.id as string
-  const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
+  const tenant = await getCurrentTenant()
 
-  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  const canEdit = await hasPermission(session.user.id, 'po.edit')
   if (!canEdit) {
     return ApiResponses.forbidden('Insufficient permissions')
   }
 
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
+    select: { id: true, status: true },
   })
 
   if (!order) {
     throw new NotFoundError(`Purchase Order not found: ${id}`)
   }
 
-  // Only allow adding lines in DRAFT status
   if (order.status !== 'DRAFT') {
     return ApiResponses.badRequest('Can only add line items to orders in DRAFT status')
   }
 
   const payload = await request.json().catch(() => null)
-  const result = LineItemSchema.safeParse(payload)
+  const result = CreateLineSchema.safeParse(payload)
 
   if (!result.success) {
     return ApiResponses.badRequest(
@@ -88,11 +89,16 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     )
   }
 
+  const DEFAULT_BATCH_LOT = 'DEFAULT'
+  const skuCode = result.data.skuCode.trim()
+  const batchLot = (result.data.batchLot?.trim() || DEFAULT_BATCH_LOT).toUpperCase()
+
   const sku = await prisma.sku.findFirst({
-    where: { skuCode: result.data.skuCode },
+    where: { skuCode },
     select: {
       id: true,
       skuCode: true,
+      description: true,
       packSize: true,
       unitsPerCarton: true,
       material: true,
@@ -111,11 +117,8 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
   })
 
   if (!sku) {
-    return ApiResponses.badRequest(`SKU ${result.data.skuCode} not found. Create the SKU first.`)
+    return ApiResponses.badRequest(`SKU ${skuCode} not found. Create the SKU first.`)
   }
-
-  const DEFAULT_BATCH_LOT = 'DEFAULT'
-  const resolvedBatchLot = (result.data.batchLot ?? DEFAULT_BATCH_LOT).trim().toUpperCase()
 
   await prisma.skuBatch.upsert({
     where: {
@@ -146,12 +149,12 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     update: { isActive: true },
   })
 
-  if (resolvedBatchLot !== DEFAULT_BATCH_LOT) {
+  if (batchLot !== DEFAULT_BATCH_LOT) {
     const existingBatch = await prisma.skuBatch.findUnique({
       where: {
         skuId_batchCode: {
           skuId: sku.id,
-          batchCode: resolvedBatchLot,
+          batchCode: batchLot,
         },
       },
       select: { id: true },
@@ -159,7 +162,7 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
 
     if (!existingBatch) {
       return ApiResponses.badRequest(
-        `Batch ${resolvedBatchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
+        `Batch ${batchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
       )
     }
   }
@@ -168,22 +171,20 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
   try {
     line = await prisma.purchaseOrderLine.create({
       data: {
-        purchaseOrderId: id,
-        skuCode: result.data.skuCode,
-        skuDescription: result.data.skuDescription || '',
-        batchLot: resolvedBatchLot,
+        purchaseOrder: { connect: { id: order.id } },
+        skuCode: sku.skuCode,
+        skuDescription: result.data.skuDescription ?? sku.description ?? '',
+        batchLot,
         quantity: result.data.quantity,
         unitCost: result.data.unitCost,
-        currency: result.data.currency ?? tenant.currency,
+        currency: result.data.currency || tenant.currency,
         lineNotes: result.data.notes,
         status: 'PENDING',
       },
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return ApiResponses.conflict(
-        'A line with this SKU already exists for the purchase order'
-      )
+      return ApiResponses.conflict('A line with this SKU and batch already exists for the purchase order')
     }
     throw error
   }
@@ -192,14 +193,16 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     entityType: 'PurchaseOrder',
     entityId: id,
     action: 'LINE_ADD',
-    userId: _session.user.id,
+    userId: session.user.id,
+    oldValue: null,
     newValue: {
       lineId: line.id,
       skuCode: line.skuCode,
-      batchLot: line.batchLot,
+      skuDescription: line.skuDescription ?? null,
+      batchLot: line.batchLot ?? null,
       quantity: line.quantity,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
-      currency: line.currency,
+      currency: line.currency ?? null,
       notes: line.lineNotes ?? null,
     },
   })
@@ -211,9 +214,12 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     batchLot: line.batchLot,
     quantity: line.quantity,
     unitCost: line.unitCost ? Number(line.unitCost) : null,
-    currency: line.currency,
+    currency: line.currency || tenant.currency,
     status: line.status,
+    postedQuantity: line.postedQuantity,
+    quantityReceived: line.quantityReceived,
     lineNotes: line.lineNotes,
     createdAt: line.createdAt.toISOString(),
+    updatedAt: line.updatedAt.toISOString(),
   })
 })
