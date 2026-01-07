@@ -333,19 +333,22 @@ export function StrategiesWorkspace({
                 <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Strategy
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-60 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                  Region
+                </TableHead>
+                <TableHead className="sticky top-0 z-10 h-10 w-56 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Assignee
                 </TableHead>
                 <TableHead className="sticky top-0 z-10 h-10 w-44 border-b border-r bg-muted px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Last edited
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Products
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Orders
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-32 border-b border-r bg-muted px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Actions
                 </TableHead>
               </TableRow>
@@ -372,15 +375,17 @@ export function StrategiesWorkspace({
                         }}
                         className="h-8"
                       />
-                      <select
-                        value={newRegion}
-                        onChange={(e) => setNewRegion(e.target.value === 'UK' ? 'UK' : 'US')}
-                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        <option value="US">US (week starts Sunday)</option>
-                        <option value="UK">UK (week starts Monday)</option>
-                      </select>
                     </div>
+                  </TableCell>
+                  <TableCell className="border-r px-4 py-3 align-top">
+                    <select
+                      value={newRegion}
+                      onChange={(e) => setNewRegion(e.target.value === 'UK' ? 'UK' : 'US')}
+                      className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="US">US</option>
+                      <option value="UK">UK</option>
+                    </select>
                   </TableCell>
                   <TableCell className="border-r px-4 py-3 align-top">
                     <select
@@ -439,7 +444,7 @@ export function StrategiesWorkspace({
 
               {strategies.length === 0 && !isAdding ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={6} className="p-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={7} className="p-8 text-center text-sm text-muted-foreground">
                     No strategies yet. Create your first planning strategy to get started.
                   </TableCell>
                 </TableRow>
@@ -478,14 +483,6 @@ export function StrategiesWorkspace({
                               }}
                               className="h-8"
                             />
-                            <select
-                              value={editRegion}
-                              onChange={(e) => setEditRegion(e.target.value === 'UK' ? 'UK' : 'US')}
-                              className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                              <option value="US">US (Sun)</option>
-                              <option value="UK">UK (Mon)</option>
-                            </select>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2.5">
@@ -504,9 +501,6 @@ export function StrategiesWorkspace({
                                 >
                                   {strategy.name}
                                 </span>
-                                <Badge variant="secondary" className="uppercase">
-                                  {strategy.region}
-                                </Badge>
                                 {isActive ? (
                                   <Badge className="bg-cyan-600 text-white hover:bg-cyan-600 dark:bg-[#00C2B9] dark:text-slate-900 dark:hover:bg-[#00C2B9]">
                                     Active
@@ -520,6 +514,23 @@ export function StrategiesWorkspace({
                               ) : null}
                             </div>
                           </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="border-r px-4 py-3 text-center">
+                        {isEditing ? (
+                          <select
+                            value={editRegion}
+                            onChange={(e) => setEditRegion(e.target.value === 'UK' ? 'UK' : 'US')}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm shadow-sm transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          >
+                            <option value="US">US</option>
+                            <option value="UK">UK</option>
+                          </select>
+                        ) : (
+                          <Badge variant="secondary" className="uppercase">
+                            {strategy.region}
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell
