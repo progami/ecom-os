@@ -18,9 +18,13 @@ interface SupplierRow {
   phone: string | null
   address: string | null
   notes: string | null
+  defaultPaymentTerms: string | null
+  defaultIncoterms: string | null
   createdAt: string
   updatedAt: string
 }
+
+const INCOTERMS_OPTIONS = ['EXW', 'FOB', 'FCA', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'] as const
 
 interface SuppliersResponse {
   data: SupplierRow[]
@@ -34,6 +38,8 @@ interface SupplierFormState {
   phone: string
   address: string
   notes: string
+  defaultPaymentTerms: string
+  defaultIncoterms: string
 }
 
 function buildSupplierFormState(supplier?: SupplierRow | null): SupplierFormState {
@@ -44,6 +50,8 @@ function buildSupplierFormState(supplier?: SupplierRow | null): SupplierFormStat
     phone: supplier?.phone ?? '',
     address: supplier?.address ?? '',
     notes: supplier?.notes ?? '',
+    defaultPaymentTerms: supplier?.defaultPaymentTerms ?? '',
+    defaultIncoterms: supplier?.defaultIncoterms ?? '',
   }
 }
 
@@ -167,6 +175,8 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
         phone: formState.phone.trim(),
         address: formState.address.trim(),
         notes: formState.notes.trim() ? formState.notes.trim() : null,
+        defaultPaymentTerms: formState.defaultPaymentTerms.trim() ? formState.defaultPaymentTerms.trim() : null,
+        defaultIncoterms: formState.defaultIncoterms.trim() ? formState.defaultIncoterms.trim() : null,
       }
 
       const endpoint = editingSupplier
@@ -278,6 +288,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                   <th className="px-4 py-3 text-left font-semibold">Contact</th>
                   <th className="px-4 py-3 text-left font-semibold">Email</th>
                   <th className="px-4 py-3 text-left font-semibold">Phone</th>
+                  <th className="px-4 py-3 text-left font-semibold">Default Terms</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -290,6 +301,26 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.email ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.phone ?? '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {supplier.defaultPaymentTerms || supplier.defaultIncoterms ? (
+                        <div className="flex flex-wrap gap-1">
+                          {supplier.defaultIncoterms && (
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                              {supplier.defaultIncoterms}
+                            </Badge>
+                          )}
+                          {supplier.defaultPaymentTerms && (
+                            <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                              {supplier.defaultPaymentTerms.length > 20
+                                ? `${supplier.defaultPaymentTerms.slice(0, 20)}…`
+                                : supplier.defaultPaymentTerms}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs">Not set</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(supplier)}>
@@ -392,6 +423,36 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     placeholder="Optional"
                     rows={3}
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-payment-terms">Default Payment Terms</Label>
+                  <input
+                    id="supplier-payment-terms"
+                    value={formState.defaultPaymentTerms}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, defaultPaymentTerms: event.target.value }))}
+                    placeholder="e.g., Net 30, 50% deposit"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  />
+                  <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-incoterms">Default Incoterms</Label>
+                  <select
+                    id="supplier-incoterms"
+                    value={formState.defaultIncoterms}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, defaultIncoterms: event.target.value }))}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  >
+                    <option value="">None (select on PO)</option>
+                    {INCOTERMS_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
                 </div>
               </div>
 

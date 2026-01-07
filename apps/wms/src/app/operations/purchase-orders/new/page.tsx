@@ -20,6 +20,8 @@ interface Supplier {
   id: string
   name: string
   contactName: string | null
+  defaultPaymentTerms: string | null
+  defaultIncoterms: string | null
 }
 
 interface Sku {
@@ -242,6 +244,17 @@ export default function NewPurchaseOrderPage() {
     setLineItems(prev => prev.filter(item => item.id !== id))
   }
 
+  const handleSupplierChange = (supplierId: string) => {
+    const selectedSupplier = suppliers.find(s => s.id === supplierId)
+    setFormData(prev => ({
+      ...prev,
+      supplierId,
+      // Only auto-fill if fields are empty
+      paymentTerms: prev.paymentTerms || selectedSupplier?.defaultPaymentTerms || '',
+      incoterms: prev.incoterms || selectedSupplier?.defaultIncoterms || '',
+    }))
+  }
+
   const parseMoney = (value: string): number | null => {
     const trimmed = value.trim()
     if (!trimmed) return null
@@ -383,7 +396,7 @@ export default function NewPurchaseOrderPage() {
                     </label>
                     <select
                       value={formData.supplierId}
-                      onChange={e => setFormData(prev => ({ ...prev, supplierId: e.target.value }))}
+                      onChange={e => handleSupplierChange(e.target.value)}
                       className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                       required
                     >
