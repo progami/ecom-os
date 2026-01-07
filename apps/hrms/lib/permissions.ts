@@ -12,7 +12,7 @@ export const PermissionLevel = {
   EMPLOYEE: 0,
 } as const
 
-const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
+export const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
 
 export type PermissionCheckResult = {
   canManage: boolean
@@ -45,16 +45,17 @@ async function getUserPermissionInfo(userId: string): Promise<UserPermissionInfo
 
   if (!user) return null
 
+  const permissionLevel = user.permissionLevel ?? 0
   const hasHRRole = (user.roles?.length ?? 0) > 0
-  const isHR = (user.permissionLevel ?? 0) >= PermissionLevel.HR || hasHRRole
-  const isHROrAbove = user.isSuperAdmin ||
-    (user.permissionLevel ?? 0) >= PermissionLevel.HR ||
-    hasHRRole
+  const isHRFromPermissionLevel =
+    permissionLevel >= PermissionLevel.HR && permissionLevel < PermissionLevel.SUPER_ADMIN
+  const isHR = isHRFromPermissionLevel || hasHRRole
+  const isHROrAbove = user.isSuperAdmin || isHR
 
   return {
     id: user.id,
     isSuperAdmin: user.isSuperAdmin,
-    permissionLevel: user.permissionLevel ?? 0,
+    permissionLevel,
     hasHRRole,
     isHR,
     isHROrAbove,
@@ -488,7 +489,7 @@ export async function getHREmployees(): Promise<{ id: string; email: string; fir
     where: {
       status: 'ACTIVE',
       OR: [
-        { permissionLevel: { gte: PermissionLevel.HR } },
+        { permissionLevel: { gte: PermissionLevel.HR, lt: PermissionLevel.SUPER_ADMIN } },
         { roles: { some: { name: { in: HR_ROLE_NAMES } } } },
       ],
     },
@@ -541,7 +542,7 @@ export async function getAuthorizedReporters(targetEmployeeId: string): Promise<
       status: 'ACTIVE',
       id: { not: targetEmployeeId },
       OR: [
-        { permissionLevel: { gte: PermissionLevel.HR } },
+        { permissionLevel: { gte: PermissionLevel.HR, lt: PermissionLevel.SUPER_ADMIN } },
         { roles: { some: { name: { in: HR_ROLE_NAMES } } } },
       ],
     },
