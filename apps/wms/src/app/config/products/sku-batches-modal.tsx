@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Boxes, Edit2, Loader2, Plus, RefreshCw, Trash2, X } from '@/lib/lucide-icons'
+import { Boxes, Edit2, Loader2, Plus, Trash2, X } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
 import { coerceFiniteNumber, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
@@ -624,9 +624,6 @@ function SkuBatchesManager({
                     placeholder="Search batch code or description"
                   />
                 </div>
-                <Button variant="outline" size="sm" onClick={fetchBatches} disabled={loading}>
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
               </div>
 
               <Button onClick={openCreate} className="gap-2">
