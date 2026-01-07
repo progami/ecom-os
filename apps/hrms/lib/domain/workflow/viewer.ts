@@ -1,7 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { PermissionLevel } from '@/lib/permissions'
-
-const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
+import { HR_ROLE_NAMES, PermissionLevel } from '@/lib/permissions'
 
 export async function getViewerContext(employeeId: string): Promise<{
   employeeId: string
@@ -19,9 +17,10 @@ export async function getViewerContext(employeeId: string): Promise<{
   })
 
   const isSuperAdmin = Boolean(employee?.isSuperAdmin)
+  const permissionLevel = employee?.permissionLevel ?? 0
   const isHR = Boolean(
     employee &&
-      ((employee.permissionLevel ?? 0) >= PermissionLevel.HR ||
+      ((permissionLevel >= PermissionLevel.HR && permissionLevel < PermissionLevel.SUPER_ADMIN) ||
         employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name)))
   )
 
