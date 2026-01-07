@@ -14,7 +14,6 @@ import { toast } from 'sonner';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
-import { readClipboardText } from '@/lib/grid/clipboard';
 import { cn } from '@/lib/utils';
 import {
   formatNumericInput,
@@ -143,6 +142,23 @@ type ColumnDef = {
   precision?: number;
 };
 
+type CellCoords = { row: number; col: number };
+type CellRange = { from: CellCoords; to: CellCoords };
+
+function normalizeRange(range: CellRange): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
+  return {
+    top: Math.min(range.from.row, range.to.row),
+    bottom: Math.max(range.from.row, range.to.row),
+    left: Math.min(range.from.col, range.to.col),
+    right: Math.max(range.from.col, range.to.col),
+  };
+}
+
 const COLUMNS_BEFORE_TARIFF: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 140, type: 'text', editable: false },
   { key: 'productName', header: 'Product', width: 200, type: 'dropdown', editable: true },
@@ -263,6 +279,8 @@ export function CustomOpsCostGrid({
   const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(
     null,
   );
+  const [selection, setSelection] = useState<CellRange | null>(null);
+  const selectionAnchorRef = useRef<CellCoords | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -507,6 +525,17 @@ export function CustomOpsCostGrid({
     onSelectBatch?.(row.id);
     tableScrollRef.current?.focus();
     setActiveCell({ rowId: row.id, colKey: column.key });
+
+    const rowIndex = rows.findIndex((item) => item.id === row.id);
+    const colIndex = columns.findIndex((item) => item.key === column.key);
+    if (rowIndex < 0 || colIndex < 0) {
+      selectionAnchorRef.current = null;
+      setSelection(null);
+      return;
+    }
+    const coords = { row: rowIndex, col: colIndex };
+    selectionAnchorRef.current = coords;
+    setSelection({ from: coords, to: coords });
   };
 
   const handleCellBlur = () => {
@@ -521,7 +550,7 @@ export function CustomOpsCostGrid({
   }, []);
 
   const moveSelection = useCallback(
-    (deltaRow: number, deltaCol: number) => {
+    (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
       if (!activeCell) return;
 
       const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId);
@@ -535,6 +564,19 @@ export function CustomOpsCostGrid({
       const nextColKey = columns[nextColIndex]?.key;
       if (!nextRow || !nextColKey) return;
 
+      const coords = { row: nextRowIndex, col: nextColIndex };
+      const currentCoords = { row: currentRowIndex, col: currentColIndex };
+      const extendSelection = Boolean(options.extendSelection);
+      const anchor = extendSelection ? (selectionAnchorRef.current ?? currentCoords) : coords;
+
+      if (extendSelection && !selectionAnchorRef.current) {
+        selectionAnchorRef.current = currentCoords;
+      }
+      if (!extendSelection) {
+        selectionAnchorRef.current = coords;
+      }
+
+      setSelection({ from: anchor, to: coords });
       setActiveCell({ rowId: nextRow.id, colKey: nextColKey });
       onSelectOrder?.(nextRow.purchaseOrderId);
       onSelectBatch?.(nextRow.id);
@@ -566,6 +608,9 @@ export function CustomOpsCostGrid({
       const nextColKey = columns[nextColIndex]?.key;
       if (!nextRow || !nextColKey) return;
 
+      const coords = { row: nextRowIndex, col: nextColIndex };
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
       setActiveCell({ rowId: nextRow.id, colKey: nextColKey });
       onSelectOrder?.(nextRow.purchaseOrderId);
       onSelectBatch?.(nextRow.id);
@@ -584,12 +629,37 @@ export function CustomOpsCostGrid({
   }, [activeCell, columns, rows]);
 
   const buildClipboardText = useCallback(() => {
-    if (!activeCell) return '';
-    const row = localRows.find((item) => item.id === activeCell.rowId);
-    if (!row) return '';
-    const value = row[activeCell.colKey];
-    return value ?? '';
-  }, [activeCell, localRows]);
+    const range = selection ?? null;
+    if (!range && !activeCell) return '';
+
+    const resolvedRange = (() => {
+      if (range) return range;
+      const rowIndex = rows.findIndex((row) => row.id === activeCell?.rowId);
+      const colIndex = columns.findIndex((column) => column.key === activeCell?.colKey);
+      if (rowIndex < 0 || colIndex < 0) return null;
+      const coords = { row: rowIndex, col: colIndex };
+      return { from: coords, to: coords };
+    })();
+
+    if (!resolvedRange) return '';
+
+    const { top, bottom, left, right } = normalizeRange(resolvedRange);
+    const lines: string[] = [];
+
+    for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+      const row = localRows[rowIndex];
+      if (!row) continue;
+      const cells: string[] = [];
+      for (let colIndex = left; colIndex <= right; colIndex += 1) {
+        const column = columns[colIndex];
+        const value = column ? (row[column.key] ?? '') : '';
+        cells.push(String(value ?? ''));
+      }
+      lines.push(cells.join('\t'));
+    }
+
+    return lines.join('\n');
+  }, [activeCell, columns, localRows, rows, selection]);
 
   const copySelectionToClipboard = useCallback(() => {
     const text = buildClipboardText();
@@ -617,6 +687,87 @@ export function CustomOpsCostGrid({
       requestAnimationFrame(() => tableScrollRef.current?.focus());
     }
   }, [buildClipboardText]);
+
+  const clearSelectionValues = useCallback(() => {
+    const range = selection ?? null;
+    if (!range && !activeCell) return;
+
+    const resolvedRange = (() => {
+      if (range) return range;
+      const rowIndex = rows.findIndex((row) => row.id === activeCell?.rowId);
+      const colIndex = columns.findIndex((column) => column.key === activeCell?.colKey);
+      if (rowIndex < 0 || colIndex < 0) return null;
+      const coords = { row: rowIndex, col: colIndex };
+      return { from: coords, to: coords };
+    })();
+
+    if (!resolvedRange) return;
+
+    const { top, bottom, left, right } = normalizeRange(resolvedRange);
+    let updatedRows = [...localRows];
+    let cleared = 0;
+
+    for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+      const row = updatedRows[rowIndex];
+      if (!row) continue;
+
+      let updatedRow = row;
+      let rowChanged = false;
+
+      for (let colIndex = left; colIndex <= right; colIndex += 1) {
+        const column = columns[colIndex];
+        if (!column?.editable) continue;
+        if (column.type === 'dropdown') continue;
+
+        const colKey = column.key;
+        const currentValue = (updatedRow[colKey] ?? '') as string;
+        if (currentValue === '') continue;
+
+        if (!pendingRef.current.has(row.id)) {
+          pendingRef.current.set(row.id, { id: row.id, values: {} });
+        }
+        const entry = pendingRef.current.get(row.id)!;
+
+        if (colKey === 'tariffCost') {
+          entry.values.overrideTariffCost = null;
+          entry.values.overrideTariffRate = null;
+          updatedRow = { ...updatedRow, tariffCost: '', tariffRate: '' };
+          rowChanged = true;
+          cleared += 1;
+          continue;
+        }
+
+        if (colKey === 'tariffRate') {
+          entry.values.overrideTariffRate = null;
+          entry.values.overrideTariffCost = null;
+          updatedRow = { ...updatedRow, tariffRate: '', tariffCost: '' };
+          rowChanged = true;
+          cleared += 1;
+          continue;
+        }
+
+        if (isNumericField(colKey) || isPercentField(colKey)) {
+          const serverKey = SERVER_FIELD_MAP[colKey];
+          if (serverKey) {
+            entry.values[serverKey] = null;
+          }
+          updatedRow = { ...updatedRow, [colKey]: '' };
+          rowChanged = true;
+          cleared += 1;
+        }
+      }
+
+      if (rowChanged) {
+        updatedRows[rowIndex] = updatedRow;
+      }
+    }
+
+    if (cleared === 0) return;
+
+    setLocalRows(updatedRows);
+    onRowsChange?.(updatedRows);
+    scheduleFlush();
+  }, [activeCell, columns, localRows, onRowsChange, pendingRef, rows, scheduleFlush, selection]);
 
   const applyPastedText = useCallback(
     (text: string, start: { rowId: string; colKey: keyof OpsBatchRow }) => {
@@ -791,55 +942,25 @@ export function CustomOpsCostGrid({
       }
 
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        event.preventDefault();
-        const start = { ...activeCell };
-        void (async () => {
-          const text = await readClipboardText();
-          if (!text) return;
-          applyPastedText(text, start);
-        })();
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = { ...activeCell };
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            tableScrollRef.current?.focus();
+          }
+        }, 250);
         return;
       }
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
         event.preventDefault();
-
-        const { rowId, colKey } = activeCell;
-        const row = localRows.find((r) => r.id === rowId);
-        const column = columns.find((c) => c.key === colKey);
-        if (!row || !column || !column.editable) return;
-        if (column.type === 'dropdown') return;
-        if ((row[colKey] ?? '') === '') return;
-
-        if (!pendingRef.current.has(rowId)) {
-          pendingRef.current.set(rowId, { id: rowId, values: {} });
-        }
-        const entry = pendingRef.current.get(rowId)!;
-
-        const updatedRow = { ...row };
-
-        if (colKey === 'tariffCost') {
-          entry.values.overrideTariffCost = null;
-          entry.values.overrideTariffRate = null;
-          updatedRow.tariffCost = '';
-          updatedRow.tariffRate = '';
-        } else if (colKey === 'tariffRate') {
-          entry.values.overrideTariffRate = null;
-          entry.values.overrideTariffCost = null;
-          updatedRow.tariffRate = '';
-          updatedRow.tariffCost = '';
-        } else if (isNumericField(colKey) || isPercentField(colKey)) {
-          const serverKey = SERVER_FIELD_MAP[colKey];
-          if (serverKey) {
-            entry.values[serverKey] = null;
-          }
-          updatedRow[colKey] = '';
-        }
-
-        const nextRows = localRows.map((r) => (r.id === rowId ? updatedRow : r));
-        setLocalRows(nextRows);
-        onRowsChange?.(nextRows);
-        scheduleFlush();
+        clearSelectionValues();
         return;
       }
 
@@ -857,38 +978,33 @@ export function CustomOpsCostGrid({
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        moveSelection(1, 0);
+        moveSelection(1, 0, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        moveSelection(-1, 0);
+        moveSelection(-1, 0, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        moveSelection(0, 1);
+        moveSelection(0, 1, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        moveSelection(0, -1);
+        moveSelection(0, -1, { extendSelection: event.shiftKey });
         return;
       }
     },
     [
       activeCell,
-      columns,
+      clearSelectionValues,
       copySelectionToClipboard,
       editingCell,
-      localRows,
       moveSelection,
       moveSelectionTab,
-      onRowsChange,
-      pendingRef,
-      scheduleFlush,
       startEditingActiveCell,
-      applyPastedText,
     ],
   );
 
@@ -927,10 +1043,21 @@ export function CustomOpsCostGrid({
     return value;
   };
 
-  const renderCell = (row: OpsBatchRow, column: ColumnDef, colIndex: number) => {
+  const renderCell = (row: OpsBatchRow, rowIndex: number, column: ColumnDef, colIndex: number) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key;
     const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key;
     const displayValue = formatDisplayValue(row, column);
+    const isSelected = selection
+      ? (() => {
+          const range = normalizeRange(selection);
+          return (
+            rowIndex >= range.top &&
+            rowIndex <= range.bottom &&
+            colIndex >= range.left &&
+            colIndex <= range.right
+          );
+        })()
+      : false;
 
     const isNumericCell = column.type === 'numeric' || column.type === 'percent';
     const isDropdown = column.type === 'dropdown';
@@ -945,6 +1072,7 @@ export function CustomOpsCostGrid({
           ? 'cursor-pointer bg-accent/50 font-medium'
           : 'cursor-text bg-accent/50 font-medium'
         : 'bg-muted/50 text-muted-foreground',
+      isSelected && 'bg-accent',
       (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
       colIndex === columns.length - 1 && 'border-r-0',
     );
@@ -1147,7 +1275,7 @@ export function CustomOpsCostGrid({
                       isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20',
                     )}
                   >
-                    {columns.map((column, colIndex) => renderCell(row, column, colIndex))}
+                    {columns.map((column, colIndex) => renderCell(row, rowIndex, column, colIndex))}
                   </TableRow>
                 ))
               )}

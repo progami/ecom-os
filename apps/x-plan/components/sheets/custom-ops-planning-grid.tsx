@@ -16,7 +16,6 @@ import Flatpickr from 'react-flatpickr';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
-import { readClipboardText } from '@/lib/grid/clipboard';
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
@@ -1475,13 +1474,19 @@ export function CustomOpsPlanningGrid({
 
       // Handle Ctrl+V for paste via hidden clipboard textarea
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        event.preventDefault();
-        const start = { ...activeCell };
-        void (async () => {
-          const text = await readClipboardText();
-          if (!text) return;
-          applyPastedText(text, start);
-        })();
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = { ...activeCell };
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            tableScrollRef.current?.focus();
+          }
+        }, 250);
         return;
       }
 
@@ -1526,7 +1531,6 @@ export function CustomOpsPlanningGrid({
     },
     [
       activeCell,
-      applyPastedText,
       clearSelectionValues,
       copySelectionToClipboard,
       editingCell,
