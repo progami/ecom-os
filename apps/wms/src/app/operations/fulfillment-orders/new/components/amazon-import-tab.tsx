@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Download, ExternalLink, Loader2, RefreshCw, Search } from '@/lib/lucide-icons'
+import { Download, ExternalLink, Loader2, Search } from '@/lib/lucide-icons'
 import type {
   AmazonInboundShipment,
   AmazonInboundDetails,
@@ -270,25 +270,14 @@ export function AmazonImportTab({
     <div className="space-y-6">
       {/* Shipment Browser */}
       <div className="rounded-xl border bg-white">
-        <div className="flex items-center justify-between border-b px-5 py-4">
-          <div>
-            <h3 className="text-sm font-semibold">Amazon Shipments</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Select a shipment to import or enter an ID manually
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={loadShipments}
-            disabled={shipmentsLoading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${shipmentsLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
+	        <div className="flex items-center justify-between border-b px-5 py-4">
+	          <div>
+	            <h3 className="text-sm font-semibold">Amazon Shipments</h3>
+	            <p className="text-xs text-muted-foreground mt-0.5">
+	              Select a shipment to import or enter an ID manually
+	            </p>
+	          </div>
+	        </div>
 
         <div className="p-5 space-y-4">
           {/* Search */}

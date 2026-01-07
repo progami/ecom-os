@@ -6,7 +6,19 @@ import { useState, useEffect } from 'react'
 import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { ShoppingCart, RefreshCw, Loader2, Search, TrendingUp, AlertTriangle, BarChart3, Construction, Hammer, Wrench, Package2 } from '@/lib/lucide-icons'
+import {
+  ShoppingCart,
+  Download,
+  Loader2,
+  Search,
+  TrendingUp,
+  AlertTriangle,
+  BarChart3,
+  Construction,
+  Hammer,
+  Wrench,
+  Package2,
+} from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 import { PageHeader } from '@/components/ui/page-header'
 import { redirectToPortal } from '@/lib/portal'
@@ -351,28 +363,28 @@ export default function AmazonIntegrationPage() {
  // console.error('Error in refresh:', error)
  if (_error instanceof Error) {
  toast.error(`Error: ${_error.message}`)
- } else {
- toast.error('Error refreshing data')
- }
- } finally {
- setLoading(false)
+	 } else {
+	 toast.error('Error refreshing data')
+	 }
+	 } finally {
+	 setLoading(false)
  }
  }}
  disabled={loading}
  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
  >
- {loading ? (
- <>
- <Loader2 className="h-4 w-4 animate-spin" />
- Refreshing...
- </>
- ) : (
- <>
- <RefreshCw className="h-4 w-4" />
- Refresh Data
- </>
- )}
- </button>
+	 {loading ? (
+	 <>
+	 <Loader2 className="h-4 w-4 animate-spin" />
+	 Syncing...
+	 </>
+	 ) : (
+	 <>
+	 <Download className="h-4 w-4" />
+	 Sync Data
+	 </>
+	 )}
+	 </button>
  </div>
 
  {/* Summary Cards */}
@@ -631,8 +643,8 @@ export default function AmazonIntegrationPage() {
  <div className={`border rounded-lg p-4 ${isDemoMode ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
  <p className={`text-sm ${isDemoMode ? 'text-yellow-800' : 'text-green-800'}`}>
  <strong>{isDemoMode ? 'Demo Mode Active:' : 'Amazon FBA Connected:'}</strong> {isDemoMode ? 'Using sample data for testing' : 'Production API active'}. Last synced: {lastRefresh.toLocaleString()}
- <br />{isDemoMode ? 'Toggle off demo mode to connect to real Amazon FBA API' : 'Click "Refresh Data" to sync the latest inventory from Amazon FBA'}.
- </p>
+	 <br />{isDemoMode ? 'Toggle off demo mode to connect to real Amazon FBA API' : 'Click "Sync Data" to sync the latest inventory from Amazon FBA'}.
+	 </p>
  </div>
  )}
  </div>
