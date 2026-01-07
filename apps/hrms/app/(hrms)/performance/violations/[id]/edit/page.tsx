@@ -283,7 +283,7 @@ export default function EditDisciplinaryPage() {
                     <option value="">Select reason...</option>
                     {VIOLATION_REASON_GROUPS.map((group) => (
                       <optgroup key={group.label} label={group.label}>
-                        {group.reasons.map((r) => (
+                        {group.options.map((r) => (
                           <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                       </optgroup>

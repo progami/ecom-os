@@ -34,7 +34,7 @@ import { Card } from '@/components/ui/card'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { TabButton } from '@/components/ui/TabButton'
 import { SelectField } from '@/components/ui/FormField'
-import { employmentTypeLabels } from '@/lib/constants'
+import { EMPLOYMENT_TYPE_LABELS } from '@/lib/domain/employee/constants'
 
 const visibilityOptions = [
   { value: 'HR_ONLY', label: 'HR only' },
@@ -492,7 +492,11 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                 <InfoRow icon={EnvelopeIcon} label="Email" value={employee.email} />
                 <InfoRow icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
                 <InfoRow icon={BuildingIcon} label="Department" value={employee.department || '—'} />
-                <InfoRow icon={UsersIcon} label="Employment type" value={employmentTypeLabels[employee.employmentType] || employee.employmentType} />
+                <InfoRow
+                  icon={UsersIcon}
+                  label="Employment type"
+                  value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
+                />
                 <InfoRow icon={CalendarIcon} label="Join date" value={formatDate(employee.joinDate)} />
                 <InfoRow icon={UsersIcon} label="Employee ID" value={employee.employeeId} />
               </div>
@@ -541,12 +545,12 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FieldRow label="Department" value={employee.department || '—'} fieldKey="department" permissions={permissions} />
               <FieldRow label="Role / title" value={employee.position} fieldKey="position" permissions={permissions} />
-              <FieldRow
-                label="Employment type"
-                value={employmentTypeLabels[employee.employmentType] || employee.employmentType}
-                fieldKey="employmentType"
-                permissions={permissions}
-              />
+                <FieldRow
+                  label="Employment type"
+                  value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
+                  fieldKey="employmentType"
+                  permissions={permissions}
+                />
               <FieldRow label="Join date" value={formatDate(employee.joinDate)} fieldKey="joinDate" permissions={permissions} />
               <FieldRow label="Status" value={employee.status} fieldKey="status" permissions={permissions} />
               <FieldRow
