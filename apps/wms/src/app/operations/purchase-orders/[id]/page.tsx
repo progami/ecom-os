@@ -13,25 +13,28 @@ import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   ArrowLeft,
-  Loader2,
-  Plus,
-  Package2,
-  FileEdit,
-  Send,
+  Check,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  Eye,
   Factory,
+  FileEdit,
+  FileText,
+  History,
+  Loader2,
+  MoreHorizontal,
+  Package2,
+  PackageX,
+  Plus,
+  Save,
+  Send,
   Ship,
   Warehouse,
-  PackageX,
   Upload,
-  Download,
-  ChevronRight,
-  Check,
+  X,
   XCircle,
-  Save,
-	  X,
-	  MoreHorizontal,
-	  History,
-	} from '@/lib/lucide-icons'
+} from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
@@ -218,6 +221,29 @@ const STAGE_DOCUMENTS: Record<
     { id: 'movement_note', label: 'Movement Note / Warehouse Receipt' },
     { id: 'custom_declaration', label: 'Customs Declaration (CDS)' },
   ],
+}
+
+const DOCUMENT_STAGE_META: Record<PurchaseOrderDocumentStage, { label: string; icon: ComponentType<{ className?: string }> }> = {
+  MANUFACTURING: { label: 'Manufacturing', icon: Factory },
+  OCEAN: { label: 'In Transit', icon: Ship },
+  WAREHOUSE: { label: 'At Warehouse', icon: Warehouse },
+  SHIPPED: { label: 'Shipped', icon: Package2 },
+}
+
+function formatDocumentTypeFallback(documentType: string) {
+  const cleaned = documentType.trim().replace(/[_-]+/g, ' ')
+  if (!cleaned) return 'Document'
+  return cleaned.replace(/\b\w/g, match => match.toUpperCase())
+}
+
+function getDocumentLabel(stage: PurchaseOrderDocumentStage, documentType: string) {
+  if (stage !== 'SHIPPED') {
+    const required = STAGE_DOCUMENTS[stage] ?? []
+    const match = required.find(candidate => candidate.id === documentType)
+    if (match) return match.label
+  }
+
+  return formatDocumentTypeFallback(documentType)
 }
 
 // Stage configuration
@@ -534,7 +560,8 @@ export default function PurchaseOrderDetailPage() {
   const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
 
   // Bottom section tabs
-  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'history'>('cargo')
+  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'documents' | 'history'>('cargo')
+  const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
 
   // Actions dropdown open state
   const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false)
@@ -633,30 +660,31 @@ export default function PurchaseOrderDetailPage() {
     loadOrder()
   }, [params.id, router, session, status])
 
-  useEffect(() => {
-    if (!order?.id) return
+  const refreshDocuments = useCallback(async () => {
+    const orderId = order?.id
+    if (!orderId) return
 
-    const loadDocuments = async () => {
-      try {
-        setDocumentsLoading(true)
-        const response = await fetch(`/api/purchase-orders/${order.id}/documents`)
-        if (!response.ok) {
-          setDocuments([])
-          return
-        }
-
-        const payload = await response.json().catch(() => null)
-        const list = payload?.documents
-        setDocuments(Array.isArray(list) ? (list as PurchaseOrderDocumentSummary[]) : [])
-      } catch {
+    try {
+      setDocumentsLoading(true)
+      const response = await fetch(`/api/purchase-orders/${orderId}/documents`)
+      if (!response.ok) {
         setDocuments([])
-      } finally {
-        setDocumentsLoading(false)
+        return
       }
-    }
 
-    loadDocuments()
+      const payload = await response.json().catch(() => null)
+      const list = payload?.documents
+      setDocuments(Array.isArray(list) ? (list as PurchaseOrderDocumentSummary[]) : [])
+    } catch {
+      setDocuments([])
+    } finally {
+      setDocumentsLoading(false)
+    }
   }, [order?.id])
+
+  useEffect(() => {
+    void refreshDocuments()
+  }, [refreshDocuments])
 
   const refreshAuditLogs = useCallback(async () => {
     const orderId = order?.id
@@ -686,6 +714,51 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => {
     void refreshAuditLogs()
   }, [refreshAuditLogs])
+
+  const handleDocumentUpload = useCallback(
+    async (
+      event: ChangeEvent<HTMLInputElement>,
+      stage: PurchaseOrderDocumentStage,
+      documentType: string
+    ) => {
+      const orderId = order?.id
+      const input = event.target
+      const file = input.files?.[0]
+      if (!orderId || !file) return
+
+      const key = `${stage}::${documentType}`
+      setUploadingDoc(prev => ({ ...prev, [key]: true }))
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('stage', stage)
+        formData.append('documentType', documentType)
+
+        const response = await fetch(`/api/purchase-orders/${orderId}/documents`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          toast.error(payload?.error ?? 'Failed to upload document')
+          return
+        }
+
+        await refreshDocuments()
+        void refreshAuditLogs()
+        toast.success('Document uploaded')
+      } catch {
+        toast.error('Failed to upload document')
+      } finally {
+        setUploadingDoc(prev => ({ ...prev, [key]: false }))
+        input.value = ''
+      }
+    },
+    [order?.id, refreshAuditLogs, refreshDocuments]
+  )
 
   const ensureSkusLoaded = useCallback(async () => {
     if (skusLoading || skus.length > 0) return
@@ -965,9 +1038,22 @@ export default function PurchaseOrderDetailPage() {
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
   const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
-	  const canDownloadPdf = order.status !== 'DRAFT'
-	  const historyCount = auditLogs.length || order.approvalHistory?.length || 0
-	  const selectedSku = newLineDraft.skuId ? skus.find(sku => sku.id === newLineDraft.skuId) : undefined
+  const canDownloadPdf = order.status !== 'DRAFT'
+  const documentsCount = documents.length
+  const historyCount = auditLogs.length || order.approvalHistory?.length || 0
+  const selectedSku = newLineDraft.skuId ? skus.find(sku => sku.id === newLineDraft.skuId) : undefined
+  const documentStages: PurchaseOrderDocumentStage[] = ['MANUFACTURING', 'OCEAN', 'WAREHOUSE']
+  if (documents.some(doc => doc.stage === 'SHIPPED')) {
+    documentStages.push('SHIPPED')
+  }
+  const previewStageMeta = previewDocument ? DOCUMENT_STAGE_META[previewDocument.stage] : null
+  const PreviewStageIcon = previewStageMeta ? previewStageMeta.icon : null
+  const previewIsPdf = Boolean(
+    previewDocument &&
+      (previewDocument.contentType === 'application/pdf' ||
+        previewDocument.fileName.toLowerCase().endsWith('.pdf'))
+  )
+  const previewIsImage = Boolean(previewDocument && previewDocument.contentType.startsWith('image/'))
 
 	  const handleAddLineItem = async () => {
 	    if (!order) return
@@ -1136,54 +1222,6 @@ export default function PurchaseOrderDetailPage() {
         .map(doc => [`${doc.stage}::${doc.documentType}`, doc])
     )
 
-    const refreshDocuments = async () => {
-      if (!order) return
-      const response = await fetch(`/api/purchase-orders/${order.id}/documents`)
-      if (!response.ok) {
-        setDocuments([])
-        return
-      }
-      const payload = await response.json().catch(() => null)
-      const list = payload?.documents
-      setDocuments(Array.isArray(list) ? (list as PurchaseOrderDocumentSummary[]) : [])
-    }
-
-    const handleUpload = async (event: ChangeEvent<HTMLInputElement>, documentType: string) => {
-      const file = event.target.files?.[0]
-      if (!order || !file) return
-
-      const key = `${docStage}::${documentType}`
-      setUploadingDoc(prev => ({ ...prev, [key]: true }))
-
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('stage', docStage)
-        formData.append('documentType', documentType)
-
-        const response = await fetch(`/api/purchase-orders/${order.id}/documents`, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        })
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null)
-          toast.error(payload?.error ?? 'Failed to upload document')
-          return
-        }
-
-        await refreshDocuments()
-        void refreshAuditLogs()
-        toast.success('Document uploaded')
-      } catch {
-        toast.error('Failed to upload document')
-      } finally {
-        setUploadingDoc(prev => ({ ...prev, [key]: false }))
-        event.target.value = ''
-      }
-    }
-
     return (
       <div className="space-y-5">
         <div className="grid grid-cols-1 gap-4">
@@ -1277,7 +1315,7 @@ export default function PurchaseOrderDetailPage() {
                         type="file"
                         className="hidden"
                         disabled={isUploading}
-                        onChange={e => handleUpload(e, doc.id)}
+                        onChange={e => void handleDocumentUpload(e, docStage, doc.id)}
                       />
                       {isUploading && <span className="text-xs text-muted-foreground ml-1">…</span>}
                     </label>
@@ -1287,69 +1325,6 @@ export default function PurchaseOrderDetailPage() {
             </div>
           </div>
         )}
-      </div>
-    )
-  }
-
-  // Render documents for a specific stage
-  const renderStageDocuments = (stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE') => {
-    const required = STAGE_DOCUMENTS[stage] ?? []
-    const stageDocs = documents.filter(doc => doc.stage === stage)
-    const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
-
-    if (required.length === 0 && stageDocs.length === 0) return null
-
-    return (
-      <div className="mt-4 pt-4 border-t">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Documents
-          </h4>
-          {documentsLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
-        </div>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {required.map(docType => {
-            const existing = docsByType.get(docType.id)
-            return (
-              <div
-                key={docType.id}
-                className="flex items-center justify-between rounded-md border bg-slate-50 px-3 py-2"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  {existing ? (
-                    <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
-                  ) : (
-                    <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
-                  )}
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-slate-900">{docType.label}</span>
-                    {existing && (
-                      <a
-                        href={existing.viewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-xs text-primary hover:underline"
-                        title={existing.fileName}
-                      >
-                        {existing.fileName}
-                      </a>
-                    )}
-                  </div>
-                </div>
-                {existing && (
-                  <a
-                    href={existing.viewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex-shrink-0 text-xs text-primary hover:underline ml-2"
-                  >
-                    View
-                  </a>
-                )}
-              </div>
-            )
-          })}
-        </div>
       </div>
     )
   }
@@ -1927,9 +1902,6 @@ export default function PurchaseOrderDetailPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* Manufacturing Documents */}
-                {renderStageDocuments('MANUFACTURING')}
               </div>
             )}
 
@@ -1992,9 +1964,6 @@ export default function PurchaseOrderDetailPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* Ocean Documents */}
-                {renderStageDocuments('OCEAN')}
               </div>
             )}
 
@@ -2049,9 +2018,6 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                   )}
                 </div>
-
-                {/* Warehouse Documents */}
-                {renderStageDocuments('WAREHOUSE')}
               </div>
             )}
 
@@ -2104,7 +2070,7 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        {/* Cargo & History Tabs */}
+        {/* Cargo, Documents & History Tabs */}
         <div className="rounded-xl border bg-white shadow-sm">
           {/* Tab Headers */}
           <div className="flex items-center border-b">
@@ -2123,6 +2089,29 @@ export default function PurchaseOrderDetailPage() {
                 {order.lines.length}
               </Badge>
               {activeBottomTab === 'cargo' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveBottomTab('documents')
+                void refreshDocuments()
+              }}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'documents'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              Documents
+              {documentsCount > 0 && (
+                <Badge variant="outline" className="text-xs ml-1">
+                  {documentsCount}
+                </Badge>
+              )}
+              {activeBottomTab === 'documents' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
@@ -2345,16 +2334,179 @@ export default function PurchaseOrderDetailPage() {
             </div>
           )}
 
-	          {activeBottomTab === 'history' && (
-	            <div className="p-6">
-	              <div className="flex flex-wrap items-start justify-between gap-3">
-	                <div>
-	                  <h4 className="text-sm font-semibold text-slate-900">Activity</h4>
-	                  <p className="mt-1 text-xs text-muted-foreground">
-	                    Every edit, upload, and stage change is recorded for full transparency.
-	                  </p>
-	                </div>
-	              </div>
+          {activeBottomTab === 'documents' && (
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">Documents</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Supplier paperwork and supporting files, grouped by stage.
+                  </p>
+                </div>
+                {documentsLoading && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Refreshing…
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-6">
+                {documentStages.map(stage => {
+                  const stageDocs = documents
+                    .filter(doc => doc.stage === stage)
+                    .sort(
+                      (a, b) =>
+                        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+                    )
+
+                  const requiredDocs = stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
+                  const requiredIds = new Set(requiredDocs.map(doc => doc.id))
+                  const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+                  const otherDocs = stageDocs.filter(doc => !requiredIds.has(doc.documentType))
+
+                  const rows: Array<{
+                    documentType: string
+                    label: string
+                    doc: PurchaseOrderDocumentSummary | undefined
+                  }> = [
+                    ...requiredDocs.map(doc => ({
+                      documentType: doc.id,
+                      label: doc.label,
+                      doc: docsByType.get(doc.id),
+                    })),
+                    ...otherDocs.map(doc => ({
+                      documentType: doc.documentType,
+                      label: getDocumentLabel(stage, doc.documentType),
+                      doc,
+                    })),
+                  ]
+
+                  if (rows.length === 0) return null
+
+                  const meta = DOCUMENT_STAGE_META[stage]
+                  const StageIcon = meta.icon
+
+                  return (
+                    <div key={stage} className="rounded-xl border bg-white shadow-sm">
+                      <div className="flex items-center justify-between border-b px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                            <StageIcon className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{meta.label}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {stageDocs.length === 0
+                                ? 'No uploads yet'
+                                : `${stageDocs.length} uploaded`}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="divide-y">
+                        {rows.map(row => {
+                          const key = `${stage}::${row.documentType}`
+                          const existing = row.doc
+                          const isUploading = Boolean(uploadingDoc[key])
+                          const uploadedBy = existing?.uploadedByName ? ` by ${existing.uploadedByName}` : ''
+
+                          return (
+                            <div
+                              key={key}
+                              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="flex items-start gap-3 min-w-0">
+                                {existing ? (
+                                  <Check className="h-4 w-4 flex-shrink-0 text-emerald-600 mt-0.5" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400 mt-0.5" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-slate-900">{row.label}</p>
+                                  {existing ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewDocument(existing)}
+                                      className="mt-0.5 block truncate text-left text-xs text-primary hover:underline"
+                                      title={existing.fileName}
+                                    >
+                                      {existing.fileName}
+                                    </button>
+                                  ) : (
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      Not uploaded yet
+                                    </p>
+                                  )}
+                                  {existing && (
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      Uploaded {formatDate(existing.uploadedAt)}
+                                      {uploadedBy}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0">
+                                {existing && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setPreviewDocument(existing)}
+                                    className="gap-2"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Preview
+                                  </Button>
+                                )}
+                                {existing && (
+                                  <Button asChild type="button" size="sm" variant="outline" className="gap-2">
+                                    <a href={existing.viewUrl} target="_blank" rel="noreferrer">
+                                      <ExternalLink className="h-4 w-4" />
+                                      Open
+                                    </a>
+                                  </Button>
+                                )}
+
+                                {(stage !== 'SHIPPED' || existing) && (
+                                  <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors">
+                                    <Upload className="h-3.5 w-3.5" />
+                                    {existing ? 'Replace' : 'Upload'}
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      disabled={isUploading}
+                                      onChange={e => void handleDocumentUpload(e, stage, row.documentType)}
+                                    />
+                                    {isUploading && (
+                                      <span className="text-xs text-muted-foreground ml-1">…</span>
+                                    )}
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeBottomTab === 'history' && (
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">Activity</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Every edit, upload, and stage change is recorded for full transparency.
+                  </p>
+                </div>
+              </div>
 
               {auditLogsLoading ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
@@ -2534,6 +2686,92 @@ export default function PurchaseOrderDetailPage() {
         }
         cancelText="Go Back"
       />
+
+      {previewDocument && previewStageMeta && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div
+              className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
+              onClick={() => setPreviewDocument(null)}
+            />
+
+            <div className="relative w-full max-w-5xl overflow-hidden rounded-xl bg-white text-left shadow-xl">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b px-6 py-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                      {PreviewStageIcon && <PreviewStageIcon className="h-4 w-4" />}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {previewDocument.fileName}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {previewStageMeta.label} • {getDocumentLabel(previewDocument.stage, previewDocument.documentType)} •{' '}
+                        Uploaded {formatDate(previewDocument.uploadedAt)}
+                        {previewDocument.uploadedByName ? ` by ${previewDocument.uploadedByName}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button asChild variant="outline" size="sm" className="gap-2">
+                    <a href={previewDocument.viewUrl} target="_blank" rel="noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Open
+                    </a>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setPreviewDocument(null)}
+                    aria-label="Close preview"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="bg-slate-50">
+                <div className="h-[75vh] w-full">
+                  {previewIsImage ? (
+                    <div
+                      className="h-full w-full bg-center bg-no-repeat bg-contain"
+                      style={{ backgroundImage: `url(${previewDocument.viewUrl})` }}
+                    />
+                  ) : previewIsPdf ? (
+                    <iframe
+                      title={previewDocument.fileName}
+                      src={previewDocument.viewUrl}
+                      className="h-full w-full"
+                    />
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+                      <div className="rounded-full border bg-white p-3 text-slate-700 shadow-sm">
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Preview not available</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Open the file in a new tab to view or download.
+                        </p>
+                      </div>
+                      <Button asChild className="gap-2">
+                        <a href={previewDocument.viewUrl} target="_blank" rel="noreferrer">
+                          <ExternalLink className="h-4 w-4" />
+                          Open file
+                        </a>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
