@@ -2,7 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, Check, X, Pencil, Trash2, CheckCircle2, ArrowRightLeft, ChevronRight, Sparkles } from 'lucide-react';
+import {
+  Plus,
+  Check,
+  X,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  ArrowRightLeft,
+  ChevronRight,
+  Sparkles,
+} from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { withAppBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
@@ -710,7 +720,9 @@ export function StrategiesWorkspace({
                         </div>
                       ) : (
                         <div className="flex items-center gap-2.5">
-                          <span className="text-sm text-slate-500 dark:text-slate-400">Switching to</span>
+                          <span className="text-sm text-slate-500 dark:text-slate-400">
+                            Switching to
+                          </span>
                           <span className="truncate rounded-lg border border-cyan-300 bg-cyan-50 px-3 py-1.5 text-sm font-medium text-cyan-800 dark:border-[#00c2b9]/40 dark:bg-[#00c2b9]/10 dark:text-cyan-300">
                             {pendingSwitch.name}
                           </span>
