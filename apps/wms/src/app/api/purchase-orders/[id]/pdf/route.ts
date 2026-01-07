@@ -87,13 +87,13 @@ async function renderPurchaseOrderPdf(params: {
   // Accent bar
   doc.rect(0, 100, pageWidth, 4).fill(COLORS.accent)
 
-  // Company name "TARGON"
+  // Company name "Targon."
   doc.fillColor(COLORS.white).fontSize(28).font('Helvetica-Bold')
-  doc.text('TARGON', margin, 30, { continued: false })
+  doc.text('Targon.', margin, 30, { continued: false })
 
   // Tagline
   doc.fontSize(9).font('Helvetica').fillColor(COLORS.accent)
-  doc.text('GLOBAL TRADE SOLUTIONS', margin, 60)
+  doc.text('Innovation to Impact', margin, 60)
 
   // Document title on right
   doc.fillColor(COLORS.white).fontSize(22).font('Helvetica-Bold')
@@ -122,9 +122,14 @@ async function renderPurchaseOrderPdf(params: {
   }
   const statusColor = statusColors[params.status] ?? '#6B7280'
 
-  doc.roundedRect(margin, y, 80, 22, 4).fill(statusColor)
-  doc.fillColor(COLORS.white).fontSize(9).font('Helvetica-Bold')
-  doc.text(params.status, margin + 10, y + 6, { width: 60, align: 'center' })
+  // Dynamic badge width based on status length
+  const statusText = params.status
+  const badgeWidth = statusText.length > 8 ? 110 : 80
+  const statusFontSize = statusText.length > 8 ? 8 : 9
+
+  doc.roundedRect(margin, y, badgeWidth, 22, 4).fill(statusColor)
+  doc.fillColor(COLORS.white).fontSize(statusFontSize).font('Helvetica-Bold')
+  doc.text(statusText, margin + 5, y + 7, { width: badgeWidth - 10, align: 'center' })
 
   y += 40
 
@@ -161,24 +166,32 @@ async function renderPurchaseOrderPdf(params: {
 
   y += 20
 
-  // Order details grid
-  const detailsGrid = [
+  // Order details grid - first row (3 columns)
+  const gridColWidth3 = contentWidth / 3
+  const detailsRow1 = [
     { label: 'Order Date', value: formatDate(params.createdAt) },
     { label: 'Cargo Ready Date', value: formatDate(params.expectedDate ?? null) },
     { label: 'Incoterms', value: params.incoterms?.trim() || '—' },
-    { label: 'Payment Terms', value: params.paymentTerms?.trim() || '—' },
   ]
 
-  const gridColWidth = contentWidth / 4
-  detailsGrid.forEach((item, i) => {
-    const x = margin + i * gridColWidth
+  detailsRow1.forEach((item, i) => {
+    const x = margin + i * gridColWidth3
     doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
-    doc.text(item.label.toUpperCase(), x, y, { width: gridColWidth - 10 })
+    doc.text(item.label.toUpperCase(), x, y, { width: gridColWidth3 - 10 })
     doc.fillColor(COLORS.text).fontSize(10).font('Helvetica-Bold')
-    doc.text(item.value, x, y + 12, { width: gridColWidth - 10 })
+    doc.text(item.value, x, y + 12, { width: gridColWidth3 - 10, lineBreak: false })
   })
 
-  y += 45
+  y += 32
+
+  // Payment terms - full width if present and long
+  const paymentTerms = params.paymentTerms?.trim() || '—'
+  doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
+  doc.text('PAYMENT TERMS', margin, y, { width: contentWidth })
+  doc.fillColor(COLORS.text).fontSize(10).font('Helvetica-Bold')
+  doc.text(paymentTerms, margin, y + 12, { width: contentWidth, lineBreak: false, ellipsis: true })
+
+  y += 32
 
   // Notes section (if present)
   if (params.notes?.trim()) {
@@ -227,7 +240,7 @@ async function renderPurchaseOrderPdf(params: {
   // Table rows
   const totalsByCurrency = new Map<string, { total: number }>()
   let totalQuantity = 0
-  const rowHeight = 32
+  const rowHeight = 24
 
   const drawTableRow = (line: (typeof params.lines)[0], rowY: number, isAlt: boolean) => {
     const currency = (line.currency || 'USD').toUpperCase()
@@ -247,7 +260,7 @@ async function renderPurchaseOrderPdf(params: {
     }
 
     // Row content - vertically centered text
-    const textY = rowY + 11
+    const textY = rowY + 7
 
     doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
     doc.text(line.skuCode, cols.sku.x + 8, textY, { width: cols.sku.width - 12, lineBreak: false })
@@ -279,8 +292,8 @@ async function renderPurchaseOrderPdf(params: {
   }
 
   for (let i = 0; i < params.lines.length; i++) {
-    // Check for page break
-    if (y + rowHeight > pageHeight - 120) {
+    // Check for page break - leave space for totals and footer
+    if (y + rowHeight > pageHeight - 100) {
       doc.addPage()
       y = margin
       // Redraw table header on new page
@@ -346,10 +359,13 @@ async function renderPurchaseOrderPdf(params: {
   // Footer line
   doc.moveTo(margin, footerY).lineTo(pageWidth - margin, footerY).strokeColor(COLORS.accent).lineWidth(2).stroke()
 
-  // Footer text
+  // Footer text - full timestamp
+  const now = new Date()
+  const timestamp = now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+
   doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
-  doc.text(`Generated on ${new Date().toISOString().slice(0, 10)}`, margin, footerY + 10)
-  doc.text('Powered by Targon Global', pageWidth - margin - 120, footerY + 10, { width: 120, align: 'right' })
+  doc.text(`Generated: ${timestamp}`, margin, footerY + 10)
+  doc.text('Targon.', pageWidth - margin - 80, footerY + 10, { width: 80, align: 'right' })
 
   doc.end()
   return await result
