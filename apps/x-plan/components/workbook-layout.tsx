@@ -35,7 +35,7 @@ interface WorkbookLayoutProps {
 
 const MIN_CONTEXT_WIDTH = 320;
 const MAX_CONTEXT_WIDTH = 560;
-const LOADING_INDICATOR_DELAY_MS = 200;
+const LOADING_INDICATOR_DELAY_MS = 500;
 const LOADING_INDICATOR_MIN_VISIBLE_MS = 350;
 const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
   '3-ops-planning',
@@ -72,6 +72,7 @@ export function WorkbookLayout({
   const loadingShownAtRef = useRef<number | null>(null);
   const loadingShowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isNavigationBusy = showLoadingIndicator;
 
   usePersistentScroll(`sheet:${activeSlug}`, true, getScrollElement);
 
@@ -258,7 +259,7 @@ export function WorkbookLayout({
           onClick={() => goToAdjacentYear(-1)}
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
           aria-label="Previous year"
-          disabled={!previous || isPending}
+          disabled={!previous || isNavigationBusy}
         >
           <ChevronLeft aria-hidden className="h-4 w-4" />
         </button>
@@ -266,7 +267,7 @@ export function WorkbookLayout({
           className={`${SHEET_TOOLBAR_SELECT} min-w-[7rem]`}
           value={String(resolvedYear)}
           onChange={(event) => handleYearSelect(Number(event.target.value))}
-          disabled={isPending}
+          disabled={isNavigationBusy}
           aria-label="Select year"
         >
           {sortedYears.map((segment) => (
@@ -281,7 +282,7 @@ export function WorkbookLayout({
           onClick={() => goToAdjacentYear(1)}
           className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
           aria-label="Next year"
-          disabled={!next || isPending}
+          disabled={!next || isNavigationBusy}
         >
           <ChevronRight aria-hidden className="h-4 w-4" />
         </button>
@@ -291,7 +292,7 @@ export function WorkbookLayout({
     activeYearIndex,
     goToAdjacentYear,
     handleYearSelect,
-    isPending,
+    isNavigationBusy,
     isYearAwareSheet,
     resolvedYear,
     sortedYears,
