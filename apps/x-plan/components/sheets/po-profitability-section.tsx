@@ -307,7 +307,10 @@ export function POProfitabilitySection({
   // filteredData is already aggregated by PO when "All SKUs" selected
   const chartData = useMemo(() => {
     return filteredData.map((row) => ({
-      name: skuFilter !== 'ALL' ? `${row.orderCode} - ${row.productName}` : row.orderCode,
+      name:
+        skuFilter !== 'ALL'
+          ? `${row.orderCode}${row.batchCode ? ` (${row.batchCode})` : ''}`
+          : row.orderCode,
       grossMarginPercent: row.grossMarginPercent,
       netMarginPercent: row.netMarginPercent,
       roi: row.roi,
@@ -670,6 +673,9 @@ export function POProfitabilitySection({
                 <TableRow key={row.id}>
                   <TableCell>
                     <div className="font-medium">{row.orderCode}</div>
+                    {skuFilter !== 'ALL' && row.batchCode ? (
+                      <div className="text-xs text-muted-foreground">Batch: {row.batchCode}</div>
+                    ) : null}
                     <div
                       className="truncate text-xs text-muted-foreground max-w-[160px]"
                       title={row.productName}

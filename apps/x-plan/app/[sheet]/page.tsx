@@ -1922,7 +1922,7 @@ function getPOProfitabilityView(
     const status: POStatus = statusMap[input.status ?? ''] ?? 'PLANNED';
 
     // Process each batch as a separate row
-    for (const batch of derived.batches) {
+    for (const [batchIndex, batch] of derived.batches.entries()) {
       const quantity = batch.quantity;
       const sellingPrice = batch.sellingPrice;
       const grossRevenue = sellingPrice * quantity;
@@ -1956,7 +1956,7 @@ function getPOProfitabilityView(
       const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0;
 
       data.push({
-        id: `${derived.id}-${batch.productId}`,
+        id: `${derived.id}:${batch.batchCode ?? 'batch'}:${batch.productId}:${batchIndex}`,
         orderCode: derived.orderCode,
         batchCode: batch.batchCode ?? null,
         productId: batch.productId,
