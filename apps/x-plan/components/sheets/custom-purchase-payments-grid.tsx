@@ -15,7 +15,6 @@ import Flatpickr from 'react-flatpickr';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
-import { readClipboardText } from '@/lib/grid/clipboard';
 import { cn } from '@/lib/utils';
 import {
   planningWeekDateIsoForWeekNumber,
@@ -94,6 +93,23 @@ type ColumnDef = {
   editable: boolean;
   precision?: number;
 };
+
+type CellCoords = { row: number; col: number };
+type CellRange = { from: CellCoords; to: CellCoords };
+
+function normalizeRange(range: CellRange): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
+  return {
+    top: Math.min(range.from.row, range.to.row),
+    bottom: Math.max(range.from.row, range.to.row),
+    left: Math.min(range.from.col, range.to.col),
+    right: Math.max(range.from.col, range.to.col),
+  };
+}
 
 const COLUMNS: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 120, type: 'text', editable: false },
@@ -223,6 +239,8 @@ export function CustomPurchasePaymentsGrid({
     rowId: string;
     colKey: keyof PurchasePaymentRow;
   } | null>(null);
+  const [selection, setSelection] = useState<CellRange | null>(null);
+  const selectionAnchorRef = useRef<CellCoords | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -289,6 +307,8 @@ export function CustomPurchasePaymentsGrid({
   useEffect(() => {
     setSelectedPaymentId(null);
     setActiveCell(null);
+    selectionAnchorRef.current = null;
+    setSelection(null);
   }, [activeOrderId]);
 
   useEffect(() => {
@@ -347,8 +367,20 @@ export function CustomPurchasePaymentsGrid({
       setSelectedPaymentId(row.id);
       tableScrollRef.current?.focus();
       setActiveCell({ rowId: row.id, colKey: column.key });
+
+      const rowIndex = data.findIndex((item) => item.id === row.id);
+      const colIndex = COLUMNS.findIndex((item) => item.key === column.key);
+      if (rowIndex < 0 || colIndex < 0) {
+        selectionAnchorRef.current = null;
+        setSelection(null);
+        return;
+      }
+
+      const coords = { row: rowIndex, col: colIndex };
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
     },
-    [onSelectOrder],
+    [data, onSelectOrder],
   );
 
   const cancelEditing = () => {
@@ -582,7 +614,7 @@ export function CustomPurchasePaymentsGrid({
   }, []);
 
   const moveSelection = useCallback(
-    (deltaRow: number, deltaCol: number) => {
+    (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
       if (!activeCell) return;
 
       const currentRowIndex = data.findIndex((row) => row.id === activeCell.rowId);
@@ -596,6 +628,19 @@ export function CustomPurchasePaymentsGrid({
       const nextColKey = COLUMNS[nextColIndex]?.key;
       if (!nextRow || !nextColKey) return;
 
+      const coords = { row: nextRowIndex, col: nextColIndex };
+      const currentCoords = { row: currentRowIndex, col: currentColIndex };
+      const extendSelection = Boolean(options.extendSelection);
+      const anchor = extendSelection ? (selectionAnchorRef.current ?? currentCoords) : coords;
+
+      if (extendSelection && !selectionAnchorRef.current) {
+        selectionAnchorRef.current = currentCoords;
+      }
+      if (!extendSelection) {
+        selectionAnchorRef.current = coords;
+      }
+
+      setSelection({ from: anchor, to: coords });
       onSelectOrder?.(nextRow.purchaseOrderId);
       setSelectedPaymentId(nextRow.id);
       setActiveCell({ rowId: nextRow.id, colKey: nextColKey });
@@ -627,6 +672,9 @@ export function CustomPurchasePaymentsGrid({
       const nextColKey = COLUMNS[nextColIndex]?.key;
       if (!nextRow || !nextColKey) return;
 
+      const coords = { row: nextRowIndex, col: nextColIndex };
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
       onSelectOrder?.(nextRow.purchaseOrderId);
       setSelectedPaymentId(nextRow.id);
       setActiveCell({ rowId: nextRow.id, colKey: nextColKey });
@@ -645,13 +693,43 @@ export function CustomPurchasePaymentsGrid({
   }, [activeCell, data, scheduleMode]);
 
   const buildClipboardText = useCallback(() => {
-    if (!activeCell) return '';
-    const row = rowsRef.current.find((item) => item.id === activeCell.rowId);
-    if (!row) return '';
-    const column = COLUMNS.find((item) => item.key === activeCell.colKey);
-    if (!column) return '';
-    return getCellEditValue(row, column, scheduleMode);
-  }, [activeCell, scheduleMode]);
+    const range = selection ?? null;
+    if (!range && !activeCell) return '';
+
+    const resolvedRange = (() => {
+      if (range) return range;
+      const rowIndex = data.findIndex((row) => row.id === activeCell?.rowId);
+      const colIndex = COLUMNS.findIndex((column) => column.key === activeCell?.colKey);
+      if (rowIndex < 0 || colIndex < 0) return null;
+      const coords = { row: rowIndex, col: colIndex };
+      return { from: coords, to: coords };
+    })();
+
+    if (!resolvedRange) return '';
+
+    const { top, bottom, left, right } = normalizeRange(resolvedRange);
+    const lines: string[] = [];
+
+    for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+      const visibleRow = data[rowIndex];
+      if (!visibleRow) continue;
+      const row = rowsRef.current.find((item) => item.id === visibleRow.id);
+      if (!row) continue;
+
+      const cells: string[] = [];
+      for (let colIndex = left; colIndex <= right; colIndex += 1) {
+        const column = COLUMNS[colIndex];
+        if (!column) {
+          cells.push('');
+          continue;
+        }
+        cells.push(getCellEditValue(row, column, scheduleMode));
+      }
+      lines.push(cells.join('\t'));
+    }
+
+    return lines.join('\n');
+  }, [activeCell, data, scheduleMode, selection]);
 
   const copySelectionToClipboard = useCallback(() => {
     const text = buildClipboardText();
@@ -679,6 +757,114 @@ export function CustomPurchasePaymentsGrid({
       requestAnimationFrame(() => tableScrollRef.current?.focus());
     }
   }, [buildClipboardText]);
+
+  const clearSelectionValues = useCallback(() => {
+    const range = selection ?? null;
+    if (!range && !activeCell) return;
+
+    const resolvedRange = (() => {
+      if (range) return range;
+      const rowIndex = data.findIndex((row) => row.id === activeCell?.rowId);
+      const colIndex = COLUMNS.findIndex((column) => column.key === activeCell?.colKey);
+      if (rowIndex < 0 || colIndex < 0) return null;
+      const coords = { row: rowIndex, col: colIndex };
+      return { from: coords, to: coords };
+    })();
+
+    if (!resolvedRange) return;
+
+    const { top, bottom, left, right } = normalizeRange(resolvedRange);
+    let updatedRows = [...rowsRef.current];
+    const indexById = new Map(updatedRows.map((row, idx) => [row.id, idx]));
+    let cleared = 0;
+
+    for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+      const visibleRow = data[rowIndex];
+      if (!visibleRow) continue;
+
+      const targetIndex = indexById.get(visibleRow.id);
+      if (targetIndex == null) continue;
+
+      const row = updatedRows[targetIndex];
+      if (!row) continue;
+
+      let updatedRow = row;
+      let rowChanged = false;
+
+      for (let colIndex = left; colIndex <= right; colIndex += 1) {
+        const column = COLUMNS[colIndex];
+        if (!column?.editable) continue;
+
+        const colKey = column.key;
+        const currentValue =
+          colKey === 'weekNumber' && column.type === 'schedule'
+            ? scheduleMode === 'dates'
+              ? (updatedRow.dueDateIso ?? '')
+              : (updatedRow.weekNumber ?? '')
+            : updatedRow[colKey] === null || updatedRow[colKey] === undefined
+              ? ''
+              : String(updatedRow[colKey]);
+
+        if (currentValue === '') continue;
+
+        if (!pendingRef.current.has(updatedRow.id)) {
+          pendingRef.current.set(updatedRow.id, { id: updatedRow.id, values: {} });
+        }
+        const entry = pendingRef.current.get(updatedRow.id)!;
+
+        if (colKey === 'weekNumber') {
+          entry.values.dueDate = '';
+          entry.values.dueDateSource = 'SYSTEM';
+          updatedRow = {
+            ...updatedRow,
+            dueDateIso: null,
+            dueDate: '',
+            dueDateSource: 'SYSTEM',
+            weekNumber: '',
+          };
+          rowChanged = true;
+          cleared += 1;
+          continue;
+        }
+
+        if (colKey === 'amountPaid') {
+          const plannedAmount = orderSummaries?.get(updatedRow.purchaseOrderId)?.plannedAmount ?? 0;
+          const numericAmount = 0;
+
+          if (plannedAmount > 0) {
+            const derivedPercent = numericAmount / plannedAmount;
+            const normalizedPercent = `${(derivedPercent * 100).toFixed(2)}%`;
+            entry.values.percentage = String(derivedPercent);
+            updatedRow = { ...updatedRow, percentage: normalizedPercent };
+          }
+
+          entry.values.amountPaid = '';
+          updatedRow = { ...updatedRow, amountPaid: '' };
+          rowChanged = true;
+          cleared += 1;
+        }
+      }
+
+      if (rowChanged) {
+        updatedRows[targetIndex] = updatedRow;
+      }
+    }
+
+    if (cleared === 0) return;
+
+    rowsRef.current = updatedRows;
+    onRowsChange?.(updatedRows);
+    scheduleFlush();
+  }, [
+    activeCell,
+    data,
+    onRowsChange,
+    orderSummaries,
+    pendingRef,
+    scheduleFlush,
+    scheduleMode,
+    selection,
+  ]);
 
   const applyPastedText = useCallback(
     (text: string, start: { rowId: string; colKey: keyof PurchasePaymentRow }) => {
@@ -931,68 +1117,25 @@ export function CustomPurchasePaymentsGrid({
       }
 
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
-        event.preventDefault();
-        const start = { ...activeCell };
-        void (async () => {
-          const text = await readClipboardText();
-          if (!text) return;
-          applyPastedText(text, start);
-        })();
+        const clipboard = clipboardRef.current;
+        if (!clipboard) return;
+        pasteStartRef.current = { ...activeCell };
+        clipboard.value = '';
+        clipboard.focus();
+        clipboard.select();
+        window.setTimeout(() => {
+          if (pasteStartRef.current && document.activeElement === clipboard) {
+            pasteStartRef.current = null;
+            clipboard.value = '';
+            tableScrollRef.current?.focus();
+          }
+        }, 250);
         return;
       }
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
         event.preventDefault();
-
-        const { rowId, colKey } = activeCell;
-        const row = rowsRef.current.find((r) => r.id === rowId);
-        const column = COLUMNS.find((c) => c.key === colKey);
-        if (!row || !column || !column.editable) return;
-
-        const currentValue =
-          colKey === 'weekNumber' && column.type === 'schedule'
-            ? scheduleMode === 'dates'
-              ? (row.dueDateIso ?? '')
-              : (row.weekNumber ?? '')
-            : row[colKey] === null || row[colKey] === undefined
-              ? ''
-              : String(row[colKey]);
-
-        if (currentValue === '') return;
-
-        if (!pendingRef.current.has(rowId)) {
-          pendingRef.current.set(rowId, { id: rowId, values: {} });
-        }
-        const entry = pendingRef.current.get(rowId)!;
-
-        const updatedRow = { ...row };
-
-        if (colKey === 'weekNumber') {
-          entry.values.dueDate = '';
-          entry.values.dueDateSource = 'SYSTEM';
-          updatedRow.dueDateIso = null;
-          updatedRow.dueDate = '';
-          updatedRow.dueDateSource = 'SYSTEM';
-          updatedRow.weekNumber = '';
-        } else if (colKey === 'amountPaid') {
-          const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0;
-          const numericAmount = 0;
-
-          if (plannedAmount > 0) {
-            const derivedPercent = numericAmount / plannedAmount;
-            const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%';
-            entry.values.percentage = String(derivedPercent);
-            updatedRow.percentage = normalizedPercent;
-          }
-
-          entry.values.amountPaid = '';
-          updatedRow.amountPaid = '';
-        }
-
-        const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r));
-        rowsRef.current = updatedRows;
-        onRowsChange?.(updatedRows);
-        scheduleFlush();
+        clearSelectionValues();
         return;
       }
 
@@ -1010,38 +1153,33 @@ export function CustomPurchasePaymentsGrid({
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        moveSelection(1, 0);
+        moveSelection(1, 0, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        moveSelection(-1, 0);
+        moveSelection(-1, 0, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowRight') {
         event.preventDefault();
-        moveSelection(0, 1);
+        moveSelection(0, 1, { extendSelection: event.shiftKey });
         return;
       }
       if (event.key === 'ArrowLeft') {
         event.preventDefault();
-        moveSelection(0, -1);
+        moveSelection(0, -1, { extendSelection: event.shiftKey });
         return;
       }
     },
     [
       activeCell,
+      clearSelectionValues,
       copySelectionToClipboard,
       editingCell,
       moveSelection,
       moveSelectionTab,
-      onRowsChange,
-      orderSummaries,
-      pendingRef,
-      scheduleFlush,
-      scheduleMode,
       startEditingActiveCell,
-      applyPastedText,
     ],
   );
 
@@ -1084,10 +1222,26 @@ export function CustomPurchasePaymentsGrid({
     return String(value);
   };
 
-  const renderCell = (row: PurchasePaymentRow, column: ColumnDef, colIndex: number) => {
+  const renderCell = (
+    row: PurchasePaymentRow,
+    rowIndex: number,
+    column: ColumnDef,
+    colIndex: number,
+  ) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key;
     const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key;
     const displayValue = formatDisplayValue(row, column);
+    const isSelected = selection
+      ? (() => {
+          const range = normalizeRange(selection);
+          return (
+            rowIndex >= range.top &&
+            rowIndex <= range.bottom &&
+            colIndex >= range.left &&
+            colIndex <= range.right
+          );
+        })()
+      : false;
     const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates';
     const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks';
     const isNumericCell = column.type === 'currency' || column.type === 'percent';
@@ -1101,6 +1255,7 @@ export function CustomPurchasePaymentsGrid({
       column.editable
         ? 'cursor-text bg-accent/50 font-medium'
         : 'bg-muted/50 text-muted-foreground',
+      isSelected && 'bg-accent',
       (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
       colIndex === COLUMNS.length - 1 && 'border-r-0',
     );
@@ -1340,7 +1495,7 @@ export function CustomPurchasePaymentsGrid({
                       setSelectedPaymentId(row.id);
                     }}
                   >
-                    {COLUMNS.map((column, colIndex) => renderCell(row, column, colIndex))}
+                    {COLUMNS.map((column, colIndex) => renderCell(row, rowIndex, column, colIndex))}
                   </TableRow>
                 ))
               )}
