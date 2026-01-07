@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { isSuperAdmin } from '@/lib/permissions'
+import { HR_ROLE_NAMES, PermissionLevel, isSuperAdmin } from '@/lib/permissions'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
-
-const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
 
 /**
  * GET /api/admin/access
@@ -55,7 +53,10 @@ export async function GET(request: NextRequest) {
     // Transform to include isHR flag
     const items = employees.map((emp) => ({
       ...emp,
-      isHR: emp.permissionLevel >= 75 || emp.roles.some((r) => HR_ROLE_NAMES.includes(r.name)),
+      isHR:
+        (emp.permissionLevel >= PermissionLevel.HR &&
+          emp.permissionLevel < PermissionLevel.SUPER_ADMIN) ||
+        emp.roles.some((r) => HR_ROLE_NAMES.includes(r.name)),
       hrRoleId: emp.roles.find((r) => HR_ROLE_NAMES.includes(r.name))?.id || null,
     }))
 

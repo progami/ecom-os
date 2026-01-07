@@ -305,14 +305,6 @@ function SkuBatchesManager({
     })
   }, [batchSearch, batches])
 
-  const hasDefaultBatch = useMemo(
-    () =>
-      batches.some(
-        batch => typeof batch.batchCode === 'string' && batch.batchCode.toUpperCase() === 'DEFAULT'
-      ),
-    [batches]
-  )
-
   const fetchBatches = useCallback(async () => {
     try {
       setLoading(true)
@@ -347,9 +339,6 @@ function SkuBatchesManager({
     setEditingBatch(null)
     setMeasurements(nextMeasurements)
     const nextFormState = buildBatchFormState(null, unitSystem, nextMeasurements)
-    if (!hasDefaultBatch) {
-      nextFormState.batchCode = 'DEFAULT'
-    }
     setFormState(nextFormState)
     setIsFormOpen(true)
   }
@@ -631,9 +620,7 @@ function SkuBatchesManager({
                     description={
                       batchSearch
                         ? 'Clear your search or create a new batch.'
-                        : hasDefaultBatch
-                          ? 'Batches are configured here. Every SKU has a DEFAULT batch. Use this screen to set pack specs, dimensions, and cartons-per-pallet defaults.'
-                          : 'Create the DEFAULT batch to get started. Use this screen to set pack specs, dimensions, and cartons-per-pallet defaults.'
+                        : 'Create a batch to define pack specs, dimensions, and cartons-per-pallet values.'
                     }
                     />
                   </div>
@@ -678,7 +665,7 @@ function SkuBatchesManager({
                           typeof batch.batchCode === 'string' ? batch.batchCode : '—'
                         const batchDescription =
                           typeof batch.description === 'string' ? batch.description : '—'
-                        const isDefault = batchCode.toUpperCase() === 'DEFAULT'
+                        const canDelete = batches.length > 1
 
                         return (
                           <tr key={batch.id} className="odd:bg-muted/20">
@@ -705,15 +692,14 @@ function SkuBatchesManager({
                                 <Button variant="outline" size="sm" onClick={() => openEdit(batch)}>
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
-                                {isDefault ? null : (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setConfirmDelete(batch)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setConfirmDelete(batch)}
+                                  disabled={!canDelete}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </td>
                           </tr>
@@ -783,9 +769,7 @@ function SkuBatchesManager({
                     onChange={event =>
                       setFormState(prev => ({ ...prev, batchCode: event.target.value }))
                     }
-                    disabled={
-                      editingBatch?.batchCode === 'DEFAULT' || (!hasDefaultBatch && !editingBatch)
-                    }
+                    disabled={isSubmitting}
                     required
                   />
                 </div>

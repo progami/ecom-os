@@ -86,57 +86,12 @@ export const GET = withAuthAndParams(async (_request, params, session) => {
     select: {
       id: true,
       skuCode: true,
-      packSize: true,
-      unitsPerCarton: true,
-      material: true,
-      unitDimensionsCm: true,
-      unitLengthCm: true,
-      unitWidthCm: true,
-      unitHeightCm: true,
-      unitWeightKg: true,
-      cartonDimensionsCm: true,
-      cartonLengthCm: true,
-      cartonWidthCm: true,
-      cartonHeightCm: true,
-      cartonWeightKg: true,
-      packagingType: true,
     },
   })
 
   if (!sku) {
     return ApiResponses.notFound('SKU not found')
   }
-
-  await prisma.skuBatch.upsert({
-    where: {
-      skuId_batchCode: {
-        skuId,
-        batchCode: 'DEFAULT',
-      },
-    },
-    create: {
-      sku: { connect: { id: skuId } },
-      batchCode: 'DEFAULT',
-      packSize: sku.packSize,
-      unitsPerCarton: sku.unitsPerCarton,
-      material: sku.material,
-      unitDimensionsCm: sku.unitDimensionsCm,
-      unitLengthCm: sku.unitLengthCm,
-      unitWidthCm: sku.unitWidthCm,
-      unitHeightCm: sku.unitHeightCm,
-      unitWeightKg: sku.unitWeightKg,
-      cartonDimensionsCm: sku.cartonDimensionsCm,
-      cartonLengthCm: sku.cartonLengthCm,
-      cartonWidthCm: sku.cartonWidthCm,
-      cartonHeightCm: sku.cartonHeightCm,
-      cartonWeightKg: sku.cartonWeightKg,
-      packagingType: sku.packagingType,
-      isActive: true,
-    },
-    update: {
-      isActive: true,
-    },
-  })
 
   const batches = await prisma.skuBatch.findMany({
     where: { skuId },
@@ -176,20 +131,11 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   const payload = parsed.data
 
   const normalizedCode = sanitizeForDisplay(payload.batchCode.toUpperCase())
-  const existingDefault = await prisma.skuBatch.findFirst({
-    where: {
-      skuId,
-      batchCode: { equals: 'DEFAULT', mode: 'insensitive' },
-    },
-    select: { id: true },
-  })
-
-  if (!existingDefault && normalizedCode !== 'DEFAULT') {
-    return ApiResponses.badRequest('DEFAULT batch must be created before adding other batches')
+  if (!normalizedCode) {
+    return ApiResponses.badRequest('Invalid batch code')
   }
-
-  if (existingDefault && normalizedCode === 'DEFAULT') {
-    return ApiResponses.badRequest('DEFAULT batch already exists for this SKU')
+  if (normalizedCode === 'DEFAULT') {
+    return ApiResponses.badRequest('Batch code DEFAULT is not allowed')
   }
   const productionDate = payload.productionDate ? new Date(payload.productionDate) : null
   const expiryDate = payload.expiryDate ? new Date(payload.expiryDate) : null

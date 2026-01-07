@@ -72,7 +72,7 @@ export default function NewPurchaseOrderPage() {
       skuId: undefined,
       skuCode: '',
       skuDescription: '',
-      batchLot: 'DEFAULT',
+      batchLot: '',
       quantity: 1,
       actualCost: '',
       currency: 'USD',
@@ -150,7 +150,7 @@ export default function NewPurchaseOrderPage() {
         skuId: undefined,
         skuCode: '',
         skuDescription: '',
-        batchLot: 'DEFAULT',
+        batchLot: '',
         quantity: 1,
         actualCost: '',
         currency: tenantCurrency,
@@ -186,14 +186,18 @@ export default function NewPurchaseOrderPage() {
         .filter((batchCode): batchCode is string => Boolean(batchCode))
 
       const unique: string[] = Array.from(new Set(batchCodes))
-      if (!unique.includes('DEFAULT')) {
-        unique.unshift('DEFAULT')
-      }
-
       setBatchesBySkuId(prev => ({ ...prev, [skuId]: unique }))
+      setLineItems(prev =>
+        prev.map(item => {
+          if (item.skuId !== skuId) return item
+          if (unique.length === 0) return { ...item, batchLot: '' }
+          if (item.batchLot && unique.includes(item.batchLot)) return item
+          return { ...item, batchLot: unique[0] }
+        })
+      )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load batches')
-      setBatchesBySkuId(prev => ({ ...prev, [skuId]: ['DEFAULT'] }))
+      setBatchesBySkuId(prev => ({ ...prev, [skuId]: [] }))
     } finally {
       setBatchesLoadingBySkuId(prev => ({ ...prev, [skuId]: false }))
     }
@@ -212,7 +216,7 @@ export default function NewPurchaseOrderPage() {
                   skuId: undefined,
                   skuCode: '',
                   skuDescription: '',
-                  batchLot: 'DEFAULT',
+                  batchLot: '',
                 }
               : item
           )
@@ -228,7 +232,7 @@ export default function NewPurchaseOrderPage() {
                 skuId: selectedSku.id,
                 skuCode: selectedSku.skuCode,
                 skuDescription: selectedSku.description || '',
-                batchLot: 'DEFAULT',
+                batchLot: '',
               }
             : item
         )
@@ -291,9 +295,13 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    const invalidLines = lineItems.filter(
-      item => !item.skuCode || !item.batchLot || item.quantity <= 0
-    )
+    const invalidLines = lineItems.filter(item => {
+      if (!item.skuCode) return true
+      const batchLot = item.batchLot.trim()
+      if (!batchLot) return true
+      if (batchLot.toUpperCase() === 'DEFAULT') return true
+      return item.quantity <= 0
+    })
     if (invalidLines.length > 0) {
       toast.error('Please fill in SKU, batch/lot, and quantity for all line items')
       return
@@ -537,19 +545,23 @@ export default function NewPurchaseOrderPage() {
                               required
                               disabled={!item.skuId}
                             >
-                              {item.skuId ? (
-                                batchesLoadingBySkuId[item.skuId] ? (
-                                  <option value={item.batchLot || 'DEFAULT'}>Loading…</option>
-                                ) : (
-                                  (batchesBySkuId[item.skuId] ?? ['DEFAULT']).map(batchCode => (
-                                    <option key={batchCode} value={batchCode}>
-                                      {batchCode}
-                                    </option>
-                                  ))
-                                )
-                              ) : (
-                                <option value="DEFAULT">DEFAULT</option>
-                              )}
+	                              {item.skuId ? (
+	                                batchesLoadingBySkuId[item.skuId] ? (
+	                                  <option value="">Loading…</option>
+	                                ) : (
+	                                  (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
+	                                    (batchesBySkuId[item.skuId] ?? []).map(batchCode => (
+	                                      <option key={batchCode} value={batchCode}>
+	                                        {batchCode}
+	                                      </option>
+	                                    ))
+	                                  ) : (
+	                                    <option value="">No batches found</option>
+	                                  )
+	                                )
+	                              ) : (
+	                                <option value="">Select SKU first</option>
+	                              )}
                             </select>
                           </div>
                           <div className="col-span-3">

@@ -58,6 +58,13 @@ interface SkuFormState {
   asin: string
   defaultSupplierId: string
   secondarySupplierId: string
+  initialBatch: {
+    batchCode: string
+    packSize: string
+    unitsPerCarton: string
+    unitWeightKg: string
+    packagingType: string
+  }
 }
 
 function buildFormState(sku?: SkuRow | null): SkuFormState {
@@ -67,6 +74,13 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     asin: sku?.asin ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
+    initialBatch: {
+      batchCode: '',
+      packSize: '1',
+      unitsPerCarton: '1',
+      unitWeightKg: '',
+      packagingType: '',
+    },
   }
 }
 
@@ -216,6 +230,43 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
+    const isCreating = !editingSku
+    let initialBatchPayload: Record<string, unknown> | null = null
+
+    if (isCreating) {
+      const batchCode = formState.initialBatch.batchCode.trim()
+      if (!batchCode) {
+        toast.error('Batch code is required')
+        return
+      }
+
+      const packSize = Number.parseInt(formState.initialBatch.packSize, 10)
+      if (!Number.isFinite(packSize) || packSize <= 0) {
+        toast.error('Pack size must be a positive number')
+        return
+      }
+
+      const unitsPerCarton = Number.parseInt(formState.initialBatch.unitsPerCarton, 10)
+      if (!Number.isFinite(unitsPerCarton) || unitsPerCarton <= 0) {
+        toast.error('Units per carton must be a positive number')
+        return
+      }
+
+      const unitWeightKg = Number.parseFloat(formState.initialBatch.unitWeightKg)
+      if (!Number.isFinite(unitWeightKg) || unitWeightKg <= 0) {
+        toast.error('Unit weight (kg) must be a positive number')
+        return
+      }
+
+      initialBatchPayload = {
+        batchCode,
+        packSize,
+        unitsPerCarton,
+        unitWeightKg,
+        packagingType: formState.initialBatch.packagingType || null,
+      }
+    }
+
     setIsSubmitting(true)
     try {
       const payload: Record<string, unknown> = {
@@ -224,6 +275,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         description,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
+      }
+
+      if (initialBatchPayload) {
+        payload.initialBatch = initialBatchPayload
       }
 
       let endpoint = '/api/skus'
@@ -507,22 +562,129 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       </select>
                     </div>
 
-                    <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                      {editingSku ? (
-                        <>
-                          Batch-specific specs (pack size, units/carton, dimensions, weights,
-                          packaging) are managed per batch. Click the SKU code (or use View Batches)
-                          to view or edit batches.
-                        </>
-                      ) : (
-                        <>
-                          A default batch is created automatically. Configure per-warehouse pallet
-                          settings in Config → Warehouses → Rates → Storage.
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+	                    <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+		                      {editingSku ? (
+		                        <>
+		                          Batch-specific specs (pack size, units/carton, dimensions, weights,
+		                          packaging) are managed per batch. Click the SKU code (or use View Batches)
+		                          to view or edit batches.
+		                        </>
+		                      ) : (
+		                        <>
+		                          An initial batch is required for every SKU. Define the batch code and
+		                          basic packaging specs now; additional batches can be added later in
+		                          Products → Batches.
+		                        </>
+		                      )}
+		                    </div>
+
+                    {!editingSku ? (
+                      <>
+                        <div className="md:col-span-2 pt-2">
+                          <h3 className="text-sm font-semibold text-slate-900">Initial Batch</h3>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Required. Defines pack size, units/carton, and unit weight.
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="initialBatchCode">Batch Code</Label>
+                          <Input
+                            id="initialBatchCode"
+                            value={formState.initialBatch.batchCode}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                initialBatch: { ...prev.initialBatch, batchCode: event.target.value },
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="initialPackagingType">Packaging Type</Label>
+                          <select
+                            id="initialPackagingType"
+                            value={formState.initialBatch.packagingType}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                initialBatch: {
+                                  ...prev.initialBatch,
+                                  packagingType: event.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          >
+                            <option value="">Optional</option>
+                            <option value="BOX">Box</option>
+                            <option value="POLYBAG">Polybag</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="initialPackSize">Pack Size</Label>
+                          <Input
+                            id="initialPackSize"
+                            type="number"
+                            min={1}
+                            value={formState.initialBatch.packSize}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                initialBatch: { ...prev.initialBatch, packSize: event.target.value },
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="initialUnitsPerCarton">Units per Carton</Label>
+                          <Input
+                            id="initialUnitsPerCarton"
+                            type="number"
+                            min={1}
+                            value={formState.initialBatch.unitsPerCarton}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                initialBatch: {
+                                  ...prev.initialBatch,
+                                  unitsPerCarton: event.target.value,
+                                },
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                          <Label htmlFor="initialUnitWeightKg">Unit Weight (kg)</Label>
+                          <Input
+                            id="initialUnitWeightKg"
+                            type="number"
+                            min={0.001}
+                            step={0.001}
+                            value={formState.initialBatch.unitWeightKg}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                initialBatch: {
+                                  ...prev.initialBatch,
+                                  unitWeightKg: event.target.value,
+                                },
+                              }))
+                            }
+                            required
+                          />
+                        </div>
+                      </>
+                    ) : null}
+	                  </div>
+	                </div>
 
                 <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
                   <div />

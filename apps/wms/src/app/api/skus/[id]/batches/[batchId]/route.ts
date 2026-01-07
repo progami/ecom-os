@@ -118,15 +118,11 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
       return ApiResponses.badRequest('Invalid batch code')
     }
 
-    if (requestedCode === 'DEFAULT' && existingCode !== 'DEFAULT') {
-      return ApiResponses.badRequest('DEFAULT batch code is reserved')
+    if (requestedCode === 'DEFAULT') {
+      return ApiResponses.badRequest('Batch code DEFAULT is not allowed')
     }
 
-    if (existingCode === 'DEFAULT') {
-      if (requestedCode !== 'DEFAULT') {
-        return ApiResponses.badRequest('DEFAULT batch code cannot be changed')
-      }
-    } else {
+    if (requestedCode !== existingCode) {
       data.batchCode = requestedCode
     }
   }
@@ -269,10 +265,6 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
   const existing = await ensureBatch(skuId, batchId)
   if (!existing) {
     return ApiResponses.notFound('Batch not found')
-  }
-
-  if (existing.batchCode.toUpperCase() === 'DEFAULT') {
-    return ApiResponses.badRequest('Cannot delete the DEFAULT batch')
   }
 
   const sku = await prisma.sku.findUnique({
