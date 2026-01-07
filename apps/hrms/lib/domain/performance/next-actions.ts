@@ -111,7 +111,7 @@ export function buildPerformanceReviewNextActions(
       return actions;
 
     case 'PENDING_HR_REVIEW':
-      if (viewer.isHR || viewer.isSuperAdmin) {
+      if (viewer.isHR) {
         actions.primary = {
           id: 'review.hrApprove',
           label: 'Approve (HR)',

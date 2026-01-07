@@ -24,7 +24,6 @@ function isEmployeeHrLike(employee: {
   permissionLevel: number
   roles: { name: string }[]
 }): boolean {
-  if (employee.isSuperAdmin) return true
   if (employee.permissionLevel >= PermissionLevel.HR) return true
   return employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name))
 }

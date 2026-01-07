@@ -19,9 +19,11 @@ export async function getViewerContext(employeeId: string): Promise<{
   })
 
   const isSuperAdmin = Boolean(employee?.isSuperAdmin)
-  const isHR = isSuperAdmin ||
-    Boolean(employee && (employee.permissionLevel >= PermissionLevel.HR || employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name))))
+  const isHR = Boolean(
+    employee &&
+      ((employee.permissionLevel ?? 0) >= PermissionLevel.HR ||
+        employee.roles.some((r) => HR_ROLE_NAMES.includes(r.name)))
+  )
 
   return { employeeId, isSuperAdmin, isHR }
 }
-
