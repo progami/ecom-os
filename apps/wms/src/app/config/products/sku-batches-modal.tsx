@@ -22,8 +22,6 @@ interface BatchRow {
   id: string
   batchCode: string
   description: string | null
-  productionDate: string | null
-  expiryDate: string | null
   packSize: number | null
   unitsPerCarton: number | null
   material: string | null
@@ -45,8 +43,6 @@ interface BatchRow {
 interface BatchFormState {
   batchCode: string
   description: string
-  productionDate: string
-  expiryDate: string
   packSize: string
   unitsPerCarton: string
   material: string
@@ -168,8 +164,6 @@ function buildBatchFormState(
   return {
     batchCode: batch?.batchCode ?? '',
     description: batch?.description ?? '',
-    productionDate: batch?.productionDate ? batch.productionDate.slice(0, 10) : '',
-    expiryDate: batch?.expiryDate ? batch.expiryDate.slice(0, 10) : '',
     packSize: batch?.packSize?.toString() ?? '1',
     unitsPerCarton: batch?.unitsPerCarton?.toString() ?? '1',
     material: batch?.material ?? '',
@@ -192,12 +186,6 @@ function parsePositiveNumber(value: string): number | null {
   const parsed = Number(trimmed)
   if (!Number.isFinite(parsed) || parsed <= 0) return null
   return parsed
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString()
 }
 
 export function SkuBatchesModal({
@@ -523,8 +511,6 @@ function SkuBatchesManager({
       const payload = {
         batchCode: formState.batchCode.trim(),
         description: formState.description.trim() ? formState.description.trim() : null,
-        productionDate: formState.productionDate ? formState.productionDate : null,
-        expiryDate: formState.expiryDate ? formState.expiryDate : null,
         packSize,
         unitsPerCarton,
         material: formState.material.trim() ? formState.material.trim() : null,
@@ -658,8 +644,6 @@ function SkuBatchesManager({
                       <tr>
                         <th className="px-3 py-2 text-left font-semibold">Batch</th>
                         <th className="px-3 py-2 text-left font-semibold">Description</th>
-                        <th className="px-3 py-2 text-left font-semibold">Production</th>
-                        <th className="px-3 py-2 text-left font-semibold">Expiry</th>
                         <th className="px-3 py-2 text-right font-semibold">Pack</th>
                         <th className="px-3 py-2 text-right font-semibold">Units/Carton</th>
                         <th className="px-3 py-2 text-right font-semibold">Item Dims (cm)</th>
@@ -703,12 +687,6 @@ function SkuBatchesManager({
                             </td>
                             <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                               {batchDescription}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                              {formatDate(batch.productionDate)}
-                            </td>
-                            <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                              {formatDate(batch.expiryDate)}
                             </td>
                             <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
                               {batch.packSize ?? '—'}
@@ -821,30 +799,6 @@ function SkuBatchesManager({
                       setFormState(prev => ({ ...prev, description: event.target.value }))
                     }
                     placeholder="Optional"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="productionDate">Production Date</Label>
-                  <Input
-                    id="productionDate"
-                    type="date"
-                    value={formState.productionDate}
-                    onChange={event =>
-                      setFormState(prev => ({ ...prev, productionDate: event.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="expiryDate">Expiry Date</Label>
-                  <Input
-                    id="expiryDate"
-                    type="date"
-                    value={formState.expiryDate}
-                    onChange={event =>
-                      setFormState(prev => ({ ...prev, expiryDate: event.target.value }))
-                    }
                   />
                 </div>
 
