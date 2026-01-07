@@ -332,14 +332,26 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   }, []);
 
   const moveActiveCell = useCallback(
-    (deltaRow: number, deltaCol: number) => {
+    (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
       setActiveCell((prev) => {
         if (!prev) return prev;
         const newRow = Math.max(0, Math.min(data.length - 1, prev.row + deltaRow));
         const newCol = Math.max(0, Math.min(columnKeys.length - 1, prev.col + deltaCol));
-        return { row: newRow, col: newCol };
+        const nextCoords = { row: newRow, col: newCol };
+
+        if (options.extendSelection) {
+          const anchor = selectionAnchorRef.current ?? prev;
+          if (!selectionAnchorRef.current) {
+            selectionAnchorRef.current = anchor;
+          }
+          setSelection({ from: anchor, to: nextCoords });
+        } else {
+          selectionAnchorRef.current = nextCoords;
+          setSelection(null);
+        }
+
+        return nextCoords;
       });
-      setSelection(null);
     },
     [data.length, columnKeys.length],
   );
@@ -537,22 +549,27 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        moveActiveCell(1, 0);
+        moveActiveCell(1, 0, { extendSelection: e.shiftKey });
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        moveActiveCell(-1, 0);
+        moveActiveCell(-1, 0, { extendSelection: e.shiftKey });
         return;
       }
-      if (e.key === 'ArrowRight' || e.key === 'Tab') {
+      if (e.key === 'Tab') {
         e.preventDefault();
         moveActiveCell(0, e.shiftKey ? -1 : 1);
         return;
       }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        moveActiveCell(0, 1, { extendSelection: e.shiftKey });
+        return;
+      }
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        moveActiveCell(0, -1);
+        moveActiveCell(0, -1, { extendSelection: e.shiftKey });
         return;
       }
       if (e.key === 'Escape') {
