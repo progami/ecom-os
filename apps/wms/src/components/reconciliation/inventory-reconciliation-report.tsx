@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, AlertTriangle, CheckCircle, XCircle, RefreshCw } from '@/lib/lucide-icons';
+import { Loader2, AlertTriangle, CheckCircle, XCircle, Calculator } from '@/lib/lucide-icons';
 import { formatDistanceToNow } from 'date-fns';
 
 interface ReconciliationReport {
@@ -158,13 +158,13 @@ export function InventoryReconciliationReport() {
  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
  Starting...
  </>
- ) : (
- <>
- <RefreshCw className="mr-2 h-4 w-4" />
- Run Reconciliation
- </>
- )}
- </Button>
+	 ) : (
+	 <>
+	 <Calculator className="mr-2 h-4 w-4" />
+	 Run Reconciliation
+	 </>
+	 )}
+	 </Button>
  </div>
 
  {error && (

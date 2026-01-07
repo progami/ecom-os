@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { AlertTriangle, RefreshCw, Home } from '@/lib/lucide-icons'
+import { AlertTriangle, Home } from '@/lib/lucide-icons'
 import Link from 'next/link'
 
 export default function Error({
@@ -40,13 +40,12 @@ export default function Error({
  </div>
  
  <div className="flex items-center justify-center gap-4">
- <button
- onClick={reset}
- className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
- >
- <RefreshCw className="h-4 w-4 mr-2" />
- Try Again
- </button>
+	 <button
+	 onClick={reset}
+	 className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
+	 >
+	 Try Again
+	 </button>
  <Link
  href="/dashboard"
  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90"
