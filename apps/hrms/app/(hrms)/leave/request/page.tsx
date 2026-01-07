@@ -1,58 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { DashboardApi, LeavesApi } from '@/lib/api-client'
+import { DashboardApi } from '@/lib/api-client'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Alert } from '@/components/ui/alert'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
 import { Avatar } from '@/components/ui/avatar'
 import { ArrowLeftIcon } from '@/components/ui/Icons'
-import { NativeSelect } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
-
-const LEAVE_TYPES = [
-  { value: 'PTO', label: 'PTO (Paid Time Off)' },
-  { value: 'PARENTAL', label: 'Parental Leave' },
-  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement' },
-  { value: 'UNPAID', label: 'Unpaid Leave' },
-]
-
-const LeaveRequestSchema = z.object({
-  leaveType: z.string().min(1, 'Leave type is required'),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
-  reason: z.string().optional(),
-})
-
-type FormData = z.infer<typeof LeaveRequestSchema>
-
-function calculateBusinessDays(startDate: string, endDate: string): number {
-  if (!startDate || !endDate) return 0
-  // Parse as UTC noon to match API calculation
-  const start = new Date(`${startDate}T12:00:00.000Z`)
-  const end = new Date(`${endDate}T12:00:00.000Z`)
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
-  if (start > end) return 0
-
-  let count = 0
-  const current = new Date(start)
-  while (current <= end) {
-    const day = current.getUTCDay()
-    if (day !== 0 && day !== 6) {
-      count++
-    }
-    current.setUTCDate(current.getUTCDate() + 1)
-  }
-  return count
-}
+import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 
 export default function LeaveRequestPage() {
   const router = useRouter()
@@ -65,26 +21,6 @@ export default function LeaveRequestPage() {
     department?: string | null
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-    setError: setFormError,
-  } = useForm<FormData>({
-    resolver: zodResolver(LeaveRequestSchema),
-    defaultValues: {
-      leaveType: 'PTO',
-      startDate: '',
-      endDate: '',
-      reason: '',
-    },
-  })
-
-  const startDate = watch('startDate')
-  const endDate = watch('endDate')
-  const totalDays = calculateBusinessDays(startDate, endDate)
 
   useEffect(() => {
     async function load() {
@@ -107,31 +43,6 @@ export default function LeaveRequestPage() {
     }
     load()
   }, [])
-
-  const onSubmit = async (data: FormData) => {
-    if (!employee) return
-
-    if (totalDays <= 0) {
-      setFormError('endDate', { message: 'End date must be after start date' })
-      return
-    }
-
-    try {
-      await LeavesApi.create({
-        employeeId: employee.id,
-        leaveType: data.leaveType,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        totalDays,
-        reason: data.reason,
-      })
-      router.push('/leave')
-    } catch (err) {
-      setFormError('root', {
-        message: err instanceof Error ? err.message : 'Failed to submit leave request',
-      })
-    }
-  }
 
   if (loading) {
     return (
@@ -193,74 +104,13 @@ export default function LeaveRequestPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="py-6 space-y-6">
-          {errors.root && (
-            <Alert variant="error">{errors.root.message}</Alert>
-          )}
-
-          <div>
-            <Label htmlFor="leaveType">Leave Type</Label>
-            <NativeSelect {...register('leaveType')} className="mt-1.5">
-              {LEAVE_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </NativeSelect>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                {...register('startDate')}
-                type="date"
-                className={cn('mt-1.5', errors.startDate && 'border-destructive')}
-              />
-              {errors.startDate && (
-                <p className="text-xs text-destructive mt-1">{errors.startDate.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                {...register('endDate')}
-                type="date"
-                min={startDate}
-                className={cn('mt-1.5', errors.endDate && 'border-destructive')}
-              />
-              {errors.endDate && (
-                <p className="text-xs text-destructive mt-1">{errors.endDate.message}</p>
-              )}
-            </div>
-          </div>
-
-          {totalDays > 0 && (
-            <div className="text-sm text-muted-foreground bg-muted/50 px-4 py-3 rounded-lg">
-              Total: <span className="font-medium text-foreground">{totalDays} business day{totalDays !== 1 ? 's' : ''}</span>
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="reason">Reason (optional)</Label>
-            <Textarea
-              {...register('reason')}
-              rows={3}
-              className="mt-1.5 resize-none"
-              placeholder="Briefly describe the reason for your leave..."
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="pt-6 border-t border-border flex justify-end gap-3">
-            <Button type="button" variant="secondary" href="/leave">
-              Cancel
-            </Button>
-            <Button type="submit" loading={isSubmitting} disabled={totalDays <= 0}>
-              Submit Request
-            </Button>
-          </div>
-        </form>
+        <div className="py-6">
+          <LeaveRequestForm
+            employeeId={employee.id}
+            onSuccess={() => router.push('/leave')}
+            onCancel={() => router.push('/leave')}
+          />
+        </div>
       </Card>
     </div>
   )

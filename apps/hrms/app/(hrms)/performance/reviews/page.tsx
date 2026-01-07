@@ -11,32 +11,22 @@ import { StatusBadge } from '@/components/ui/badge'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
+import {
+  REVIEW_STATUS_LABELS,
+  REVIEW_STATUS_OPTIONS,
+  REVIEW_TYPE_LABELS,
+  REVIEW_TYPE_OPTIONS,
+} from '@/lib/domain/performance/constants'
 
-const REVIEW_TYPE_OPTIONS: FilterOption[] = [
-  { value: 'PROBATION', label: 'Probation' },
-  { value: 'QUARTERLY', label: 'Quarterly' },
-  { value: 'ANNUAL', label: 'Annual' },
-]
+const REVIEW_TYPE_FILTER_OPTIONS: FilterOption[] = REVIEW_TYPE_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
-const STATUS_OPTIONS: FilterOption[] = [
-  { value: 'NOT_STARTED', label: 'Not started' },
-  { value: 'IN_PROGRESS', label: 'In progress' },
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'PENDING_REVIEW', label: 'Pending (Legacy)' },
-  { value: 'PENDING_HR_REVIEW', label: 'Pending HR' },
-  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Admin' },
-  { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Ack' },
-  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-  { value: 'COMPLETED', label: 'Completed' },
-]
-
-const REVIEW_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  REVIEW_TYPE_OPTIONS.map((o) => [o.value, o.label])
-)
-
-const STATUS_LABELS: Record<string, string> = Object.fromEntries(
-  STATUS_OPTIONS.map((o) => [o.value, o.label])
-)
+const REVIEW_STATUS_FILTER_OPTIONS: FilterOption[] = REVIEW_STATUS_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
 function DeadlineBadge({ review }: { review: PerformanceReview }) {
   const deadline = review.deadline ?? (review as { quarterlyCycle?: { deadline?: string } }).quarterlyCycle?.deadline
@@ -164,11 +154,15 @@ export default function PerformanceReviewsPage() {
         header: 'Type',
         meta: {
           filterKey: 'reviewType',
-          filterOptions: REVIEW_TYPE_OPTIONS,
+          filterOptions: REVIEW_TYPE_FILTER_OPTIONS,
         },
         cell: ({ getValue }) => {
           const type = getValue<string>()
-          return <span className="text-muted-foreground">{REVIEW_TYPE_LABELS[type] ?? type}</span>
+          return (
+            <span className="text-muted-foreground">
+              {REVIEW_TYPE_LABELS[type as keyof typeof REVIEW_TYPE_LABELS] ?? type}
+            </span>
+          )
         },
         enableSorting: true,
       },
@@ -199,11 +193,15 @@ export default function PerformanceReviewsPage() {
         header: 'Status',
         meta: {
           filterKey: 'status',
-          filterOptions: STATUS_OPTIONS,
+          filterOptions: REVIEW_STATUS_FILTER_OPTIONS,
         },
         cell: ({ getValue }) => {
           const status = getValue<string>()
-          return <StatusBadge status={STATUS_LABELS[status] ?? status} />
+          return (
+            <StatusBadge
+              status={REVIEW_STATUS_LABELS[status as keyof typeof REVIEW_STATUS_LABELS] ?? status}
+            />
+          )
         },
         enableSorting: true,
       },

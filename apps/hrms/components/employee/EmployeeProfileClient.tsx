@@ -34,7 +34,7 @@ import { Card } from '@/components/ui/card'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { TabButton } from '@/components/ui/TabButton'
 import { SelectField } from '@/components/ui/FormField'
-import { employmentTypeLabels } from '@/lib/constants'
+import { EMPLOYMENT_TYPE_LABELS } from '@/lib/domain/employee/constants'
 
 const visibilityOptions = [
   { value: 'HR_ONLY', label: 'HR only' },
@@ -121,16 +121,16 @@ function getLeaveStatusConfig(status: string): {
   }
 }
 
-function getLeaveTypeLabel(type: string): { label: string; icon: string } {
-  const config: Record<string, { label: string; icon: string }> = {
-    PTO: { label: 'PTO', icon: '🌴' },
-    PARENTAL: { label: 'Parental Leave', icon: '👶' },
-    BEREAVEMENT_IMMEDIATE: { label: 'Bereavement', icon: '🕊️' },
-    BEREAVEMENT_EXTENDED: { label: 'Extended Bereavement', icon: '🕊️' },
-    JURY_DUTY: { label: 'Jury Duty', icon: '⚖️' },
-    UNPAID: { label: 'Unpaid Leave', icon: '📋' },
+function getLeaveTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    PTO: 'PTO',
+    PARENTAL: 'Parental Leave',
+    BEREAVEMENT_IMMEDIATE: 'Bereavement',
+    BEREAVEMENT_EXTENDED: 'Extended Bereavement',
+    JURY_DUTY: 'Jury Duty',
+    UNPAID: 'Unpaid Leave',
   }
-  return config[type] || { label: type.replace(/_/g, ' ').toLowerCase(), icon: '📅' }
+  return labels[type] || type.replace(/_/g, ' ').toLowerCase()
 }
 
 function formatBytes(size: number | null | undefined): string {
@@ -492,7 +492,11 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                 <InfoRow icon={EnvelopeIcon} label="Email" value={employee.email} />
                 <InfoRow icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
                 <InfoRow icon={BuildingIcon} label="Department" value={employee.department || '—'} />
-                <InfoRow icon={UsersIcon} label="Employment type" value={employmentTypeLabels[employee.employmentType] || employee.employmentType} />
+                <InfoRow
+                  icon={UsersIcon}
+                  label="Employment type"
+                  value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
+                />
                 <InfoRow icon={CalendarIcon} label="Join date" value={formatDate(employee.joinDate)} />
                 <InfoRow icon={UsersIcon} label="Employee ID" value={employee.employeeId} />
               </div>
@@ -541,12 +545,12 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FieldRow label="Department" value={employee.department || '—'} fieldKey="department" permissions={permissions} />
               <FieldRow label="Role / title" value={employee.position} fieldKey="position" permissions={permissions} />
-              <FieldRow
-                label="Employment type"
-                value={employmentTypeLabels[employee.employmentType] || employee.employmentType}
-                fieldKey="employmentType"
-                permissions={permissions}
-              />
+                <FieldRow
+                  label="Employment type"
+                  value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
+                  fieldKey="employmentType"
+                  permissions={permissions}
+                />
               <FieldRow label="Join date" value={formatDate(employee.joinDate)} fieldKey="joinDate" permissions={permissions} />
               <FieldRow label="Status" value={employee.status} fieldKey="status" permissions={permissions} />
               <FieldRow
@@ -781,9 +785,8 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-lg">{leaveTypeLabel.icon}</span>
-                                <span className="font-semibold text-foreground capitalize">
-                                  {leaveTypeLabel.label}
+                                <span className="font-semibold text-foreground">
+                                  {leaveTypeLabel}
                                 </span>
                                 <span className={`
                                   inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider

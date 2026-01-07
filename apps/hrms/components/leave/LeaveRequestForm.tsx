@@ -6,39 +6,10 @@ import { z } from 'zod'
 import { LeavesApi } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { SelectField } from '@/components/ui/FormField'
-import { cn } from '@/lib/utils'
+import { FormField, SelectField, TextareaField } from '@/components/ui/FormField'
 import { CreateLeaveRequestSchema } from '@/lib/validations'
-
-// Simplified leave types for small team
-const LEAVE_TYPES = [
-  { value: 'PTO', label: 'PTO (Paid Time Off)' },
-  { value: 'PARENTAL', label: 'Parental Leave' },
-  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement' },
-  { value: 'UNPAID', label: 'Unpaid Leave' },
-]
-
-function calculateBusinessDays(startDate: string, endDate: string): number {
-  if (!startDate || !endDate) return 0
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0
-  if (start > end) return 0
-
-  let count = 0
-  const current = new Date(start)
-  while (current <= end) {
-    const day = current.getDay()
-    if (day !== 0 && day !== 6) {
-      count++
-    }
-    current.setDate(current.getDate() + 1)
-  }
-  return count
-}
+import { LEAVE_TYPE_OPTIONS } from '@/lib/domain/leave/constants'
+import { calculateBusinessDaysUtcFromDateOnly } from '@/lib/domain/leave/dates'
 
 type FormData = z.infer<typeof CreateLeaveRequestSchema>
 
@@ -67,7 +38,7 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
 
   const startDate = watch('startDate')
   const endDate = watch('endDate')
-  const totalDays = calculateBusinessDays(startDate, endDate)
+  const totalDays = calculateBusinessDaysUtcFromDateOnly(startDate, endDate)
 
   const onSubmit = async (data: FormData) => {
     if (totalDays <= 0) {
@@ -96,30 +67,27 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
 
       <SelectField
         label="Leave Type"
-        options={LEAVE_TYPES}
+        options={[...LEAVE_TYPE_OPTIONS]}
+        required
+        error={errors.leaveType?.message}
         {...register('leaveType')}
       />
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="startDate">Start Date</Label>
-          <Input
-            {...register('startDate')}
-            type="date"
-            className={cn(errors.startDate && 'border-destructive')}
-          />
-          {errors.startDate && <p className="text-xs text-destructive">{errors.startDate.message}</p>}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="endDate">End Date</Label>
-          <Input
-            {...register('endDate')}
-            type="date"
-            min={startDate}
-            className={cn(errors.endDate && 'border-destructive')}
-          />
-          {errors.endDate && <p className="text-xs text-destructive">{errors.endDate.message}</p>}
-        </div>
+        <FormField
+          label="Start Date"
+          type="date"
+          required
+          error={errors.startDate?.message}
+          {...register('startDate')}
+        />
+        <FormField
+          label="End Date"
+          type="date"
+          required
+          error={errors.endDate?.message}
+          {...register('endDate')}
+        />
       </div>
 
       {totalDays > 0 && (
@@ -128,15 +96,13 @@ export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveReque
         </div>
       )}
 
-      <div className="space-y-2">
-        <Label htmlFor="reason">Reason (optional)</Label>
-        <Textarea
-          {...register('reason')}
-          rows={3}
-          className="resize-none"
-          placeholder="Briefly describe the reason for your leave..."
-        />
-      </div>
+      <TextareaField
+        label="Reason (optional)"
+        rows={3}
+        resizable={false}
+        placeholder="Briefly describe the reason for your leave..."
+        {...register('reason')}
+      />
 
       <div className="flex gap-3 justify-end pt-4">
         {onCancel && (
