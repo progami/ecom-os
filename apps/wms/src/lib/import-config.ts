@@ -348,7 +348,6 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
         excelColumns: ['Batch/Lot', 'batch_lot', 'Shipment', 'Batch'], // Matches export name first
         type: 'string',
         required: true,
-        defaultValue: 'DEFAULT',
       },
       {
         dbField: 'referenceId',

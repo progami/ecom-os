@@ -88,12 +88,9 @@ export function AmazonImportTab({
     })
   }, [shipments, searchTerm])
 
-  const getDefaultBatch = (sku?: SkuOption | null) => {
+  const getPreferredBatch = (sku?: SkuOption | null) => {
     if (!sku?.batches?.length) return null
-    const defaultBatch = sku.batches.find(
-      batch => typeof batch.batchCode === 'string' && batch.batchCode.toUpperCase() === 'DEFAULT'
-    )
-    return defaultBatch ?? sku.batches[0]
+    return sku.batches[0]
   }
 
   const handleImport = async (shipmentId: string) => {
@@ -201,8 +198,8 @@ export function AmazonImportTab({
           continue
         }
 
-        const defaultBatch = getDefaultBatch(sku)
-        const batchLot = defaultBatch?.batchCode ?? ''
+        const preferredBatch = getPreferredBatch(sku)
+        const batchLot = preferredBatch?.batchCode ?? ''
         if (!batchLot) {
           missingBatches.add(sku.skuCode)
         }
@@ -211,7 +208,7 @@ export function AmazonImportTab({
         if (!Number.isFinite(quantityUnits) || quantityUnits <= 0) continue
 
         const fallbackUnitsPerCarton =
-          defaultBatch?.unitsPerCarton ?? sku.unitsPerCarton ?? null
+          preferredBatch?.unitsPerCarton ?? sku.unitsPerCarton ?? null
         const unitsPerCarton =
           item.quantityInCase && item.quantityInCase > 0
             ? item.quantityInCase

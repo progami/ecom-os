@@ -9,7 +9,7 @@ import { Prisma } from '@ecom-os/prisma-wms'
 const CreateLineSchema = z.object({
   skuCode: z.string().trim().min(1),
   skuDescription: z.string().optional(),
-  batchLot: z.string().trim().min(1).optional(),
+  batchLot: z.string().trim().min(1),
   quantity: z.number().int().positive(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -89,9 +89,11 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     )
   }
 
-  const DEFAULT_BATCH_LOT = 'DEFAULT'
   const skuCode = result.data.skuCode.trim()
-  const batchLot = (result.data.batchLot?.trim() || DEFAULT_BATCH_LOT).toUpperCase()
+  const batchLot = result.data.batchLot.trim().toUpperCase()
+  if (batchLot === 'DEFAULT') {
+    return ApiResponses.badRequest('Batch / lot is required')
+  }
 
   const sku = await prisma.sku.findFirst({
     where: { skuCode },
@@ -120,51 +122,18 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     return ApiResponses.badRequest(`SKU ${skuCode} not found. Create the SKU first.`)
   }
 
-  await prisma.skuBatch.upsert({
+  const existingBatch = await prisma.skuBatch.findFirst({
     where: {
-      skuId_batchCode: {
-        skuId: sku.id,
-        batchCode: DEFAULT_BATCH_LOT,
-      },
+      skuId: sku.id,
+      batchCode: { equals: batchLot, mode: 'insensitive' },
     },
-    create: {
-      sku: { connect: { id: sku.id } },
-      batchCode: DEFAULT_BATCH_LOT,
-      packSize: sku.packSize,
-      unitsPerCarton: sku.unitsPerCarton,
-      material: sku.material,
-      unitDimensionsCm: sku.unitDimensionsCm,
-      unitLengthCm: sku.unitLengthCm,
-      unitWidthCm: sku.unitWidthCm,
-      unitHeightCm: sku.unitHeightCm,
-      unitWeightKg: sku.unitWeightKg,
-      cartonDimensionsCm: sku.cartonDimensionsCm,
-      cartonLengthCm: sku.cartonLengthCm,
-      cartonWidthCm: sku.cartonWidthCm,
-      cartonHeightCm: sku.cartonHeightCm,
-      cartonWeightKg: sku.cartonWeightKg,
-      packagingType: sku.packagingType,
-      isActive: true,
-    },
-    update: { isActive: true },
+    select: { id: true, batchCode: true },
   })
 
-  if (batchLot !== DEFAULT_BATCH_LOT) {
-    const existingBatch = await prisma.skuBatch.findUnique({
-      where: {
-        skuId_batchCode: {
-          skuId: sku.id,
-          batchCode: batchLot,
-        },
-      },
-      select: { id: true },
-    })
-
-    if (!existingBatch) {
-      return ApiResponses.badRequest(
-        `Batch ${batchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
-      )
-    }
+  if (!existingBatch) {
+    return ApiResponses.badRequest(
+      `Batch ${batchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
+    )
   }
 
   let line
@@ -174,7 +143,7 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
         purchaseOrder: { connect: { id: order.id } },
         skuCode: sku.skuCode,
         skuDescription: result.data.skuDescription ?? sku.description ?? '',
-        batchLot,
+        batchLot: existingBatch.batchCode,
         quantity: result.data.quantity,
         unitCost: result.data.unitCost,
         currency: result.data.currency || tenant.currency,
