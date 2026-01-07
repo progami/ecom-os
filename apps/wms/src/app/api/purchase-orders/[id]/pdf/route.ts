@@ -202,25 +202,25 @@ async function renderPurchaseOrderPdf(params: {
   doc.text('ORDER ITEMS', margin, y)
   y += 20
 
-  // Column definitions
+  // Column definitions - adjusted for better text fit
   const cols = {
-    sku: { x: margin, width: 70 },
-    description: { x: margin + 70, width: 180 },
-    batch: { x: margin + 250, width: 70 },
-    qty: { x: margin + 320, width: 50 },
-    unit: { x: margin + 370, width: 65 },
-    total: { x: margin + 435, width: 60 },
+    sku: { x: margin, width: 65 },
+    description: { x: margin + 65, width: 165 },
+    batch: { x: margin + 230, width: 65 },
+    qty: { x: margin + 295, width: 55 },
+    unit: { x: margin + 350, width: 75 },
+    total: { x: margin + 425, width: 70 },
   }
 
   // Table header row
   doc.rect(margin, y, contentWidth, 28).fill(COLORS.primary)
   doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
-  doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 8 })
-  doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 8 })
-  doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 8 })
-  doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width, align: 'right' })
-  doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width, align: 'right' })
-  doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width, align: 'right' })
+  doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 12 })
+  doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 12 })
+  doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 12 })
+  doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width - 8, align: 'right' })
+  doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
+  doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width - 8, align: 'right' })
 
   y += 28
 
@@ -246,22 +246,31 @@ async function renderPurchaseOrderPdf(params: {
       doc.rect(margin, rowY, contentWidth, rowHeight).fill(COLORS.lightGray)
     }
 
-    // Row content
+    // Row content - vertically centered text
+    const textY = rowY + 11
+
     doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
-    doc.text(line.skuCode, cols.sku.x + 8, rowY + 10, { width: cols.sku.width - 8 })
-    doc.text(line.skuDescription ?? '—', cols.description.x + 8, rowY + 6, {
-      width: cols.description.width - 8,
-      height: rowHeight - 8,
+    doc.text(line.skuCode, cols.sku.x + 8, textY, { width: cols.sku.width - 12, lineBreak: false })
+
+    // Description with ellipsis for long text
+    doc.text(line.skuDescription ?? '—', cols.description.x + 8, textY, {
+      width: cols.description.width - 12,
+      lineBreak: false,
       ellipsis: true,
     })
-    doc.text(line.batchLot ?? '—', cols.batch.x + 8, rowY + 10, { width: cols.batch.width - 8 })
+
+    doc.text(line.batchLot ?? '—', cols.batch.x + 8, textY, { width: cols.batch.width - 12, lineBreak: false })
+
+    // Numeric columns - right aligned with padding
     doc.font('Helvetica-Bold')
-    doc.text(line.quantity.toLocaleString(), cols.qty.x, rowY + 10, { width: cols.qty.width, align: 'right' })
-    doc.font('Helvetica')
-    doc.text(`${currency} ${formatMoney(unitCost)}`, cols.unit.x, rowY + 10, { width: cols.unit.width, align: 'right' })
-    doc.font('Helvetica-Bold')
-    doc.text(lineTotal !== null ? `${currency} ${formatMoney(lineTotal)}` : '—', cols.total.x, rowY + 10, {
-      width: cols.total.width,
+    doc.text(line.quantity.toLocaleString(), cols.qty.x, textY, { width: cols.qty.width - 8, align: 'right' })
+
+    doc.font('Helvetica').fontSize(9)
+    doc.text(`${currency} ${formatMoney(unitCost)}`, cols.unit.x, textY, { width: cols.unit.width - 8, align: 'right' })
+
+    doc.font('Helvetica-Bold').fontSize(9)
+    doc.text(lineTotal !== null ? `${currency} ${formatMoney(lineTotal)}` : '—', cols.total.x, textY, {
+      width: cols.total.width - 8,
       align: 'right',
     })
 
@@ -277,12 +286,12 @@ async function renderPurchaseOrderPdf(params: {
       // Redraw table header on new page
       doc.rect(margin, y, contentWidth, 28).fill(COLORS.primary)
       doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
-      doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 8 })
-      doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 8 })
-      doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 8 })
-      doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width, align: 'right' })
-      doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width, align: 'right' })
-      doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width, align: 'right' })
+      doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 12 })
+      doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 12 })
+      doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 12 })
+      doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width - 8, align: 'right' })
+      doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
+      doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width - 8, align: 'right' })
       y += 28
     }
 
@@ -296,31 +305,36 @@ async function renderPurchaseOrderPdf(params: {
 
   y += 15
 
-  // Totals box
-  const totalsBoxWidth = 200
+  // Totals box - calculate dynamic height based on currency count
+  const totalsBoxWidth = 220
   const totalsBoxX = pageWidth - margin - totalsBoxWidth
+  const currencyCount = totalsByCurrency.size
+  const totalsBoxHeight = 24 + Math.max(1, currencyCount) * 20
 
-  doc.rect(totalsBoxX, y, totalsBoxWidth, 60).fill(COLORS.lightGray)
-  doc.rect(totalsBoxX, y, totalsBoxWidth, 60).stroke(COLORS.mediumGray)
+  doc.rect(totalsBoxX, y, totalsBoxWidth, totalsBoxHeight).fill(COLORS.lightGray)
+  doc.rect(totalsBoxX, y, totalsBoxWidth, totalsBoxHeight).strokeColor(COLORS.mediumGray).lineWidth(1).stroke()
+
+  // Total quantity row
+  const labelX = totalsBoxX + 15
+  const valueX = totalsBoxX + 100
+  const valueWidth = totalsBoxWidth - 115
 
   doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
-  doc.text('Total Quantity:', totalsBoxX + 15, y + 12)
-  doc.fillColor(COLORS.text).font('Helvetica-Bold')
-  doc.text(totalQuantity.toLocaleString(), totalsBoxX + totalsBoxWidth - 15, y + 12, {
-    width: 80,
-    align: 'right',
-  })
+  doc.text('Total Quantity:', labelX, y + 10, { width: 80 })
+  doc.fillColor(COLORS.text).font('Helvetica-Bold').fontSize(9)
+  doc.text(totalQuantity.toLocaleString(), valueX, y + 10, { width: valueWidth, align: 'right' })
 
+  // Currency totals
   let totalsY = y + 28
   for (const [currency, totals] of totalsByCurrency.entries()) {
-    doc.fillColor(COLORS.darkGray).font('Helvetica')
-    doc.text(`Total (${currency}):`, totalsBoxX + 15, totalsY)
-    doc.fillColor(COLORS.primary).font('Helvetica-Bold').fontSize(11)
-    doc.text(totals.total.toFixed(2), totalsBoxX + totalsBoxWidth - 15, totalsY, {
-      width: 80,
+    doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
+    doc.text(`Total (${currency}):`, labelX, totalsY, { width: 80 })
+    doc.fillColor(COLORS.primary).font('Helvetica-Bold').fontSize(10)
+    doc.text(totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), valueX, totalsY, {
+      width: valueWidth,
       align: 'right',
     })
-    totalsY += 16
+    totalsY += 18
   }
 
   // ============================================
