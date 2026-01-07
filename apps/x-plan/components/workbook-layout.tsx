@@ -389,7 +389,8 @@ export function WorkbookLayout({
                     onSheetSelect={goToSheet}
                   />
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex shrink-0 items-center gap-4">
+                  {/* X-Plan branding */}
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md dark:bg-[#00c2b9] dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
                       <span className="text-lg font-bold text-white dark:text-[#002430]">X</span>
@@ -403,6 +404,11 @@ export function WorkbookLayout({
                       </h1>
                     </div>
                   </div>
+
+                  {/* Active strategy indicator */}
+                  {ribbon}
+
+                  {/* Loading state */}
                   {isPending && (
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
@@ -411,8 +417,9 @@ export function WorkbookLayout({
                       </span>
                     </div>
                   )}
+
+                  {/* Theme toggle */}
                   <ThemeToggle />
-                  {ribbon}
                 </div>
               </div>
 
