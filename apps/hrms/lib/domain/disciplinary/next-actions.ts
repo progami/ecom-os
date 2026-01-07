@@ -37,7 +37,7 @@ export function buildDisciplinaryNextActions(
         variant: 'primary',
         disabled: false,
       }
-      actions.secondary = [{ id: 'disciplinary.hrReject', label: 'Reject', variant: 'danger', disabled: false }]
+      actions.secondary = [{ id: 'disciplinary.hrReject', label: 'Request changes', variant: 'secondary', disabled: false }]
       return actions
     }
 
@@ -59,7 +59,7 @@ export function buildDisciplinaryNextActions(
         variant: 'primary',
         disabled: false,
       }
-      actions.secondary = [{ id: 'disciplinary.superAdminReject', label: 'Reject', variant: 'danger', disabled: false }]
+      actions.secondary = [{ id: 'disciplinary.superAdminReject', label: 'Request changes', variant: 'secondary', disabled: false }]
       return actions
     }
 
@@ -84,7 +84,14 @@ export function buildDisciplinaryNextActions(
         variant: 'primary',
         disabled: false,
       }
-      actions.secondary = [{ id: 'disciplinary.appeal', label: 'Appeal', variant: 'secondary', disabled: false }]
+      actions.secondary = [
+        {
+          id: 'disciplinary.appeal',
+          label: action.appealResolvedAt ? 'Appeal again' : 'Appeal',
+          variant: 'secondary',
+          disabled: false,
+        },
+      ]
       return actions
     }
 
@@ -116,6 +123,16 @@ export function buildDisciplinaryNextActions(
 
   if (action.status === 'APPEAL_PENDING_HR') {
     // Simplified: HR makes final appeal decision (no super admin stage)
+    if (isEmployee) {
+      actions.primary = {
+        id: 'disciplinary.appeal',
+        label: 'Update appeal',
+        variant: 'secondary',
+        disabled: false,
+      }
+      return actions
+    }
+
     if (viewer.isHR || viewer.isSuperAdmin) {
       actions.primary = {
         id: 'disciplinary.appeal.hrDecide',
