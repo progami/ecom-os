@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import {
+  DISCIPLINARY_ACTION_TYPE_VALUES,
+  DISCIPLINARY_STATUS_VALUES,
+  VALUE_BREACH_VALUES,
+  VIOLATION_REASON_VALUES,
+  VIOLATION_TYPE_VALUES,
+} from '@/lib/domain/disciplinary/constants'
 
 // Shared constants
 export const MAX_PAGINATION_LIMIT = 100
@@ -251,36 +258,15 @@ export const UpdatePerformanceReviewSchema = z.object({
 })
 
 // ============ DISCIPLINARY ACTION SCHEMAS ============
-// Simplified for small team (15-20 people)
-export const ViolationTypeEnum = z.enum([
-  'ATTENDANCE', 'CONDUCT', 'PERFORMANCE', 'POLICY_VIOLATION', 'OTHER'
-])
+export const ViolationTypeEnum = z.enum(VIOLATION_TYPE_VALUES)
 
-// Simplified violation reasons mapped to violation types
-export const ViolationReasonEnum = z.enum([
-  // ATTENDANCE
-  'EXCESSIVE_ABSENCES', 'TARDINESS', 'NO_CALL_NO_SHOW',
-  // CONDUCT
-  'UNPROFESSIONAL_BEHAVIOR', 'INAPPROPRIATE_LANGUAGE',
-  // PERFORMANCE
-  'POOR_QUALITY_WORK', 'MISSED_DEADLINES', 'NEGLIGENCE',
-  // POLICY_VIOLATION
-  'CONFIDENTIALITY_BREACH', 'IT_POLICY_VIOLATION',
-  // OTHER
-  'OTHER'
-])
+export const ViolationReasonEnum = z.enum(VIOLATION_REASON_VALUES)
 
 export const ViolationSeverityEnum = z.enum(['MINOR', 'MODERATE', 'MAJOR', 'CRITICAL'])
 
-// Simplified disciplinary actions
-export const DisciplinaryActionTypeEnum = z.enum([
-  'VERBAL_WARNING', 'WRITTEN_WARNING', 'FINAL_WARNING', 'SUSPENSION', 'TERMINATION'
-])
+export const DisciplinaryActionTypeEnum = z.enum(DISCIPLINARY_ACTION_TYPE_VALUES)
 
-// Simplified statuses
-export const DisciplinaryStatusEnum = z.enum([
-  'OPEN', 'ACTION_TAKEN', 'CLOSED'
-])
+export const DisciplinaryStatusEnum = z.enum(DISCIPLINARY_STATUS_VALUES)
 
 export const AppealStatusEnum = z.enum([
   'PENDING', 'UPHELD', 'OVERTURNED', 'MODIFIED'
@@ -298,19 +284,14 @@ export const ResolveAppealSchema = z.object({
 })
 
 // Core Values breach mapping
-export const ValueBreachEnum = z.enum([
-  'BREACH_OF_DETAIL',     // Recurring mistakes, sloppy work - Training issue
-  'BREACH_OF_HONESTY',    // Lying, falsifying records - Character issue
-  'BREACH_OF_INTEGRITY',  // Theft, harassment, toxic behavior - Zero tolerance
-  'BREACH_OF_COURAGE',    // Avoiding difficult tasks, hiding bad news - Coaching issue
-])
+export const ValueBreachEnum = z.enum(VALUE_BREACH_VALUES)
 
 export const CreateDisciplinaryActionSchema = z.object({
   employeeId: z.string().min(1).max(100),
   violationType: ViolationTypeEnum,
   violationReason: ViolationReasonEnum,
   // Core Values Breached - can select multiple
-  valuesBreached: z.array(ValueBreachEnum).min(1, 'At least one value must be selected'),
+  valuesBreached: z.array(ValueBreachEnum).default([]),
   severity: ViolationSeverityEnum,
   incidentDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }),
   reportedBy: z.string().min(1).max(100).trim(),
