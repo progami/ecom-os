@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   ChevronRight,
   Download,
   ExternalLink,
@@ -22,6 +23,7 @@ import {
   FileEdit,
   FileText,
   History,
+  Info,
   Loader2,
   MoreHorizontal,
   Package2,
@@ -560,8 +562,14 @@ export default function PurchaseOrderDetailPage() {
   const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
 
   // Bottom section tabs
-  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'documents' | 'history'>('cargo')
+  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'documents' | 'details' | 'history'>('cargo')
   const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
+
+  // Collapsible sections state for Documents tab
+  const [collapsedDocSections, setCollapsedDocSections] = useState<Record<string, boolean>>({})
+
+  // Collapsible sections state for Details tab
+  const [collapsedDetailSections, setCollapsedDetailSections] = useState<Record<string, boolean>>({})
 
   // Actions dropdown open state
   const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false)
@@ -2128,6 +2136,21 @@ export default function PurchaseOrderDetailPage() {
             </button>
             <button
               type="button"
+              onClick={() => setActiveBottomTab('details')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'details'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Info className="h-4 w-4" />
+              Details
+              {activeBottomTab === 'details' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setActiveBottomTab('history')
                 void refreshAuditLogs()
@@ -2401,10 +2424,16 @@ export default function PurchaseOrderDetailPage() {
 
                   const meta = DOCUMENT_STAGE_META[stage]
                   const StageIcon = meta.icon
+                  // Default: expanded if has documents, collapsed if empty
+                  const isCollapsed = collapsedDocSections[stage] ?? (stageDocs.length === 0)
 
                   return (
-                    <div key={stage} className="rounded-xl border bg-white shadow-sm">
-                      <div className="flex items-center justify-between border-b px-4 py-3">
+                    <div key={stage} className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDocSections(prev => ({ ...prev, [stage]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
                         <div className="flex items-center gap-3">
                           <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
                             <StageIcon className="h-4 w-4" />
@@ -2418,9 +2447,10 @@ export default function PurchaseOrderDetailPage() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
 
-                      <div className="divide-y">
+                      <div className={`divide-y border-t transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
                         {rows.map(row => {
                           const key = `${stage}::${row.documentType}`
                           const existing = row.doc
@@ -2508,6 +2538,346 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          )}
+
+          {activeBottomTab === 'details' && (
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">Order Details</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Consolidated view of all essential information across stages.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {/* Order Info Section */}
+                {(() => {
+                  const sectionKey = 'order-info'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                  return (
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                            <FileEdit className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Order Info</p>
+                            <p className="text-xs text-muted-foreground">Basic order details</p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PO Number</p>
+                            <p className="text-sm font-medium text-slate-900">{order.poNumber || order.orderNumber}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</p>
+                            <p className="text-sm font-medium text-slate-900">{order.counterpartyName || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Destination</p>
+                            <p className="text-sm font-medium text-slate-900">{tenantDestination || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cargo Ready Date</p>
+                            <p className="text-sm font-medium text-slate-900">{order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Incoterms</p>
+                            <p className="text-sm font-medium text-slate-900">{order.incoterms || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</p>
+                            <p className="text-sm font-medium text-slate-900">{order.paymentTerms || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(order.createdAt) || '—'}
+                              {order.createdByName ? ` by ${order.createdByName}` : ''}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
+                            <Badge className={statusBadgeClasses(order.status)}>{formatStatusLabel(order.status)}</Badge>
+                          </div>
+                        </div>
+                        {order.notes && (
+                          <div className="mt-4 pt-3 border-t">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+                            <p className="text-sm text-slate-700">{order.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Manufacturing Section */}
+                {(() => {
+                  const mfg = order.stageData.manufacturing
+                  const hasData = mfg?.proformaInvoiceNumber || mfg?.factoryName || mfg?.manufacturingStartDate || mfg?.totalCartons || mfg?.totalWeightKg
+                  if (!hasData) return null
+                  const sectionKey = 'manufacturing'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                  return (
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-amber-50 text-amber-700">
+                            <Factory className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Manufacturing</p>
+                            <p className="text-xs text-muted-foreground">Production details</p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proforma Invoice</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.proformaInvoiceNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Factory</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.factoryName || order.counterpartyName || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.manufacturingStartDate || mfg?.manufacturingStart) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.expectedCompletionDate) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cartons</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalCartons?.toLocaleString() || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pallets</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalPallets?.toLocaleString() || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight (kg)</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalWeightKg?.toLocaleString() || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Volume (CBM)</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalVolumeCbm?.toLocaleString() || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* In Transit Section */}
+                {(() => {
+                  const ocean = order.stageData.ocean
+                  const hasData = ocean?.houseBillOfLading || ocean?.masterBillOfLading || ocean?.vesselName || ocean?.portOfLoading || ocean?.estimatedDeparture
+                  if (!hasData) return null
+                  const sectionKey = 'ocean'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                  return (
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-blue-50 text-blue-700">
+                            <Ship className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">In Transit</p>
+                            <p className="text-xs text-muted-foreground">Shipping & logistics</p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">House B/L</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.houseBillOfLading || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Master B/L</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.masterBillOfLading || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vessel</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.vesselName || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Voyage</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.voyageNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Loading</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.portOfLoading || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Discharge</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.portOfDischarge || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETD</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedDeparture) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETA</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedArrival) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commercial Invoice</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.commercialInvoiceNumber || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Warehouse Section */}
+                {(() => {
+                  const wh = order.stageData.warehouse
+                  const hasData = wh?.warehouseName || wh?.warehouseCode || wh?.customsEntryNumber || wh?.customsClearedDate || wh?.receivedDate
+                  if (!hasData) return null
+                  const sectionKey = 'warehouse'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                  return (
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-purple-50 text-purple-700">
+                            <Warehouse className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Warehouse</p>
+                            <p className="text-xs text-muted-foreground">Receiving & customs</p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warehouse</p>
+                            <p className="text-sm font-medium text-slate-900">{wh?.warehouseName || wh?.warehouseCode || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Entry</p>
+                            <p className="text-sm font-medium text-slate-900">{wh?.customsEntryNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Cleared</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.customsClearedDate) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duty Amount</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {wh?.dutyAmount != null ? `${wh.dutyAmount.toLocaleString()} ${wh.dutyCurrency || ''}` : '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Received Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.receivedDate) || '—'}</p>
+                          </div>
+                        </div>
+                        {wh?.discrepancyNotes && (
+                          <div className="mt-4 pt-3 border-t">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Discrepancy Notes</p>
+                            <p className="text-sm text-slate-700">{wh.discrepancyNotes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Shipped Section */}
+                {(() => {
+                  const shipped = order.stageData.shipped
+                  const hasData = shipped?.shipToName || shipped?.shippingCarrier || shipped?.trackingNumber || shipped?.shippedDate
+                  if (!hasData) return null
+                  const sectionKey = 'shipped'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                  return (
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700">
+                            <Package2 className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Shipped</p>
+                            <p className="text-xs text-muted-foreground">Delivery details</p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1 col-span-2">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ship To</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {[shipped?.shipToName, shipped?.shipToAddress, shipped?.shipToCity, shipped?.shipToCountry].filter(Boolean).join(', ') || '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Carrier</p>
+                            <p className="text-sm font-medium text-slate-900">{shipped?.shippingCarrier || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Method</p>
+                            <p className="text-sm font-medium text-slate-900">{shipped?.shippingMethod || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tracking</p>
+                            <p className="text-sm font-medium text-slate-900">{shipped?.trackingNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Shipped Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(shipped?.shippedDate || shipped?.shippedAt) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivered Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(shipped?.deliveredDate) || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )}

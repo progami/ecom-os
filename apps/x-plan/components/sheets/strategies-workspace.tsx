@@ -8,7 +8,6 @@ import {
   X,
   Pencil,
   Trash2,
-  CheckCircle2,
   ArrowRightLeft,
   ChevronRight,
   Sparkles,
@@ -496,9 +495,6 @@ export function StrategiesWorkspace({
                           </div>
                         ) : (
                           <div className="flex items-center gap-2.5">
-                            {isActive ? (
-                              <CheckCircle2 className="h-5 w-5 shrink-0 text-cyan-600 dark:text-[#00C2B9]" />
-                            ) : null}
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span
