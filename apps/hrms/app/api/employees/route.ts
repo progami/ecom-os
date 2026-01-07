@@ -88,7 +88,7 @@ export async function GET(req: Request) {
         where,
         take: Math.min(take, MAX_PAGINATION_LIMIT),
         skip,
-        orderBy: { employeeNumber: 'asc' },
+        orderBy: { employeeId: 'asc' },
         select: {
           id: true,
           employeeId: true,

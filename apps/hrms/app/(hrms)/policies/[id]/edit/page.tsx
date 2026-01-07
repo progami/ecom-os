@@ -11,33 +11,9 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { NativeSelect } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+import { FormActions, FormField, FormSection, SelectField, TextareaField } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-
-const categoryOptions = [
-  { value: 'LEAVE', label: 'Leave' },
-  { value: 'PERFORMANCE', label: 'Performance' },
-  { value: 'CONDUCT', label: 'Conduct' },
-  { value: 'SECURITY', label: 'Security' },
-  { value: 'COMPENSATION', label: 'Compensation' },
-  { value: 'OTHER', label: 'Other' },
-]
-
-const regionOptions = [
-  { value: 'ALL', label: 'All Regions' },
-  { value: 'KANSAS_US', label: 'US (Kansas)' },
-  { value: 'PAKISTAN', label: 'Pakistan' },
-]
-
-const statusOptions = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'ARCHIVED', label: 'Archived' },
-]
+import { POLICY_CATEGORY_OPTIONS, POLICY_REGION_OPTIONS, POLICY_STATUS_OPTIONS } from '@/lib/domain/policy/constants'
 
 function getNextVersions(current: string): { minor: string; major: string } {
   const match = current.match(/^(\d+)\.(\d+)$/)
@@ -188,112 +164,103 @@ export default function EditPolicyPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* Basic Info */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Policy Information</h3>
-              </div>
+            <FormSection title="Policy Information">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2 space-y-2">
-                  <Label htmlFor="title">Policy Title <span className="text-destructive">*</span></Label>
-                  <Input
+                <div className="sm:col-span-2">
+                  <FormField
+                    label="Policy Title"
+                    required
+                    error={errors.title?.message}
                     {...register('title')}
-                    className={cn(errors.title && 'border-destructive')}
                   />
-                  {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category <span className="text-destructive">*</span></Label>
-                  <NativeSelect {...register('category')} className={cn(errors.category && 'border-destructive')}>
-                    {categoryOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="region">Region <span className="text-destructive">*</span></Label>
-                  <NativeSelect {...register('region')} className={cn(errors.region && 'border-destructive')}>
-                    {regionOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
-                  <NativeSelect {...register('status')} className={cn(errors.status && 'border-destructive')}>
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </NativeSelect>
-                </div>
-                <div className="space-y-2">
-                  <Label>Current Version</Label>
+
+                <SelectField
+                  label="Category"
+                  required
+                  options={[...POLICY_CATEGORY_OPTIONS]}
+                  error={errors.category?.message}
+                  {...register('category')}
+                />
+
+                <SelectField
+                  label="Region"
+                  required
+                  options={[...POLICY_REGION_OPTIONS]}
+                  error={errors.region?.message}
+                  {...register('region')}
+                />
+
+                <SelectField
+                  label="Status"
+                  required
+                  options={[...POLICY_STATUS_OPTIONS]}
+                  error={errors.status?.message}
+                  {...register('status')}
+                />
+
+                <FormField label="Current Version" name="currentVersion">
                   <div className="px-3 py-2 bg-muted border border-border rounded-lg text-sm text-muted-foreground">
                     v{policy.version}
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="newVersion">New Version <span className="text-destructive">*</span></Label>
-                  <NativeSelect {...register('newVersion')} className={cn(errors.newVersion && 'border-destructive')}>
-                    <option value="">Select new version...</option>
-                    <option value={versions.minor}>v{versions.minor} (Minor update)</option>
-                    <option value={versions.major}>v{versions.major} (Major update)</option>
-                  </NativeSelect>
-                  {errors.newVersion && <p className="text-xs text-destructive">{errors.newVersion.message}</p>}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="effectiveDate">Effective Date</Label>
-                  <Input {...register('effectiveDate')} type="date" />
-                </div>
+                </FormField>
+
+                <SelectField
+                  label="New Version"
+                  required
+                  placeholder="Select new version..."
+                  options={[
+                    { value: versions.minor, label: `v${versions.minor} (Minor update)` },
+                    { value: versions.major, label: `v${versions.major} (Major update)` },
+                  ]}
+                  error={errors.newVersion?.message}
+                  {...register('newVersion')}
+                />
+
+                <FormField
+                  label="Effective Date"
+                  type="date"
+                  {...register('effectiveDate')}
+                />
               </div>
-            </div>
+            </FormSection>
 
             <CardDivider />
 
             {/* Summary */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Summary</h3>
-                <p className="text-xs text-muted-foreground mt-1">Brief overview of the policy</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="summary">Summary</Label>
-                <Textarea
-                  {...register('summary')}
-                  rows={3}
-                  className="resize-none"
-                  placeholder="A brief summary of what this policy covers..."
-                />
-              </div>
-            </div>
+            <FormSection title="Summary" description="Brief overview of the policy">
+              <TextareaField
+                label="Summary"
+                rows={3}
+                resizable={false}
+                placeholder="A brief summary of what this policy covers..."
+                {...register('summary')}
+              />
+            </FormSection>
 
             <CardDivider />
 
             {/* Content */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Policy Content</h3>
-                <p className="text-xs text-muted-foreground mt-1">Full policy text</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="content">Content</Label>
-                <Textarea
-                  {...register('content')}
-                  rows={16}
-                  className="font-mono"
-                  placeholder="Full policy content..."
-                />
-              </div>
-            </div>
+            <FormSection title="Policy Content" description="Full policy text">
+              <TextareaField
+                label="Content"
+                rows={16}
+                monospace
+                resizable={false}
+                placeholder="Full policy content..."
+                {...register('content')}
+              />
+            </FormSection>
 
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-border">
+            <FormActions>
               <Button type="button" variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
               <Button type="submit" loading={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
-            </div>
+            </FormActions>
           </form>
         </Card>
       </div>

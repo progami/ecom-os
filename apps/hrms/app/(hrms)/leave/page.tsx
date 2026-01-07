@@ -14,7 +14,6 @@ import {
   PlusIcon,
   XIcon,
   CheckIcon,
-  ClockIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/card'
@@ -25,31 +24,29 @@ import { Avatar } from '@/components/ui/avatar'
 import { DataTable, type FilterOption } from '@/components/ui/DataTable'
 import { ResultsCount } from '@/components/ui/table'
 import { TableEmptyContent } from '@/components/ui/EmptyState'
+import {
+  LEAVE_STATUS_LABELS,
+  LEAVE_STATUS_OPTIONS,
+  LEAVE_TYPE_LABELS,
+  LEAVE_TYPE_OPTIONS,
+} from '@/lib/domain/leave/constants'
 
-const LEAVE_TYPE_OPTIONS: FilterOption[] = [
-  { value: 'PTO', label: 'PTO' },
-  { value: 'PARENTAL', label: 'Parental Leave' },
-  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement' },
-  { value: 'UNPAID', label: 'Unpaid Leave' },
-]
+const LEAVE_TYPE_FILTER_OPTIONS: FilterOption[] = LEAVE_TYPE_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
-const STATUS_OPTIONS: FilterOption[] = [
-  { value: 'PENDING_MANAGER', label: 'Pending Manager' },
-  { value: 'PENDING_HR', label: 'Pending HR' },
-  { value: 'PENDING_SUPER_ADMIN', label: 'Pending Final' },
-  { value: 'PENDING', label: 'Pending (Legacy)' },
-  { value: 'APPROVED', label: 'Approved' },
-  { value: 'REJECTED', label: 'Rejected' },
-  { value: 'CANCELLED', label: 'Cancelled' },
-]
+const LEAVE_STATUS_FILTER_OPTIONS: FilterOption[] = LEAVE_STATUS_OPTIONS.map((o) => ({
+  value: o.value,
+  label: o.label,
+}))
 
-const LEAVE_TYPE_LABELS: Record<string, string> = Object.fromEntries(
-  LEAVE_TYPE_OPTIONS.map((o) => [o.value, o.label])
-)
-
-const STATUS_LABELS: Record<string, string> = Object.fromEntries(
-  STATUS_OPTIONS.map((o) => [o.value, o.label])
-)
+const PENDING_STATUSES = new Set([
+  'PENDING',
+  'PENDING_MANAGER',
+  'PENDING_HR',
+  'PENDING_SUPER_ADMIN',
+])
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return '—'
@@ -150,25 +147,27 @@ function LeavePageContent() {
     }
   }, [currentEmployeeId])
 
-  const handleApprove = useCallback(async (id: string) => {
-    setProcessingId(id)
+  const handleDecision = useCallback(async (item: LeaveItem, approved: boolean) => {
+    setProcessingId(item.id)
     try {
-      await LeavesApi.update(id, { status: 'APPROVED' })
-      await fetchDashboardData()
-    } catch (e) {
-      console.error('Failed to approve leave', e)
-    } finally {
-      setProcessingId(null)
-    }
-  }, [fetchDashboardData])
+      switch (item.status) {
+        case 'PENDING':
+        case 'PENDING_MANAGER':
+          await LeavesApi.managerApprove(item.id, { approved })
+          break
+        case 'PENDING_HR':
+          await LeavesApi.hrApprove(item.id, { approved })
+          break
+        case 'PENDING_SUPER_ADMIN':
+          await LeavesApi.superAdminApprove(item.id, { approved })
+          break
+        default:
+          return
+      }
 
-  const handleReject = useCallback(async (id: string) => {
-    setProcessingId(id)
-    try {
-      await LeavesApi.update(id, { status: 'REJECTED' })
       await fetchDashboardData()
     } catch (e) {
-      console.error('Failed to reject leave', e)
+      console.error(`Failed to ${approved ? 'approve' : 'reject'} leave`, e)
     } finally {
       setProcessingId(null)
     }
@@ -243,6 +242,10 @@ function LeavePageContent() {
     })
   }, [allLeaveItems, filters])
 
+  const actionableLeaveIds = useMemo(() => {
+    return new Set((data?.pendingLeaveRequests ?? []).map((r) => r.id))
+  }, [data?.pendingLeaveRequests])
+
   const columns = useMemo<ColumnDef<LeaveItem>[]>(
     () => [
       {
@@ -278,11 +281,15 @@ function LeavePageContent() {
         header: 'Type',
         meta: {
           filterKey: 'leaveType',
-          filterOptions: LEAVE_TYPE_OPTIONS,
+          filterOptions: LEAVE_TYPE_FILTER_OPTIONS,
         },
         cell: ({ getValue }) => {
           const type = getValue<string>()
-          return <span className="text-muted-foreground">{LEAVE_TYPE_LABELS[type] ?? type}</span>
+          return (
+            <span className="text-muted-foreground">
+              {LEAVE_TYPE_LABELS[type as keyof typeof LEAVE_TYPE_LABELS] ?? type}
+            </span>
+          )
         },
         enableSorting: true,
       },
@@ -310,19 +317,15 @@ function LeavePageContent() {
         header: 'Status',
         meta: {
           filterKey: 'status',
-          filterOptions: STATUS_OPTIONS,
+          filterOptions: LEAVE_STATUS_FILTER_OPTIONS,
         },
         cell: ({ getValue }) => {
           const status = getValue<string>()
-          if (status === 'PENDING') {
-            return (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning-100 text-warning-800">
-                <ClockIcon className="h-3 w-3" />
-                Pending
-              </span>
-            )
-          }
-          return <StatusBadge status={STATUS_LABELS[status] ?? status} />
+          return (
+            <StatusBadge
+              status={LEAVE_STATUS_LABELS[status as keyof typeof LEAVE_STATUS_LABELS] ?? status}
+            />
+          )
         },
         enableSorting: true,
       },
@@ -333,7 +336,7 @@ function LeavePageContent() {
           const item = row.original
 
           // Own pending request - can cancel
-          if (item.isOwn && item.status === 'PENDING') {
+          if (item.isOwn && PENDING_STATUSES.has(item.status)) {
             return (
               <Button
                 variant="ghost"
@@ -351,8 +354,8 @@ function LeavePageContent() {
             )
           }
 
-          // Team's pending request - can approve/reject
-          if (!item.isOwn && item.status === 'PENDING') {
+          // Team request needing action - can approve/reject
+          if (!item.isOwn && actionableLeaveIds.has(item.id) && PENDING_STATUSES.has(item.status)) {
             return (
               <div className="flex items-center gap-2">
                 <Button
@@ -360,7 +363,7 @@ function LeavePageContent() {
                   variant="ghost"
                   onClick={(e) => {
                     e.stopPropagation()
-                    void handleReject(item.id)
+                    void handleDecision(item, false)
                   }}
                   disabled={processingId === item.id}
                   className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
@@ -371,7 +374,7 @@ function LeavePageContent() {
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation()
-                    void handleApprove(item.id)
+                    void handleDecision(item, true)
                   }}
                   disabled={processingId === item.id}
                 >
@@ -396,7 +399,7 @@ function LeavePageContent() {
         enableSorting: false,
       },
     ],
-    [handleApprove, handleCancelLeave, handleReject, processingId]
+    [actionableLeaveIds, handleCancelLeave, handleDecision, processingId]
   )
 
   if (loading) {
@@ -450,7 +453,7 @@ function LeavePageContent() {
     )
   }
 
-  const pendingCount = allLeaveItems.filter(i => i.status === 'PENDING' && !i.isOwn).length
+  const pendingCount = data?.pendingLeaveRequests?.length ?? 0
 
   return (
     <>

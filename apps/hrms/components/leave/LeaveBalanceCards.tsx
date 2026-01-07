@@ -1,50 +1,56 @@
 'use client'
 
 import { type LeaveBalance } from '@/lib/api-client'
-import { CalendarDaysIcon } from '@/components/ui/Icons'
+import {
+  CalendarDaysIcon,
+  CalendarIcon,
+  UsersIcon,
+  BuildingIcon,
+  DocumentIcon,
+} from '@/components/ui/Icons'
 
-// Leave type configuration with semantic colors and icons
+// Leave type configuration with semantic colors
 const LEAVE_TYPE_CONFIG: Record<string, {
   label: string
   color: string
-  bgGradient: string
-  icon: string
+  bgClass: string
+  Icon: React.ComponentType<{ className?: string }>
 }> = {
   PTO: {
     label: 'PTO',
-    color: 'hsl(176 100% 32%)', // Teal accent - freedom, vacation
-    bgGradient: 'from-teal-50 to-cyan-50',
-    icon: '🌴',
+    color: 'hsl(var(--accent))',
+    bgClass: 'bg-accent/5',
+    Icon: CalendarDaysIcon,
   },
   PARENTAL: {
     label: 'Parental',
-    color: 'hsl(340 82% 52%)', // Warm rose - family, nurturing
-    bgGradient: 'from-rose-50 to-pink-50',
-    icon: '👶',
+    color: 'hsl(340 82% 52%)',
+    bgClass: 'bg-rose-50',
+    Icon: UsersIcon,
   },
   BEREAVEMENT_IMMEDIATE: {
     label: 'Bereavement',
-    color: 'hsl(215 25% 45%)', // Muted slate - respectful, solemn
-    bgGradient: 'from-slate-50 to-gray-100',
-    icon: '🕊️',
+    color: 'hsl(var(--muted-foreground))',
+    bgClass: 'bg-muted/50',
+    Icon: CalendarIcon,
   },
   BEREAVEMENT_EXTENDED: {
     label: 'Extended Bereavement',
-    color: 'hsl(215 25% 45%)',
-    bgGradient: 'from-slate-50 to-gray-100',
-    icon: '🕊️',
+    color: 'hsl(var(--muted-foreground))',
+    bgClass: 'bg-muted/50',
+    Icon: CalendarIcon,
   },
   JURY_DUTY: {
     label: 'Jury Duty',
-    color: 'hsl(245 58% 51%)', // Deep indigo - civic, formal
-    bgGradient: 'from-indigo-50 to-violet-50',
-    icon: '⚖️',
+    color: 'hsl(245 58% 51%)',
+    bgClass: 'bg-indigo-50',
+    Icon: BuildingIcon,
   },
   UNPAID: {
     label: 'Unpaid',
-    color: 'hsl(215 16% 46%)',
-    bgGradient: 'from-gray-50 to-slate-50',
-    icon: '📋',
+    color: 'hsl(var(--muted-foreground))',
+    bgClass: 'bg-muted/30',
+    Icon: DocumentIcon,
   },
 }
 
@@ -52,8 +58,8 @@ const LEAVE_TYPE_CONFIG: Record<string, {
 function CircularProgress({
   percentage,
   color,
-  size = 80,
-  strokeWidth = 6,
+  size = 64,
+  strokeWidth = 5,
 }: {
   percentage: number
   color: string
@@ -66,7 +72,6 @@ function CircularProgress({
 
   return (
     <svg width={size} height={size} className="transform -rotate-90">
-      {/* Background ring */}
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -74,9 +79,8 @@ function CircularProgress({
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
-        className="text-muted/50"
+        className="text-border"
       />
-      {/* Progress ring */}
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -87,8 +91,7 @@ function CircularProgress({
         strokeLinecap="round"
         strokeDasharray={circumference}
         strokeDashoffset={offset}
-        className="transition-all duration-700 ease-out"
-        style={{ filter: `drop-shadow(0 0 6px ${color}40)` }}
+        className="transition-all duration-500 ease-out"
       />
     </svg>
   )
@@ -99,29 +102,26 @@ type LeaveBalanceCardsProps = {
 }
 
 export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
-  // Filter out UNPAID since it's unlimited
   const filteredBalances = balances.filter(b => b.leaveType !== 'UNPAID')
 
   if (!filteredBalances || filteredBalances.length === 0) {
     return (
-      <div className="text-center py-12 px-4">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
-          <CalendarDaysIcon className="h-8 w-8 text-muted-foreground/50" />
-        </div>
-        <p className="text-muted-foreground text-sm font-medium">No leave balance data available</p>
-        <p className="text-muted-foreground/70 text-xs mt-1">Leave balances will appear here once configured</p>
+      <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <CalendarDaysIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+        <p className="text-sm font-medium text-muted-foreground">No leave balances</p>
+        <p className="text-xs text-muted-foreground/70 mt-1">Balances will appear once configured</p>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {filteredBalances.map((balance, index) => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      {filteredBalances.map((balance) => {
         const config = LEAVE_TYPE_CONFIG[balance.leaveType] || {
           label: balance.leaveType.replace(/_/g, ' '),
-          color: 'hsl(215 16% 46%)',
-          bgGradient: 'from-gray-50 to-slate-50',
-          icon: '📅',
+          color: 'hsl(var(--muted-foreground))',
+          bgClass: 'bg-muted/30',
+          Icon: CalendarIcon,
         }
 
         const available = balance.available
@@ -131,43 +131,39 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
         const isLow = total > 0 && available <= Math.ceil(total * 0.2) && available > 0
         const isEmpty = available === 0
 
+        const IconComponent = config.Icon
+
         return (
           <div
             key={balance.leaveType}
             className={`
-              group relative overflow-hidden rounded-xl border border-border
-              bg-gradient-to-br ${config.bgGradient}
-              p-5 transition-all duration-300 ease-out
-              hover:shadow-lg hover:shadow-black/5 hover:border-border/80 hover:-translate-y-0.5
+              relative rounded-xl border border-border ${config.bgClass}
+              p-4 transition-all duration-200
+              hover:border-input hover:shadow-sm
             `}
-            style={{
-              animationDelay: `${index * 75}ms`,
-            }}
           >
-            {/* Header with icon and label */}
-            <div className="flex items-center gap-2.5 mb-4">
-              <span className="text-xl" role="img" aria-label={config.label}>
-                {config.icon}
-              </span>
-              <span className="text-sm font-semibold text-foreground tracking-tight">
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-background/80 border border-border/50">
+                <IconComponent className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <span className="text-sm font-medium text-foreground">
                 {config.label}
               </span>
             </div>
 
-            {/* Main content: Ring + Numbers */}
-            <div className="flex items-center gap-4">
-              {/* Circular progress */}
+            {/* Progress and stats */}
+            <div className="flex items-center gap-3">
               <div className="relative flex-shrink-0">
                 <CircularProgress
                   percentage={availablePercent}
-                  color={isEmpty ? 'hsl(215 16% 70%)' : isLow ? 'hsl(38 92% 50%)' : config.color}
-                  size={72}
-                  strokeWidth={5}
+                  color={isEmpty ? 'hsl(var(--muted))' : isLow ? 'hsl(var(--warning))' : config.color}
+                  size={56}
+                  strokeWidth={4}
                 />
-                {/* Center content */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className={`
-                    text-lg font-bold tabular-nums
+                    text-base font-semibold tabular-nums
                     ${isEmpty ? 'text-muted-foreground/50' : isLow ? 'text-warning-600' : 'text-foreground'}
                   `}>
                     {available}
@@ -175,59 +171,38 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="flex-1 min-w-0">
-                <div className="space-y-1.5">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-muted-foreground font-medium">Available</span>
-                    <span className={`
-                      text-sm font-semibold tabular-nums
-                      ${isEmpty ? 'text-muted-foreground/50' : isLow ? 'text-warning-600' : 'text-foreground'}
-                    `}>
-                      {available} <span className="text-muted-foreground font-normal">days</span>
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-xs text-muted-foreground font-medium">Used</span>
-                    <span className="text-sm text-muted-foreground tabular-nums">
-                      {used} <span className="font-normal">/ {total}</span>
-                    </span>
-                  </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-muted-foreground">Available</span>
+                  <span className={`font-medium ${isEmpty ? 'text-muted-foreground/50' : isLow ? 'text-warning-600' : 'text-foreground'}`}>
+                    {available} days
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between text-xs">
+                  <span className="text-muted-foreground">Used</span>
+                  <span className="text-muted-foreground">{used} / {total}</span>
                 </div>
               </div>
             </div>
 
-            {/* Pending indicator */}
+            {/* Pending badge */}
             {balance.pending > 0 && (
               <div className="absolute top-3 right-3">
-                <span className="
-                  inline-flex items-center gap-1
-                  px-2 py-0.5 rounded-full
-                  text-[10px] font-semibold uppercase tracking-wider
-                  bg-warning-100 text-warning-700
-                  animate-pulse
-                ">
-                  <span className="w-1 h-1 rounded-full bg-warning-500" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning-100 text-warning-700">
                   {balance.pending} pending
                 </span>
               </div>
             )}
 
-            {/* Low balance warning */}
+            {/* Status indicators */}
             {isLow && !isEmpty && (
-              <div className="mt-3 pt-3 border-t border-warning-200/50">
-                <p className="text-[10px] font-medium text-warning-600 uppercase tracking-wider">
-                  ⚠️ Running low
-                </p>
+              <div className="mt-3 pt-2 border-t border-border/50">
+                <p className="text-[10px] font-medium text-warning-600">Running low</p>
               </div>
             )}
-
-            {/* Empty state message */}
             {isEmpty && (
-              <div className="mt-3 pt-3 border-t border-border/50">
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  Balance exhausted
-                </p>
+              <div className="mt-3 pt-2 border-t border-border/50">
+                <p className="text-[10px] font-medium text-muted-foreground">No balance remaining</p>
               </div>
             )}
           </div>

@@ -4,6 +4,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { z } from 'zod'
 import { getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
+import { calculateBusinessDaysUtc, parseDateOnlyToUtcNoon } from '@/lib/domain/leave/dates'
 
 const CreateLeaveRequestSchema = z.object({
   employeeId: z.string().min(1).max(100),
@@ -13,29 +14,6 @@ const CreateLeaveRequestSchema = z.object({
   totalDays: z.number().min(0.5).max(365).optional(),
   reason: z.string().max(2000).optional(),
 })
-
-function parseDateOnlyToUtcNoon(dateString: string): Date {
-  const date = new Date(`${dateString}T12:00:00.000Z`)
-  if (isNaN(date.getTime())) {
-    throw new Error('Invalid date')
-  }
-  return date
-}
-
-function calculateBusinessDaysUtc(start: Date, end: Date): number {
-  if (start > end) return 0
-
-  let count = 0
-  const current = new Date(start)
-  while (current <= end) {
-    const day = current.getUTCDay()
-    if (day !== 0 && day !== 6) {
-      count++
-    }
-    current.setUTCDate(current.getUTCDate() + 1)
-  }
-  return count
-}
 
 /**
  * GET /api/leaves

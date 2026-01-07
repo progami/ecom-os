@@ -4,6 +4,7 @@ import { Input } from './input'
 import { Textarea } from './textarea'
 import { Label } from './label'
 import { Checkbox } from './checkbox'
+import { NativeSelect } from './native-select'
 
 type FormFieldProps = {
   label: React.ReactNode
@@ -86,7 +87,8 @@ type SelectFieldProps = {
   onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void
   error?: string
   disabled?: boolean
-  options: { value: string; label: string }[]
+  options?: { value: string; label: string }[]
+  groups?: { label: string; options: { value: string; label: string }[] }[]
   placeholder?: string
 }
 
@@ -102,7 +104,8 @@ export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>
       onBlur,
       error,
       disabled = false,
-      options,
+      options = [],
+      groups,
       placeholder,
     },
     ref
@@ -115,7 +118,7 @@ export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>
           {label}
           {required && <span className="text-destructive ml-0.5">*</span>}
         </Label>
-        <select
+        <NativeSelect
           ref={ref}
           id={selectId}
           name={name}
@@ -126,19 +129,26 @@ export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>
           onBlur={onBlur}
           disabled={disabled}
           className={cn(
-            'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors',
-            'focus:outline-none focus:ring-1 focus:ring-ring',
-            'disabled:cursor-not-allowed disabled:opacity-50',
             error && 'border-destructive focus:ring-destructive'
           )}
         >
           {placeholder && <option value="">{placeholder}</option>}
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          {groups
+            ? groups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.options.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))
+            : options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+        </NativeSelect>
         {error && (
           <p className="text-xs text-destructive">{error}</p>
         )}
