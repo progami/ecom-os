@@ -11,22 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { StatusBadge } from '@/components/ui/badge'
 import { ArrowLeftIcon, DocumentIcon, PencilIcon } from '@/components/ui/Icons'
-
-const CATEGORY_LABELS: Record<string, string> = {
-  HR: 'Human Resources',
-  IT: 'Information Technology',
-  FINANCE: 'Finance',
-  OPERATIONS: 'Operations',
-  LEGAL: 'Legal',
-  GENERAL: 'General',
-}
-
-const REGION_LABELS: Record<string, string> = {
-  GLOBAL: 'Global',
-  US: 'United States',
-  EU: 'European Union',
-  APAC: 'Asia Pacific',
-}
+import { POLICY_CATEGORY_LABELS, POLICY_REGION_LABELS, POLICY_STATUS_LABELS } from '@/lib/domain/policy/constants'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -131,7 +116,7 @@ export default function PolicyDetailPage() {
               </p>
             </div>
           </div>
-          <StatusBadge status={policy.status} />
+          <StatusBadge status={POLICY_STATUS_LABELS[policy.status as keyof typeof POLICY_STATUS_LABELS] ?? policy.status} />
         </div>
 
         {/* Details */}
@@ -140,13 +125,13 @@ export default function PolicyDetailPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-1">Category</p>
               <p className="text-base text-foreground">
-                {CATEGORY_LABELS[policy.category] ?? policy.category}
+                {POLICY_CATEGORY_LABELS[policy.category as keyof typeof POLICY_CATEGORY_LABELS] ?? policy.category}
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-1">Region</p>
               <p className="text-base text-foreground">
-                {REGION_LABELS[policy.region] ?? policy.region}
+                {POLICY_REGION_LABELS[policy.region as keyof typeof POLICY_REGION_LABELS] ?? policy.region}
               </p>
             </div>
           </div>
