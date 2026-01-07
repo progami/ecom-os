@@ -18,6 +18,7 @@ import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates';
 import { cn } from '@/lib/utils';
+import { getSelectionBorderBoxShadow } from '@/lib/grid/selection-border';
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
 import {
   Table,
@@ -440,12 +441,17 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   onPointerUp,
 }: CustomOpsPlanningRowProps) {
   const isEvenRow = rowIndex % 2 === 1;
+  const selectionRange = selection ? normalizeRange(selection) : null;
 
   // Check if this cell is in selection range
   const isCellInSelection = (colIndex: number): boolean => {
-    if (!selection) return false;
-    const { top, bottom, left, right } = normalizeRange(selection);
-    return rowIndex >= top && rowIndex <= bottom && colIndex >= left && colIndex <= right;
+    if (!selectionRange) return false;
+    return (
+      rowIndex >= selectionRange.top &&
+      rowIndex <= selectionRange.bottom &&
+      colIndex >= selectionRange.left &&
+      colIndex <= selectionRange.right
+    );
   };
 
   return (
@@ -466,6 +472,10 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
 
         const isCurrentCell = activeColKey === column.key;
         const isSelected = isCellInSelection(colIndex);
+        const boxShadow = getSelectionBorderBoxShadow(selectionRange, {
+          row: rowIndex,
+          col: colIndex,
+        });
 
         const cellClassName = cn(
           'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
@@ -473,7 +483,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
           isNumericCell && 'text-right',
           isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
           isSelected && 'bg-accent',
-          (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-ring',
+          (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
           colIndex === COLUMNS.length - 1 && 'border-r-0',
         );
 
@@ -487,7 +497,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             <TableCell
               key={column.key}
               className={cellClassName}
-              style={{ width: column.width, minWidth: column.width }}
+              style={{ width: column.width, minWidth: column.width, boxShadow }}
             >
               {isDateCell ? (
                 <Flatpickr
@@ -552,7 +562,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             key={column.key}
             id={cellDomId(row.id, column.key)}
             className={cellClassName}
-            style={{ width: column.width, minWidth: column.width }}
+            style={{ width: column.width, minWidth: column.width, boxShadow }}
             title={showPlaceholder ? undefined : formattedValue}
             onPointerDown={(e) => onPointerDown?.(e, rowIndex, colIndex)}
             onPointerMove={(e) => onPointerMove?.(e, rowIndex, colIndex)}

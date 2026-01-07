@@ -16,6 +16,7 @@ import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { cn } from '@/lib/utils';
+import { getSelectionBorderBoxShadow } from '@/lib/grid/selection-border';
 import {
   planningWeekDateIsoForWeekNumber,
   weekLabelForIsoDate,
@@ -241,6 +242,7 @@ export function CustomPurchasePaymentsGrid({
   } | null>(null);
   const [selection, setSelection] = useState<CellRange | null>(null);
   const selectionAnchorRef = useRef<CellCoords | null>(null);
+  const selectionRange = useMemo(() => (selection ? normalizeRange(selection) : null), [selection]);
   const [editValue, setEditValue] = useState<string>('');
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -1231,17 +1233,13 @@ export function CustomPurchasePaymentsGrid({
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key;
     const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key;
     const displayValue = formatDisplayValue(row, column);
-    const isSelected = selection
-      ? (() => {
-          const range = normalizeRange(selection);
-          return (
-            rowIndex >= range.top &&
-            rowIndex <= range.bottom &&
-            colIndex >= range.left &&
-            colIndex <= range.right
-          );
-        })()
+    const isSelected = selectionRange
+      ? rowIndex >= selectionRange.top &&
+        rowIndex <= selectionRange.bottom &&
+        colIndex >= selectionRange.left &&
+        colIndex <= selectionRange.right
       : false;
+    const boxShadow = getSelectionBorderBoxShadow(selectionRange, { row: rowIndex, col: colIndex });
     const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates';
     const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks';
     const isNumericCell = column.type === 'currency' || column.type === 'percent';
@@ -1256,7 +1254,7 @@ export function CustomPurchasePaymentsGrid({
         ? 'cursor-text bg-accent/50 font-medium'
         : 'bg-muted/50 text-muted-foreground',
       isSelected && 'bg-accent',
-      (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
+      (isEditing || isCurrent) && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
       colIndex === COLUMNS.length - 1 && 'border-r-0',
     );
 
@@ -1272,7 +1270,7 @@ export function CustomPurchasePaymentsGrid({
           key={column.key}
           id={cellDomId(row.id, column.key)}
           className={cellClassName}
-          style={{ width: column.width, minWidth: column.width }}
+          style={{ width: column.width, minWidth: column.width, boxShadow }}
         >
           {column.type === 'date' || isScheduleDate ? (
             <Flatpickr
@@ -1332,7 +1330,7 @@ export function CustomPurchasePaymentsGrid({
         key={column.key}
         id={cellDomId(row.id, column.key)}
         className={cellClassName}
-        style={{ width: column.width, minWidth: column.width }}
+        style={{ width: column.width, minWidth: column.width, boxShadow }}
         title={showPlaceholder ? undefined : displayValue || undefined}
         onClick={(event) => {
           event.stopPropagation();
