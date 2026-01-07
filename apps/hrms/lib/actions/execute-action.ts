@@ -181,7 +181,9 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'disciplinary.hrReject': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
+      const notes =
+        window.prompt('Optional: request changes notes (helps the reporter fix the record).', '') ??
+        '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/hr-review`, {
         approved: false,
         notes: notes.trim() || null,
@@ -201,7 +203,9 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'disciplinary.superAdminReject': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
+      const notes =
+        window.prompt('Optional: request changes notes (helps HR fix the record).', '') ??
+        '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-review`, {
         approved: false,
         notes: notes.trim() || null,

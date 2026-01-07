@@ -72,13 +72,13 @@ function statusLabel(status: string): string {
 }
 
 function buildWorkflow(action: DisciplinaryWorkflowRecordInput): WorkflowRecordDTO['workflow'] {
-  const isAppeal = ['APPEAL_PENDING_HR', 'APPEALED'].includes(action.status) || Boolean(action.appealedAt)
+  const isAppeal = ['APPEAL_PENDING_HR', 'APPEAL_PENDING_SUPER_ADMIN', 'APPEALED'].includes(action.status)
 
   if (isAppeal) {
     // Simplified appeal: Appeal -> HR Decision
     const order = ['appeal_submitted', 'appeal_hr']
     const currentStageId =
-      action.status === 'APPEAL_PENDING_HR' || action.status === 'APPEALED'
+      action.status === 'APPEAL_PENDING_HR' || action.status === 'APPEAL_PENDING_SUPER_ADMIN' || action.status === 'APPEALED'
         ? 'appeal_hr'
         : 'appeal_submitted'
 
