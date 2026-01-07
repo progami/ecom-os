@@ -17,39 +17,18 @@ import { Textarea } from '@/components/ui/textarea'
 import { NativeSelect } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
-
-const VIOLATION_TYPES = [
-  { value: 'ATTENDANCE', label: 'Attendance' },
-  { value: 'CONDUCT', label: 'Conduct' },
-  { value: 'PERFORMANCE', label: 'Performance' },
-  { value: 'POLICY_VIOLATION', label: 'Policy Violation' },
-  { value: 'SAFETY', label: 'Safety' },
-  { value: 'OTHER', label: 'Other' },
-]
+import {
+  DISCIPLINARY_ACTION_TYPE_OPTIONS,
+  VALUE_BREACH_OPTIONS,
+  VIOLATION_REASON_GROUPS,
+  VIOLATION_TYPE_OPTIONS,
+} from '@/lib/domain/disciplinary/constants'
 
 const SEVERITY_LEVELS = [
   { value: 'MINOR', label: 'Minor' },
   { value: 'MODERATE', label: 'Moderate' },
   { value: 'MAJOR', label: 'Major' },
   { value: 'CRITICAL', label: 'Critical' },
-]
-
-const ACTION_TYPES = [
-  { value: 'VERBAL_WARNING', label: 'Verbal Warning' },
-  { value: 'WRITTEN_WARNING', label: 'Written Warning' },
-  { value: 'FINAL_WARNING', label: 'Final Warning' },
-  { value: 'SUSPENSION', label: 'Suspension' },
-  { value: 'TERMINATION', label: 'Termination' },
-  { value: 'OTHER', label: 'Other' },
-]
-
-const COMPANY_VALUES = [
-  'Integrity',
-  'Respect',
-  'Teamwork',
-  'Excellence',
-  'Accountability',
-  'Innovation',
 ]
 
 type AuthorizedReporter = {
@@ -117,7 +96,7 @@ function AddViolationContent() {
           EmployeesApi.list({ take: 200 }),
           MeApi.get().catch(() => null),
         ])
-        setEmployees(empRes.items)
+        setEmployees(empRes.items.filter((e) => e.id !== meData?.id))
         setMe(meData)
       } catch (e: any) {
         setError('root', { message: e.message })
@@ -182,7 +161,7 @@ function AddViolationContent() {
     }
   }
 
-  const canCreate = Boolean(me?.isHR || me?.isSuperAdmin)
+  const canCreate = Boolean(me)
 
   if (loading) {
     return (
@@ -272,7 +251,7 @@ function AddViolationContent() {
                 className={cn('mt-1.5', errors.violationType && 'border-destructive')}
               >
                 <option value="">Select type...</option>
-                {VIOLATION_TYPES.map((opt) => (
+                {VIOLATION_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </NativeSelect>
@@ -342,11 +321,19 @@ function AddViolationContent() {
 
           <div>
             <Label htmlFor="violationReason">Violation Reason</Label>
-            <Input
+            <NativeSelect
               {...register('violationReason')}
-              placeholder="Brief reason for the violation"
               className={cn('mt-1.5', errors.violationReason && 'border-destructive')}
-            />
+            >
+              <option value="">Select reason...</option>
+              {VIOLATION_REASON_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.reasons.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </NativeSelect>
             {errors.violationReason && (
               <p className="text-xs text-destructive mt-1">{errors.violationReason.message}</p>
             )}
@@ -367,18 +354,18 @@ function AddViolationContent() {
 
           {/* Values Breached */}
           <div>
-            <Label>Company Values Breached (optional)</Label>
+            <Label>Values Breached (optional)</Label>
             <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {COMPANY_VALUES.map((value) => (
+              {VALUE_BREACH_OPTIONS.map((opt) => (
                 <label
-                  key={value}
+                  key={opt.value}
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <Checkbox
-                    checked={selectedValues.includes(value)}
-                    onCheckedChange={() => toggleValue(value)}
+                    checked={selectedValues.includes(opt.value)}
+                    onCheckedChange={() => toggleValue(opt.value)}
                   />
-                  <span className="text-sm text-foreground">{value}</span>
+                  <span className="text-sm text-foreground">{opt.label}</span>
                 </label>
               ))}
             </div>
@@ -401,7 +388,7 @@ function AddViolationContent() {
                 className={cn('mt-1.5', errors.actionTaken && 'border-destructive')}
               >
                 <option value="">Select action...</option>
-                {ACTION_TYPES.map((opt) => (
+                {DISCIPLINARY_ACTION_TYPE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </NativeSelect>

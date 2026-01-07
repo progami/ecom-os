@@ -18,49 +18,19 @@ import { NativeSelect } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useNavigationHistory } from '@/lib/navigation-history'
-
-const violationTypeOptions = [
-  { value: 'ATTENDANCE', label: 'Attendance' },
-  { value: 'CONDUCT', label: 'Conduct' },
-  { value: 'PERFORMANCE', label: 'Performance' },
-  { value: 'POLICY_VIOLATION', label: 'Policy Violation' },
-  { value: 'SAFETY', label: 'Safety' },
-  { value: 'OTHER', label: 'Other' },
-]
+import {
+  DISCIPLINARY_ACTION_TYPE_OPTIONS,
+  DISCIPLINARY_STATUS_OPTIONS,
+  VALUE_BREACH_OPTIONS,
+  VIOLATION_REASON_GROUPS,
+  VIOLATION_TYPE_OPTIONS,
+} from '@/lib/domain/disciplinary/constants'
 
 const severityOptions = [
   { value: 'MINOR', label: 'Minor' },
   { value: 'MODERATE', label: 'Moderate' },
   { value: 'MAJOR', label: 'Major' },
   { value: 'CRITICAL', label: 'Critical' },
-]
-
-const actionTakenOptions = [
-  { value: 'VERBAL_WARNING', label: 'Verbal Warning' },
-  { value: 'WRITTEN_WARNING', label: 'Written Warning' },
-  { value: 'FINAL_WARNING', label: 'Final Warning' },
-  { value: 'SUSPENSION', label: 'Suspension' },
-  { value: 'TERMINATION', label: 'Termination' },
-  { value: 'OTHER', label: 'Other' },
-]
-
-const statusOptions = [
-  { value: 'REPORTED', label: 'Reported' },
-  { value: 'UNDER_REVIEW', label: 'Under Review' },
-  { value: 'PENDING_HR_REVIEW', label: 'Pending HR Review' },
-  { value: 'PENDING_ACKNOWLEDGMENT', label: 'Pending Acknowledgment' },
-  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-  { value: 'RESOLVED', label: 'Resolved' },
-  { value: 'CLOSED', label: 'Closed' },
-]
-
-const companyValues = [
-  'Integrity',
-  'Respect',
-  'Teamwork',
-  'Excellence',
-  'Accountability',
-  'Innovation',
 ]
 
 const EditDisciplinarySchema = z.object({
@@ -259,7 +229,8 @@ export default function EditDisciplinaryPage() {
                     {...register('violationType')}
                     className={cn(errors.violationType && 'border-destructive')}
                   >
-                    {violationTypeOptions.map((opt) => (
+                    <option value="">Select type...</option>
+                    {VIOLATION_TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </NativeSelect>
@@ -295,7 +266,8 @@ export default function EditDisciplinaryPage() {
                     {...register('status')}
                     className={cn(errors.status && 'border-destructive')}
                   >
-                    {statusOptions.map((opt) => (
+                    <option value="">Select status...</option>
+                    {DISCIPLINARY_STATUS_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </NativeSelect>
@@ -304,10 +276,19 @@ export default function EditDisciplinaryPage() {
 
                 <div className="sm:col-span-2 space-y-2">
                   <Label htmlFor="violationReason">Violation Reason <span className="text-destructive">*</span></Label>
-                  <Input
+                  <NativeSelect
                     {...register('violationReason')}
                     className={cn(errors.violationReason && 'border-destructive')}
-                  />
+                  >
+                    <option value="">Select reason...</option>
+                    {VIOLATION_REASON_GROUPS.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.reasons.map((r) => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </NativeSelect>
                   {errors.violationReason && <p className="text-xs text-destructive">{errors.violationReason.message}</p>}
                 </div>
               </div>
@@ -333,18 +314,18 @@ export default function EditDisciplinaryPage() {
 
             {/* Values Breached */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-foreground">Company Values Breached</h3>
+              <h3 className="text-sm font-semibold text-foreground">Values Breached</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {companyValues.map((value) => (
+                {VALUE_BREACH_OPTIONS.map((opt) => (
                   <label
-                    key={value}
+                    key={opt.value}
                     className="flex items-center gap-2 cursor-pointer"
                   >
                     <Checkbox
-                      checked={selectedValues.includes(value)}
-                      onCheckedChange={() => toggleValue(value)}
+                      checked={selectedValues.includes(opt.value)}
+                      onCheckedChange={() => toggleValue(opt.value)}
                     />
-                    <span className="text-sm text-foreground">{value}</span>
+                    <span className="text-sm text-foreground">{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -379,7 +360,8 @@ export default function EditDisciplinaryPage() {
                     {...register('actionTaken')}
                     className={cn(errors.actionTaken && 'border-destructive')}
                   >
-                    {actionTakenOptions.map((opt) => (
+                    <option value="">Select action...</option>
+                    {DISCIPLINARY_ACTION_TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </NativeSelect>
