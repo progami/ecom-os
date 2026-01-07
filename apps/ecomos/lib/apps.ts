@@ -108,7 +108,7 @@ const BASE_APPS: AppBase[] = [
     id: 'x-plan',
     name: 'X-Plan',
     description: 'Collaborative planning workspace for sales, operations, and finance.',
-    url: joinBaseUrl(PORTAL_BASE_URL, '/x-plan/0-strategies'),
+    url: joinBaseUrl(PORTAL_BASE_URL, '/x-plan/1-strategies'),
     category: 'Product',
     devUrl: 'http://localhost:3008',
   },
