@@ -68,7 +68,16 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
         }
       }),
     })
-  } catch (_error) {
+  } catch (error) {
+    console.error('[api][warehouses][storage-config][GET] failed', error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2021' || error.code === 'P2022') {
+        return NextResponse.json(
+          { error: 'Storage configuration schema not initialized. Please redeploy to apply migrations.' },
+          { status: 503 }
+        )
+      }
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -141,8 +150,16 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     })
 
     return NextResponse.json({ success: true })
-  } catch (_error) {
+  } catch (error) {
+    console.error('[api][warehouses][storage-config][PATCH] failed', error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2021' || error.code === 'P2022') {
+        return NextResponse.json(
+          { error: 'Storage configuration schema not initialized. Please redeploy to apply migrations.' },
+          { status: 503 }
+        )
+      }
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-
