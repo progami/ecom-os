@@ -955,10 +955,16 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
           onCopy={handleCopy}
           onPaste={handlePaste}
         >
-          <Table className="relative border-collapse w-full" style={{ minWidth: tableWidth }}>
+          <Table
+            className="relative w-full border-collapse table-fixed"
+            style={{ minWidth: tableWidth }}
+          >
             <colgroup>
               {columnConfig.map((config) => (
-                <col key={config.key} style={{ minWidth: config.width }} />
+                <col
+                  key={config.key}
+                  style={{ width: config.width, minWidth: config.width, maxWidth: config.width }}
+                />
               ))}
             </colgroup>
             <TableHeader>
@@ -973,7 +979,9 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                     )}
                     style={{
                       left: config.sticky ? config.stickyOffset : undefined,
+                      width: config.width,
                       minWidth: config.width,
+                      maxWidth: config.width,
                     }}
                   >
                     {config.label}
@@ -1054,7 +1062,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                         <TableCell
                           key={config.key}
                           className={cn(
-                            'h-8 whitespace-nowrap border-r px-2 text-sm overflow-hidden',
+                            'h-8 whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
                             isPinned
                               ? isEvenRow
                                 ? 'bg-muted'
@@ -1074,7 +1082,9 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                           )}
                           style={{
                             left: isPinned ? config.stickyOffset : undefined,
+                            width: config.width,
                             minWidth: config.width,
+                            maxWidth: config.width,
                             boxShadow,
                           }}
                           onPointerDown={(e) => handlePointerDown(e, rowIndex, colIndex)}
