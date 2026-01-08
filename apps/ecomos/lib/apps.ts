@@ -105,6 +105,13 @@ const BASE_APPS: AppBase[] = [
     category: 'Product',
   },
   {
+    id: 'chronos',
+    name: 'Chronos',
+    description: 'Scheduling and planning workspace.',
+    url: joinBaseUrl(PORTAL_BASE_URL, '/chronos'),
+    category: 'Product',
+  },
+  {
     id: 'x-plan',
     name: 'X-Plan',
     description: 'Collaborative planning workspace for sales, operations, and finance.',
