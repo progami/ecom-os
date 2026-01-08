@@ -120,11 +120,30 @@ const PAY_AMOUNT_FIELDS = ['pay1Amount', 'pay2Amount', 'pay3Amount'] as const;
 const PAY_DATE_FIELDS = ['pay1Date', 'pay2Date', 'pay3Date'] as const;
 
 const DEFAULT_MANUFACTURING_SPLIT: [number, number, number] = [0.5, 0.3, 0.2];
-const DEFAULT_MANUFACTURING_LABELS = [
-  'MFG Deposit (50%)',
-  'MFG Production (30%)',
-  'MFG Final (20%)',
-] as const;
+const MANUFACTURING_SPLIT_LABEL_BASE = ['MFG Deposit', 'MFG Production', 'MFG Final'] as const;
+
+function roundedPercentsFromFractions(fractions: readonly number[]): [number, number, number] {
+  const raw = fractions.slice(0, 3).map((value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric * 100 : 0;
+  });
+  while (raw.length < 3) raw.push(0);
+
+  const floored = raw.map((value) => Math.floor(value));
+  let remainder = 100 - floored.reduce((sum, value) => sum + value, 0);
+
+  const fractionalOrder = raw
+    .map((value, idx) => ({ idx, fractional: value - Math.floor(value) }))
+    .sort((a, b) => b.fractional - a.fractional);
+
+  for (const entry of fractionalOrder) {
+    if (remainder <= 0) break;
+    floored[entry.idx] = (floored[entry.idx] ?? 0) + 1;
+    remainder -= 1;
+  }
+
+  return [floored[0] ?? 0, floored[1] ?? 0, floored[2] ?? 0];
+}
 
 function normalizeSupplierPaymentSplit(
   split: readonly number[] | undefined,
@@ -578,7 +597,10 @@ export function computePurchaseOrderDerived(
   const manufacturingAmounts = manufacturingFractions.map(
     (fraction) => manufacturingTotal * fraction,
   );
-  const manufacturingLabels: readonly string[] = DEFAULT_MANUFACTURING_LABELS;
+  const manufacturingPercents = roundedPercentsFromFractions(manufacturingFractions);
+  const manufacturingLabels: readonly string[] = MANUFACTURING_SPLIT_LABEL_BASE.map(
+    (base, idx) => `${base} (${manufacturingPercents[idx] ?? 0}%)`,
+  );
 
   const paymentDefinitions: Array<{
     index: number;
