@@ -87,7 +87,7 @@ const TYPE_RULES: Record<
 }
 
 function subjectFor(category: string, title: string, actionRequired: boolean): string {
-  return actionRequired ? `Action required: ${category} — ${title}` : `HRMS: ${category} — ${title}`
+  return actionRequired ? `Action required: ${category} — ${title}` : `Atlas: ${category} — ${title}`
 }
 
 function deriveCategory(input: NotificationCatalogInput): string {

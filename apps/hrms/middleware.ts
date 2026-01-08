@@ -88,14 +88,14 @@ export async function middleware(request: NextRequest) {
     if (!hasAccess) {
       // For API routes, return 401/403 instead of redirect
       if (normalizedPath.startsWith('/api/')) {
-        const errorMsg = hasSession ? 'No access to HRMS' : 'Authentication required'
+        const errorMsg = hasSession ? 'No access to Atlas' : 'Authentication required'
         return NextResponse.json(
           { error: errorMsg },
           { status: hasSession ? 403 : 401 }
         )
       }
 
-      // User has session but no HRMS access - redirect to no-access page
+      // User has session but no Atlas access - redirect to no-access page
       if (hasSession && !hrmsEntitlement) {
         const url = request.nextUrl.clone()
         url.pathname = basePath ? `${basePath}/no-access` : '/no-access'

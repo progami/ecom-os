@@ -1,7 +1,7 @@
 import { Resend } from 'resend'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
-const EMAIL_FROM = process.env.EMAIL_FROM || 'HRMS <noreply@targonglobal.com>'
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Atlas <noreply@targonglobal.com>'
 const HRMS_URL =
   process.env.NEXT_PUBLIC_HRMS_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
@@ -69,7 +69,7 @@ export async function sendHrmsNotificationEmail(
     ? payload.subject.trim()
     : actionRequired
       ? `Action required: ${category} — ${title}`
-      : `HRMS: ${category} — ${title}`
+      : `Atlas: ${category} — ${title}`
 
   const preheader = actionRequired
     ? `Action required: ${category}`
@@ -83,11 +83,11 @@ export async function sendHrmsNotificationEmail(
       text: [
         `Hi ${firstName},`,
         '',
-        `You have a new ${category} notification in HRMS.`,
+        `You have a new ${category} notification in Atlas.`,
         `Title: ${title}`,
         '',
         'For security reasons, details are not included in this email.',
-        `Open HRMS to view and respond: ${actionUrl}`,
+        `Open Atlas to view and respond: ${actionUrl}`,
       ].join('\n'),
       html: `
         <!DOCTYPE html>
@@ -118,11 +118,11 @@ export async function sendHrmsNotificationEmail(
 
                   <tr>
                     <td style="background: linear-gradient(135deg, #0ea5e9 0%, #0f766e 100%); border-radius: 16px 16px 0 0; padding: 22px 24px;">
-                      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color: #ffffff;">
-                        <div style="font-size: 12px; opacity: 0.9; letter-spacing: 0.08em; text-transform: uppercase;">HRMS</div>
-                        <div style="font-size: 22px; font-weight: 700; margin-top: 6px; line-height: 1.2;">${safeCategory}</div>
-                        <div style="font-size: 14px; margin-top: 8px; opacity: 0.95; line-height: 1.35;">${safeTitle}</div>
-                      </div>
+	                      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color: #ffffff;">
+	                        <div style="font-size: 12px; opacity: 0.9; letter-spacing: 0.08em; text-transform: uppercase;">Atlas</div>
+	                        <div style="font-size: 22px; font-weight: 700; margin-top: 6px; line-height: 1.2;">${safeCategory}</div>
+	                        <div style="font-size: 14px; margin-top: 8px; opacity: 0.95; line-height: 1.35;">${safeTitle}</div>
+	                      </div>
                     </td>
                   </tr>
 
@@ -136,25 +136,25 @@ export async function sendHrmsNotificationEmail(
                           <div style="font-size: 16px; font-weight: 700; color:#0f172a; margin: 0;">${safeCategory}</div>
                           <div style="margin: 10px 0 0 0; font-size: 12px; color:#64748b;">Title</div>
                           <div style="font-size: 14px; font-weight: 700; color:#0f172a; margin: 0;">${safeTitle}</div>
-                          <div style="margin: 10px 0 0 0; font-size: 13px; color:#475569;">
-                            ${actionRequired ? 'Action required — please open HRMS to review.' : 'Open HRMS to view the update.'}
-                          </div>
-                        </div>
-
-                        <p style="margin: 0 0 18px 0; font-size: 13px; color:#475569;">
-                          For security reasons, detailed information is not included in this email.
-                          Please open HRMS to view and respond.
-                        </p>
+	                          <div style="margin: 10px 0 0 0; font-size: 13px; color:#475569;">
+	                            ${actionRequired ? 'Action required — please open Atlas to review.' : 'Open Atlas to view the update.'}
+	                          </div>
+	                        </div>
+	
+	                        <p style="margin: 0 0 18px 0; font-size: 13px; color:#475569;">
+	                          For security reasons, detailed information is not included in this email.
+	                          Please open Atlas to view and respond.
+	                        </p>
 
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 18px 0;">
                           <tr>
                             <td align="center" bgcolor="#0ea5e9" style="border-radius: 12px;">
-                              <a href="${safeActionUrl}" style="display:inline-block; padding: 12px 18px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 14px; font-weight: 700; color:#ffffff; text-decoration:none; border-radius: 12px;">
-                                View & respond in HRMS
-                              </a>
-                            </td>
-                          </tr>
-                        </table>
+	                              <a href="${safeActionUrl}" style="display:inline-block; padding: 12px 18px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 14px; font-weight: 700; color:#ffffff; text-decoration:none; border-radius: 12px;">
+	                                View & respond in Atlas
+	                              </a>
+	                            </td>
+	                          </tr>
+	                        </table>
 
                         <div style="font-size: 12px; color:#64748b;">
                           If the button doesn't work, open: <a href="${safeActionUrl}" style="color:#0ea5e9; text-decoration:none;">${safeActionUrl}</a>
@@ -165,11 +165,11 @@ export async function sendHrmsNotificationEmail(
 
                   <tr>
                     <td style="padding: 14px 10px 0 10px;">
-                      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#94a3b8; font-size: 12px; line-height: 1.6; text-align: center;">
-                        This is an automated message from HRMS. Please do not reply to this email.
-                      </div>
-                    </td>
-                  </tr>
+	                      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#94a3b8; font-size: 12px; line-height: 1.6; text-align: center;">
+	                        This is an automated message from Atlas. Please do not reply to this email.
+	                      </div>
+	                    </td>
+	                  </tr>
                 </table>
               </td>
             </tr>

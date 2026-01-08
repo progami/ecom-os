@@ -56,7 +56,7 @@ export default function WorkQueuePage() {
     <>
       <ListPageHeader
         title="Work Queue"
-        description="Your pending actions across HRMS"
+        description="Your pending actions across Atlas"
         icon={<BellIcon className="h-6 w-6 text-white" />}
       />
 

@@ -3,10 +3,10 @@ import { loginToHrms } from '../fixtures/auth'
 
 const hrmsBaseUrl = process.env.HRMS_BASE_URL
 if (!hrmsBaseUrl) {
-  throw new Error('HRMS_BASE_URL must be defined for HRMS e2e tests.')
+  throw new Error('HRMS_BASE_URL must be defined for Atlas e2e tests.')
 }
 
-test('HRMS redirects to portal sign-in when signed out', async ({ page }) => {
+test('Atlas redirects to portal sign-in when signed out', async ({ page }) => {
   await page.goto(`${hrmsBaseUrl}/tasks`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('ecomOS Portal')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()

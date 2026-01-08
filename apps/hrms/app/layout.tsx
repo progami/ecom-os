@@ -4,8 +4,8 @@ import './globals.css'
 const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
 
 export const metadata: Metadata = {
-  title: 'HRMS',
-  description: 'Human Resource Management System',
+  title: 'Atlas',
+  description: 'Atlas — Human Resource Management',
   icons: {
     icon: `${appBasePath || ''}/favicon.ico`,
   },
