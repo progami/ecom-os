@@ -3,6 +3,7 @@ import { Prisma } from '@ecom-os/prisma-x-plan';
 import prisma from '@/lib/prisma';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';
+import { REMOVED_PAYMENT_CATEGORY } from '@/lib/payments';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
@@ -283,12 +284,33 @@ export const DELETE = withXPlanAuth(async (request: Request, session) => {
     );
     if (response) return response;
 
-    await prisma.purchaseOrderPayment.deleteMany({
-      where: { id: { in: ids } },
-    });
+    const existingIds = payments.map((payment) => payment.id);
+    if (existingIds.length === 0) {
+      return NextResponse.json({ ok: true });
+    }
+
+    await prisma.$transaction(
+      existingIds.map((id) =>
+        prisma.purchaseOrderPayment.update({
+          where: { id },
+          data: {
+            category: REMOVED_PAYMENT_CATEGORY,
+            label: null,
+            dueDate: null,
+            dueWeekNumber: null,
+            dueDateDefault: null,
+            dueWeekNumberDefault: null,
+            dueDateSource: 'SYSTEM',
+            percentage: null,
+            amountExpected: null,
+            amountPaid: null,
+          },
+        }),
+      ),
+    );
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[purchase-order-payments][DELETE]', error);
-    return NextResponse.json({ error: 'Unable to delete payments' }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to remove payments' }, { status: 500 });
   }
 });

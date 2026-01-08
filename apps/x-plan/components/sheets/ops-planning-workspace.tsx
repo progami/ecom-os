@@ -40,6 +40,7 @@ import {
 } from '@/components/sheets/validators';
 import { formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates';
 import { withAppBasePath } from '@/lib/base-path';
+import { isRemovedPaymentCategory, REMOVED_PAYMENT_CATEGORY } from '@/lib/payments';
 import { usePersistentState } from '@/hooks/usePersistentState';
 
 const BATCH_NUMERIC_PRECISION = {
@@ -1494,7 +1495,23 @@ export function OpsPlanningWorkspace({
         if (!response.ok) throw new Error('Failed to remove payment');
 
         setPaymentRows((previous) => {
-          const next = previous.filter((row) => row.id !== paymentId);
+          const next = previous.map((row) => {
+            if (row.id !== paymentId) return row;
+            const removed: PurchasePaymentRow = {
+              ...row,
+              category: REMOVED_PAYMENT_CATEGORY,
+              dueDate: '',
+              dueDateIso: null,
+              dueDateDefault: '',
+              dueDateDefaultIso: null,
+              dueDateSource: 'SYSTEM',
+              weekNumber: '',
+              percentage: '',
+              amountExpected: '',
+              amountPaid: '',
+            };
+            return removed;
+          });
           paymentRowsRef.current = next;
           applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next);
           return next;
@@ -1513,7 +1530,11 @@ export function OpsPlanningWorkspace({
   const visiblePayments = !activeOrderId
     ? ([] as PurchasePaymentRow[])
     : paymentRows
-        .filter((payment) => payment.purchaseOrderId === activeOrderId)
+        .filter(
+          (payment) =>
+            payment.purchaseOrderId === activeOrderId &&
+            !isRemovedPaymentCategory(payment.category),
+        )
         .map((payment) => {
           const derived = derivedMapRef.current.get(payment.purchaseOrderId);
           if (!derived || !derived.plannedPayments.length) return payment;
