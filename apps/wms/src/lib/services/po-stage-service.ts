@@ -20,7 +20,6 @@ import { recordStorageCostEntry } from '@/services/storageCost.service'
 
 type PurchaseOrderWithLines = PurchaseOrder & { lines: PurchaseOrderLine[] }
 type PurchaseOrderWithOptionalLines = PurchaseOrder & { lines?: PurchaseOrderLine[] }
-type TenantPrisma = Awaited<ReturnType<typeof getTenantPrisma>>
 
 type ManufacturingStageData = {
   proformaInvoiceNumber: PurchaseOrder['proformaInvoiceNumber']
@@ -603,7 +602,6 @@ function roundTo(value: number, decimals: number): number {
 }
 
 async function computeManufacturingCargoTotals(
-  prisma: TenantPrisma,
   lines: PurchaseOrderLine[]
 ): Promise<{
   totalCartons: number
@@ -618,42 +616,6 @@ async function computeManufacturingCargoTotals(
     return { totalCartons, totalPallets: null, totalWeightKg: null, totalVolumeCbm: null }
   }
 
-  const skuCodes = Array.from(new Set(activeLines.map(line => line.skuCode)))
-  const skus = await prisma.sku.findMany({
-    where: { skuCode: { in: skuCodes } },
-    select: {
-      id: true,
-      skuCode: true,
-      cartonDimensionsCm: true,
-      cartonLengthCm: true,
-      cartonWidthCm: true,
-      cartonHeightCm: true,
-      cartonWeightKg: true,
-    },
-  })
-  const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
-
-  const batchCodes = Array.from(
-    new Set(activeLines.map(line => (line.batchLot ? String(line.batchLot) : '')).filter(Boolean))
-  )
-  const batchRecords = await prisma.skuBatch.findMany({
-    where: {
-      skuId: { in: skus.map(sku => sku.id) },
-      batchCode: { in: batchCodes },
-    },
-    select: {
-      skuId: true,
-      batchCode: true,
-      cartonDimensionsCm: true,
-      cartonLengthCm: true,
-      cartonWidthCm: true,
-      cartonHeightCm: true,
-      cartonWeightKg: true,
-      shippingCartonsPerPallet: true,
-    },
-  })
-  const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
-
   let totalPallets = 0
   let palletsComplete = true
   let totalWeightKg = 0
@@ -662,26 +624,14 @@ async function computeManufacturingCargoTotals(
   let volumeComplete = true
 
   for (const line of activeLines) {
-    const sku = skuMap.get(line.skuCode)
-    if (!sku) {
-      palletsComplete = false
-      weightComplete = false
-      volumeComplete = false
-      continue
-    }
-
-    const batchLot = line.batchLot ? String(line.batchLot) : ''
-    const batch = batchLot ? batchMap.get(`${sku.id}::${batchLot}`) : null
-
-    const shippingCartonsPerPallet = batch?.shippingCartonsPerPallet ?? null
+    const shippingCartonsPerPallet = line.shippingCartonsPerPallet ?? null
     if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
       palletsComplete = false
     } else {
       totalPallets += Math.ceil(line.quantity / shippingCartonsPerPallet)
     }
 
-    const cartonWeightKg =
-      toFiniteNumber(batch?.cartonWeightKg) ?? toFiniteNumber(sku.cartonWeightKg)
+    const cartonWeightKg = toFiniteNumber(line.cartonWeightKg)
     if (!cartonWeightKg || cartonWeightKg <= 0) {
       weightComplete = false
     } else {
@@ -690,10 +640,10 @@ async function computeManufacturingCargoTotals(
 
     const cartonVolumeCbm =
       computeCartonVolumeCbm({
-        cartonLengthCm: batch?.cartonLengthCm ?? sku.cartonLengthCm,
-        cartonWidthCm: batch?.cartonWidthCm ?? sku.cartonWidthCm,
-        cartonHeightCm: batch?.cartonHeightCm ?? sku.cartonHeightCm,
-        cartonDimensionsCm: batch?.cartonDimensionsCm ?? sku.cartonDimensionsCm,
+        cartonLengthCm: line.cartonLengthCm,
+        cartonWidthCm: line.cartonWidthCm,
+        cartonHeightCm: line.cartonHeightCm,
+        cartonDimensionsCm: line.cartonDimensionsCm,
       }) ?? null
 
     if (!cartonVolumeCbm || cartonVolumeCbm <= 0) {
@@ -765,7 +715,36 @@ export async function createPurchaseOrder(
 ): Promise<PurchaseOrderWithLines> {
   const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
-  let skuRecordsForLines: Array<{ id: string; skuCode: string }> = []
+  type LineSkuRecord = Prisma.SkuGetPayload<{
+    select: {
+      id: true
+      skuCode: true
+      description: true
+      cartonDimensionsCm: true
+      cartonLengthCm: true
+      cartonWidthCm: true
+      cartonHeightCm: true
+      cartonWeightKg: true
+      packagingType: true
+    }
+  }>
+
+  type LineBatchRecord = Prisma.SkuBatchGetPayload<{
+    select: {
+      skuId: true
+      batchCode: true
+      cartonDimensionsCm: true
+      cartonLengthCm: true
+      cartonWidthCm: true
+      cartonHeightCm: true
+      cartonWeightKg: true
+      packagingType: true
+      storageCartonsPerPallet: true
+      shippingCartonsPerPallet: true
+    }
+  }>
+
+  let skuRecordsForLines: LineSkuRecord[] = []
 
   const computeCartonsOrdered = (line: {
     skuCode: string
@@ -824,6 +803,13 @@ export async function createPurchaseOrder(
       select: {
         id: true,
         skuCode: true,
+        description: true,
+        cartonDimensionsCm: true,
+        cartonLengthCm: true,
+        cartonWidthCm: true,
+        cartonHeightCm: true,
+        cartonWeightKg: true,
+        packagingType: true,
       },
     })
     const skuByCode = new Map(skus.map(sku => [sku.skuCode, sku]))
@@ -856,8 +842,23 @@ export async function createPurchaseOrder(
 
 	    try {
 	      order = await prisma.$transaction(async tx => {
+          const counterpartyName =
+            typeof input.counterpartyName === 'string' && input.counterpartyName.trim().length > 0
+              ? input.counterpartyName.trim()
+              : null
+          let counterpartyAddress: string | null = null
+          if (counterpartyName) {
+            const supplier = await tx.supplier.findUnique({
+              where: { name: counterpartyName },
+              select: { address: true },
+            })
+            counterpartyAddress = supplier?.address ?? null
+          }
+
+          const skuByCode = new Map(skuRecordsForLines.map(sku => [sku.skuCode.toLowerCase(), sku]))
+          const batchByKey = new Map<string, LineBatchRecord>()
+
 	        if (input.lines && input.lines.length > 0) {
-	          const skuByCode = new Map(skuRecordsForLines.map(sku => [sku.skuCode.toLowerCase(), sku]))
 	          const requiredCombos: Array<{ skuId: string; skuCode: string; batchCode: string }> = []
 	          const requiredKeySet = new Set<string>()
 
@@ -889,7 +890,18 @@ export async function createPurchaseOrder(
 	                  batchCode: { equals: combo.batchCode, mode: 'insensitive' },
 	                })),
 	              },
-	              select: { skuId: true, batchCode: true },
+	              select: {
+                  skuId: true,
+                  batchCode: true,
+                  cartonDimensionsCm: true,
+                  cartonLengthCm: true,
+                  cartonWidthCm: true,
+                  cartonHeightCm: true,
+                  cartonWeightKg: true,
+                  packagingType: true,
+                  storageCartonsPerPallet: true,
+                  shippingCartonsPerPallet: true,
+                },
 	            })
 
 	            const existingMap = new Set(
@@ -903,6 +915,10 @@ export async function createPurchaseOrder(
 	                )
 	              }
 	            }
+
+              existing.forEach(row => {
+                batchByKey.set(`${row.skuId}::${row.batchCode.toUpperCase()}`, row)
+              })
 	          }
 	        }
 
@@ -912,7 +928,8 @@ export async function createPurchaseOrder(
 	            poNumber,
             type: 'PURCHASE',
             status: 'DRAFT',
-            counterpartyName: input.counterpartyName,
+            counterpartyName,
+            counterpartyAddress,
             expectedDate,
             incoterms,
             paymentTerms,
@@ -925,11 +942,44 @@ export async function createPurchaseOrder(
               input.lines && input.lines.length > 0
                 ? {
                     create: input.lines.map(line => ({
+                      ...(line.batchLot
+                        ? (() => {
+                            const skuRecord = skuByCode.get(line.skuCode.trim().toLowerCase())
+                            const batchCode = line.batchLot.trim().toUpperCase()
+                            const batchRecord = skuRecord
+                              ? batchByKey.get(`${skuRecord.id}::${batchCode}`)
+                              : null
+
+                            return {
+                              batchLot: batchRecord?.batchCode ?? batchCode,
+                              skuDescription:
+                                typeof line.skuDescription === 'string' && line.skuDescription.trim()
+                                  ? line.skuDescription
+                                  : skuRecord?.description ?? '',
+                              cartonDimensionsCm:
+                                batchRecord?.cartonDimensionsCm ?? skuRecord?.cartonDimensionsCm ?? null,
+                              cartonLengthCm:
+                                batchRecord?.cartonLengthCm ?? skuRecord?.cartonLengthCm ?? null,
+                              cartonWidthCm:
+                                batchRecord?.cartonWidthCm ?? skuRecord?.cartonWidthCm ?? null,
+                              cartonHeightCm:
+                                batchRecord?.cartonHeightCm ?? skuRecord?.cartonHeightCm ?? null,
+                              cartonWeightKg:
+                                batchRecord?.cartonWeightKg ?? skuRecord?.cartonWeightKg ?? null,
+                              packagingType: batchRecord?.packagingType ?? skuRecord?.packagingType ?? null,
+                              storageCartonsPerPallet: batchRecord?.storageCartonsPerPallet ?? null,
+                              shippingCartonsPerPallet: batchRecord?.shippingCartonsPerPallet ?? null,
+                            }
+                          })()
+                        : {
+                            skuDescription:
+                              typeof line.skuDescription === 'string' && line.skuDescription.trim()
+                                ? line.skuDescription
+                                : skuByCode.get(line.skuCode.trim().toLowerCase())?.description ?? '',
+                          }),
                       unitsOrdered: line.unitsOrdered,
                       unitsPerCarton: line.unitsPerCarton,
                       skuCode: line.skuCode,
-                      skuDescription: line.skuDescription || '',
-                      batchLot: line.batchLot.trim().toUpperCase(),
                       quantity: computeCartonsOrdered({
                         skuCode: line.skuCode,
                         unitsOrdered: line.unitsOrdered,
@@ -1151,7 +1201,7 @@ export async function transitionPurchaseOrderStage(
 
   const derivedManufacturingTotals =
     targetStatus === PurchaseOrderStatus.MANUFACTURING
-      ? await computeManufacturingCargoTotals(prisma, order.lines)
+      ? await computeManufacturingCargoTotals(order.lines)
       : null
 
   if (targetStatus === PurchaseOrderStatus.MANUFACTURING && derivedManufacturingTotals) {
@@ -1914,6 +1964,14 @@ export function serializePurchaseOrder(
 	      skuCode: line.skuCode,
 	      skuDescription: line.skuDescription,
 	      batchLot: line.batchLot,
+        cartonDimensionsCm: line.cartonDimensionsCm ?? null,
+        cartonLengthCm: toFiniteNumber(line.cartonLengthCm),
+        cartonWidthCm: toFiniteNumber(line.cartonWidthCm),
+        cartonHeightCm: toFiniteNumber(line.cartonHeightCm),
+        cartonWeightKg: toFiniteNumber(line.cartonWeightKg),
+        packagingType: line.packagingType ? line.packagingType.trim().toUpperCase() : null,
+        storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
+        shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
 	      unitsOrdered: line.unitsOrdered,
 	      unitsPerCarton: line.unitsPerCarton,
 	      quantity: line.quantity,

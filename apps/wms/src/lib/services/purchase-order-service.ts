@@ -140,6 +140,19 @@ export async function updatePurchaseOrderDetails(
 
   const counterpartyName =
     input.counterpartyName !== undefined ? input.counterpartyName : order.counterpartyName
+
+  let counterpartyAddress = order.counterpartyAddress ?? null
+  if (input.counterpartyName !== undefined) {
+    if (!counterpartyName) {
+      counterpartyAddress = null
+    } else if (counterpartyName !== order.counterpartyName) {
+      const supplier = await prisma.supplier.findUnique({
+        where: { name: counterpartyName },
+        select: { address: true },
+      })
+      counterpartyAddress = supplier?.address ?? null
+    }
+  }
   const notes = input.notes !== undefined ? input.notes : order.notes
 
   const auditOldValue: Record<string, unknown> = {}
@@ -152,6 +165,7 @@ export async function updatePurchaseOrderDetails(
   }
 
   track('counterpartyName', order.counterpartyName ?? null, counterpartyName ?? null)
+  track('counterpartyAddress', order.counterpartyAddress ?? null, counterpartyAddress ?? null)
   track(
     'expectedDate',
     order.expectedDate ? order.expectedDate.toISOString() : null,
@@ -165,6 +179,7 @@ export async function updatePurchaseOrderDetails(
     where: { id },
     data: {
       counterpartyName,
+      counterpartyAddress,
       expectedDate,
       incoterms,
       paymentTerms,
