@@ -42,4 +42,3 @@ export function getSelectionBorderBoxShadow(
 
   return shadows.length > 0 ? shadows.join(', ') : existingBoxShadow || undefined;
 }
-
