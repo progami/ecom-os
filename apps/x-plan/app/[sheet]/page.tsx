@@ -913,18 +913,6 @@ async function ensureDefaultSupplierInvoices({
 
       const existing = existingByIndex.get(planned.paymentIndex);
 
-      const existingAmountExpected =
-        existing?.amountExpected != null ? Number(existing.amountExpected) : null;
-      const existingPercent = existing?.percentage != null ? Number(existing.percentage) : null;
-      const amountTolerance = Math.max(Math.abs(amountValue) * 0.001, 0.01);
-      const percentTolerance = 0.0001;
-      const hasManualAmount =
-        existingAmountExpected != null &&
-        Math.abs(existingAmountExpected - amountValue) > amountTolerance;
-      const hasManualPercent =
-        existingPercent != null &&
-        percentValue != null &&
-        Math.abs(existingPercent - percentValue) > percentTolerance;
       const existingDueDateSource = existing?.dueDateSource ?? 'SYSTEM';
 
       if (existing?.amountPaid != null) {
@@ -946,12 +934,8 @@ async function ensureDefaultSupplierInvoices({
           updatePayload.dueDateSource = 'SYSTEM';
         }
 
-        if (!hasManualAmount) {
-          updatePayload.amountExpected = amountExpectedDecimal;
-          updatePayload.percentage = percentageDecimal;
-        } else if (!hasManualPercent && percentageDecimal != null) {
-          updatePayload.percentage = percentageDecimal;
-        }
+        updatePayload.amountExpected = amountExpectedDecimal;
+        updatePayload.percentage = percentageDecimal;
 
         if (Object.keys(updatePayload).length > 0) {
           updates.push(updatePurchaseOrderPayment(existing.id, updatePayload, paymentsDelegate));
