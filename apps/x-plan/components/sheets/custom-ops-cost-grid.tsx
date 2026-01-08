@@ -9,6 +9,7 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
   type KeyboardEvent,
+  type PointerEvent,
 } from 'react';
 import { toast } from 'sonner';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
@@ -296,17 +297,29 @@ export function CustomOpsCostGrid({
     setLocalRows((previous) => {
       if (previous.length === 0) return rows;
       const byId = new Map(previous.map((row) => [row.id, row]));
-      let changed = false;
-      for (const row of rows) {
+      let changed = previous.length !== rows.length;
+
+      const next = rows.map((row, index) => {
         const existing = byId.get(row.id);
-        const serializedExisting = existing ? JSON.stringify(existing) : null;
-        const serializedIncoming = JSON.stringify(row);
-        if (serializedExisting !== serializedIncoming) {
-          byId.set(row.id, row);
+        if (!existing) {
+          changed = true;
+          return row;
+        }
+
+        if (!changed && previous[index]?.id !== row.id) {
           changed = true;
         }
-      }
-      return changed ? rows.map((row) => byId.get(row.id) ?? row) : previous;
+
+        const serializedExisting = JSON.stringify(existing);
+        const serializedIncoming = JSON.stringify(row);
+        if (serializedExisting !== serializedIncoming) {
+          changed = true;
+          return row;
+        }
+        return existing;
+      });
+
+      return changed ? next : previous;
     });
   }, [rows]);
 
@@ -525,23 +538,41 @@ export function CustomOpsCostGrid({
     setEditValue(e.target.value);
   };
 
-  const handleCellClick = (row: OpsBatchRow, column: ColumnDef) => {
-    onSelectOrder?.(row.purchaseOrderId);
-    onSelectBatch?.(row.id);
-    tableScrollRef.current?.focus();
-    setActiveCell({ rowId: row.id, colKey: column.key });
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (editingCell) return;
+      tableScrollRef.current?.focus();
 
-    const rowIndex = rows.findIndex((item) => item.id === row.id);
-    const colIndex = columns.findIndex((item) => item.key === column.key);
-    if (rowIndex < 0 || colIndex < 0) {
-      selectionAnchorRef.current = null;
-      setSelection(null);
-      return;
-    }
-    const coords = { row: rowIndex, col: colIndex };
-    selectionAnchorRef.current = coords;
-    setSelection({ from: coords, to: coords });
-  };
+      const row = localRows[rowIndex];
+      const column = columns[colIndex];
+      if (!row || !column) return;
+
+      onSelectOrder?.(row.purchaseOrderId);
+      onSelectBatch?.(row.id);
+      setActiveCell({ rowId: row.id, colKey: column.key });
+
+      const coords = { row: rowIndex, col: colIndex };
+      if (event.shiftKey && selectionAnchorRef.current) {
+        setSelection({ from: selectionAnchorRef.current, to: coords });
+        return;
+      }
+
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
+    },
+    [columns, editingCell, localRows, onSelectBatch, onSelectOrder],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (!event.buttons) return;
+      if (!selectionAnchorRef.current) return;
+      setSelection({ from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } });
+    },
+    [],
+  );
+
+  const handlePointerUp = useCallback(() => {}, []);
 
   const handleCellBlur = () => {
     commitEdit();
@@ -558,14 +589,14 @@ export function CustomOpsCostGrid({
     (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
       if (!activeCell) return;
 
-      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId);
+      const currentRowIndex = localRows.findIndex((row) => row.id === activeCell.rowId);
       const currentColIndex = columns.findIndex((column) => column.key === activeCell.colKey);
       if (currentRowIndex < 0 || currentColIndex < 0) return;
 
-      const nextRowIndex = Math.max(0, Math.min(rows.length - 1, currentRowIndex + deltaRow));
+      const nextRowIndex = Math.max(0, Math.min(localRows.length - 1, currentRowIndex + deltaRow));
       const nextColIndex = Math.max(0, Math.min(columns.length - 1, currentColIndex + deltaCol));
 
-      const nextRow = rows[nextRowIndex];
+      const nextRow = localRows[nextRowIndex];
       const nextColKey = columns[nextColIndex]?.key;
       if (!nextRow || !nextColKey) return;
 
@@ -587,14 +618,14 @@ export function CustomOpsCostGrid({
       onSelectBatch?.(nextRow.id);
       scrollToCell(nextRow.id, nextColKey);
     },
-    [activeCell, columns, onSelectBatch, onSelectOrder, rows, scrollToCell],
+    [activeCell, columns, localRows, onSelectBatch, onSelectOrder, scrollToCell],
   );
 
   const moveSelectionTab = useCallback(
     (direction: 1 | -1) => {
       if (!activeCell) return;
 
-      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId);
+      const currentRowIndex = localRows.findIndex((row) => row.id === activeCell.rowId);
       const currentColIndex = columns.findIndex((column) => column.key === activeCell.colKey);
       if (currentRowIndex < 0 || currentColIndex < 0) return;
 
@@ -603,13 +634,13 @@ export function CustomOpsCostGrid({
 
       if (nextColIndex >= columns.length) {
         nextColIndex = 0;
-        nextRowIndex = Math.min(rows.length - 1, currentRowIndex + 1);
+        nextRowIndex = Math.min(localRows.length - 1, currentRowIndex + 1);
       } else if (nextColIndex < 0) {
         nextColIndex = columns.length - 1;
         nextRowIndex = Math.max(0, currentRowIndex - 1);
       }
 
-      const nextRow = rows[nextRowIndex];
+      const nextRow = localRows[nextRowIndex];
       const nextColKey = columns[nextColIndex]?.key;
       if (!nextRow || !nextColKey) return;
 
@@ -621,17 +652,17 @@ export function CustomOpsCostGrid({
       onSelectBatch?.(nextRow.id);
       scrollToCell(nextRow.id, nextColKey);
     },
-    [activeCell, columns, onSelectBatch, onSelectOrder, rows, scrollToCell],
+    [activeCell, columns, localRows, onSelectBatch, onSelectOrder, scrollToCell],
   );
 
   const startEditingActiveCell = useCallback(() => {
     if (!activeCell) return;
-    const row = rows.find((r) => r.id === activeCell.rowId);
+    const row = localRows.find((r) => r.id === activeCell.rowId);
     const column = columns.find((c) => c.key === activeCell.colKey);
     if (!row || !column) return;
     if (!column.editable) return;
     startEditing(row.id, column.key, row[column.key] ?? '');
-  }, [activeCell, columns, rows, startEditing]);
+  }, [activeCell, columns, localRows, startEditing]);
 
   const buildClipboardText = useCallback(() => {
     const range = selection ?? null;
@@ -639,7 +670,7 @@ export function CustomOpsCostGrid({
 
     const resolvedRange = (() => {
       if (range) return range;
-      const rowIndex = rows.findIndex((row) => row.id === activeCell?.rowId);
+      const rowIndex = localRows.findIndex((row) => row.id === activeCell?.rowId);
       const colIndex = columns.findIndex((column) => column.key === activeCell?.colKey);
       if (rowIndex < 0 || colIndex < 0) return null;
       const coords = { row: rowIndex, col: colIndex };
@@ -664,7 +695,7 @@ export function CustomOpsCostGrid({
     }
 
     return lines.join('\n');
-  }, [activeCell, columns, localRows, rows, selection]);
+  }, [activeCell, columns, localRows, selection]);
 
   const copySelectionToClipboard = useCallback(() => {
     const text = buildClipboardText();
@@ -699,7 +730,7 @@ export function CustomOpsCostGrid({
 
     const resolvedRange = (() => {
       if (range) return range;
-      const rowIndex = rows.findIndex((row) => row.id === activeCell?.rowId);
+      const rowIndex = localRows.findIndex((row) => row.id === activeCell?.rowId);
       const colIndex = columns.findIndex((column) => column.key === activeCell?.colKey);
       if (rowIndex < 0 || colIndex < 0) return null;
       const coords = { row: rowIndex, col: colIndex };
@@ -772,7 +803,7 @@ export function CustomOpsCostGrid({
     setLocalRows(updatedRows);
     onRowsChange?.(updatedRows);
     scheduleFlush();
-  }, [activeCell, columns, localRows, onRowsChange, pendingRef, rows, scheduleFlush, selection]);
+  }, [activeCell, columns, localRows, onRowsChange, pendingRef, scheduleFlush, selection]);
 
   const applyPastedText = useCallback(
     (text: string, start: { rowId: string; colKey: keyof OpsBatchRow }) => {
@@ -1025,7 +1056,7 @@ export function CustomOpsCostGrid({
         !event.altKey &&
         activeCell
       ) {
-        const row = rows.find((r) => r.id === activeCell.rowId);
+        const row = localRows.find((r) => r.id === activeCell.rowId);
         const column = columns.find((c) => c.key === activeCell.colKey);
         if (!row || !column) return;
         if (!column.editable) return;
@@ -1045,24 +1076,19 @@ export function CustomOpsCostGrid({
         return;
       }
 
-      if (event.key === 'ArrowDown') {
+      const isArrowKey = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(event.key);
+      if (isArrowKey) {
         event.preventDefault();
-        moveSelection(1, 0, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        moveSelection(-1, 0, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        moveSelection(0, 1, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        moveSelection(0, -1, { extendSelection: event.shiftKey });
+        const jump = event.ctrlKey || event.metaKey;
+        if (event.key === 'ArrowDown') {
+          moveSelection(jump ? localRows.length : 1, 0, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowUp') {
+          moveSelection(jump ? -localRows.length : -1, 0, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowRight') {
+          moveSelection(0, jump ? columns.length : 1, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowLeft') {
+          moveSelection(0, jump ? -columns.length : -1, { extendSelection: event.shiftKey });
+        }
         return;
       }
     },
@@ -1072,9 +1098,9 @@ export function CustomOpsCostGrid({
       clearSelectionValues,
       copySelectionToClipboard,
       editingCell,
+      localRows,
       moveSelection,
       moveSelectionTab,
-      rows,
       startEditing,
       startEditingActiveCell,
     ],
@@ -1082,7 +1108,6 @@ export function CustomOpsCostGrid({
 
   const handleTableKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return;
       handleGridKeyDown(event);
     },
     [handleGridKeyDown],
@@ -1210,10 +1235,9 @@ export function CustomOpsCostGrid({
         className={cellClassName}
         style={{ width: column.width, minWidth: column.width, boxShadow }}
         title={displayValue || undefined}
-        onClick={(event) => {
-          event.stopPropagation();
-          handleCellClick(row, column);
-        }}
+        onPointerDown={(event) => handlePointerDown(event, rowIndex, colIndex)}
+        onPointerMove={(event) => handlePointerMove(event, rowIndex, colIndex)}
+        onPointerUp={handlePointerUp}
         onDoubleClick={(event) => {
           event.stopPropagation();
           if (!column.editable) return;
@@ -1322,7 +1346,7 @@ export function CustomOpsCostGrid({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.length === 0 ? (
+              {localRows.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell
                     colSpan={columns.length}
@@ -1334,7 +1358,7 @@ export function CustomOpsCostGrid({
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((row, rowIndex) => (
+                localRows.map((row, rowIndex) => (
                   <TableRow
                     key={row.id}
                     className={cn(

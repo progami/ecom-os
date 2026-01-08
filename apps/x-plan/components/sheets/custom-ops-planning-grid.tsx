@@ -1277,10 +1277,7 @@ export function CustomOpsPlanningGrid({
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
       if (editingCell) return;
       tableScrollRef.current?.focus();
-      e.currentTarget.setPointerCapture(e.pointerId);
       const coords = { row: rowIndex, col: colIndex };
-      selectionAnchorRef.current = coords;
-      setSelection({ from: coords, to: coords });
       // Also update activeCell to match
       const row = rows[rowIndex];
       const column = COLUMNS[colIndex];
@@ -1288,12 +1285,21 @@ export function CustomOpsPlanningGrid({
         setActiveCell({ rowId: row.id, colKey: column.key });
         onSelectOrder?.(row.id);
       }
+
+      if (e.shiftKey && selectionAnchorRef.current) {
+        setSelection({ from: selectionAnchorRef.current, to: coords });
+        return;
+      }
+
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
     },
     [editingCell, rows, onSelectOrder],
   );
 
   const handlePointerMove = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (!e.buttons) return;
       if (!selectionAnchorRef.current) return;
       const newRange = { from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } };
       setSelection(newRange);
@@ -1301,9 +1307,7 @@ export function CustomOpsPlanningGrid({
     [],
   );
 
-  const handlePointerUp = useCallback(() => {
-    selectionAnchorRef.current = null;
-  }, []);
+  const handlePointerUp = useCallback(() => {}, []);
 
   // Copy handler - use display values for clipboard (user-friendly format)
   const buildClipboardText = useCallback(
@@ -1665,24 +1669,19 @@ export function CustomOpsPlanningGrid({
         return;
       }
 
-      if (event.key === 'ArrowDown') {
+      const isArrowKey = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(event.key);
+      if (isArrowKey) {
         event.preventDefault();
-        moveSelection(1, 0, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        moveSelection(-1, 0, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        moveSelection(0, 1, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        moveSelection(0, -1, { extendSelection: event.shiftKey });
+        const jump = event.ctrlKey || event.metaKey;
+        if (event.key === 'ArrowDown') {
+          moveSelection(jump ? rows.length : 1, 0, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowUp') {
+          moveSelection(jump ? -rows.length : -1, 0, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowRight') {
+          moveSelection(0, jump ? COLUMNS.length : 1, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowLeft') {
+          moveSelection(0, jump ? -COLUMNS.length : -1, { extendSelection: event.shiftKey });
+        }
         return;
       }
     },
@@ -1704,7 +1703,6 @@ export function CustomOpsPlanningGrid({
 
   const handleTableKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return;
       handleGridKeyDown(event);
     },
     [handleGridKeyDown],
