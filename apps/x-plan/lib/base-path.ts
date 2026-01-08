@@ -17,7 +17,3 @@ export function withAppBasePath(path: string): string {
   if (!NORMALIZED_BASE_PATH) return path;
   return `${NORMALIZED_BASE_PATH}${path}`;
 }
-
-export function getAppBasePath(): string {
-  return NORMALIZED_BASE_PATH;
-}

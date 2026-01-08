@@ -136,10 +136,6 @@ export async function requireStrategyAccess(
   }
 }
 
-export async function listAllowedXPlanAssignees(): Promise<AllowedAssignee[]> {
-  return listAllowedXPlanAssigneesWithCookie(null);
-}
-
 export async function listAllowedXPlanAssigneesWithCookie(
   cookieHeader: string | null,
 ): Promise<AllowedAssignee[]> {
@@ -202,10 +198,6 @@ export async function listAllowedXPlanAssigneesWithCookie(
   } catch {
     return [];
   }
-}
-
-export async function resolveAllowedXPlanAssigneeById(id: string): Promise<AllowedAssignee | null> {
-  return resolveAllowedXPlanAssigneeByIdWithCookie(id, null);
 }
 
 export async function resolveAllowedXPlanAssigneeByIdWithCookie(

@@ -9,8 +9,6 @@ import type {
   SalesWeek,
   ProfitAndLossWeek,
   CashFlowWeek,
-  MonthlySummary,
-  QuarterlySummary,
   PurchaseOrderStatus,
 } from '@ecom-os/prisma-x-plan';
 import { coerceNumber, parseNumber } from '@/lib/utils/numbers';
@@ -19,14 +17,12 @@ import {
   CashFlowWeekInput,
   LeadStageOverrideInput,
   LeadStageTemplateInput,
-  MonthlySummaryInput,
   ProductInput,
   ProfitAndLossWeekInput,
   PurchaseOrderInput,
   PurchaseOrderPaymentInput,
   BatchTableRowInput,
   SalesWeekInput,
-  QuarterlySummaryInput,
 } from './types';
 
 function normalizePositiveDecimal(value: unknown): number | null {
@@ -249,47 +245,5 @@ export function mapCashFlowWeeks(rows: CashFlowWeek[]): CashFlowWeekInput[] {
     fixedCosts: row.fixedCosts != null ? coerceNumber(row.fixedCosts) : null,
     netCash: row.netCash != null ? coerceNumber(row.netCash) : null,
     cashBalance: row.cashBalance != null ? coerceNumber(row.cashBalance) : null,
-  }));
-}
-
-export function mapMonthlySummaries(rows: MonthlySummary[]): MonthlySummaryInput[] {
-  return rows.map((row) => ({
-    id: row.id,
-    periodLabel: row.periodLabel,
-    year: row.year,
-    month: row.month,
-    revenue: row.revenue != null ? coerceNumber(row.revenue) : null,
-    cogs: row.cogs != null ? coerceNumber(row.cogs) : null,
-    grossProfit: row.grossProfit != null ? coerceNumber(row.grossProfit) : null,
-    amazonFees: row.amazonFees != null ? coerceNumber(row.amazonFees) : null,
-    ppcSpend: row.ppcSpend != null ? coerceNumber(row.ppcSpend) : null,
-    fixedCosts: row.fixedCosts != null ? coerceNumber(row.fixedCosts) : null,
-    totalOpex: row.totalOpex != null ? coerceNumber(row.totalOpex) : null,
-    netProfit: row.netProfit != null ? coerceNumber(row.netProfit) : null,
-    amazonPayout: row.amazonPayout != null ? coerceNumber(row.amazonPayout) : null,
-    inventorySpend: row.inventorySpend != null ? coerceNumber(row.inventorySpend) : null,
-    netCash: row.netCash != null ? coerceNumber(row.netCash) : null,
-    closingCash: row.closingCash != null ? coerceNumber(row.closingCash) : null,
-  }));
-}
-
-export function mapQuarterlySummaries(rows: QuarterlySummary[]): QuarterlySummaryInput[] {
-  return rows.map((row) => ({
-    id: row.id,
-    periodLabel: row.periodLabel,
-    year: row.year,
-    quarter: row.quarter,
-    revenue: row.revenue != null ? coerceNumber(row.revenue) : null,
-    cogs: row.cogs != null ? coerceNumber(row.cogs) : null,
-    grossProfit: row.grossProfit != null ? coerceNumber(row.grossProfit) : null,
-    amazonFees: row.amazonFees != null ? coerceNumber(row.amazonFees) : null,
-    ppcSpend: row.ppcSpend != null ? coerceNumber(row.ppcSpend) : null,
-    fixedCosts: row.fixedCosts != null ? coerceNumber(row.fixedCosts) : null,
-    totalOpex: row.totalOpex != null ? coerceNumber(row.totalOpex) : null,
-    netProfit: row.netProfit != null ? coerceNumber(row.netProfit) : null,
-    amazonPayout: row.amazonPayout != null ? coerceNumber(row.amazonPayout) : null,
-    inventorySpend: row.inventorySpend != null ? coerceNumber(row.inventorySpend) : null,
-    netCash: row.netCash != null ? coerceNumber(row.netCash) : null,
-    closingCash: row.closingCash != null ? coerceNumber(row.closingCash) : null,
   }));
 }
