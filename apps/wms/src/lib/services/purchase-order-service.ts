@@ -48,6 +48,7 @@ export function serializePurchaseOrder(
     lines: order.lines.map(line => ({
       ...line,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
+      totalCost: line.totalCost ? Number(line.totalCost) : null,
       createdAt: line.createdAt.toISOString(),
       updatedAt: line.updatedAt.toISOString(),
     })),

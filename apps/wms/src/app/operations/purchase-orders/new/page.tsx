@@ -31,8 +31,7 @@ interface Sku {
 
 interface BatchOption {
   batchCode: string
-  storageCartonsPerPallet: number | null
-  shippingCartonsPerPallet: number | null
+  unitsPerCarton: number | null
 }
 
 interface LineItem {
@@ -41,10 +40,9 @@ interface LineItem {
   skuCode: string
   skuDescription: string
   batchLot: string
-  quantity: number
-  storageCartonsPerPallet: number | null
-  shippingCartonsPerPallet: number | null
-  actualCost: string
+  unitsOrdered: number
+  unitsPerCarton: number | null
+  totalCost: string
   currency: string
   notes: string
 }
@@ -92,10 +90,9 @@ export default function NewPurchaseOrderPage() {
       skuCode: '',
       skuDescription: '',
       batchLot: '',
-      quantity: 1,
-      storageCartonsPerPallet: null,
-      shippingCartonsPerPallet: null,
-      actualCost: '',
+      unitsOrdered: 1,
+      unitsPerCarton: null,
+      totalCost: '',
       currency: 'USD',
       notes: '',
     },
@@ -172,10 +169,9 @@ export default function NewPurchaseOrderPage() {
         skuCode: '',
         skuDescription: '',
         batchLot: '',
-        quantity: 1,
-        storageCartonsPerPallet: null,
-        shippingCartonsPerPallet: null,
-        actualCost: '',
+        unitsOrdered: 1,
+        unitsPerCarton: null,
+        totalCost: '',
         currency: tenantCurrency,
         notes: '',
       },
@@ -220,8 +216,7 @@ export default function NewPurchaseOrderPage() {
 
           return {
             batchCode,
-            storageCartonsPerPallet: coercePositiveInt(batch?.storageCartonsPerPallet),
-            shippingCartonsPerPallet: coercePositiveInt(batch?.shippingCartonsPerPallet),
+            unitsPerCarton: coercePositiveInt(batch?.unitsPerCarton),
           }
         })
         .filter((batch): batch is BatchOption => Boolean(batch))
@@ -238,8 +233,7 @@ export default function NewPurchaseOrderPage() {
             return {
               ...item,
               batchLot: '',
-              storageCartonsPerPallet: null,
-              shippingCartonsPerPallet: null,
+              unitsPerCarton: null,
             }
           }
 
@@ -252,8 +246,7 @@ export default function NewPurchaseOrderPage() {
           return {
             ...item,
             batchLot: selectedCode,
-            storageCartonsPerPallet: selectedBatch?.storageCartonsPerPallet ?? null,
-            shippingCartonsPerPallet: selectedBatch?.shippingCartonsPerPallet ?? null,
+            unitsPerCarton: selectedBatch?.unitsPerCarton ?? null,
           }
         })
       )
@@ -268,64 +261,61 @@ export default function NewPurchaseOrderPage() {
   const updateLineItem = (id: string, field: keyof LineItem, value: LineItem[keyof LineItem]) => {
     if (field === 'skuCode') {
       const skuCode = String(value)
-      const selectedSku = skus.find(s => s.skuCode === skuCode)
-      if (!selectedSku) {
-        setLineItems(prev =>
-          prev.map(item =>
-            item.id === id
-              ? {
-                  ...item,
-                  skuId: undefined,
-                  skuCode: '',
-                  skuDescription: '',
-                  batchLot: '',
-                  storageCartonsPerPallet: null,
-                  shippingCartonsPerPallet: null,
-                }
-              : item
-          )
-        )
-        return
-      }
+	      const selectedSku = skus.find(s => s.skuCode === skuCode)
+	      if (!selectedSku) {
+	        setLineItems(prev =>
+	          prev.map(item =>
+	            item.id === id
+	              ? {
+	                  ...item,
+	                  skuId: undefined,
+	                  skuCode: '',
+	                  skuDescription: '',
+	                  batchLot: '',
+	                  unitsPerCarton: null,
+	                }
+	              : item
+	          )
+	        )
+	        return
+	      }
 
-      setLineItems(prev =>
-        prev.map(item =>
-          item.id === id
-            ? {
-                ...item,
-                skuId: selectedSku.id,
-                skuCode: selectedSku.skuCode,
-                skuDescription: selectedSku.description || '',
-                batchLot: '',
-                storageCartonsPerPallet: null,
-                shippingCartonsPerPallet: null,
-              }
-            : item
-        )
-      )
+	      setLineItems(prev =>
+	        prev.map(item =>
+	          item.id === id
+	            ? {
+	                ...item,
+	                skuId: selectedSku.id,
+	                skuCode: selectedSku.skuCode,
+	                skuDescription: selectedSku.description || '',
+	                batchLot: '',
+	                unitsPerCarton: null,
+	              }
+	            : item
+	        )
+	      )
       void ensureSkuBatchesLoaded(selectedSku.id)
       return
     }
 
-    if (field === 'batchLot') {
-      const batchLot = String(value).trim().toUpperCase()
-      setLineItems(prev =>
-        prev.map(item => {
-          if (item.id !== id) return item
-          if (!item.skuId) return { ...item, batchLot }
+	    if (field === 'batchLot') {
+	      const batchLot = String(value).trim().toUpperCase()
+	      setLineItems(prev =>
+	        prev.map(item => {
+	          if (item.id !== id) return item
+	          if (!item.skuId) return { ...item, batchLot }
 
-          const batches = batchesBySkuId[item.skuId] ?? []
-          const selectedBatch = batches.find(batch => batch.batchCode === batchLot)
-          return {
-            ...item,
-            batchLot,
-            storageCartonsPerPallet: selectedBatch?.storageCartonsPerPallet ?? null,
-            shippingCartonsPerPallet: selectedBatch?.shippingCartonsPerPallet ?? null,
-          }
-        })
-      )
-      return
-    }
+	          const batches = batchesBySkuId[item.skuId] ?? []
+	          const selectedBatch = batches.find(batch => batch.batchCode === batchLot)
+	          return {
+	            ...item,
+	            batchLot,
+	            unitsPerCarton: selectedBatch?.unitsPerCarton ?? null,
+	          }
+	        })
+	      )
+	      return
+	    }
 
     setLineItems(prev =>
       prev.map(item => (item.id === id ? ({ ...item, [field]: value } as LineItem) : item))
@@ -342,7 +332,7 @@ export default function NewPurchaseOrderPage() {
       ...prev,
       supplierId,
       paymentTerms: nextSupplier?.defaultPaymentTerms?.trim() || '',
-      incoterms: nextSupplier?.defaultIncoterms?.trim() || '',
+      incoterms: nextSupplier?.defaultIncoterms?.trim().toUpperCase() || '',
     }))
   }
 
@@ -390,13 +380,13 @@ export default function NewPurchaseOrderPage() {
       const batchLot = item.batchLot.trim()
       if (!batchLot) return true
       if (batchLot.toUpperCase() === 'DEFAULT') return true
-      if (!isPositiveInteger(item.storageCartonsPerPallet)) return true
-      if (!isPositiveInteger(item.shippingCartonsPerPallet)) return true
-      return item.quantity <= 0
+      if (!isPositiveInteger(item.unitsOrdered)) return true
+      if (!isPositiveInteger(item.unitsPerCarton)) return true
+      return item.unitsOrdered % item.unitsPerCarton !== 0
     })
     if (invalidLines.length > 0) {
       toast.error(
-        'Please fill in SKU, batch/lot, quantity, and cartons-per-pallet for all line items'
+        'Please fill in SKU, batch/lot, units ordered, and units per carton (units must divide evenly) for all line items'
       )
       return
     }
@@ -407,8 +397,8 @@ export default function NewPurchaseOrderPage() {
     }
 
     const invalidCostLine = lineItems.find(line => {
-      if (!line.actualCost.trim()) return false
-      return parseMoney(line.actualCost) === null
+      if (!line.totalCost.trim()) return false
+      return parseMoney(line.totalCost) === null
     })
     if (invalidCostLine) {
       toast.error(`Invalid actual cost for SKU ${invalidCostLine.skuCode || 'line item'}`)
@@ -427,15 +417,12 @@ export default function NewPurchaseOrderPage() {
           paymentTerms: formData.paymentTerms.trim(),
           notes: formData.notes || undefined,
           lines: lineItems.map(item => ({
-            ...(parseMoney(item.actualCost) !== null
-              ? { unitCost: calculateUnitCost(parseMoney(item.actualCost) ?? 0, item.quantity, 2) }
-              : {}),
             skuCode: item.skuCode,
             skuDescription: item.skuDescription,
             batchLot: item.batchLot.trim().toUpperCase(),
-            quantity: item.quantity,
-            storageCartonsPerPallet: item.storageCartonsPerPallet ?? undefined,
-            shippingCartonsPerPallet: item.shippingCartonsPerPallet ?? undefined,
+            unitsOrdered: item.unitsOrdered,
+            unitsPerCarton: item.unitsPerCarton ?? 1,
+            ...(parseMoney(item.totalCost) !== null ? { totalCost: parseMoney(item.totalCost) ?? 0 } : {}),
             currency: item.currency,
             notes: item.notes || undefined,
           })),
@@ -657,14 +644,16 @@ export default function NewPurchaseOrderPage() {
                   </div>
 
                   <div className="overflow-x-auto">
-                    <div className="min-w-[820px]">
+                    <div className="min-w-[980px]">
                       {/* Table Header */}
-                      <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground px-4 py-2.5 border-b bg-slate-50/30">
+                      <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground px-4 py-2.5 border-b bg-slate-50/30">
                         <div className="col-span-2">SKU</div>
                         <div className="col-span-2">Batch/Lot</div>
                         <div className="col-span-3">Description</div>
-                        <div className="col-span-1">Qty</div>
-                        <div className="col-span-2">Actual Cost</div>
+                        <div className="col-span-1">Units</div>
+                        <div className="col-span-1">Units/Ctn</div>
+                        <div className="col-span-1">Cartons</div>
+                        <div className="col-span-2">Total Cost</div>
                         <div className="col-span-2">Notes</div>
                       </div>
 
@@ -673,7 +662,7 @@ export default function NewPurchaseOrderPage() {
                         {lineItems.map(item => (
                           <div
                             key={item.id}
-                            className="grid grid-cols-12 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
+                            className="grid grid-cols-14 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
                           >
                             <div className="col-span-2">
                               <select
@@ -690,7 +679,7 @@ export default function NewPurchaseOrderPage() {
                                 ))}
                               </select>
                             </div>
-                            <div className="col-span-2 space-y-1.5">
+                            <div className="col-span-2">
                               <select
                                 value={item.batchLot}
                                 onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
@@ -702,11 +691,14 @@ export default function NewPurchaseOrderPage() {
                                   batchesLoadingBySkuId[item.skuId] ? (
                                     <option value="">Loading…</option>
                                   ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
-                                    (batchesBySkuId[item.skuId] ?? []).map(batch => (
-                                      <option key={batch.batchCode} value={batch.batchCode}>
-                                        {batch.batchCode}
-                                      </option>
-                                    ))
+                                    <>
+                                      <option value="">Select batch</option>
+                                      {(batchesBySkuId[item.skuId] ?? []).map(batch => (
+                                        <option key={batch.batchCode} value={batch.batchCode}>
+                                          {batch.batchCode}
+                                        </option>
+                                      ))}
+                                    </>
                                   ) : (
                                     <option value="">No batches</option>
                                   )
@@ -714,65 +706,6 @@ export default function NewPurchaseOrderPage() {
                                   <option value="">Select SKU first</option>
                                 )}
                               </select>
-
-                              <div className="flex gap-1.5">
-                                <div className="flex-1">
-                                  <p className="text-[9px] font-medium text-muted-foreground uppercase mb-0.5">
-                                    Stor
-                                  </p>
-                                  <Input
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={1}
-                                    step={1}
-                                    value={item.storageCartonsPerPallet ?? ''}
-                                    onChange={e =>
-                                      updateLineItem(
-                                        item.id,
-                                        'storageCartonsPerPallet',
-                                        (() => {
-                                          const parsed = Number.parseInt(e.target.value, 10)
-                                          return Number.isInteger(parsed) && parsed > 0
-                                            ? parsed
-                                            : null
-                                        })()
-                                      )
-                                    }
-                                    placeholder="—"
-                                    className="h-7 text-xs px-1.5"
-                                    disabled={!item.skuId || !item.batchLot}
-                                    required
-                                  />
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-[9px] font-medium text-muted-foreground uppercase mb-0.5">
-                                    Ship
-                                  </p>
-                                  <Input
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={1}
-                                    step={1}
-                                    value={item.shippingCartonsPerPallet ?? ''}
-                                    onChange={e =>
-                                      updateLineItem(
-                                        item.id,
-                                        'shippingCartonsPerPallet',
-                                        (() => {
-                                          const parsed = Number.parseInt(e.target.value, 10)
-                                          return Number.isInteger(parsed) && parsed > 0
-                                            ? parsed
-                                            : null
-                                        })()
-                                      )
-                                    }
-                                    placeholder="—"
-                                    className="h-7 text-xs px-1.5"
-                                    disabled={!item.skuId || !item.batchLot}
-                                    required
-                                  />
-                                </div>
-                              </div>
                             </div>
                             <div className="col-span-3">
                               <Input
@@ -788,12 +721,49 @@ export default function NewPurchaseOrderPage() {
                               <Input
                                 type="number"
                                 min="1"
-                                value={item.quantity}
+                                value={item.unitsOrdered}
                                 onChange={e =>
-                                  updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)
+                                  updateLineItem(
+                                    item.id,
+                                    'unitsOrdered',
+                                    parseInt(e.target.value) || 0
+                                  )
                                 }
                                 className="text-sm h-8"
                                 required
+                              />
+                            </div>
+                            <div className="col-span-1">
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.unitsPerCarton ?? ''}
+                                onChange={e =>
+                                  updateLineItem(
+                                    item.id,
+                                    'unitsPerCarton',
+                                    (() => {
+                                      const parsed = Number.parseInt(e.target.value, 10)
+                                      return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                                    })()
+                                  )
+                                }
+                                placeholder="—"
+                                className="text-sm h-8"
+                                disabled={!item.skuId || !item.batchLot}
+                                required
+                              />
+                            </div>
+                            <div className="col-span-1">
+                              <Input
+                                value={(() => {
+                                  if (!item.unitsPerCarton) return '—'
+                                  if (item.unitsOrdered <= 0) return '—'
+                                  if (item.unitsOrdered % item.unitsPerCarton !== 0) return '—'
+                                  return String(item.unitsOrdered / item.unitsPerCarton)
+                                })()}
+                                readOnly
+                                className="text-sm h-8 bg-muted/30 text-muted-foreground"
                               />
                             </div>
                             <div className="col-span-2">
@@ -802,9 +772,9 @@ export default function NewPurchaseOrderPage() {
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  value={item.actualCost}
+                                  value={item.totalCost}
                                   onChange={e =>
-                                    updateLineItem(item.id, 'actualCost', e.target.value)
+                                    updateLineItem(item.id, 'totalCost', e.target.value)
                                   }
                                   placeholder="0.00"
                                   className="text-sm h-8 pr-12"
@@ -816,10 +786,10 @@ export default function NewPurchaseOrderPage() {
                               <p className="mt-0.5 text-[10px] text-muted-foreground">
                                 Unit:{' '}
                                 {(() => {
-                                  const money = parseMoney(item.actualCost)
+                                  const money = parseMoney(item.totalCost)
                                   if (money === null) return '—'
-                                  const unit = calculateUnitCost(money, item.quantity, 2)
-                                  return `${unit.toFixed(2)}`
+                                  const unit = calculateUnitCost(money, item.unitsOrdered, 4)
+                                  return `${unit.toFixed(4)}`
                                 })()}
                               </p>
                             </div>

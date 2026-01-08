@@ -46,13 +46,13 @@ type StatusConfig = {
 	  {
 	    value: 'DRAFT',
 	    label: 'Draft',
-	    description: 'Purchase orders being prepared with initial details',
+	    description: 'Editable draft shared with supplier for review',
 	    icon: FileEdit,
 	  },
 	  {
 	    value: 'ISSUED',
 	    label: 'Issued',
-	    description: 'Purchase orders sent to suppliers, awaiting confirmation',
+	    description: 'Accepted by supplier (signed PI received)',
 	    icon: Send,
 	  },
 	  {

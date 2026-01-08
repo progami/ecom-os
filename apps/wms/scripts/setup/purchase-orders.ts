@@ -44,6 +44,7 @@ type SampleOrder = {
   expectedInDays: number
   notes: string
   posted?: boolean
+  /** quantity = cartons ordered; units are derived from SKU unitsPerCarton */
   lines: Array<{ skuIndex: number; quantity: number; unitCost: number; batchSuffix?: number }>
 }
 
@@ -77,10 +78,10 @@ async function createPurchaseOrders() {
     {
       orderNumber: 'PO-1002',
       type: PurchaseOrderType.PURCHASE,
-      status: PurchaseOrderStatus.AWAITING_PROOF,
+      status: PurchaseOrderStatus.ISSUED,
       counterpartyName: 'FMC Manufacturing',
       expectedInDays: 3,
-      notes: 'Awaiting proof of delivery – vendor confirmed shipment left dock.',
+      notes: 'Supplier accepted; signed PI received and queued for production.',
       lines: [
         { skuIndex: 2, quantity: 60, unitCost: 25 },
         { skuIndex: 3, quantity: 42, unitCost: 28 },
@@ -89,10 +90,10 @@ async function createPurchaseOrders() {
     {
       orderNumber: 'PO-1003',
       type: PurchaseOrderType.PURCHASE,
-      status: PurchaseOrderStatus.REVIEW,
+      status: PurchaseOrderStatus.MANUFACTURING,
       counterpartyName: 'Vglobal Fulfilment',
       expectedInDays: -2,
-      notes: 'Ready for final approval after document review.',
+      notes: 'In production – manufacturing started with initial PO quantities.',
       lines: [
         { skuIndex: 4, quantity: 90, unitCost: 30 },
         { skuIndex: 5, quantity: 36, unitCost: 34 },
@@ -101,10 +102,10 @@ async function createPurchaseOrders() {
     {
       orderNumber: 'PO-1004',
       type: PurchaseOrderType.PURCHASE,
-      status: PurchaseOrderStatus.POSTED,
+      status: PurchaseOrderStatus.WAREHOUSE,
       counterpartyName: 'West Coast Retail',
       expectedInDays: -5,
-      notes: 'Fully reconciled and posted to the ledger.',
+      notes: 'Received at warehouse and ready for downstream fulfillment flows.',
       posted: true,
       lines: [
         { skuIndex: 0, quantity: 40, unitCost: 18, batchSuffix: 7 },
@@ -121,12 +122,19 @@ async function createPurchaseOrders() {
       .map(({ skuIndex, quantity, unitCost, batchSuffix }, index) => {
         const sku = skus[skuIndex]
         if (!sku) return null
+        const cartonsOrdered = quantity
+        const unitsPerCarton = sku.unitsPerCarton ?? 1
+        const unitsOrdered = cartonsOrdered * unitsPerCarton
+        const unitCostDecimal = new Prisma.Decimal(unitCost)
         return {
           skuCode: sku.skuCode,
           skuDescription: sku.description,
           batchLot: `LOT-${batchSuffix ?? index + 1}`,
-          quantity,
-          unitCost: new Prisma.Decimal(unitCost),
+          unitsOrdered,
+          unitsPerCarton,
+          quantity: cartonsOrdered,
+          unitCost: unitCostDecimal,
+          totalCost: unitCostDecimal.mul(unitsOrdered),
         }
       })
       .filter((line): line is NonNullable<typeof line> => Boolean(line))

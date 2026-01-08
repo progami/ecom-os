@@ -397,9 +397,8 @@ export async function getAllUsersWithPermissions(): Promise<
 // Stage transition permission codes
 export const STAGE_TRANSITION_PERMISSIONS = {
   DRAFT_TO_ISSUED: 'po.approve.draft_to_manufacturing',
-  ISSUED_TO_DRAFT: 'po.approve.draft_to_manufacturing',
+  DRAFT_TO_REJECTED: 'po.approve.draft_to_manufacturing',
   ISSUED_TO_MANUFACTURING: 'po.approve.draft_to_manufacturing',
-  ISSUED_TO_REJECTED: 'po.approve.draft_to_manufacturing',
   REJECTED_TO_DRAFT: 'po.approve.draft_to_manufacturing',
   DRAFT_TO_MANUFACTURING: 'po.approve.draft_to_manufacturing', // Legacy transition (pre-ISSUED)
   MANUFACTURING_TO_OCEAN: 'po.approve.manufacturing_to_ocean',

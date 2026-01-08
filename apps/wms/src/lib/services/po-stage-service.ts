@@ -118,11 +118,10 @@ function normalizeAuditValue(value: unknown): unknown {
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
-  DRAFT: [PurchaseOrderStatus.ISSUED, PurchaseOrderStatus.CANCELLED],
+  // Draft = editable PO shared with supplier (negotiation)
+  DRAFT: [PurchaseOrderStatus.ISSUED, PurchaseOrderStatus.REJECTED, PurchaseOrderStatus.CANCELLED],
   ISSUED: [
     PurchaseOrderStatus.MANUFACTURING,
-    PurchaseOrderStatus.REJECTED,
-    PurchaseOrderStatus.DRAFT,
     PurchaseOrderStatus.CANCELLED,
   ],
   MANUFACTURING: [PurchaseOrderStatus.OCEAN, PurchaseOrderStatus.CANCELLED],
@@ -135,9 +134,10 @@ export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrde
 
 // Stage-specific required fields for transition
 export const STAGE_REQUIREMENTS: Record<string, string[]> = {
-  ISSUED: ['expectedDate', 'incoterms', 'paymentTerms'],
-  // Stage 2: Manufacturing
-  MANUFACTURING: ['proformaInvoiceNumber', 'manufacturingStartDate'],
+  // Issued = supplier accepted (signed PI received)
+  ISSUED: ['expectedDate', 'incoterms', 'paymentTerms', 'proformaInvoiceNumber'],
+  // Manufacturing = production started
+  MANUFACTURING: ['manufacturingStartDate'],
   // Stage 3: Ocean
   OCEAN: [
     'houseBillOfLading',
@@ -158,7 +158,7 @@ export const STAGE_REQUIREMENTS: Record<string, string[]> = {
 }
 
 export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, string[]>> = {
-  MANUFACTURING: ['proforma_invoice'],
+  ISSUED: ['proforma_invoice'],
   OCEAN: ['commercial_invoice', 'bill_of_lading', 'packing_list'],
   WAREHOUSE: ['movement_note', 'custom_declaration'],
 }
@@ -189,6 +189,8 @@ const FIELD_LABELS: Record<string, string> = {
 
 function toDocumentStage(status: PurchaseOrderStatus): PurchaseOrderDocumentStage {
   switch (status) {
+    case PurchaseOrderStatus.ISSUED:
+      return PurchaseOrderDocumentStage.ISSUED
     case PurchaseOrderStatus.MANUFACTURING:
       return PurchaseOrderDocumentStage.MANUFACTURING
     case PurchaseOrderStatus.OCEAN:
@@ -203,10 +205,12 @@ function toDocumentStage(status: PurchaseOrderStatus): PurchaseOrderDocumentStag
 }
 
 export interface StageTransitionInput {
-  // Stage 2: Manufacturing
+  // Stage 2: Issued (supplier accepted)
   proformaInvoiceNumber?: string
   proformaInvoiceDate?: Date | string
   factoryName?: string
+
+  // Stage 3: Manufacturing (production started)
   manufacturingStartDate?: Date | string
   expectedCompletionDate?: Date | string
   actualCompletionDate?: Date | string
@@ -255,6 +259,78 @@ export interface StageTransitionInput {
   transactionCertificate?: string
   customsDeclaration?: string
   proofOfDelivery?: string
+}
+
+const STAGE_EDITABLE_FIELDS: Partial<Record<PurchaseOrderStatus, Array<keyof StageTransitionInput>>> =
+  {
+    [PurchaseOrderStatus.ISSUED]: [
+      'proformaInvoiceNumber',
+      'proformaInvoiceDate',
+      'factoryName',
+      'proformaInvoiceId',
+      'proformaInvoiceData',
+    ],
+    [PurchaseOrderStatus.MANUFACTURING]: [
+      'manufacturingStartDate',
+      'expectedCompletionDate',
+      'actualCompletionDate',
+      'totalWeightKg',
+      'totalVolumeCbm',
+      'totalCartons',
+      'totalPallets',
+      'packagingNotes',
+      'manufacturingStart',
+      'manufacturingEnd',
+      'cargoDetails',
+    ],
+    [PurchaseOrderStatus.OCEAN]: [
+      'houseBillOfLading',
+      'masterBillOfLading',
+      'commercialInvoiceNumber',
+      'packingListRef',
+      'vesselName',
+      'voyageNumber',
+      'portOfLoading',
+      'portOfDischarge',
+      'estimatedDeparture',
+      'estimatedArrival',
+      'actualDeparture',
+      'actualArrival',
+      'commercialInvoiceId',
+    ],
+    [PurchaseOrderStatus.WAREHOUSE]: [
+      'warehouseCode',
+      'warehouseName',
+      'receiveType',
+      'customsEntryNumber',
+      'customsClearedDate',
+      'dutyAmount',
+      'dutyCurrency',
+      'surrenderBlDate',
+      'transactionCertNumber',
+      'receivedDate',
+      'discrepancyNotes',
+      'warehouseInvoiceId',
+      'surrenderBL',
+      'transactionCertificate',
+      'customsDeclaration',
+    ],
+  }
+
+function filterStageDataForTarget(
+  targetStatus: PurchaseOrderStatus,
+  stageData: StageTransitionInput
+): StageTransitionInput {
+  const allowed = STAGE_EDITABLE_FIELDS[targetStatus] ?? []
+  if (allowed.length === 0) return {}
+
+  const filtered: StageTransitionInput = {}
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(stageData, key)) {
+      ;(filtered as Record<string, unknown>)[key] = stageData[key]
+    }
+  }
+  return filtered
 }
 
 export interface UserContext {
@@ -665,10 +741,9 @@ export interface CreatePurchaseOrderLineInput {
   skuCode: string
   skuDescription?: string
   batchLot: string
-  quantity: number
-  storageCartonsPerPallet?: number
-  shippingCartonsPerPallet?: number
-  unitCost?: number
+  unitsOrdered: number
+  unitsPerCarton: number
+  totalCost?: number
   currency?: string
   notes?: string
 }
@@ -691,6 +766,27 @@ export async function createPurchaseOrder(
   const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
   let skuRecordsForLines: Array<{ id: string; skuCode: string }> = []
+
+  const computeCartonsOrdered = (line: { skuCode: string; unitsOrdered: number; unitsPerCarton: number }) => {
+    const unitsOrdered = Number(line.unitsOrdered)
+    const unitsPerCarton = Number(line.unitsPerCarton)
+
+    if (!Number.isInteger(unitsOrdered) || unitsOrdered <= 0) {
+      throw new ValidationError(`Units ordered must be a positive integer for SKU ${line.skuCode}`)
+    }
+
+    if (!Number.isInteger(unitsPerCarton) || unitsPerCarton <= 0) {
+      throw new ValidationError(`Units per carton must be a positive integer for SKU ${line.skuCode}`)
+    }
+
+    if (unitsOrdered % unitsPerCarton !== 0) {
+      throw new ValidationError(
+        `Units ordered must be a multiple of units per carton for SKU ${line.skuCode} (${unitsOrdered} ÷ ${unitsPerCarton})`
+      )
+    }
+
+    return unitsOrdered / unitsPerCarton
+  }
 
   if (input.lines && input.lines.length > 0) {
     const normalizedLines = input.lines.map(line => ({
@@ -716,6 +812,12 @@ export async function createPurchaseOrder(
       if (!line.batchLot || line.batchLot === 'DEFAULT') {
         throw new ValidationError(`Batch / lot is required for SKU ${line.skuCode}`)
       }
+
+      computeCartonsOrdered({
+        skuCode: line.skuCode,
+        unitsOrdered: line.unitsOrdered,
+        unitsPerCarton: line.unitsPerCarton,
+      })
     }
 
     const skuCodes = Array.from(new Set(normalizedLines.map(line => line.skuCode)))
@@ -754,88 +856,62 @@ export async function createPurchaseOrder(
         ? input.paymentTerms.trim()
         : null
 
-    try {
-      order = await prisma.$transaction(async tx => {
-        if (input.lines && input.lines.length > 0) {
-          const skuByCode = new Map(skuRecordsForLines.map(sku => [sku.skuCode.toLowerCase(), sku]))
+	    try {
+	      order = await prisma.$transaction(async tx => {
+	        if (input.lines && input.lines.length > 0) {
+	          const skuByCode = new Map(skuRecordsForLines.map(sku => [sku.skuCode.toLowerCase(), sku]))
+	          const requiredCombos: Array<{ skuId: string; skuCode: string; batchCode: string }> = []
+	          const requiredKeySet = new Set<string>()
 
-          const requiredCombos: Array<{ skuId: string; skuCode: string; batchCode: string }> = []
-          const requiredKeySet = new Set<string>()
-          for (const line of input.lines) {
-            const skuRecord = skuByCode.get(line.skuCode.trim().toLowerCase())
-            if (!skuRecord) continue
+	          for (const line of input.lines) {
+	            const skuRecord = skuByCode.get(line.skuCode.trim().toLowerCase())
+	            if (!skuRecord) continue
 
-            const batchCode = line.batchLot?.trim().toUpperCase() ?? ''
-            if (!batchCode || batchCode === 'DEFAULT') {
-              throw new ValidationError(`Batch / lot is required for SKU ${skuRecord.skuCode}`)
-            }
+	            const batchCode = line.batchLot?.trim().toUpperCase() ?? ''
+	            if (!batchCode || batchCode === 'DEFAULT') {
+	              throw new ValidationError(`Batch / lot is required for SKU ${skuRecord.skuCode}`)
+	            }
 
-            const key = `${skuRecord.id}::${batchCode}`
-            if (requiredKeySet.has(key)) continue
+	            const key = `${skuRecord.id}::${batchCode}`
+	            if (requiredKeySet.has(key)) continue
+	            requiredKeySet.add(key)
 
-            requiredKeySet.add(key)
-            requiredCombos.push({
-              skuId: skuRecord.id,
-              skuCode: skuRecord.skuCode,
-              batchCode,
-            })
-          }
+	            requiredCombos.push({
+	              skuId: skuRecord.id,
+	              skuCode: skuRecord.skuCode,
+	              batchCode,
+	            })
+	          }
 
-          if (requiredCombos.length > 0) {
-            const existing = await tx.skuBatch.findMany({
-              where: {
-                OR: requiredCombos.map(combo => ({
-                  skuId: combo.skuId,
-                  batchCode: { equals: combo.batchCode, mode: 'insensitive' },
-                })),
-              },
-              select: { id: true, skuId: true, batchCode: true },
-            })
+	          if (requiredCombos.length > 0) {
+	            const existing = await tx.skuBatch.findMany({
+	              where: {
+	                OR: requiredCombos.map(combo => ({
+	                  skuId: combo.skuId,
+	                  batchCode: { equals: combo.batchCode, mode: 'insensitive' },
+	                })),
+	              },
+	              select: { skuId: true, batchCode: true },
+	            })
 
-            const existingMap = new Map(
-              existing.map(row => [`${row.skuId}::${row.batchCode.toUpperCase()}`, row])
-            )
-            for (const combo of requiredCombos) {
-              if (!existingMap.has(`${combo.skuId}::${combo.batchCode}`)) {
-                throw new ValidationError(
-                  `Batch ${combo.batchCode} not found for SKU ${combo.skuCode}. Create it in Products → Batches first.`
-                )
-              }
-            }
+	            const existingMap = new Set(
+	              existing.map(row => `${row.skuId}::${row.batchCode.toUpperCase()}`)
+	            )
 
-            for (const line of input.lines) {
-              const skuRecord = skuByCode.get(line.skuCode.trim().toLowerCase())
-              if (!skuRecord) continue
+	            for (const combo of requiredCombos) {
+	              if (!existingMap.has(`${combo.skuId}::${combo.batchCode}`)) {
+	                throw new ValidationError(
+	                  `Batch ${combo.batchCode} not found for SKU ${combo.skuCode}. Create it in Products → Batches first.`
+	                )
+	              }
+	            }
+	          }
+	        }
 
-              const batchCode = line.batchLot?.trim().toUpperCase() ?? ''
-              if (!batchCode || batchCode === 'DEFAULT') continue
-
-              const key = `${skuRecord.id}::${batchCode}`
-              const batch = existingMap.get(key)
-              if (!batch) continue
-
-              const batchUpdate: Prisma.SkuBatchUpdateInput = {}
-              if (line.storageCartonsPerPallet !== undefined) {
-                batchUpdate.storageCartonsPerPallet = line.storageCartonsPerPallet
-              }
-              if (line.shippingCartonsPerPallet !== undefined) {
-                batchUpdate.shippingCartonsPerPallet = line.shippingCartonsPerPallet
-              }
-
-              if (Object.keys(batchUpdate).length === 0) continue
-
-              await tx.skuBatch.update({
-                where: { id: batch.id },
-                data: batchUpdate,
-              })
-            }
-          }
-        }
-
-        return tx.purchaseOrder.create({
-          data: {
-            orderNumber,
-            poNumber,
+	        return tx.purchaseOrder.create({
+	          data: {
+	            orderNumber,
+	            poNumber,
             type: 'PURCHASE',
             status: 'DRAFT',
             counterpartyName: input.counterpartyName,
@@ -851,11 +927,26 @@ export async function createPurchaseOrder(
               input.lines && input.lines.length > 0
                 ? {
                     create: input.lines.map(line => ({
+                      unitsOrdered: line.unitsOrdered,
+                      unitsPerCarton: line.unitsPerCarton,
                       skuCode: line.skuCode,
                       skuDescription: line.skuDescription || '',
                       batchLot: line.batchLot.trim().toUpperCase(),
-                      quantity: line.quantity,
-                      unitCost: line.unitCost,
+                      quantity: computeCartonsOrdered({
+                        skuCode: line.skuCode,
+                        unitsOrdered: line.unitsOrdered,
+                        unitsPerCarton: line.unitsPerCarton,
+                      }),
+                      totalCost:
+                        typeof line.totalCost === 'number' && Number.isFinite(line.totalCost)
+                          ? line.totalCost.toFixed(2)
+                          : undefined,
+                      unitCost:
+                        typeof line.totalCost === 'number' &&
+                        Number.isFinite(line.totalCost) &&
+                        line.unitsOrdered > 0
+                          ? (line.totalCost / line.unitsOrdered).toFixed(4)
+                          : undefined,
                       currency: line.currency || tenant.currency,
                       lineNotes: line.notes,
                       status: 'PENDING',
@@ -1016,14 +1107,16 @@ export async function transitionPurchaseOrderStage(
   }
 
   // Validate stage data requirements
-  const validation = validateStageData(targetStatus, stageData, order)
+  const filteredStageData = filterStageDataForTarget(targetStatus, stageData)
+
+  const validation = validateStageData(targetStatus, filteredStageData, order)
   if (!validation.valid) {
     throw new ValidationError(
       `Missing required fields for ${targetStatus}: ${validation.missingFields.join(', ')}`
     )
   }
 
-  validateStageDateOrdering(targetStatus, stageData, order)
+  validateStageDateOrdering(targetStatus, filteredStageData, order)
 
   const requiredDocs = STAGE_DOCUMENT_REQUIREMENTS[targetStatus]
   if (requiredDocs && requiredDocs.length > 0) {
@@ -1075,163 +1168,163 @@ export async function transitionPurchaseOrderStage(
   }
 
   // Stage 2: Manufacturing fields
-  if (stageData.proformaInvoiceNumber !== undefined) {
-    updateData.proformaInvoiceNumber = stageData.proformaInvoiceNumber
+  if (filteredStageData.proformaInvoiceNumber !== undefined) {
+    updateData.proformaInvoiceNumber = filteredStageData.proformaInvoiceNumber
   }
-  if (stageData.proformaInvoiceDate !== undefined) {
-    updateData.proformaInvoiceDate = new Date(stageData.proformaInvoiceDate)
+  if (filteredStageData.proformaInvoiceDate !== undefined) {
+    updateData.proformaInvoiceDate = new Date(filteredStageData.proformaInvoiceDate)
   }
-  if (stageData.factoryName !== undefined) {
-    updateData.factoryName = stageData.factoryName
+  if (filteredStageData.factoryName !== undefined) {
+    updateData.factoryName = filteredStageData.factoryName
   }
-  if (stageData.manufacturingStartDate !== undefined) {
-    updateData.manufacturingStartDate = new Date(stageData.manufacturingStartDate)
+  if (filteredStageData.manufacturingStartDate !== undefined) {
+    updateData.manufacturingStartDate = new Date(filteredStageData.manufacturingStartDate)
   }
-  if (stageData.expectedCompletionDate !== undefined) {
-    updateData.expectedCompletionDate = new Date(stageData.expectedCompletionDate)
+  if (filteredStageData.expectedCompletionDate !== undefined) {
+    updateData.expectedCompletionDate = new Date(filteredStageData.expectedCompletionDate)
   }
-  if (stageData.actualCompletionDate !== undefined) {
-    updateData.actualCompletionDate = new Date(stageData.actualCompletionDate)
+  if (filteredStageData.actualCompletionDate !== undefined) {
+    updateData.actualCompletionDate = new Date(filteredStageData.actualCompletionDate)
   }
-  if (stageData.totalWeightKg !== undefined) {
-    updateData.totalWeightKg = stageData.totalWeightKg
+  if (filteredStageData.totalWeightKg !== undefined) {
+    updateData.totalWeightKg = filteredStageData.totalWeightKg
   } else if (derivedManufacturingTotals?.totalWeightKg !== null) {
     updateData.totalWeightKg = derivedManufacturingTotals.totalWeightKg
   }
-  if (stageData.totalVolumeCbm !== undefined) {
-    updateData.totalVolumeCbm = stageData.totalVolumeCbm
+  if (filteredStageData.totalVolumeCbm !== undefined) {
+    updateData.totalVolumeCbm = filteredStageData.totalVolumeCbm
   } else if (derivedManufacturingTotals?.totalVolumeCbm !== null) {
     updateData.totalVolumeCbm = derivedManufacturingTotals.totalVolumeCbm
   }
-  if (stageData.totalCartons !== undefined) {
-    updateData.totalCartons = stageData.totalCartons
+  if (filteredStageData.totalCartons !== undefined) {
+    updateData.totalCartons = filteredStageData.totalCartons
   } else if (derivedManufacturingTotals?.totalCartons) {
     updateData.totalCartons = derivedManufacturingTotals.totalCartons
   }
-  if (stageData.totalPallets !== undefined) {
-    updateData.totalPallets = stageData.totalPallets
+  if (filteredStageData.totalPallets !== undefined) {
+    updateData.totalPallets = filteredStageData.totalPallets
   } else if (derivedManufacturingTotals?.totalPallets !== null) {
     updateData.totalPallets = derivedManufacturingTotals.totalPallets
   }
-  if (stageData.packagingNotes !== undefined) {
-    updateData.packagingNotes = stageData.packagingNotes
+  if (filteredStageData.packagingNotes !== undefined) {
+    updateData.packagingNotes = filteredStageData.packagingNotes
   }
 
   // Stage 3: Ocean fields
-  if (stageData.houseBillOfLading !== undefined) {
-    updateData.houseBillOfLading = stageData.houseBillOfLading
+  if (filteredStageData.houseBillOfLading !== undefined) {
+    updateData.houseBillOfLading = filteredStageData.houseBillOfLading
   }
-  if (stageData.masterBillOfLading !== undefined) {
-    updateData.masterBillOfLading = stageData.masterBillOfLading
+  if (filteredStageData.masterBillOfLading !== undefined) {
+    updateData.masterBillOfLading = filteredStageData.masterBillOfLading
   }
-  if (stageData.commercialInvoiceNumber !== undefined) {
-    updateData.commercialInvoiceNumber = stageData.commercialInvoiceNumber
+  if (filteredStageData.commercialInvoiceNumber !== undefined) {
+    updateData.commercialInvoiceNumber = filteredStageData.commercialInvoiceNumber
   }
-  if (stageData.packingListRef !== undefined) {
-    updateData.packingListRef = stageData.packingListRef
+  if (filteredStageData.packingListRef !== undefined) {
+    updateData.packingListRef = filteredStageData.packingListRef
   }
-  if (stageData.vesselName !== undefined) {
-    updateData.vesselName = stageData.vesselName
+  if (filteredStageData.vesselName !== undefined) {
+    updateData.vesselName = filteredStageData.vesselName
   }
-  if (stageData.voyageNumber !== undefined) {
-    updateData.voyageNumber = stageData.voyageNumber
+  if (filteredStageData.voyageNumber !== undefined) {
+    updateData.voyageNumber = filteredStageData.voyageNumber
   }
-  if (stageData.portOfLoading !== undefined) {
-    updateData.portOfLoading = stageData.portOfLoading
+  if (filteredStageData.portOfLoading !== undefined) {
+    updateData.portOfLoading = filteredStageData.portOfLoading
   }
-  if (stageData.portOfDischarge !== undefined) {
-    updateData.portOfDischarge = stageData.portOfDischarge
+  if (filteredStageData.portOfDischarge !== undefined) {
+    updateData.portOfDischarge = filteredStageData.portOfDischarge
   }
-  if (stageData.estimatedDeparture !== undefined) {
-    updateData.estimatedDeparture = new Date(stageData.estimatedDeparture)
+  if (filteredStageData.estimatedDeparture !== undefined) {
+    updateData.estimatedDeparture = new Date(filteredStageData.estimatedDeparture)
   }
-  if (stageData.estimatedArrival !== undefined) {
-    updateData.estimatedArrival = new Date(stageData.estimatedArrival)
+  if (filteredStageData.estimatedArrival !== undefined) {
+    updateData.estimatedArrival = new Date(filteredStageData.estimatedArrival)
   }
-  if (stageData.actualDeparture !== undefined) {
-    updateData.actualDeparture = new Date(stageData.actualDeparture)
+  if (filteredStageData.actualDeparture !== undefined) {
+    updateData.actualDeparture = new Date(filteredStageData.actualDeparture)
   }
-  if (stageData.actualArrival !== undefined) {
-    updateData.actualArrival = new Date(stageData.actualArrival)
+  if (filteredStageData.actualArrival !== undefined) {
+    updateData.actualArrival = new Date(filteredStageData.actualArrival)
   }
 
   // Stage 4: Warehouse fields
-  if (stageData.warehouseCode !== undefined) {
+  if (filteredStageData.warehouseCode !== undefined) {
     const warehouse = await prisma.warehouse.findFirst({
-      where: { code: stageData.warehouseCode },
+      where: { code: filteredStageData.warehouseCode },
       select: { name: true },
     })
     if (!warehouse) {
-      throw new ValidationError(`Invalid warehouse code: ${stageData.warehouseCode}`)
+      throw new ValidationError(`Invalid warehouse code: ${filteredStageData.warehouseCode}`)
     }
 
-    updateData.warehouseCode = stageData.warehouseCode
-    updateData.warehouseName = stageData.warehouseName ?? warehouse.name
+    updateData.warehouseCode = filteredStageData.warehouseCode
+    updateData.warehouseName = filteredStageData.warehouseName ?? warehouse.name
   }
-  if (stageData.warehouseName !== undefined && stageData.warehouseCode === undefined) {
-    updateData.warehouseName = stageData.warehouseName
+  if (filteredStageData.warehouseName !== undefined && filteredStageData.warehouseCode === undefined) {
+    updateData.warehouseName = filteredStageData.warehouseName
   }
-  if (stageData.receiveType !== undefined) {
-    updateData.receiveType = stageData.receiveType as InboundReceiveType
+  if (filteredStageData.receiveType !== undefined) {
+    updateData.receiveType = filteredStageData.receiveType as InboundReceiveType
   }
-  if (stageData.customsEntryNumber !== undefined) {
-    updateData.customsEntryNumber = stageData.customsEntryNumber
+  if (filteredStageData.customsEntryNumber !== undefined) {
+    updateData.customsEntryNumber = filteredStageData.customsEntryNumber
   }
-  if (stageData.customsClearedDate !== undefined) {
-    updateData.customsClearedDate = new Date(stageData.customsClearedDate)
+  if (filteredStageData.customsClearedDate !== undefined) {
+    updateData.customsClearedDate = new Date(filteredStageData.customsClearedDate)
   }
-  if (stageData.dutyAmount !== undefined) {
-    updateData.dutyAmount = stageData.dutyAmount
+  if (filteredStageData.dutyAmount !== undefined) {
+    updateData.dutyAmount = filteredStageData.dutyAmount
   }
-  if (stageData.dutyCurrency !== undefined) {
-    updateData.dutyCurrency = stageData.dutyCurrency
+  if (filteredStageData.dutyCurrency !== undefined) {
+    updateData.dutyCurrency = filteredStageData.dutyCurrency
   }
-  if (stageData.surrenderBlDate !== undefined) {
-    updateData.surrenderBlDate = new Date(stageData.surrenderBlDate)
+  if (filteredStageData.surrenderBlDate !== undefined) {
+    updateData.surrenderBlDate = new Date(filteredStageData.surrenderBlDate)
   }
-  if (stageData.transactionCertNumber !== undefined) {
-    updateData.transactionCertNumber = stageData.transactionCertNumber
+  if (filteredStageData.transactionCertNumber !== undefined) {
+    updateData.transactionCertNumber = filteredStageData.transactionCertNumber
   }
-  if (stageData.receivedDate !== undefined) {
-    updateData.receivedDate = new Date(stageData.receivedDate)
+  if (filteredStageData.receivedDate !== undefined) {
+    updateData.receivedDate = new Date(filteredStageData.receivedDate)
   }
-  if (stageData.discrepancyNotes !== undefined) {
-    updateData.discrepancyNotes = stageData.discrepancyNotes
+  if (filteredStageData.discrepancyNotes !== undefined) {
+    updateData.discrepancyNotes = filteredStageData.discrepancyNotes
   }
 
   // Legacy fields (for backward compatibility)
-  if (stageData.proformaInvoiceId !== undefined) {
-    updateData.proformaInvoiceId = stageData.proformaInvoiceId
+  if (filteredStageData.proformaInvoiceId !== undefined) {
+    updateData.proformaInvoiceId = filteredStageData.proformaInvoiceId
   }
-  if (stageData.proformaInvoiceData !== undefined) {
-    updateData.proformaInvoiceData = stageData.proformaInvoiceData
+  if (filteredStageData.proformaInvoiceData !== undefined) {
+    updateData.proformaInvoiceData = filteredStageData.proformaInvoiceData
   }
-  if (stageData.manufacturingStart !== undefined) {
-    updateData.manufacturingStart = new Date(stageData.manufacturingStart)
+  if (filteredStageData.manufacturingStart !== undefined) {
+    updateData.manufacturingStart = new Date(filteredStageData.manufacturingStart)
   }
-  if (stageData.manufacturingEnd !== undefined) {
-    updateData.manufacturingEnd = new Date(stageData.manufacturingEnd)
+  if (filteredStageData.manufacturingEnd !== undefined) {
+    updateData.manufacturingEnd = new Date(filteredStageData.manufacturingEnd)
   }
-  if (stageData.cargoDetails !== undefined) {
-    updateData.cargoDetails = stageData.cargoDetails
+  if (filteredStageData.cargoDetails !== undefined) {
+    updateData.cargoDetails = filteredStageData.cargoDetails
   }
-  if (stageData.commercialInvoiceId !== undefined) {
-    updateData.commercialInvoiceId = stageData.commercialInvoiceId
+  if (filteredStageData.commercialInvoiceId !== undefined) {
+    updateData.commercialInvoiceId = filteredStageData.commercialInvoiceId
   }
-  if (stageData.warehouseInvoiceId !== undefined) {
-    updateData.warehouseInvoiceId = stageData.warehouseInvoiceId
+  if (filteredStageData.warehouseInvoiceId !== undefined) {
+    updateData.warehouseInvoiceId = filteredStageData.warehouseInvoiceId
   }
-  if (stageData.surrenderBL !== undefined) {
-    updateData.surrenderBL = stageData.surrenderBL
+  if (filteredStageData.surrenderBL !== undefined) {
+    updateData.surrenderBL = filteredStageData.surrenderBL
   }
-  if (stageData.transactionCertificate !== undefined) {
-    updateData.transactionCertificate = stageData.transactionCertificate
+  if (filteredStageData.transactionCertificate !== undefined) {
+    updateData.transactionCertificate = filteredStageData.transactionCertificate
   }
-  if (stageData.customsDeclaration !== undefined) {
-    updateData.customsDeclaration = stageData.customsDeclaration
+  if (filteredStageData.customsDeclaration !== undefined) {
+    updateData.customsDeclaration = filteredStageData.customsDeclaration
   }
-  if (stageData.proofOfDelivery !== undefined) {
-    updateData.proofOfDelivery = stageData.proofOfDelivery
+  if (filteredStageData.proofOfDelivery !== undefined) {
+    updateData.proofOfDelivery = filteredStageData.proofOfDelivery
   }
 
   // Set approval tracking based on target status
@@ -1395,7 +1488,7 @@ export async function transitionPurchaseOrderStage(
           throw new ValidationError(`Invalid cartons quantity for SKU ${line.skuCode}`)
         }
 
-        const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
+        const unitsPerCarton = line.unitsPerCarton ?? batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
 
         const { storagePalletsIn } = calculatePalletValues({
           transactionType: 'RECEIVE',
@@ -1577,7 +1670,7 @@ export async function transitionPurchaseOrderStage(
     approvedBy: user.name,
   }
 
-  for (const key of Object.keys(stageData ?? {})) {
+  for (const key of Object.keys(filteredStageData ?? {})) {
     if (key === 'targetStatus') continue
     const before = normalizeAuditValue((order as Record<string, unknown>)[key])
     const after = normalizeAuditValue((updatedOrder as Record<string, unknown>)[key])
@@ -1818,17 +1911,20 @@ export function serializePurchaseOrder(
     createdByName: order.createdByName,
 
     // Lines if included
-    lines: order.lines?.map(line => ({
-      id: line.id,
-      skuCode: line.skuCode,
-      skuDescription: line.skuDescription,
-      batchLot: line.batchLot,
-      quantity: line.quantity,
-      unitCost: line.unitCost ? Number(line.unitCost) : null,
-      currency: line.currency || defaultCurrency,
-      status: line.status,
-      postedQuantity: line.postedQuantity,
-      quantityReceived: line.quantityReceived,
+	    lines: order.lines?.map(line => ({
+	      id: line.id,
+	      skuCode: line.skuCode,
+	      skuDescription: line.skuDescription,
+	      batchLot: line.batchLot,
+	      unitsOrdered: line.unitsOrdered,
+	      unitsPerCarton: line.unitsPerCarton,
+	      quantity: line.quantity,
+	      unitCost: line.unitCost ? Number(line.unitCost) : null,
+	      totalCost: line.totalCost ? Number(line.totalCost) : null,
+	      currency: line.currency || defaultCurrency,
+	      status: line.status,
+	      postedQuantity: line.postedQuantity,
+	      quantityReceived: line.quantityReceived,
       lineNotes: line.lineNotes,
       createdAt: line.createdAt?.toISOString?.() ?? line.createdAt,
       updatedAt: line.updatedAt?.toISOString?.() ?? line.updatedAt,
