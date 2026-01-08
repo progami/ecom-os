@@ -8,6 +8,8 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, hideBreadcrumb = false, customBreadcrumb }: DashboardLayoutProps) {
+ const appName = 'Talos WMS'
+ const year = new Date().getFullYear()
  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
@@ -30,7 +32,7 @@ export function DashboardLayout({ children, hideBreadcrumb = false, customBreadc
  <footer className="flex-shrink-0 border-t border-slate-200 bg-white/95 backdrop-blur-sm">
  <div className="px-4 sm:px-6 md:px-8 py-4">
  <p className="text-xs text-slate-500 text-center">
- WMS{' '}
+ {appName}{' '}
  {href ? (
  <a
  href={href}
@@ -43,7 +45,7 @@ export function DashboardLayout({ children, hideBreadcrumb = false, customBreadc
  ) : (
  <span>v{version}</span>
  )}
- {' '}• © 2025 Warehouse Management System
+ {' '}• © {year} {appName}
  </p>
  </div>
  </footer>
