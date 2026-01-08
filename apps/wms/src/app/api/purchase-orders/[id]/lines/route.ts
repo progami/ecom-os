@@ -33,13 +33,7 @@ function computeCartonsOrdered(input: {
     throw new Error(`Units per carton must be a positive integer for SKU ${input.skuCode}`)
   }
 
-  if (unitsOrdered % unitsPerCarton !== 0) {
-    throw new Error(
-      `Units ordered must be a multiple of units per carton for SKU ${input.skuCode} (${unitsOrdered} ÷ ${unitsPerCarton})`
-    )
-  }
-
-  return unitsOrdered / unitsPerCarton
+  return Math.ceil(unitsOrdered / unitsPerCarton)
 }
 
 /**
