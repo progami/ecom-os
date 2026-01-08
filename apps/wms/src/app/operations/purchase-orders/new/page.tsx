@@ -15,7 +15,6 @@ import { ArrowLeft, FileEdit, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { calculateUnitCost } from '@/lib/utils/calculations'
-import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 interface Supplier {
   id: string
@@ -44,8 +43,8 @@ interface LineItem {
   skuDescription: string
   batchLot: string
   quantity: number
-  storageCartonsPerPallet: number
-  shippingCartonsPerPallet: number
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
   actualCost: string
   currency: string
   notes: string
@@ -63,7 +62,6 @@ const INCOTERMS_OPTIONS = [
   'DPU',
   'DDP',
 ] as const
-const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
 
 function generateTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -87,6 +85,7 @@ export default function NewPurchaseOrderPage() {
     paymentTerms: '',
     notes: '',
   })
+  const selectedSupplier = suppliers.find(supplier => supplier.id === formData.supplierId) ?? null
   const [lineItems, setLineItems] = useState<LineItem[]>([
     {
       id: generateTempId(),
@@ -95,8 +94,8 @@ export default function NewPurchaseOrderPage() {
       skuDescription: '',
       batchLot: '',
       quantity: 1,
-      storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-      shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+      storageCartonsPerPallet: null,
+      shippingCartonsPerPallet: null,
       actualCost: '',
       currency: 'USD',
       notes: '',
@@ -175,8 +174,8 @@ export default function NewPurchaseOrderPage() {
         skuDescription: '',
         batchLot: '',
         quantity: 1,
-        storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-        shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+        storageCartonsPerPallet: null,
+        shippingCartonsPerPallet: null,
         actualCost: '',
         currency: tenantCurrency,
         notes: '',
@@ -240,8 +239,8 @@ export default function NewPurchaseOrderPage() {
             return {
               ...item,
               batchLot: '',
-              storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-              shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+              storageCartonsPerPallet: null,
+              shippingCartonsPerPallet: null,
             }
           }
 
@@ -254,10 +253,8 @@ export default function NewPurchaseOrderPage() {
           return {
             ...item,
             batchLot: selectedCode,
-            storageCartonsPerPallet:
-              selectedBatch?.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
-            shippingCartonsPerPallet:
-              selectedBatch?.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+            storageCartonsPerPallet: selectedBatch?.storageCartonsPerPallet ?? null,
+            shippingCartonsPerPallet: selectedBatch?.shippingCartonsPerPallet ?? null,
           }
         })
       )
@@ -269,7 +266,7 @@ export default function NewPurchaseOrderPage() {
     }
   }
 
-  const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
+  const updateLineItem = (id: string, field: keyof LineItem, value: LineItem[keyof LineItem]) => {
     if (field === 'skuCode') {
       const skuCode = String(value)
       const selectedSku = skus.find(s => s.skuCode === skuCode)
@@ -283,8 +280,8 @@ export default function NewPurchaseOrderPage() {
                   skuCode: '',
                   skuDescription: '',
                   batchLot: '',
-                  storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-                  shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                  storageCartonsPerPallet: null,
+                  shippingCartonsPerPallet: null,
                 }
               : item
           )
@@ -301,8 +298,8 @@ export default function NewPurchaseOrderPage() {
                 skuCode: selectedSku.skuCode,
                 skuDescription: selectedSku.description || '',
                 batchLot: '',
-                storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-                shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                storageCartonsPerPallet: null,
+                shippingCartonsPerPallet: null,
               }
             : item
         )
@@ -323,17 +320,17 @@ export default function NewPurchaseOrderPage() {
           return {
             ...item,
             batchLot,
-            storageCartonsPerPallet:
-              selectedBatch?.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
-            shippingCartonsPerPallet:
-              selectedBatch?.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+            storageCartonsPerPallet: selectedBatch?.storageCartonsPerPallet ?? null,
+            shippingCartonsPerPallet: selectedBatch?.shippingCartonsPerPallet ?? null,
           }
         })
       )
       return
     }
 
-    setLineItems(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)))
+    setLineItems(prev =>
+      prev.map(item => (item.id === id ? ({ ...item, [field]: value } as LineItem) : item))
+    )
   }
 
   const removeLineItem = (id: string) => {
@@ -341,13 +338,12 @@ export default function NewPurchaseOrderPage() {
   }
 
   const handleSupplierChange = (supplierId: string) => {
-    const selectedSupplier = suppliers.find(s => s.id === supplierId)
+    const nextSupplier = suppliers.find(supplier => supplier.id === supplierId)
     setFormData(prev => ({
       ...prev,
       supplierId,
-      // Only auto-fill if fields are empty
-      paymentTerms: prev.paymentTerms || selectedSupplier?.defaultPaymentTerms || '',
-      incoterms: prev.incoterms || selectedSupplier?.defaultIncoterms || '',
+      paymentTerms: nextSupplier?.defaultPaymentTerms?.trim() || '',
+      incoterms: nextSupplier?.defaultIncoterms?.trim() || '',
     }))
   }
 
@@ -387,17 +383,16 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
+    const isPositiveInteger = (value: unknown): value is number =>
+      typeof value === 'number' && Number.isInteger(value) && value > 0
+
     const invalidLines = lineItems.filter(item => {
       if (!item.skuCode) return true
       const batchLot = item.batchLot.trim()
       if (!batchLot) return true
       if (batchLot.toUpperCase() === 'DEFAULT') return true
-      if (!Number.isInteger(item.storageCartonsPerPallet) || item.storageCartonsPerPallet <= 0) {
-        return true
-      }
-      if (!Number.isInteger(item.shippingCartonsPerPallet) || item.shippingCartonsPerPallet <= 0) {
-        return true
-      }
+      if (!isPositiveInteger(item.storageCartonsPerPallet)) return true
+      if (!isPositiveInteger(item.shippingCartonsPerPallet)) return true
       return item.quantity <= 0
     })
     if (invalidLines.length > 0) {
@@ -407,7 +402,6 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    const selectedSupplier = suppliers.find(s => s.id === formData.supplierId)
     if (!selectedSupplier) {
       toast.error('Invalid supplier selected')
       return
@@ -441,8 +435,8 @@ export default function NewPurchaseOrderPage() {
             skuDescription: item.skuDescription,
             batchLot: item.batchLot.trim().toUpperCase(),
             quantity: item.quantity,
-            storageCartonsPerPallet: item.storageCartonsPerPallet,
-            shippingCartonsPerPallet: item.shippingCartonsPerPallet,
+            storageCartonsPerPallet: item.storageCartonsPerPallet ?? undefined,
+            shippingCartonsPerPallet: item.shippingCartonsPerPallet ?? undefined,
             currency: item.currency,
             notes: item.notes || undefined,
           })),
@@ -564,6 +558,15 @@ export default function NewPurchaseOrderPage() {
                         </option>
                       ))}
                     </select>
+                    {formData.supplierId && !selectedSupplier?.defaultIncoterms && (
+                      <p className="text-xs text-muted-foreground">
+                        No default incoterms set for this supplier. Set one in{' '}
+                        <Link href="/config/suppliers" className="text-primary hover:underline">
+                          Config → Suppliers
+                        </Link>
+                        .
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -578,6 +581,15 @@ export default function NewPurchaseOrderPage() {
                       placeholder="e.g., 30% deposit, 70% before shipment"
                       required
                     />
+                    {formData.supplierId && !selectedSupplier?.defaultPaymentTerms && (
+                      <p className="text-xs text-muted-foreground">
+                        No default payment terms set for this supplier. Set one in{' '}
+                        <Link href="/config/suppliers" className="text-primary hover:underline">
+                          Config → Suppliers
+                        </Link>
+                        .
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -674,14 +686,18 @@ export default function NewPurchaseOrderPage() {
                                   inputMode="numeric"
                                   min={1}
                                   step={1}
-                                  value={item.storageCartonsPerPallet}
+                                  value={item.storageCartonsPerPallet ?? ''}
                                   onChange={e =>
                                     updateLineItem(
                                       item.id,
                                       'storageCartonsPerPallet',
-                                      parseInt(e.target.value) || 0
+                                      (() => {
+                                        const parsed = Number.parseInt(e.target.value, 10)
+                                        return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                                      })()
                                     )
                                   }
+                                  placeholder="—"
                                   className="h-8 text-xs"
                                   disabled={!item.skuId || !item.batchLot}
                                   required
@@ -696,14 +712,18 @@ export default function NewPurchaseOrderPage() {
                                   inputMode="numeric"
                                   min={1}
                                   step={1}
-                                  value={item.shippingCartonsPerPallet}
+                                  value={item.shippingCartonsPerPallet ?? ''}
                                   onChange={e =>
                                     updateLineItem(
                                       item.id,
                                       'shippingCartonsPerPallet',
-                                      parseInt(e.target.value) || 0
+                                      (() => {
+                                        const parsed = Number.parseInt(e.target.value, 10)
+                                        return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                                      })()
                                     )
                                   }
+                                  placeholder="—"
                                   className="h-8 text-xs"
                                   disabled={!item.skuId || !item.batchLot}
                                   required
