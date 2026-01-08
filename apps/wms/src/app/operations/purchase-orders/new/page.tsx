@@ -626,7 +626,7 @@ export default function NewPurchaseOrderPage() {
                       <div className="col-span-3">SKU</div>
                       <div className="col-span-2">Batch/Lot</div>
                       <div className="col-span-3">Description</div>
-                      <div className="col-span-1">Qty</div>
+                      <div className="col-span-1">Cartons</div>
                       <div className="col-span-2">Actual Cost</div>
                       <div className="col-span-2">Notes</div>
                       <div className="col-span-1"></div>
