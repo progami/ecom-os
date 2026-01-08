@@ -425,7 +425,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         isActionRequired: true,
         primaryAction: createWorkItemAction({ id: 'review.hrApprove', label: 'Approve (HR)', disabled: false }),
         secondaryActions: [
-          createWorkItemAction({ id: 'review.hrReject', label: 'Reject', disabled: false }),
+          createWorkItemAction({ id: 'review.hrReject', label: 'Request changes', disabled: false }),
         ],
       })
     }
@@ -505,7 +505,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         isActionRequired: true,
         primaryAction: createWorkItemAction({ id: 'review.superAdminApprove', label: 'Final approve', disabled: false }),
         secondaryActions: [
-          createWorkItemAction({ id: 'review.superAdminReject', label: 'Reject', disabled: false }),
+          createWorkItemAction({ id: 'review.superAdminReject', label: 'Request changes', disabled: false }),
         ],
       })
     }

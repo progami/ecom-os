@@ -88,6 +88,22 @@ export async function POST(req: Request, context: RouteContext) {
       },
     })
 
+    await prisma.auditLog.create({
+      data: {
+        actorId: currentEmployeeId,
+        action: 'ACKNOWLEDGE',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: id,
+        summary: 'Employee acknowledged review',
+        metadata: {
+          fromStatus: review.status,
+          toStatus: 'COMPLETED',
+        },
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+        userAgent: req.headers.get('user-agent') ?? null,
+      },
+    })
+
     // Notify HR that employee acknowledged
     const hrEmployees = await getHREmployees()
     for (const hr of hrEmployees) {

@@ -218,6 +218,7 @@ export async function POST(req: Request) {
     }
 
     const reviewerName = `${assignedReviewer.firstName} ${assignedReviewer.lastName}`
+    const now = new Date()
 
     const item = await prisma.performanceReview.create({
 	      data: {
@@ -258,6 +259,8 @@ export async function POST(req: Request) {
         areasToImprove: data.areasToImprove ?? null,
         goals: data.goals ?? null,
         comments: data.comments ?? null,
+        startedAt: now,
+        submittedAt: data.status === 'DRAFT' ? null : now,
         // If not DRAFT, start approval chain with PENDING_HR_REVIEW
 	        status: data.status === 'DRAFT' ? 'DRAFT' : 'PENDING_HR_REVIEW',
 	      },
@@ -270,6 +273,19 @@ export async function POST(req: Request) {
             employeeId: true,
           },
         },
+      },
+    })
+
+    await prisma.auditLog.create({
+      data: {
+        actorId: currentEmployeeId,
+        action: 'CREATE',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: item.id,
+        summary: item.status === 'DRAFT' ? 'Performance review created (draft)' : 'Performance review created',
+        metadata: { toStatus: item.status },
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+        userAgent: req.headers.get('user-agent') ?? null,
       },
     })
 
@@ -302,6 +318,19 @@ export async function POST(req: Request) {
 	          relatedType: 'REVIEW',
 	        },
       })
+
+        await prisma.auditLog.create({
+          data: {
+            actorId: currentEmployeeId,
+            action: 'SUBMIT',
+            entityType: 'PERFORMANCE_REVIEW',
+            entityId: item.id,
+            summary: 'Manager submitted review',
+            metadata: { toStatus: item.status },
+            ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+            userAgent: req.headers.get('user-agent') ?? null,
+          },
+        })
     }
 
     return NextResponse.json(item, { status: 201 })

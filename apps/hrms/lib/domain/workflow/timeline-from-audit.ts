@@ -75,6 +75,7 @@ export async function timelineFromAudit(params: {
     const metadata = (log.metadata as any) ?? null
     const fromStatus = metadata?.previousStatus ?? metadata?.fromStatus
     const toStatus = metadata?.newStatus ?? metadata?.toStatus
+    const note = typeof metadata?.note === 'string' && metadata.note.trim() ? metadata.note.trim() : undefined
 
     return {
       id: log.id,
@@ -83,6 +84,7 @@ export async function timelineFromAudit(params: {
         ? { type: 'user', name: `${log.actor.firstName} ${log.actor.lastName}`.trim(), avatarUrl: log.actor.avatar }
         : { type: 'system', name: 'System' },
       event: log.summary ?? `${actionToLabel(log.action)} ${entityToLabel(log.entityType)}`,
+      note,
       transition: fromStatus && toStatus ? { from: String(fromStatus), to: String(toStatus) } : undefined,
     }
   })

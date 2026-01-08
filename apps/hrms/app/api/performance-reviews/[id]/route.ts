@@ -106,7 +106,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     // Check if current user has permission to manage this employee
     const existing = await prisma.performanceReview.findUnique({
       where: { id },
-      select: { employeeId: true, roleTitle: true, periodType: true, periodYear: true },
+      select: { employeeId: true, roleTitle: true, periodType: true, periodYear: true, assignedReviewerId: true },
     })
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -117,8 +117,9 @@ export async function PATCH(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
     }
 
+    const isAssignedReviewer = Boolean(existing.assignedReviewerId && existing.assignedReviewerId === currentEmployeeId)
     const permissionCheck = await canManageEmployee(currentEmployeeId, existing.employeeId)
-    if (!permissionCheck.canManage) {
+    if (!isAssignedReviewer && !permissionCheck.canManage) {
       return NextResponse.json(
         { error: `Permission denied: ${permissionCheck.reason}` },
         { status: 403 }

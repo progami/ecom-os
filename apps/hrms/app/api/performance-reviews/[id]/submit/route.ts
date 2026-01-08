@@ -58,8 +58,11 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     // Check if review is in a submittable status
-    const submittableStatuses = ['IN_PROGRESS', 'DRAFT', 'NOT_STARTED']
-    if (!submittableStatuses.includes(review.status)) {
+    const isInitialSubmit = ['IN_PROGRESS', 'DRAFT', 'NOT_STARTED'].includes(review.status)
+    const isResubmitToHr = review.status === 'PENDING_HR_REVIEW' && review.hrApproved === false
+    const isResubmitToAdmin = review.status === 'PENDING_SUPER_ADMIN' && review.superAdminApproved === false
+
+    if (!isInitialSubmit && !isResubmitToHr && !isResubmitToAdmin) {
       return NextResponse.json(
         { error: `Cannot submit: review is in ${review.status} status` },
         { status: 400 }
@@ -102,19 +105,20 @@ export async function POST(req: Request, context: RouteContext) {
       )
     }
 
-    // Transition to PENDING_HR_REVIEW
+    // Transition to PENDING_HR_REVIEW (or re-submit to current stage)
     let startedAt = review.startedAt
     if (!startedAt) {
       startedAt = new Date()
     }
 
+    const nextStatus = isInitialSubmit ? 'PENDING_HR_REVIEW' : review.status
     const updated = await prisma.performanceReview.update({
       where: { id },
       data: {
-        status: 'PENDING_HR_REVIEW',
         submittedAt: new Date(),
         // If it wasn't started yet, set startedAt now
         startedAt,
+        ...(nextStatus !== review.status ? { status: nextStatus } : {}),
       },
       include: {
         employee: {
@@ -130,18 +134,73 @@ export async function POST(req: Request, context: RouteContext) {
       },
     })
 
-    // Notify HR about new review to process
-    const hrEmployees = await getHREmployees()
-    for (const hr of hrEmployees) {
-      await prisma.notification.create({
+    const recordLink = `/performance/reviews/${id}`
+
+    if (isResubmitToAdmin) {
+      const superAdmins = await prisma.employee.findMany({
+        where: { isSuperAdmin: true, status: 'ACTIVE' },
+        select: { id: true },
+      })
+
+      await Promise.all(
+        superAdmins.map((admin) =>
+          prisma.notification.create({
+            data: {
+              type: 'REVIEW_PENDING_ADMIN',
+              title: 'Review Resubmitted',
+              message: `${review.reviewerName} updated a review for ${updated.employee.firstName} ${updated.employee.lastName}. Please review again.`,
+              link: recordLink,
+              employeeId: admin.id,
+              relatedId: id,
+              relatedType: 'REVIEW',
+            },
+          })
+        )
+      )
+
+      await prisma.auditLog.create({
         data: {
-          type: 'REVIEW_PENDING_HR',
-          title: 'Performance Review Submitted',
-          message: `${review.reviewerName} has submitted a performance review for ${updated.employee.firstName} ${updated.employee.lastName}. Please review.`,
-          link: `/performance/reviews/${id}`,
-          employeeId: hr.id,
-          relatedId: id,
-          relatedType: 'REVIEW',
+          actorId: currentEmployeeId,
+          action: 'SUBMIT',
+          entityType: 'PERFORMANCE_REVIEW',
+          entityId: id,
+          summary: 'Manager resubmitted review for final approval',
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
+    } else {
+      // Notify HR about new/updated review to process
+      const hrEmployees = await getHREmployees()
+      for (const hr of hrEmployees) {
+        await prisma.notification.create({
+          data: {
+            type: 'REVIEW_PENDING_HR',
+            title: isResubmitToHr ? 'Review Resubmitted' : 'Performance Review Submitted',
+            message: `${review.reviewerName} has ${isResubmitToHr ? 'updated' : 'submitted'} a performance review for ${updated.employee.firstName} ${updated.employee.lastName}. Please review.`,
+            link: recordLink,
+            employeeId: hr.id,
+            relatedId: id,
+            relatedType: 'REVIEW',
+          },
+        })
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'SUBMIT',
+          entityType: 'PERFORMANCE_REVIEW',
+          entityId: id,
+          summary: isResubmitToHr ? 'Manager resubmitted review to HR' : 'Manager submitted review to HR',
+          metadata: isInitialSubmit
+            ? {
+                fromStatus: review.status,
+                toStatus: nextStatus,
+              }
+            : undefined,
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
         },
       })
     }

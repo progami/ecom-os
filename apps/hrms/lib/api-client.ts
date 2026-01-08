@@ -447,6 +447,16 @@ export type PerformanceReview = {
   // Workflow timestamps
   startedAt?: string | null
   submittedAt?: string | null
+  // HR review stage
+  hrReviewedAt?: string | null
+  hrReviewedById?: string | null
+  hrReviewNotes?: string | null
+  hrApproved?: boolean | null
+  // Super Admin stage
+  superAdminApprovedAt?: string | null
+  superAdminApprovedById?: string | null
+  superAdminNotes?: string | null
+  superAdminApproved?: boolean | null
   acknowledgedAt?: string | null
   // Quarterly review fields
   quarterlyCycleId?: string | null

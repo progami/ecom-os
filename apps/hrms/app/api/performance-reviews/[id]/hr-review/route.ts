@@ -69,6 +69,8 @@ export async function POST(req: Request, context: RouteContext) {
       )
     }
 
+    const recordLink = `/performance/reviews/${id}`
+
     if (approved) {
       // HR approves - move to PENDING_SUPER_ADMIN for final approval
       const updated = await prisma.performanceReview.update({
@@ -105,7 +107,7 @@ export async function POST(req: Request, context: RouteContext) {
               type: 'REVIEW_PENDING_ADMIN',
               title: 'Review Pending Final Approval',
               message: `A performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been approved by HR and requires your final approval.`,
-              link: `/performance/reviews/${id}`,
+              link: recordLink,
               employeeId: admin.id,
               relatedId: id,
               relatedType: 'REVIEW',
@@ -114,17 +116,33 @@ export async function POST(req: Request, context: RouteContext) {
         )
       )
 
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'APPROVE',
+          entityType: 'PERFORMANCE_REVIEW',
+          entityId: id,
+          summary: 'HR approved review',
+          metadata: {
+            fromStatus: review.status,
+            toStatus: 'PENDING_SUPER_ADMIN',
+            note: notes ?? null,
+          },
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Review approved by HR, sent to Super Admin for final approval',
         review: updated,
       })
     } else {
-      // HR rejects - move back to DRAFT (manager can revise)
+      // HR requests changes - self-loop on PENDING_HR_REVIEW
       const updated = await prisma.performanceReview.update({
         where: { id },
         data: {
-          status: 'DRAFT',
           hrReviewedAt: new Date(),
           hrReviewedById: currentEmployeeId,
           hrReviewNotes: notes ?? null,
@@ -142,24 +160,45 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      // Notify the manager who created it
-      if (review.employee.reportsToId) {
-        await prisma.notification.create({
-          data: {
-            type: 'REVIEW_REJECTED',
-            title: 'Review Returned by HR',
-            message: `The performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been returned by HR for revision.`,
-            link: `/performance/reviews/${id}`,
-            employeeId: review.employee.reportsToId,
-            relatedId: id,
-            relatedType: 'REVIEW',
+      const targets = new Set<string>()
+      if (review.assignedReviewerId) targets.add(review.assignedReviewerId)
+      if (!targets.size && review.employee.reportsToId) targets.add(review.employee.reportsToId)
+      targets.delete(currentEmployeeId)
+
+      await Promise.all(
+        Array.from(targets).map((employeeId) =>
+          prisma.notification.create({
+            data: {
+              type: 'REVIEW_REJECTED',
+              title: 'Review Needs Changes (HR)',
+              message: `HR requested changes to the performance review for ${updated.employee.firstName} ${updated.employee.lastName}.${notes ? ` Notes: ${notes}` : ''}`,
+              link: recordLink,
+              employeeId,
+              relatedId: id,
+              relatedType: 'REVIEW',
+            },
+          })
+        )
+      )
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'COMMENT',
+          entityType: 'PERFORMANCE_REVIEW',
+          entityId: id,
+          summary: 'HR requested changes',
+          metadata: {
+            note: notes ?? null,
           },
-        })
-      }
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
 
       return NextResponse.json({
         success: true,
-        message: 'Review returned to manager for revision',
+        message: 'Changes requested by HR',
         review: updated,
       })
     }
