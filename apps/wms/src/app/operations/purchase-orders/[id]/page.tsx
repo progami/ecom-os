@@ -1098,11 +1098,6 @@ export default function PurchaseOrderDetailPage() {
       return
     }
 
-    if (unitsOrdered % unitsPerCarton !== 0) {
-      toast.error('Units ordered must be divisible by units per carton')
-      return
-    }
-
     const totalCostInput = newLineDraft.totalCost.trim()
     const totalCost =
       totalCostInput.length === 0
@@ -1844,8 +1839,9 @@ export default function PurchaseOrderDetailPage() {
                             value={(() => {
                               if (!newLineDraft.unitsPerCarton) return '—'
                               if (newLineDraft.unitsOrdered <= 0) return '—'
-                              if (newLineDraft.unitsOrdered % newLineDraft.unitsPerCarton !== 0) return '—'
-                              return String(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
+                              return String(
+                                Math.ceil(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
+                              )
                             })()}
                             readOnly
                             disabled
