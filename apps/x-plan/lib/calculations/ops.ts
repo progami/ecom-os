@@ -19,6 +19,7 @@ import {
   planningWeekNumberForDate,
   type PlanningWeekConfig,
 } from './planning-week';
+import { isRemovedPaymentCategory } from '@/lib/payments';
 
 export type PaymentCategory = 'MANUFACTURING' | 'FREIGHT' | 'TARIFF' | 'OTHER';
 
@@ -685,6 +686,9 @@ export function computePurchaseOrderDerived(
     const dateOverride = dateField ? (order[dateField] ?? null) : null;
 
     const actualPayment = findPayment(order.payments, index);
+    if (isRemovedPaymentCategory(actualPayment?.category)) {
+      continue;
+    }
     const expectedOverride = actualPayment ? optionalNumber(actualPayment.amountExpected) : null;
     const paidAmount = actualPayment ? optionalNumber(actualPayment.amountPaid) : null;
     const actualPercent =
@@ -793,7 +797,9 @@ export function computePurchaseOrderDerived(
     supplierCostTotal,
     plannedPoValue: poValue,
     plannedPayments: payments,
-    payments: order.payments ?? [],
+    payments: (order.payments ?? []).filter(
+      (payment) => !isRemovedPaymentCategory(payment.category),
+    ),
     paidAmount: totalPaidAmount,
     paidPercent: totalPaidPercent,
     remainingAmount: Math.max(percentDenominator - totalPaidAmount, 0),
