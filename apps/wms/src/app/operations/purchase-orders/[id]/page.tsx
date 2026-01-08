@@ -1,7 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ComponentType } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type ComponentType,
+} from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
@@ -42,6 +49,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { withBasePath } from '@/lib/utils/base-path'
+import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 // 5-Stage State Machine Types
 type POStageStatus =
@@ -53,6 +61,8 @@ type POStageStatus =
   | 'SHIPPED'
   | 'REJECTED'
   | 'CANCELLED'
+
+const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
 
 interface PurchaseOrderLineSummary {
   id: string
@@ -74,6 +84,12 @@ interface SkuSummary {
   id: string
   skuCode: string
   description: string
+}
+
+interface BatchOption {
+  batchCode: string
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
 }
 
 interface StageApproval {
@@ -225,7 +241,10 @@ const STAGE_DOCUMENTS: Record<
   ],
 }
 
-const DOCUMENT_STAGE_META: Record<PurchaseOrderDocumentStage, { label: string; icon: ComponentType<{ className?: string }> }> = {
+const DOCUMENT_STAGE_META: Record<
+  PurchaseOrderDocumentStage,
+  { label: string; icon: ComponentType<{ className?: string }> }
+> = {
   MANUFACTURING: { label: 'Manufacturing', icon: Factory },
   OCEAN: { label: 'In Transit', icon: Ship },
   WAREHOUSE: { label: 'At Warehouse', icon: Warehouse },
@@ -257,7 +276,18 @@ const STAGES = [
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
 ] as const
 
-const INCOTERMS_OPTIONS = ['EXW', 'FOB', 'FCA', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'] as const
+const INCOTERMS_OPTIONS = [
+  'EXW',
+  'FOB',
+  'FCA',
+  'CFR',
+  'CIF',
+  'CPT',
+  'CIP',
+  'DAP',
+  'DPU',
+  'DDP',
+] as const
 
 function statusBadgeClasses(status: POStageStatus) {
   return PO_STATUS_BADGE_CLASSES[status] ?? DEFAULT_BADGE_CLASS
@@ -282,7 +312,8 @@ function toAuditRecord(value: unknown): Record<string, unknown> | null {
 function formatAuditValue(value: unknown): string {
   if (value === null || value === undefined) return '—'
   if (typeof value === 'string') return value.trim().length ? value : '—'
-  if (typeof value === 'number') return Number.isFinite(value) ? value.toLocaleString() : String(value)
+  if (typeof value === 'number')
+    return Number.isFinite(value) ? value.toLocaleString() : String(value)
   if (typeof value === 'boolean') return value ? 'true' : 'false'
   try {
     const json = JSON.stringify(value)
@@ -496,7 +527,9 @@ function describeAuditChanges(entry: AuditLogEntry): string[] {
     const before = oldValue?.[key]
     const after = newValue?.[key]
     if (before === after) continue
-    changes.push(`${formatAuditFieldLabel(key)}: ${formatAuditValue(before)} → ${formatAuditValue(after)}`)
+    changes.push(
+      `${formatAuditFieldLabel(key)}: ${formatAuditValue(before)} → ${formatAuditValue(after)}`
+    )
   }
 
   return changes
@@ -539,7 +572,7 @@ export default function PurchaseOrderDetailPage() {
 
   const [skus, setSkus] = useState<SkuSummary[]>([])
   const [skusLoading, setSkusLoading] = useState(false)
-  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, string[]>>({})
+  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, BatchOption[]>>({})
   const [batchesLoadingBySkuId, setBatchesLoadingBySkuId] = useState<Record<string, boolean>>({})
   const [addLineOpen, setAddLineOpen] = useState(false)
   const [addLineSubmitting, setAddLineSubmitting] = useState(false)
@@ -547,6 +580,8 @@ export default function PurchaseOrderDetailPage() {
     skuId: '',
     batchLot: '',
     quantity: 1,
+    storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+    shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
     notes: '',
   })
 
@@ -562,14 +597,18 @@ export default function PurchaseOrderDetailPage() {
   const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
 
   // Bottom section tabs
-  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'documents' | 'details' | 'history'>('cargo')
+  const [activeBottomTab, setActiveBottomTab] = useState<
+    'cargo' | 'documents' | 'details' | 'history'
+  >('cargo')
   const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
 
   // Collapsible sections state for Documents tab
   const [collapsedDocSections, setCollapsedDocSections] = useState<Record<string, boolean>>({})
 
   // Collapsible sections state for Details tab
-  const [collapsedDetailSections, setCollapsedDetailSections] = useState<Record<string, boolean>>({})
+  const [collapsedDetailSections, setCollapsedDetailSections] = useState<Record<string, boolean>>(
+    {}
+  )
 
   // Actions dropdown open state
   const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false)
@@ -806,15 +845,37 @@ export default function PurchaseOrderDetailPage() {
 
         const payload = await response.json().catch(() => null)
         const batches = Array.isArray(payload?.batches) ? payload.batches : []
-        const batchCodes: string[] = batches
-          .map((batch: { batchCode?: unknown }) =>
-            String(batch?.batchCode ?? '')
+        const coercePositiveInt = (value: unknown): number | null => {
+          if (typeof value === 'number') {
+            return Number.isInteger(value) && value > 0 ? value : null
+          }
+          if (typeof value === 'string' && value.trim()) {
+            const parsed = Number(value.trim())
+            return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+          }
+          return null
+        }
+
+        const parsedBatches: BatchOption[] = batches
+          .map((batch: Record<string, unknown>): BatchOption | null => {
+            const batchCode = String(batch?.batchCode ?? '')
               .trim()
               .toUpperCase()
-          )
-          .filter((batchCode): batchCode is string => Boolean(batchCode))
+            if (!batchCode || batchCode === 'DEFAULT') return null
 
-        setBatchesBySkuId(prev => ({ ...prev, [skuId]: Array.from(new Set(batchCodes)) }))
+            return {
+              batchCode,
+              storageCartonsPerPallet: coercePositiveInt(batch?.storageCartonsPerPallet),
+              shippingCartonsPerPallet: coercePositiveInt(batch?.shippingCartonsPerPallet),
+            }
+          })
+          .filter((batch): batch is BatchOption => Boolean(batch))
+
+        const unique = Array.from(
+          new Map(parsedBatches.map(batch => [batch.batchCode, batch])).values()
+        )
+
+        setBatchesBySkuId(prev => ({ ...prev, [skuId]: unique }))
       } catch {
         setBatchesBySkuId(prev => ({ ...prev, [skuId]: [] }))
       } finally {
@@ -828,11 +889,22 @@ export default function PurchaseOrderDetailPage() {
     if (!newLineDraft.skuId) return
     const options = batchesBySkuId[newLineDraft.skuId]
     if (!options || options.length === 0) return
-    if (newLineDraft.batchLot && options.includes(newLineDraft.batchLot)) return
+    if (
+      newLineDraft.batchLot &&
+      options.some(option => option.batchCode === newLineDraft.batchLot)
+    ) {
+      return
+    }
 
     setNewLineDraft(prev => {
       if (prev.skuId !== newLineDraft.skuId) return prev
-      return { ...prev, batchLot: options[0] }
+      const selected = options[0]
+      return {
+        ...prev,
+        batchLot: selected.batchCode,
+        storageCartonsPerPallet: selected.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+        shippingCartonsPerPallet: selected.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+      }
     })
   }, [batchesBySkuId, newLineDraft.batchLot, newLineDraft.skuId])
 
@@ -919,7 +991,8 @@ export default function PurchaseOrderDetailPage() {
         open: true,
         type: 'reject',
         title: 'Mark as Rejected',
-        message: 'Mark this PO as rejected by the supplier? You can reopen it as a draft to revise and re-issue.',
+        message:
+          'Mark this PO as rejected by the supplier? You can reopen it as a draft to revise and re-issue.',
       })
       return
     }
@@ -1051,12 +1124,15 @@ export default function PurchaseOrderDetailPage() {
   }
 
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
-  const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
+  const isTerminal =
+    order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
   const canDownloadPdf = order.status !== 'DRAFT'
   const documentsCount = documents.length
   const historyCount = auditLogs.length || order.approvalHistory?.length || 0
-  const selectedSku = newLineDraft.skuId ? skus.find(sku => sku.id === newLineDraft.skuId) : undefined
+  const selectedSku = newLineDraft.skuId
+    ? skus.find(sku => sku.id === newLineDraft.skuId)
+    : undefined
   const documentStages: PurchaseOrderDocumentStage[] = ['MANUFACTURING', 'OCEAN', 'WAREHOUSE']
   if (documents.some(doc => doc.stage === 'SHIPPED')) {
     documentStages.push('SHIPPED')
@@ -1068,61 +1144,82 @@ export default function PurchaseOrderDetailPage() {
       (previewDocument.contentType === 'application/pdf' ||
         previewDocument.fileName.toLowerCase().endsWith('.pdf'))
   )
-  const previewIsImage = Boolean(previewDocument && previewDocument.contentType.startsWith('image/'))
+  const previewIsImage = Boolean(
+    previewDocument && previewDocument.contentType.startsWith('image/')
+  )
 
-		  const handleAddLineItem = async () => {
-		    if (!order) return
-		    if (!selectedSku) {
-		      toast.error('Please select a SKU')
-		      return
-		    }
+  const handleAddLineItem = async () => {
+    if (!order) return
+    if (!selectedSku) {
+      toast.error('Please select a SKU')
+      return
+    }
 
-		    const batchLot = newLineDraft.batchLot.trim()
-		    if (!batchLot) {
-		      toast.error('Please select a batch / lot')
-		      return
-		    }
-		    const quantity = Number(newLineDraft.quantity)
-		    if (!Number.isFinite(quantity) || quantity <= 0) {
-		      toast.error('Please enter a valid quantity')
-		      return
-		    }
+    const batchLot = newLineDraft.batchLot.trim()
+    if (!batchLot) {
+      toast.error('Please select a batch / lot')
+      return
+    }
+    const storageCartonsPerPallet = Number(newLineDraft.storageCartonsPerPallet)
+    if (!Number.isInteger(storageCartonsPerPallet) || storageCartonsPerPallet <= 0) {
+      toast.error('Please enter a valid storage cartons / pallet value')
+      return
+    }
+    const shippingCartonsPerPallet = Number(newLineDraft.shippingCartonsPerPallet)
+    if (!Number.isInteger(shippingCartonsPerPallet) || shippingCartonsPerPallet <= 0) {
+      toast.error('Please enter a valid shipping cartons / pallet value')
+      return
+    }
+    const quantity = Number(newLineDraft.quantity)
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      toast.error('Please enter a valid quantity')
+      return
+    }
 
-	    setAddLineSubmitting(true)
-	    try {
-	      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}/lines`, {
-	        method: 'POST',
-	        headers: { 'Content-Type': 'application/json' },
-	        body: JSON.stringify({
-	          skuCode: selectedSku.skuCode,
-	          skuDescription: selectedSku.description,
-	          batchLot,
-	          quantity,
-	          notes: newLineDraft.notes.trim() ? newLineDraft.notes.trim() : undefined,
-	        }),
-	      })
+    setAddLineSubmitting(true)
+    try {
+      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}/lines`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skuCode: selectedSku.skuCode,
+          skuDescription: selectedSku.description,
+          batchLot,
+          quantity,
+          storageCartonsPerPallet,
+          shippingCartonsPerPallet,
+          notes: newLineDraft.notes.trim() ? newLineDraft.notes.trim() : undefined,
+        }),
+      })
 
-	      if (!response.ok) {
-	        const payload = await response.json().catch(() => null)
-	        throw new Error(payload?.error ?? 'Failed to add line item')
-	      }
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to add line item')
+      }
 
-	      const createdLine = (await response.json()) as PurchaseOrderLineSummary
-		      setOrder(prev => (prev ? { ...prev, lines: [...prev.lines, createdLine] } : prev))
-		      toast.success('Line item added')
-		      setAddLineOpen(false)
-		      setNewLineDraft({ skuId: '', batchLot: '', quantity: 1, notes: '' })
-		      void refreshAuditLogs()
-		    } catch (error) {
-		      toast.error(error instanceof Error ? error.message : 'Failed to add line item')
-		    } finally {
-	      setAddLineSubmitting(false)
-	    }
-	  }
+      const createdLine = (await response.json()) as PurchaseOrderLineSummary
+      setOrder(prev => (prev ? { ...prev, lines: [...prev.lines, createdLine] } : prev))
+      toast.success('Line item added')
+      setAddLineOpen(false)
+      setNewLineDraft({
+        skuId: '',
+        batchLot: '',
+        quantity: 1,
+        storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+        shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+        notes: '',
+      })
+      void refreshAuditLogs()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to add line item')
+    } finally {
+      setAddLineSubmitting(false)
+    }
+  }
 
-	  const breadcrumbItems = [
-	    { label: 'Operations', href: '/operations' },
-	    { label: 'Purchase Orders', href: '/operations/purchase-orders' },
+  const breadcrumbItems = [
+    { label: 'Operations', href: '/operations' },
+    { label: 'Purchase Orders', href: '/operations/purchase-orders' },
     { label: order.poNumber || order.orderNumber },
   ]
 
@@ -1162,7 +1259,8 @@ export default function PurchaseOrderDetailPage() {
       return (
         <div className="space-y-4">
           <p className="text-sm text-slate-700">
-            Marking this PO as issued locks draft edits and indicates it has been sent to the supplier.
+            Marking this PO as issued locks draft edits and indicates it has been sent to the
+            supplier.
           </p>
           {missingFields.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
@@ -1594,15 +1692,15 @@ export default function PurchaseOrderDetailPage() {
           {/* Stage Content Header */}
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  {activeViewStage === 'DRAFT' && 'Order Details'}
-                  {activeViewStage === 'ISSUED' && 'Issued'}
-                  {activeViewStage === 'MANUFACTURING' && 'Manufacturing Stage'}
-                  {activeViewStage === 'OCEAN' && 'In Transit Stage'}
-                  {activeViewStage === 'WAREHOUSE' && 'Warehouse Stage'}
-                  {activeViewStage === 'SHIPPED' && 'Shipped'}
-                  {activeViewStage === 'REJECTED' && 'Rejected'}
-                </h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                {activeViewStage === 'DRAFT' && 'Order Details'}
+                {activeViewStage === 'ISSUED' && 'Issued'}
+                {activeViewStage === 'MANUFACTURING' && 'Manufacturing Stage'}
+                {activeViewStage === 'OCEAN' && 'In Transit Stage'}
+                {activeViewStage === 'WAREHOUSE' && 'Warehouse Stage'}
+                {activeViewStage === 'SHIPPED' && 'Shipped'}
+                {activeViewStage === 'REJECTED' && 'Rejected'}
+              </h3>
               <p className="text-xs text-muted-foreground">
                 {isViewingCurrentStage ? 'Current stage' : 'Viewing past stage (read-only)'}
               </p>
@@ -1693,9 +1791,7 @@ export default function PurchaseOrderDetailPage() {
                     {isEditingDetails ? (
                       <select
                         value={detailsDraft.incoterms}
-                        onChange={e =>
-                          setDetailsDraft(d => ({ ...d, incoterms: e.target.value }))
-                        }
+                        onChange={e => setDetailsDraft(d => ({ ...d, incoterms: e.target.value }))}
                         disabled={detailsSaving}
                         className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                       >
@@ -1763,8 +1859,8 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-4">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-sm text-slate-700">
-                    This PO has been issued to the supplier. Capture supplier confirmation (e.g. proforma invoice)
-                    before advancing to manufacturing.
+                    This PO has been issued to the supplier. Capture supplier confirmation (e.g.
+                    proforma invoice) before advancing to manufacturing.
                   </p>
                 </div>
 
@@ -1784,7 +1880,9 @@ export default function PurchaseOrderDetailPage() {
                     <Input value={tenantDestination || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Cargo Ready Date</label>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Cargo Ready Date
+                    </label>
                     <Input
                       value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
                       disabled
@@ -1845,7 +1943,9 @@ export default function PurchaseOrderDetailPage() {
                     <Input value={tenantDestination || '—'} disabled readOnly />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Cargo Ready Date</label>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Cargo Ready Date
+                    </label>
                     <Input
                       value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
                       disabled
@@ -2172,155 +2272,203 @@ export default function PurchaseOrderDetailPage() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-	            {/* Spacer to push total to the right when cargo tab is active */}
-	            {activeBottomTab === 'cargo' && (
-	              <div className="ml-auto flex items-center gap-3 pr-6">
-	                <span className="text-sm text-muted-foreground">
-	                  Total: {totalQuantity.toLocaleString()} units
-	                </span>
-	                {canEdit && (
-	                  <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
-	                    <PopoverTrigger asChild>
-	                      <Button
-	                        type="button"
-	                        size="sm"
-	                        variant="outline"
-	                        className="gap-2"
-	                      >
-	                        <Plus className="h-4 w-4" />
-	                        Add SKU
-	                      </Button>
-	                    </PopoverTrigger>
-	                    <PopoverContent align="end" className="w-[360px] space-y-4">
-	                      <div>
-	                        <h4 className="text-sm font-semibold text-slate-900">Add line item</h4>
-	                        <p className="mt-0.5 text-xs text-muted-foreground">
-	                          Add another SKU to this purchase order.
-	                        </p>
-	                      </div>
-	
-	                      <div className="space-y-2">
-	                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-	                          SKU
-	                        </label>
-		                        <select
-		                          value={newLineDraft.skuId}
-		                          onChange={e => {
-		                            const skuId = e.target.value
-		                            setNewLineDraft(prev => ({
-		                              ...prev,
-		                              skuId,
-		                              batchLot: '',
-		                            }))
-		                            void ensureSkuBatchesLoaded(skuId)
-		                          }}
-	                          disabled={skusLoading || addLineSubmitting}
-	                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-	                        >
-	                          <option value="">Select SKU</option>
-	                          {skus.map(sku => (
-	                            <option key={sku.id} value={sku.id}>
-	                              {sku.skuCode}
-	                            </option>
-	                          ))}
-	                        </select>
-	                        {selectedSku?.description && (
-	                          <p className="text-xs text-muted-foreground line-clamp-2">
-	                            {selectedSku.description}
-	                          </p>
-	                        )}
-	                      </div>
-	
-	                      <div className="space-y-2">
-	                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-	                          Batch / Lot
-	                        </label>
-		                        <select
-		                          value={newLineDraft.batchLot}
-		                          onChange={e =>
-		                            setNewLineDraft(prev => ({ ...prev, batchLot: e.target.value }))
-		                          }
-		                          disabled={!newLineDraft.skuId || addLineSubmitting}
-		                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
-		                        >
-		                          {!newLineDraft.skuId ? (
-		                            <option value="">Select SKU first</option>
-		                          ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
-		                            <option value="">Loading…</option>
-		                          ) : (
-		                            (batchesBySkuId[newLineDraft.skuId]?.length ?? 0) > 0 ? (
-		                              batchesBySkuId[newLineDraft.skuId].map(batchCode => (
-		                                <option key={batchCode} value={batchCode}>
-		                                  {batchCode}
-		                                </option>
-		                              ))
-		                            ) : (
-		                              <option value="">No batches found</option>
-		                            )
-		                          )}
-		                        </select>
-		                      </div>
-	
-	                      <div className="grid grid-cols-2 gap-3">
-	                        <div className="space-y-2">
-	                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-	                            Qty
-	                          </label>
-	                          <Input
-	                            type="number"
-	                            min="1"
-	                            value={newLineDraft.quantity}
-	                            onChange={e =>
-	                              setNewLineDraft(prev => ({
-	                                ...prev,
-	                                quantity: parseInt(e.target.value) || 0,
-	                              }))
-	                            }
-	                            disabled={addLineSubmitting}
-	                          />
-	                        </div>
-	                        <div className="space-y-2">
-	                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-	                            Notes
-	                          </label>
-	                          <Input
-	                            value={newLineDraft.notes}
-	                            onChange={e =>
-	                              setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
-	                            }
-	                            placeholder="Optional"
-	                            disabled={addLineSubmitting}
-	                          />
-	                        </div>
-	                      </div>
-	
-	                      <div className="flex items-center justify-end gap-2">
-	                        <Button
-	                          type="button"
-	                          variant="outline"
-	                          size="sm"
-	                          onClick={() => setAddLineOpen(false)}
-	                          disabled={addLineSubmitting}
-	                        >
-	                          Cancel
-	                        </Button>
-	                        <Button
-	                          type="button"
-	                          size="sm"
-	                          onClick={() => void handleAddLineItem()}
-	                          disabled={!newLineDraft.skuId || addLineSubmitting}
-	                          className="gap-2"
-	                        >
-	                          {addLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-	                          Add
-	                        </Button>
-	                      </div>
-	                    </PopoverContent>
-	                  </Popover>
-	                )}
-	              </div>
-	            )}
-	          </div>
+            {/* Spacer to push total to the right when cargo tab is active */}
+            {activeBottomTab === 'cargo' && (
+              <div className="ml-auto flex items-center gap-3 pr-6">
+                <span className="text-sm text-muted-foreground">
+                  Total: {totalQuantity.toLocaleString()} units
+                </span>
+                {canEdit && (
+                  <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" size="sm" variant="outline" className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Add SKU
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-[420px] space-y-4">
+                      <div>
+                        <h4 className="text-sm font-semibold text-slate-900">Add line item</h4>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          Add another SKU to this purchase order.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          SKU
+                        </label>
+                        <select
+                          value={newLineDraft.skuId}
+                          onChange={e => {
+                            const skuId = e.target.value
+                            setNewLineDraft(prev => ({
+                              ...prev,
+                              skuId,
+                              batchLot: '',
+                              storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                              shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                            }))
+                            void ensureSkuBatchesLoaded(skuId)
+                          }}
+                          disabled={skusLoading || addLineSubmitting}
+                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                        >
+                          <option value="">Select SKU</option>
+                          {skus.map(sku => (
+                            <option key={sku.id} value={sku.id}>
+                              {sku.skuCode}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedSku?.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {selectedSku.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Batch / Lot
+                        </label>
+                        <select
+                          value={newLineDraft.batchLot}
+                          onChange={e => {
+                            const batchLot = e.target.value
+                            setNewLineDraft(prev => {
+                              const batches = prev.skuId ? (batchesBySkuId[prev.skuId] ?? []) : []
+                              const selected = batches.find(batch => batch.batchCode === batchLot)
+                              return {
+                                ...prev,
+                                batchLot,
+                                storageCartonsPerPallet:
+                                  selected?.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+                                shippingCartonsPerPallet:
+                                  selected?.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+                              }
+                            })
+                          }}
+                          disabled={!newLineDraft.skuId || addLineSubmitting}
+                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
+                        >
+                          {!newLineDraft.skuId ? (
+                            <option value="">Select SKU first</option>
+                          ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
+                            <option value="">Loading…</option>
+                          ) : (batchesBySkuId[newLineDraft.skuId]?.length ?? 0) > 0 ? (
+                            batchesBySkuId[newLineDraft.skuId].map(batch => (
+                              <option key={batch.batchCode} value={batch.batchCode}>
+                                {batch.batchCode}
+                              </option>
+                            ))
+                          ) : (
+                            <option value="">No batches found</option>
+                          )}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Storage cartons / pallet
+                          </label>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            step="1"
+                            value={newLineDraft.storageCartonsPerPallet}
+                            onChange={e =>
+                              setNewLineDraft(prev => ({
+                                ...prev,
+                                storageCartonsPerPallet: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            disabled={!newLineDraft.skuId || addLineSubmitting}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Shipping cartons / pallet
+                          </label>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            step="1"
+                            value={newLineDraft.shippingCartonsPerPallet}
+                            onChange={e =>
+                              setNewLineDraft(prev => ({
+                                ...prev,
+                                shippingCartonsPerPallet: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            disabled={!newLineDraft.skuId || addLineSubmitting}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Qty
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={newLineDraft.quantity}
+                            onChange={e =>
+                              setNewLineDraft(prev => ({
+                                ...prev,
+                                quantity: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            disabled={addLineSubmitting}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Notes
+                          </label>
+                          <Input
+                            value={newLineDraft.notes}
+                            onChange={e =>
+                              setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
+                            }
+                            placeholder="Optional"
+                            disabled={addLineSubmitting}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setAddLineOpen(false)}
+                          disabled={addLineSubmitting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => void handleAddLineItem()}
+                          disabled={!newLineDraft.skuId || addLineSubmitting}
+                          className="gap-2"
+                        >
+                          {addLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                          Add
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Tab Content */}
           {activeBottomTab === 'cargo' && (
@@ -2394,8 +2542,7 @@ export default function PurchaseOrderDetailPage() {
                   const stageDocs = documents
                     .filter(doc => doc.stage === stage)
                     .sort(
-                      (a, b) =>
-                        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+                      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
                     )
 
                   const requiredDocs = stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
@@ -2425,13 +2572,18 @@ export default function PurchaseOrderDetailPage() {
                   const meta = DOCUMENT_STAGE_META[stage]
                   const StageIcon = meta.icon
                   // Default: expanded if has documents, collapsed if empty
-                  const isCollapsed = collapsedDocSections[stage] ?? (stageDocs.length === 0)
+                  const isCollapsed = collapsedDocSections[stage] ?? stageDocs.length === 0
 
                   return (
-                    <div key={stage} className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                    <div
+                      key={stage}
+                      className="rounded-xl border bg-white shadow-sm overflow-hidden"
+                    >
                       <button
                         type="button"
-                        onClick={() => setCollapsedDocSections(prev => ({ ...prev, [stage]: !isCollapsed }))}
+                        onClick={() =>
+                          setCollapsedDocSections(prev => ({ ...prev, [stage]: !isCollapsed }))
+                        }
                         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -2447,15 +2599,21 @@ export default function PurchaseOrderDetailPage() {
                             </p>
                           </div>
                         </div>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <ChevronDown
+                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                        />
                       </button>
 
-                      <div className={`divide-y border-t transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                      <div
+                        className={`divide-y border-t transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                      >
                         {rows.map(row => {
                           const key = `${stage}::${row.documentType}`
                           const existing = row.doc
                           const isUploading = Boolean(uploadingDoc[key])
-                          const uploadedBy = existing?.uploadedByName ? ` by ${existing.uploadedByName}` : ''
+                          const uploadedBy = existing?.uploadedByName
+                            ? ` by ${existing.uploadedByName}`
+                            : ''
 
                           return (
                             <div
@@ -2507,7 +2665,13 @@ export default function PurchaseOrderDetailPage() {
                                   </Button>
                                 )}
                                 {existing && (
-                                  <Button asChild type="button" size="sm" variant="outline" className="gap-2">
+                                  <Button
+                                    asChild
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-2"
+                                  >
                                     <a href={existing.viewUrl} target="_blank" rel="noreferrer">
                                       <ExternalLink className="h-4 w-4" />
                                       Open
@@ -2523,7 +2687,9 @@ export default function PurchaseOrderDetailPage() {
                                       type="file"
                                       className="hidden"
                                       disabled={isUploading}
-                                      onChange={e => void handleDocumentUpload(e, stage, row.documentType)}
+                                      onChange={e =>
+                                        void handleDocumentUpload(e, stage, row.documentType)
+                                      }
                                     />
                                     {isUploading && (
                                       <span className="text-xs text-muted-foreground ml-1">…</span>
@@ -2562,7 +2728,12 @@ export default function PurchaseOrderDetailPage() {
                     <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        onClick={() =>
+                          setCollapsedDetailSections(prev => ({
+                            ...prev,
+                            [sectionKey]: !isCollapsed,
+                          }))
+                        }
                         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -2574,49 +2745,85 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs text-muted-foreground">Basic order details</p>
                           </div>
                         </div>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <ChevronDown
+                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                        />
                       </button>
-                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                      <div
+                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                      >
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PO Number</p>
-                            <p className="text-sm font-medium text-slate-900">{order.poNumber || order.orderNumber}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              PO Number
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {order.poNumber || order.orderNumber}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</p>
-                            <p className="text-sm font-medium text-slate-900">{order.counterpartyName || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Supplier
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {order.counterpartyName || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Destination</p>
-                            <p className="text-sm font-medium text-slate-900">{tenantDestination || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Destination
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {tenantDestination || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cargo Ready Date</p>
-                            <p className="text-sm font-medium text-slate-900">{order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Cargo Ready Date
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Incoterms</p>
-                            <p className="text-sm font-medium text-slate-900">{order.incoterms || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Incoterms
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {order.incoterms || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</p>
-                            <p className="text-sm font-medium text-slate-900">{order.paymentTerms || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Payment Terms
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {order.paymentTerms || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Created
+                            </p>
                             <p className="text-sm font-medium text-slate-900">
                               {formatDateOnly(order.createdAt) || '—'}
                               {order.createdByName ? ` by ${order.createdByName}` : ''}
                             </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
-                            <Badge className={statusBadgeClasses(order.status)}>{formatStatusLabel(order.status)}</Badge>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Status
+                            </p>
+                            <Badge className={statusBadgeClasses(order.status)}>
+                              {formatStatusLabel(order.status)}
+                            </Badge>
                           </div>
                         </div>
                         {order.notes && (
                           <div className="mt-4 pt-3 border-t">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                              Notes
+                            </p>
                             <p className="text-sm text-slate-700">{order.notes}</p>
                           </div>
                         )}
@@ -2628,7 +2835,12 @@ export default function PurchaseOrderDetailPage() {
                 {/* Manufacturing Section */}
                 {(() => {
                   const mfg = order.stageData.manufacturing
-                  const hasData = mfg?.proformaInvoiceNumber || mfg?.factoryName || mfg?.manufacturingStartDate || mfg?.totalCartons || mfg?.totalWeightKg
+                  const hasData =
+                    mfg?.proformaInvoiceNumber ||
+                    mfg?.factoryName ||
+                    mfg?.manufacturingStartDate ||
+                    mfg?.totalCartons ||
+                    mfg?.totalWeightKg
                   if (!hasData) return null
                   const sectionKey = 'manufacturing'
                   const isCollapsed = collapsedDetailSections[sectionKey] ?? false
@@ -2636,7 +2848,12 @@ export default function PurchaseOrderDetailPage() {
                     <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        onClick={() =>
+                          setCollapsedDetailSections(prev => ({
+                            ...prev,
+                            [sectionKey]: !isCollapsed,
+                          }))
+                        }
                         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -2648,41 +2865,79 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs text-muted-foreground">Production details</p>
                           </div>
                         </div>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <ChevronDown
+                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                        />
                       </button>
-                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                      <div
+                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                      >
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proforma Invoice</p>
-                            <p className="text-sm font-medium text-slate-900">{mfg?.proformaInvoiceNumber || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Proforma Invoice
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {mfg?.proformaInvoiceNumber || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Factory</p>
-                            <p className="text-sm font-medium text-slate-900">{mfg?.factoryName || order.counterpartyName || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Factory
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {mfg?.factoryName || order.counterpartyName || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.manufacturingStartDate || mfg?.manufacturingStart) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Start Date
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(
+                                mfg?.manufacturingStartDate || mfg?.manufacturingStart
+                              ) || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.expectedCompletionDate) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Expected Completion
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(mfg?.expectedCompletionDate) || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cartons</p>
-                            <p className="text-sm font-medium text-slate-900">{mfg?.totalCartons?.toLocaleString() || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Cartons
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {mfg?.totalCartons?.toLocaleString() || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pallets</p>
-                            <p className="text-sm font-medium text-slate-900">{mfg?.totalPallets?.toLocaleString() || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Pallets
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {mfg?.totalPallets?.toLocaleString() || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight (kg)</p>
-                            <p className="text-sm font-medium text-slate-900">{mfg?.totalWeightKg?.toLocaleString() || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Weight (kg)
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {mfg?.totalWeightKg?.toLocaleString() || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Volume (CBM)</p>
-                            <p className="text-sm font-medium text-slate-900">{mfg?.totalVolumeCbm?.toLocaleString() || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Volume (CBM)
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {mfg?.totalVolumeCbm?.toLocaleString() || '—'}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -2693,7 +2948,12 @@ export default function PurchaseOrderDetailPage() {
                 {/* In Transit Section */}
                 {(() => {
                   const ocean = order.stageData.ocean
-                  const hasData = ocean?.houseBillOfLading || ocean?.masterBillOfLading || ocean?.vesselName || ocean?.portOfLoading || ocean?.estimatedDeparture
+                  const hasData =
+                    ocean?.houseBillOfLading ||
+                    ocean?.masterBillOfLading ||
+                    ocean?.vesselName ||
+                    ocean?.portOfLoading ||
+                    ocean?.estimatedDeparture
                   if (!hasData) return null
                   const sectionKey = 'ocean'
                   const isCollapsed = collapsedDetailSections[sectionKey] ?? false
@@ -2701,7 +2961,12 @@ export default function PurchaseOrderDetailPage() {
                     <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        onClick={() =>
+                          setCollapsedDetailSections(prev => ({
+                            ...prev,
+                            [sectionKey]: !isCollapsed,
+                          }))
+                        }
                         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -2713,45 +2978,85 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs text-muted-foreground">Shipping & logistics</p>
                           </div>
                         </div>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <ChevronDown
+                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                        />
                       </button>
-                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                      <div
+                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                      >
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">House B/L</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.houseBillOfLading || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              House B/L
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.houseBillOfLading || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Master B/L</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.masterBillOfLading || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Master B/L
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.masterBillOfLading || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vessel</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.vesselName || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Vessel
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.vesselName || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Voyage</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.voyageNumber || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Voyage
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.voyageNumber || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Loading</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.portOfLoading || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Port of Loading
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.portOfLoading || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Discharge</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.portOfDischarge || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Port of Discharge
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.portOfDischarge || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETD</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedDeparture) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              ETD
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(ocean?.estimatedDeparture) || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETA</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedArrival) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              ETA
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(ocean?.estimatedArrival) || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commercial Invoice</p>
-                            <p className="text-sm font-medium text-slate-900">{ocean?.commercialInvoiceNumber || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Commercial Invoice
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {ocean?.commercialInvoiceNumber || '—'}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -2762,7 +3067,12 @@ export default function PurchaseOrderDetailPage() {
                 {/* Warehouse Section */}
                 {(() => {
                   const wh = order.stageData.warehouse
-                  const hasData = wh?.warehouseName || wh?.warehouseCode || wh?.customsEntryNumber || wh?.customsClearedDate || wh?.receivedDate
+                  const hasData =
+                    wh?.warehouseName ||
+                    wh?.warehouseCode ||
+                    wh?.customsEntryNumber ||
+                    wh?.customsClearedDate ||
+                    wh?.receivedDate
                   if (!hasData) return null
                   const sectionKey = 'warehouse'
                   const isCollapsed = collapsedDetailSections[sectionKey] ?? false
@@ -2770,7 +3080,12 @@ export default function PurchaseOrderDetailPage() {
                     <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        onClick={() =>
+                          setCollapsedDetailSections(prev => ({
+                            ...prev,
+                            [sectionKey]: !isCollapsed,
+                          }))
+                        }
                         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -2782,36 +3097,62 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs text-muted-foreground">Receiving & customs</p>
                           </div>
                         </div>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <ChevronDown
+                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                        />
                       </button>
-                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                      <div
+                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                      >
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warehouse</p>
-                            <p className="text-sm font-medium text-slate-900">{wh?.warehouseName || wh?.warehouseCode || '—'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Entry</p>
-                            <p className="text-sm font-medium text-slate-900">{wh?.customsEntryNumber || '—'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Cleared</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.customsClearedDate) || '—'}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duty Amount</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Warehouse
+                            </p>
                             <p className="text-sm font-medium text-slate-900">
-                              {wh?.dutyAmount != null ? `${wh.dutyAmount.toLocaleString()} ${wh.dutyCurrency || ''}` : '—'}
+                              {wh?.warehouseName || wh?.warehouseCode || '—'}
                             </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Received Date</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.receivedDate) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Customs Entry
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {wh?.customsEntryNumber || '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Customs Cleared
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(wh?.customsClearedDate) || '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Duty Amount
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {wh?.dutyAmount != null
+                                ? `${wh.dutyAmount.toLocaleString()} ${wh.dutyCurrency || ''}`
+                                : '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Received Date
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(wh?.receivedDate) || '—'}
+                            </p>
                           </div>
                         </div>
                         {wh?.discrepancyNotes && (
                           <div className="mt-4 pt-3 border-t">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Discrepancy Notes</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                              Discrepancy Notes
+                            </p>
                             <p className="text-sm text-slate-700">{wh.discrepancyNotes}</p>
                           </div>
                         )}
@@ -2823,7 +3164,11 @@ export default function PurchaseOrderDetailPage() {
                 {/* Shipped Section */}
                 {(() => {
                   const shipped = order.stageData.shipped
-                  const hasData = shipped?.shipToName || shipped?.shippingCarrier || shipped?.trackingNumber || shipped?.shippedDate
+                  const hasData =
+                    shipped?.shipToName ||
+                    shipped?.shippingCarrier ||
+                    shipped?.trackingNumber ||
+                    shipped?.shippedDate
                   if (!hasData) return null
                   const sectionKey = 'shipped'
                   const isCollapsed = collapsedDetailSections[sectionKey] ?? false
@@ -2831,7 +3176,12 @@ export default function PurchaseOrderDetailPage() {
                     <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                       <button
                         type="button"
-                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        onClick={() =>
+                          setCollapsedDetailSections(prev => ({
+                            ...prev,
+                            [sectionKey]: !isCollapsed,
+                          }))
+                        }
                         className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -2843,35 +3193,68 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs text-muted-foreground">Delivery details</p>
                           </div>
                         </div>
-                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                        <ChevronDown
+                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                        />
                       </button>
-                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                      <div
+                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                      >
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
                           <div className="space-y-1 col-span-2">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ship To</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Ship To
+                            </p>
                             <p className="text-sm font-medium text-slate-900">
-                              {[shipped?.shipToName, shipped?.shipToAddress, shipped?.shipToCity, shipped?.shipToCountry].filter(Boolean).join(', ') || '—'}
+                              {[
+                                shipped?.shipToName,
+                                shipped?.shipToAddress,
+                                shipped?.shipToCity,
+                                shipped?.shipToCountry,
+                              ]
+                                .filter(Boolean)
+                                .join(', ') || '—'}
                             </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Carrier</p>
-                            <p className="text-sm font-medium text-slate-900">{shipped?.shippingCarrier || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Carrier
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {shipped?.shippingCarrier || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Method</p>
-                            <p className="text-sm font-medium text-slate-900">{shipped?.shippingMethod || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Method
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {shipped?.shippingMethod || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tracking</p>
-                            <p className="text-sm font-medium text-slate-900">{shipped?.trackingNumber || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Tracking
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {shipped?.trackingNumber || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Shipped Date</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(shipped?.shippedDate || shipped?.shippedAt) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Shipped Date
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(shipped?.shippedDate || shipped?.shippedAt) || '—'}
+                            </p>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivered Date</p>
-                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(shipped?.deliveredDate) || '—'}</p>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Delivered Date
+                            </p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(shipped?.deliveredDate) || '—'}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -2905,7 +3288,9 @@ export default function PurchaseOrderDetailPage() {
                     const title = describeAuditAction(entry.action, newValue)
                     const changes = describeAuditChanges(entry)
                     const actor = entry.changedBy?.fullName || 'Unknown'
-                    const { Icon, wrapperClassName, iconClassName } = getAuditActionTheme(entry.action)
+                    const { Icon, wrapperClassName, iconClassName } = getAuditActionTheme(
+                      entry.action
+                    )
 
                     return (
                       <div key={entry.id} className="relative flex gap-4">
@@ -2926,7 +3311,9 @@ export default function PurchaseOrderDetailPage() {
                               <p className="text-sm font-semibold text-slate-900">{title}</p>
                               <p className="mt-0.5 text-xs text-muted-foreground">by {actor}</p>
                             </div>
-                            <span className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(entry.createdAt)}
+                            </span>
                           </div>
 
                           {changes.length > 0 && (
@@ -3092,9 +3479,12 @@ export default function PurchaseOrderDetailPage() {
                         {previewDocument.fileName}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {previewStageMeta.label} • {getDocumentLabel(previewDocument.stage, previewDocument.documentType)} •{' '}
+                        {previewStageMeta.label} •{' '}
+                        {getDocumentLabel(previewDocument.stage, previewDocument.documentType)} •{' '}
                         Uploaded {formatDate(previewDocument.uploadedAt)}
-                        {previewDocument.uploadedByName ? ` by ${previewDocument.uploadedByName}` : ''}
+                        {previewDocument.uploadedByName
+                          ? ` by ${previewDocument.uploadedByName}`
+                          : ''}
                       </p>
                     </div>
                   </div>
@@ -3138,7 +3528,9 @@ export default function PurchaseOrderDetailPage() {
                         <FileText className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">Preview not available</p>
+                        <p className="text-sm font-semibold text-slate-900">
+                          Preview not available
+                        </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           Open the file in a new tab to view or download.
                         </p>

@@ -135,9 +135,11 @@ export async function createFulfillmentOrder(
     throw new ValidationError('At least one line item is required')
   }
 
-  const normalizedLines = input.lines.map((line) => ({
+  const normalizedLines = input.lines.map(line => ({
     skuCode: normalizeSkuCode(line.skuCode),
-    skuDescription: line.skuDescription?.trim() ? sanitizeForDisplay(line.skuDescription.trim()) : undefined,
+    skuDescription: line.skuDescription?.trim()
+      ? sanitizeForDisplay(line.skuDescription.trim())
+      : undefined,
     batchLot: normalizeBatchLot(line.batchLot),
     quantity: line.quantity,
     notes: line.notes?.trim() ? sanitizeForDisplay(line.notes.trim()) : undefined,
@@ -174,12 +176,12 @@ export async function createFulfillmentOrder(
     throw new ValidationError(`Warehouse not found: ${input.warehouseCode}`)
   }
 
-  const skuCodes = Array.from(new Set(normalizedLines.map((line) => line.skuCode)))
+  const skuCodes = Array.from(new Set(normalizedLines.map(line => line.skuCode)))
   const skus = await prisma.sku.findMany({
     where: { skuCode: { in: skuCodes } },
     select: { id: true, skuCode: true, description: true },
   })
-  const skuByCode = new Map(skus.map((sku) => [sku.skuCode, sku]))
+  const skuByCode = new Map(skus.map(sku => [sku.skuCode, sku]))
 
   for (const line of normalizedLines) {
     if (!skuByCode.has(line.skuCode)) {
@@ -187,15 +189,15 @@ export async function createFulfillmentOrder(
     }
   }
 
-  const batchCodes = Array.from(new Set(normalizedLines.map((line) => line.batchLot)))
+  const batchCodes = Array.from(new Set(normalizedLines.map(line => line.batchLot)))
   const batchRecords = await prisma.skuBatch.findMany({
     where: {
-      skuId: { in: skus.map((sku) => sku.id) },
+      skuId: { in: skus.map(sku => sku.id) },
       batchCode: { in: batchCodes },
     },
     select: { skuId: true, batchCode: true },
   })
-  const batchKeySet = new Set(batchRecords.map((batch) => `${batch.skuId}::${batch.batchCode}`))
+  const batchKeySet = new Set(batchRecords.map(batch => `${batch.skuId}::${batch.batchCode}`))
 
   for (const line of normalizedLines) {
     const sku = skuByCode.get(line.skuCode)
@@ -318,9 +320,10 @@ export async function createFulfillmentOrder(
           createdById: user.id,
           createdByName: user.name,
           lines: {
-            create: normalizedLines.map((line) => ({
+            create: normalizedLines.map(line => ({
               skuCode: line.skuCode,
-              skuDescription: line.skuDescription ?? skuByCode.get(line.skuCode)?.description ?? null,
+              skuDescription:
+                line.skuDescription ?? skuByCode.get(line.skuCode)?.description ?? null,
               batchLot: line.batchLot,
               quantity: line.quantity,
               status: FulfillmentOrderLineStatus.PENDING,
@@ -387,9 +390,7 @@ export async function transitionFulfillmentOrderStage(
 
   const validNextStages = getValidNextFulfillmentStages(order.status)
   if (!validNextStages.includes(targetStatus)) {
-    throw new ValidationError(
-      `Invalid stage transition from ${order.status} to ${targetStatus}`
-    )
+    throw new ValidationError(`Invalid stage transition from ${order.status} to ${targetStatus}`)
   }
 
   if (targetStatus === FulfillmentOrderStatus.CANCELLED) {
@@ -423,7 +424,7 @@ export async function transitionFulfillmentOrderStage(
     throw new ValidationError('Cannot ship a fulfillment order with no lines')
   }
 
-  const skuCodes = Array.from(new Set(order.lines.map((line) => line.skuCode)))
+  const skuCodes = Array.from(new Set(order.lines.map(line => line.skuCode)))
   const skus = await prisma.sku.findMany({
     where: { skuCode: { in: skuCodes } },
     select: {
@@ -438,12 +439,12 @@ export async function transitionFulfillmentOrderStage(
       packagingType: true,
     },
   })
-  const skuMap = new Map(skus.map((sku) => [sku.skuCode, sku]))
+  const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
 
-  const batchCodes = Array.from(new Set(order.lines.map((line) => line.batchLot)))
+  const batchCodes = Array.from(new Set(order.lines.map(line => line.batchLot)))
   const batchRecords = await prisma.skuBatch.findMany({
     where: {
-      skuId: { in: skus.map((sku) => sku.id) },
+      skuId: { in: skus.map(sku => sku.id) },
       batchCode: { in: batchCodes },
     },
     select: {
@@ -458,25 +459,13 @@ export async function transitionFulfillmentOrderStage(
       shippingCartonsPerPallet: true,
     },
   })
-  const batchMap = new Map(batchRecords.map((batch) => [`${batch.skuId}::${batch.batchCode}`, batch]))
-
-  const storageConfigs = await prisma.warehouseSkuStorageConfig.findMany({
-    where: {
-      warehouseId: warehouse.id,
-      skuId: { in: skus.map(sku => sku.id) },
-    },
-    select: {
-      skuId: true,
-      shippingCartonsPerPallet: true,
-    },
-  })
-  const storageConfigMap = new Map(storageConfigs.map(cfg => [cfg.skuId, cfg]))
+  const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
 
   const referenceId = stageData.trackingNumber?.trim()
     ? sanitizeForDisplay(stageData.trackingNumber.trim())
-    : order.trackingNumber ?? order.foNumber
+    : (order.trackingNumber ?? order.foNumber)
 
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async tx => {
     for (const line of order.lines) {
       if (line.status === FulfillmentOrderLineStatus.CANCELLED) {
         continue
@@ -500,12 +489,11 @@ export async function transitionFulfillmentOrderStage(
       }
 
       const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
-      const shippingCartonsPerPallet =
-        storageConfigMap.get(sku.id)?.shippingCartonsPerPallet ?? null
+      const shippingCartonsPerPallet = batch.shippingCartonsPerPallet ?? null
 
       if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
         throw new ValidationError(
-          `Shipping configuration is required for SKU ${line.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+          `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${line.batchLot}. Configure it on the batch in Config → Products → Batches.`
         )
       }
 
@@ -565,7 +553,7 @@ export async function transitionFulfillmentOrderStage(
           shipName: order.destinationName ?? stageData.shippingCarrier ?? null,
           trackingNumber: stageData.trackingNumber?.trim()
             ? sanitizeForDisplay(stageData.trackingNumber.trim())
-            : order.trackingNumber ?? null,
+            : (order.trackingNumber ?? null),
           supplier: null,
           attachments: null,
           transactionDate: shippedAt,

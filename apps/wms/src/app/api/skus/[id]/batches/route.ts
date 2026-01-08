@@ -6,17 +6,20 @@ import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-d
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
-const packagingTypeSchema = z.preprocess(value => {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  if (typeof value !== 'string') return value
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
-  if (normalized === 'BOX') return 'BOX'
-  if (normalized === 'POLYBAG') return 'POLYBAG'
-  return trimmed
-}, z.enum(['BOX', 'POLYBAG']).nullable().optional())
+const packagingTypeSchema = z.preprocess(
+  value => {
+    if (value === undefined) return undefined
+    if (value === null) return null
+    if (typeof value !== 'string') return value
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+    if (normalized === 'BOX') return 'BOX'
+    if (normalized === 'POLYBAG') return 'POLYBAG'
+    return trimmed
+  },
+  z.enum(['BOX', 'POLYBAG']).nullable().optional()
+)
 
 type DimensionRefineShape = {
   unitLengthCm: z.ZodTypeAny
@@ -60,6 +63,8 @@ const createBatchSchema = refineDimensions(
     unitsPerCarton: z.number().int().positive(),
     material: z.string().trim().max(120).optional().nullable(),
     packagingType: packagingTypeSchema,
+    storageCartonsPerPallet: z.number().int().positive(),
+    shippingCartonsPerPallet: z.number().int().positive(),
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
     unitLengthCm: optionalDimensionValueSchema,
     unitWidthCm: optionalDimensionValueSchema,
@@ -199,6 +204,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: payload.cartonWeightKg ?? null,
         packagingType: payload.packagingType ?? null,
+        storageCartonsPerPallet: payload.storageCartonsPerPallet,
+        shippingCartonsPerPallet: payload.shippingCartonsPerPallet,
         isActive: true,
       },
     })
