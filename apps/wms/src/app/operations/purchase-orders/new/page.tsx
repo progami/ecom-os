@@ -373,9 +373,17 @@ export default function NewPurchaseOrderPage() {
     return parsed
   }
 
-  const getLinePackagingMeta = (
-    item: LineItem
-  ): { text: string; tone: 'muted' | 'warning' } | null => {
+  interface PackagingDetails {
+    cartonDims: string | null
+    cbmPerCarton: string | null
+    cbmTotal: string | null
+    kgPerCarton: string | null
+    kgTotal: string | null
+    packagingType: string | null
+    hasWarning: boolean
+  }
+
+  const getLinePackagingDetails = (item: LineItem): PackagingDetails | null => {
     if (!item.skuId || !item.batchLot) return null
     const batchCode = item.batchLot.trim().toUpperCase()
     if (!batchCode) return null
@@ -395,45 +403,24 @@ export default function NewPurchaseOrderPage() {
         ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
         : null
 
-    const parts: string[] = []
+    const hasWarning = !cartonTriplet && !batch.cartonWeightKg && !batch.packagingType
 
-    if (!cartonTriplet) {
-      parts.push('Carton dims not set')
-
-      if (batch.cartonWeightKg) {
-        parts.push(`KG/ctn: ${batch.cartonWeightKg.toFixed(2)}`)
-        if (cartons) {
-          parts.push(`KG: ${(batch.cartonWeightKg * cartons).toFixed(2)}`)
-        }
-      }
-
-      if (batch.packagingType) {
-        parts.push(`Pkg: ${batch.packagingType}`)
-      }
-
-      return { tone: 'warning', text: parts.join(' • ') }
+    let cbmPerCarton: number | null = null
+    if (cartonTriplet) {
+      cbmPerCarton =
+        (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
     }
 
-    parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
-    const cbmPerCarton =
-      (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
-    parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
-    if (cartons) {
-      parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
+    return {
+      cartonDims: cartonTriplet ? `${formatDimensionTripletCm(cartonTriplet)} cm` : null,
+      cbmPerCarton: cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : null,
+      cbmTotal: cbmPerCarton !== null && cartons ? (cbmPerCarton * cartons).toFixed(3) : null,
+      kgPerCarton: batch.cartonWeightKg ? batch.cartonWeightKg.toFixed(2) : null,
+      kgTotal:
+        batch.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : null,
+      packagingType: batch.packagingType ?? null,
+      hasWarning,
     }
-
-    if (batch.cartonWeightKg) {
-      parts.push(`KG/ctn: ${batch.cartonWeightKg.toFixed(2)}`)
-      if (cartons) {
-        parts.push(`KG: ${(batch.cartonWeightKg * cartons).toFixed(2)}`)
-      }
-    }
-
-    if (batch.packagingType) {
-      parts.push(`Pkg: ${batch.packagingType}`)
-    }
-
-    return { tone: 'muted', text: parts.join(' • ') }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -721,12 +708,10 @@ export default function NewPurchaseOrderPage() {
                   {/* Line Items */}
                   <div className="divide-y">
                     {lineItems.map(item => {
-                      const meta = getLinePackagingMeta(item)
+                      const pkg = getLinePackagingDetails(item)
                       return (
-                        <div
-                          key={item.id}
-                          className="grid grid-cols-14 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
-                        >
+                        <div key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                          <div className="grid grid-cols-14 gap-2 items-start px-4 py-3">
                           <div className="col-span-2">
                             <select
                               value={item.skuCode}
@@ -864,16 +849,49 @@ export default function NewPurchaseOrderPage() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                          {meta ? (
-                            <p
-                              className={`col-span-14 text-[10px] ${
-                                meta.tone === 'warning'
-                                  ? 'text-amber-600'
-                                  : 'text-muted-foreground'
+                          </div>
+                          {/* Packaging details sub-row */}
+                          {pkg ? (
+                            <div
+                              className={`px-4 pb-3 pt-1 grid grid-cols-6 gap-3 text-xs ${
+                                pkg.hasWarning ? 'bg-amber-50/50' : 'bg-slate-50/30'
                               }`}
                             >
-                              {meta.text}
-                            </p>
+                              <div>
+                                <span className="text-muted-foreground">Carton</span>
+                                <p
+                                  className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
+                                >
+                                  {pkg.cartonDims ?? 'Not set'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">CBM/ctn</span>
+                                <p className="font-medium text-slate-700">
+                                  {pkg.cbmPerCarton ?? '—'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">CBM Total</span>
+                                <p className="font-medium text-slate-700">{pkg.cbmTotal ?? '—'}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">KG/ctn</span>
+                                <p className="font-medium text-slate-700">
+                                  {pkg.kgPerCarton ?? '—'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">KG Total</span>
+                                <p className="font-medium text-slate-700">{pkg.kgTotal ?? '—'}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Pkg Type</span>
+                                <p className="font-medium text-slate-700">
+                                  {pkg.packagingType ?? '—'}
+                                </p>
+                              </div>
+                            </div>
                           ) : null}
                         </div>
                       )
