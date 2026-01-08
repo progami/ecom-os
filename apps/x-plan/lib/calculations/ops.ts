@@ -223,16 +223,27 @@ function addStageDurationDate(start: Date, weeks: number): Date {
   return new Date(start.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function weeksBetweenDates(start: Date | null, end: Date | null): number | null {
+  if (!start || !end) return null;
+  const diffMs = end.getTime() - start.getTime();
+  if (!Number.isFinite(diffMs)) return null;
+  const diffDays = diffMs / MS_PER_DAY;
+  if (!Number.isFinite(diffDays) || diffDays < 0) return null;
+  return diffDays / 7;
+}
+
 function buildStageSchedule(
   order: PurchaseOrderInput,
   stageProfile: LeadTimeProfile,
   createdAt: Date,
   mapping: WeekMapping,
 ) {
-  const productionWeeks = resolveStageWeeks(order.productionWeeks, stageProfile.productionWeeks);
-  const sourceWeeks = resolveStageWeeks(order.sourceWeeks, stageProfile.sourceWeeks);
-  const oceanWeeks = resolveStageWeeks(order.oceanWeeks, stageProfile.oceanWeeks);
-  const finalWeeks = resolveStageWeeks(order.finalWeeks, stageProfile.finalWeeks);
+  let productionWeeks = resolveStageWeeks(order.productionWeeks, stageProfile.productionWeeks);
+  let sourceWeeks = resolveStageWeeks(order.sourceWeeks, stageProfile.sourceWeeks);
+  let oceanWeeks = resolveStageWeeks(order.oceanWeeks, stageProfile.oceanWeeks);
+  let finalWeeks = resolveStageWeeks(order.finalWeeks, stageProfile.finalWeeks);
 
   const poWeekNumber =
     normalizeWeekNumber(order.poWeekNumber) ?? resolveWeekNumber(order.poDate ?? null, mapping);
@@ -307,6 +318,39 @@ function buildStageSchedule(
     portEta = portEtaFallback ?? null;
     inboundEta = inboundEtaFallback ?? null;
     availableDate = availableFallback ?? null;
+  }
+
+  const productionStartForDiff =
+    order.poDate ?? order.productionStart ?? productionStart ?? createdAt;
+  const productionCompleteForDiff = order.productionComplete ?? productionComplete ?? null;
+  const sourceDepartureForDiff = order.sourceDeparture ?? sourceDeparture ?? null;
+  const portEtaForDiff = order.portEta ?? portEta ?? null;
+  const availableForDiff = order.availableDate ?? availableDate ?? null;
+
+  const computedProductionWeeks = weeksBetweenDates(
+    productionStartForDiff,
+    productionCompleteForDiff,
+  );
+  if (computedProductionWeeks != null) {
+    productionWeeks = computedProductionWeeks;
+  }
+
+  const sourceStartForDiff = productionCompleteForDiff ?? productionStartForDiff;
+  const computedSourceWeeks = weeksBetweenDates(sourceStartForDiff, sourceDepartureForDiff);
+  if (computedSourceWeeks != null) {
+    sourceWeeks = computedSourceWeeks;
+  }
+
+  const oceanStartForDiff = sourceDepartureForDiff ?? sourceStartForDiff;
+  const computedOceanWeeks = weeksBetweenDates(oceanStartForDiff, portEtaForDiff);
+  if (computedOceanWeeks != null) {
+    oceanWeeks = computedOceanWeeks;
+  }
+
+  const finalStartForDiff = portEtaForDiff ?? oceanStartForDiff;
+  const computedFinalWeeks = weeksBetweenDates(finalStartForDiff, availableForDiff);
+  if (computedFinalWeeks != null) {
+    finalWeeks = computedFinalWeeks;
   }
 
   return {
