@@ -265,17 +265,17 @@ async function renderPurchaseOrderPdf(params: {
   }
 
   const drawTableHeader = (atY: number) => {
-    doc.rect(margin, atY, contentWidth, 24).fill(COLORS.navy)
+    doc.rect(margin, atY, contentWidth, 18).fill(COLORS.navy)
     doc.fillColor(COLORS.white).fontSize(7).font('Helvetica-Bold')
     for (const col of Object.values(cols)) {
-      doc.text(col.label, col.x + 4, atY + 8, { width: col.w - 8, align: col.align })
+      doc.text(col.label, col.x + 4, atY + 5, { width: col.w - 8, align: col.align })
     }
-    return atY + 24
+    return atY + 18
   }
 
   y = drawTableHeader(y)
 
-  const rowHeight = 24
+  const rowHeight = 20
   let rowY = y
 
   const drawRow = (line: (typeof params.lines)[0], isAlt: boolean) => {
@@ -287,7 +287,7 @@ async function renderPurchaseOrderPdf(params: {
       doc.rect(margin, rowY, contentWidth, rowHeight).fill(COLORS.lightBg)
     }
 
-    const textY = rowY + 7
+    const textY = rowY + 5
 
     // SKU
     doc.fillColor(COLORS.navy).fontSize(8).font('Helvetica-Bold')
@@ -321,8 +321,8 @@ async function renderPurchaseOrderPdf(params: {
 
   // Draw all rows
   for (let i = 0; i < params.lines.length; i++) {
-    // Page break check - 80pt reserved for footer
-    if (rowY + rowHeight > pageHeight - 80) {
+    // Page break check - 50pt reserved for footer (footer at y=811, needs ~20pt)
+    if (rowY + rowHeight > pageHeight - 50) {
       doc.addPage()
       rowY = margin
       rowY = drawTableHeader(rowY)
@@ -340,7 +340,7 @@ async function renderPurchaseOrderPdf(params: {
 
   // Check if totals fit (need space for totals box + footer)
   const totalsHeight = 60 + totalsByCurrency.size * 18
-  if (y + totalsHeight > pageHeight - 60) {
+  if (y + totalsHeight > pageHeight - 50) {
     doc.addPage()
     y = margin
   }
@@ -381,7 +381,7 @@ async function renderPurchaseOrderPdf(params: {
 
   if (params.notes?.trim()) {
     y = ty + 20
-    if (y + 60 > pageHeight - 60) {
+    if (y + 60 > pageHeight - 50) {
       doc.addPage()
       y = margin
     }
