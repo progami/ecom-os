@@ -1491,9 +1491,6 @@ export default function PurchaseOrderDetailPage() {
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
-            <Badge className={statusBadgeClasses(order.status)}>
-              {formatStatusLabel(order.status)}
-            </Badge>
           </div>
         </div>
 
