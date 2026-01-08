@@ -1824,6 +1824,7 @@ function getProfitAndLossView(
       fixedCosts: formatNumeric(entry.fixedCosts),
       totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
+      netMargin: formatPercentDecimal(entry.revenue === 0 ? 0 : entry.netProfit / entry.revenue),
     })),
     monthlySummary: monthlySummary.map((entry) => ({
       periodLabel: entry.periodLabel,

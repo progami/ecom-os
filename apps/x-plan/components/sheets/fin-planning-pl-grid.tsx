@@ -50,6 +50,7 @@ type WeeklyRow = {
   fixedCosts: string;
   totalOpex: string;
   netProfit: string;
+  netMargin: string;
 };
 
 type UpdatePayload = {
@@ -129,7 +130,7 @@ const columnConfig: Array<{
   },
   {
     key: 'grossMargin',
-    label: 'OGP%',
+    label: 'GP %',
     width: 80,
     format: 'percent',
     editable: false,
@@ -157,6 +158,14 @@ const columnConfig: Array<{
     label: 'Net Profit',
     width: 120,
     format: 'currency',
+    editable: false,
+    align: 'right',
+  },
+  {
+    key: 'netMargin',
+    label: 'NP %',
+    width: 80,
+    format: 'percent',
     editable: false,
     align: 'right',
   },
