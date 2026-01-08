@@ -65,6 +65,18 @@ module.exports = {
       watch: false,
       max_memory_restart: '300M'
     },
+    {
+      name: 'dev-chronos',
+      cwd: path.join(DEV_DIR, 'apps/chronos'),
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 3110',
+      interpreter: 'node',
+      exec_mode: 'fork',
+      env: { NODE_ENV: 'production', PORT: 3110 },
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '300M'
+    },
 
     // ===========================================
     // MAIN ENVIRONMENT (30xx ports) - ecomos.targonglobal.com
@@ -123,6 +135,18 @@ module.exports = {
       interpreter: 'node',
       exec_mode: 'fork',
       env: { NODE_ENV: 'production', PORT: 3008 },
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '300M'
+    },
+    {
+      name: 'main-chronos',
+      cwd: path.join(MAIN_DIR, 'apps/chronos'),
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 3010',
+      interpreter: 'node',
+      exec_mode: 'fork',
+      env: { NODE_ENV: 'production', PORT: 3010 },
       autorestart: true,
       watch: false,
       max_memory_restart: '300M'
