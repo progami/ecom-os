@@ -6,17 +6,20 @@ import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-d
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
-const packagingTypeSchema = z.preprocess(value => {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  if (typeof value !== 'string') return value
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
-  if (normalized === 'BOX') return 'BOX'
-  if (normalized === 'POLYBAG') return 'POLYBAG'
-  return trimmed
-}, z.enum(['BOX', 'POLYBAG']).nullable().optional())
+const packagingTypeSchema = z.preprocess(
+  value => {
+    if (value === undefined) return undefined
+    if (value === null) return null
+    if (typeof value !== 'string') return value
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '')
+    if (normalized === 'BOX') return 'BOX'
+    if (normalized === 'POLYBAG') return 'POLYBAG'
+    return trimmed
+  },
+  z.enum(['BOX', 'POLYBAG']).nullable().optional()
+)
 
 type DimensionRefineShape = {
   unitLengthCm: z.ZodTypeAny
@@ -60,6 +63,8 @@ const updateSchema = refineDimensions(
     unitsPerCarton: z.number().int().positive().optional().nullable(),
     material: z.string().trim().max(120).optional().nullable(),
     packagingType: packagingTypeSchema,
+    storageCartonsPerPallet: z.number().int().positive().optional(),
+    shippingCartonsPerPallet: z.number().int().positive().optional(),
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
     unitLengthCm: optionalDimensionValueSchema,
     unitWidthCm: optionalDimensionValueSchema,
@@ -177,6 +182,14 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
 
   if (parsed.data.cartonWeightKg !== undefined) {
     data.cartonWeightKg = parsed.data.cartonWeightKg ?? null
+  }
+
+  if (parsed.data.storageCartonsPerPallet !== undefined) {
+    data.storageCartonsPerPallet = parsed.data.storageCartonsPerPallet
+  }
+
+  if (parsed.data.shippingCartonsPerPallet !== undefined) {
+    data.shippingCartonsPerPallet = parsed.data.shippingCartonsPerPallet
   }
 
   const unitTouched =

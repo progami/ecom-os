@@ -15,6 +15,7 @@ import { ArrowLeft, FileEdit, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { calculateUnitCost } from '@/lib/utils/calculations'
+import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 interface Supplier {
   id: string
@@ -30,6 +31,12 @@ interface Sku {
   description: string
 }
 
+interface BatchOption {
+  batchCode: string
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
+}
+
 interface LineItem {
   id: string
   skuId?: string
@@ -37,12 +44,26 @@ interface LineItem {
   skuDescription: string
   batchLot: string
   quantity: number
+  storageCartonsPerPallet: number
+  shippingCartonsPerPallet: number
   actualCost: string
   currency: string
   notes: string
 }
 
-const INCOTERMS_OPTIONS = ['EXW', 'FOB', 'FCA', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'] as const
+const INCOTERMS_OPTIONS = [
+  'EXW',
+  'FOB',
+  'FCA',
+  'CFR',
+  'CIF',
+  'CPT',
+  'CIP',
+  'DAP',
+  'DPU',
+  'DDP',
+] as const
+const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
 
 function generateTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -57,7 +78,7 @@ export default function NewPurchaseOrderPage() {
   const [tenantDestination, setTenantDestination] = useState<string>('United States (US)')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [skus, setSkus] = useState<Sku[]>([])
-  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, string[]>>({})
+  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, BatchOption[]>>({})
   const [batchesLoadingBySkuId, setBatchesLoadingBySkuId] = useState<Record<string, boolean>>({})
   const [formData, setFormData] = useState({
     supplierId: '',
@@ -74,6 +95,8 @@ export default function NewPurchaseOrderPage() {
       skuDescription: '',
       batchLot: '',
       quantity: 1,
+      storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+      shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
       actualCost: '',
       currency: 'USD',
       notes: '',
@@ -152,6 +175,8 @@ export default function NewPurchaseOrderPage() {
         skuDescription: '',
         batchLot: '',
         quantity: 1,
+        storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+        shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
         actualCost: '',
         currency: tenantCurrency,
         notes: '',
@@ -177,22 +202,63 @@ export default function NewPurchaseOrderPage() {
 
       const payload = await response.json().catch(() => null)
       const batches = Array.isArray(payload?.batches) ? payload.batches : []
-      const batchCodes: string[] = batches
-        .map((batch: { batchCode?: unknown }) =>
-          String(batch?.batchCode ?? '')
+      const coercePositiveInt = (value: unknown): number | null => {
+        if (typeof value === 'number') {
+          return Number.isInteger(value) && value > 0 ? value : null
+        }
+        if (typeof value === 'string' && value.trim()) {
+          const parsed = Number(value.trim())
+          return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+        }
+        return null
+      }
+
+      const parsedBatches: BatchOption[] = batches
+        .map((batch: Record<string, unknown>): BatchOption | null => {
+          const batchCode = String(batch?.batchCode ?? '')
             .trim()
             .toUpperCase()
-        )
-        .filter((batchCode): batchCode is string => Boolean(batchCode))
+          if (!batchCode || batchCode === 'DEFAULT') return null
 
-      const unique: string[] = Array.from(new Set(batchCodes))
+          return {
+            batchCode,
+            storageCartonsPerPallet: coercePositiveInt(batch?.storageCartonsPerPallet),
+            shippingCartonsPerPallet: coercePositiveInt(batch?.shippingCartonsPerPallet),
+          }
+        })
+        .filter((batch): batch is BatchOption => Boolean(batch))
+
+      const unique = Array.from(
+        new Map(parsedBatches.map(batch => [batch.batchCode, batch])).values()
+      )
+
       setBatchesBySkuId(prev => ({ ...prev, [skuId]: unique }))
       setLineItems(prev =>
         prev.map(item => {
           if (item.skuId !== skuId) return item
-          if (unique.length === 0) return { ...item, batchLot: '' }
-          if (item.batchLot && unique.includes(item.batchLot)) return item
-          return { ...item, batchLot: unique[0] }
+          if (unique.length === 0) {
+            return {
+              ...item,
+              batchLot: '',
+              storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+              shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+            }
+          }
+
+          const selectedCode =
+            item.batchLot && unique.some(batch => batch.batchCode === item.batchLot)
+              ? item.batchLot
+              : unique[0].batchCode
+          const selectedBatch = unique.find(batch => batch.batchCode === selectedCode)
+
+          return {
+            ...item,
+            batchLot: selectedCode,
+            storageCartonsPerPallet:
+              selectedBatch?.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+            shippingCartonsPerPallet:
+              selectedBatch?.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+          }
         })
       )
     } catch (error) {
@@ -217,6 +283,8 @@ export default function NewPurchaseOrderPage() {
                   skuCode: '',
                   skuDescription: '',
                   batchLot: '',
+                  storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                  shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
                 }
               : item
           )
@@ -233,11 +301,35 @@ export default function NewPurchaseOrderPage() {
                 skuCode: selectedSku.skuCode,
                 skuDescription: selectedSku.description || '',
                 batchLot: '',
+                storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
               }
             : item
         )
       )
       void ensureSkuBatchesLoaded(selectedSku.id)
+      return
+    }
+
+    if (field === 'batchLot') {
+      const batchLot = String(value).trim().toUpperCase()
+      setLineItems(prev =>
+        prev.map(item => {
+          if (item.id !== id) return item
+          if (!item.skuId) return { ...item, batchLot }
+
+          const batches = batchesBySkuId[item.skuId] ?? []
+          const selectedBatch = batches.find(batch => batch.batchCode === batchLot)
+          return {
+            ...item,
+            batchLot,
+            storageCartonsPerPallet:
+              selectedBatch?.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+            shippingCartonsPerPallet:
+              selectedBatch?.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+          }
+        })
+      )
       return
     }
 
@@ -300,10 +392,18 @@ export default function NewPurchaseOrderPage() {
       const batchLot = item.batchLot.trim()
       if (!batchLot) return true
       if (batchLot.toUpperCase() === 'DEFAULT') return true
+      if (!Number.isInteger(item.storageCartonsPerPallet) || item.storageCartonsPerPallet <= 0) {
+        return true
+      }
+      if (!Number.isInteger(item.shippingCartonsPerPallet) || item.shippingCartonsPerPallet <= 0) {
+        return true
+      }
       return item.quantity <= 0
     })
     if (invalidLines.length > 0) {
-      toast.error('Please fill in SKU, batch/lot, and quantity for all line items')
+      toast.error(
+        'Please fill in SKU, batch/lot, quantity, and cartons-per-pallet for all line items'
+      )
       return
     }
 
@@ -341,6 +441,8 @@ export default function NewPurchaseOrderPage() {
             skuDescription: item.skuDescription,
             batchLot: item.batchLot.trim().toUpperCase(),
             quantity: item.quantity,
+            storageCartonsPerPallet: item.storageCartonsPerPallet,
+            shippingCartonsPerPallet: item.shippingCartonsPerPallet,
             currency: item.currency,
             notes: item.notes || undefined,
           })),
@@ -537,7 +639,7 @@ export default function NewPurchaseOrderPage() {
                               ))}
                             </select>
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-2 space-y-2">
                             <select
                               value={item.batchLot}
                               onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
@@ -545,29 +647,76 @@ export default function NewPurchaseOrderPage() {
                               required
                               disabled={!item.skuId}
                             >
-	                              {item.skuId ? (
-	                                batchesLoadingBySkuId[item.skuId] ? (
-	                                  <option value="">Loading…</option>
-	                                ) : (
-	                                  (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
-	                                    (batchesBySkuId[item.skuId] ?? []).map(batchCode => (
-	                                      <option key={batchCode} value={batchCode}>
-	                                        {batchCode}
-	                                      </option>
-	                                    ))
-	                                  ) : (
-	                                    <option value="">No batches found</option>
-	                                  )
-	                                )
-	                              ) : (
-	                                <option value="">Select SKU first</option>
-	                              )}
+                              {item.skuId ? (
+                                batchesLoadingBySkuId[item.skuId] ? (
+                                  <option value="">Loading…</option>
+                                ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
+                                  (batchesBySkuId[item.skuId] ?? []).map(batch => (
+                                    <option key={batch.batchCode} value={batch.batchCode}>
+                                      {batch.batchCode}
+                                    </option>
+                                  ))
+                                ) : (
+                                  <option value="">No batches found</option>
+                                )
+                              ) : (
+                                <option value="">Select SKU first</option>
+                              )}
                             </select>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                  Storage
+                                </p>
+                                <Input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  step={1}
+                                  value={item.storageCartonsPerPallet}
+                                  onChange={e =>
+                                    updateLineItem(
+                                      item.id,
+                                      'storageCartonsPerPallet',
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className="h-8 text-xs"
+                                  disabled={!item.skuId || !item.batchLot}
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                  Shipping
+                                </p>
+                                <Input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  step={1}
+                                  value={item.shippingCartonsPerPallet}
+                                  onChange={e =>
+                                    updateLineItem(
+                                      item.id,
+                                      'shippingCartonsPerPallet',
+                                      parseInt(e.target.value) || 0
+                                    )
+                                  }
+                                  className="h-8 text-xs"
+                                  disabled={!item.skuId || !item.batchLot}
+                                  required
+                                />
+                              </div>
+                            </div>
                           </div>
                           <div className="col-span-3">
                             <Input
                               value={item.skuDescription}
-                              onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
+                              onChange={e =>
+                                updateLineItem(item.id, 'skuDescription', e.target.value)
+                              }
                               placeholder="Description"
                               className="text-sm h-8"
                             />
@@ -591,7 +740,9 @@ export default function NewPurchaseOrderPage() {
                                 step="0.01"
                                 min="0"
                                 value={item.actualCost}
-                                onChange={e => updateLineItem(item.id, 'actualCost', e.target.value)}
+                                onChange={e =>
+                                  updateLineItem(item.id, 'actualCost', e.target.value)
+                                }
                                 placeholder="0.00"
                                 className="text-sm h-8 pr-14"
                               />
