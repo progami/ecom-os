@@ -1,22 +1,37 @@
 import type { WorkflowRecordDTO, WorkflowStageStatus } from '@/lib/contracts/workflow-record'
 import { timelineFromAudit } from '@/lib/domain/workflow/timeline-from-audit'
 import { toneForStatus } from '@/lib/domain/workflow/tone'
+import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS } from '@/lib/domain/leave/constants'
 import { buildLeaveNextActions, type LeaveViewerContext, type LeaveWorkflowRecordInput } from './next-actions'
 
-function formatLeaveType(value: string): string {
-  return value.replaceAll('_', ' ').toLowerCase()
+function stageStatus(order: string[], current: string, id: string): WorkflowStageStatus {
+  if (current === id) return 'current'
+  return order.indexOf(id) < order.indexOf(current) ? 'completed' : 'upcoming'
 }
 
-function stageStatus(current: string, id: string): WorkflowStageStatus {
-  if (current === id) return 'current'
-  const order = ['requested', 'approval', 'decision']
-  return order.indexOf(id) < order.indexOf(current) ? 'completed' : 'upcoming'
+function currentStageIdForStatus(status: string): string {
+  switch (status) {
+    case 'PENDING':
+    case 'PENDING_MANAGER':
+      return 'manager'
+    case 'PENDING_HR':
+      return 'hr'
+    case 'PENDING_SUPER_ADMIN':
+      return 'admin'
+    case 'APPROVED':
+    case 'REJECTED':
+    case 'CANCELLED':
+      return 'done'
+    default:
+      return 'requested'
+  }
 }
 
 export async function leaveToWorkflowRecordDTO(
   leave: LeaveWorkflowRecordInput,
   viewer: LeaveViewerContext
 ): Promise<WorkflowRecordDTO> {
+  const stageOrder = ['requested', 'manager', 'hr', 'admin', 'done']
   const canView = viewer.isHR || viewer.isSuperAdmin || leave.employeeId === viewer.employeeId || leave.employee.reportsToId === viewer.employeeId
 
   if (!canView) {
@@ -36,7 +51,7 @@ export async function leaveToWorkflowRecordDTO(
   }
 
   const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
-  const currentStageId = pendingStatuses.includes(leave.status) ? 'approval' : 'decision'
+  const currentStageId = currentStageIdForStatus(leave.status)
 
   const dueAt = pendingStatuses.includes(leave.status) ? leave.startDate.toISOString() : undefined
   const dueMs = dueAt ? Date.parse(dueAt) : null
@@ -60,21 +75,42 @@ export async function leaveToWorkflowRecordDTO(
     },
     workflow: {
       currentStageId,
-      currentStageLabel: currentStageId === 'approval' ? 'Approval' : 'Decision',
+      currentStageLabel:
+        currentStageId === 'manager'
+          ? 'Manager approval'
+          : currentStageId === 'hr'
+            ? 'HR approval'
+            : currentStageId === 'admin'
+              ? 'Final approval'
+              : currentStageId === 'done'
+                ? 'Done'
+                : 'Requested',
       stages: [
-        { id: 'requested', label: 'Requested', status: stageStatus(currentStageId, 'requested') },
-        { id: 'approval', label: 'Approval', status: stageStatus(currentStageId, 'approval') },
-        { id: 'decision', label: 'Decision', status: stageStatus(currentStageId, 'decision') },
+        { id: 'requested', label: 'Requested', status: stageStatus(stageOrder, currentStageId, 'requested') },
+        { id: 'manager', label: 'Manager', status: stageStatus(stageOrder, currentStageId, 'manager') },
+        { id: 'hr', label: 'HR', status: stageStatus(stageOrder, currentStageId, 'hr') },
+        { id: 'admin', label: 'Admin', status: stageStatus(stageOrder, currentStageId, 'admin') },
+        { id: 'done', label: 'Done', status: stageStatus(stageOrder, currentStageId, 'done') },
       ],
-      statusBadge: { label: leave.status.replaceAll('_', ' '), tone: toneForStatus(leave.status) },
+      statusBadge: {
+        label: LEAVE_STATUS_LABELS[leave.status as keyof typeof LEAVE_STATUS_LABELS] ?? leave.status.replaceAll('_', ' '),
+        tone: toneForStatus(leave.status),
+      },
       sla: dueAt ? { dueAt, isOverdue, overdueLabel, tone: isOverdue ? 'danger' : 'none' } : { isOverdue: false, tone: 'none' },
     },
     actions: buildLeaveNextActions(leave, viewer),
     summary: [
-      { label: 'Type', value: formatLeaveType(leave.leaveType) },
+      {
+        label: 'Type',
+        value:
+          LEAVE_TYPE_LABELS[leave.leaveType as keyof typeof LEAVE_TYPE_LABELS] ?? leave.leaveType.replaceAll('_', ' '),
+      },
       { label: 'Dates', value: `${leave.startDate.toLocaleDateString('en-US')} → ${leave.endDate.toLocaleDateString('en-US')}` },
       { label: 'Total days', value: String(leave.totalDays) },
-      { label: 'Status', value: leave.status.replaceAll('_', ' ') },
+      {
+        label: 'Status',
+        value: LEAVE_STATUS_LABELS[leave.status as keyof typeof LEAVE_STATUS_LABELS] ?? leave.status.replaceAll('_', ' '),
+      },
     ],
     timeline,
     access: { canView: true },
