@@ -115,19 +115,31 @@ function buildBatchPackagingMeta(options: {
     legacy: options.batch.cartonDimensionsCm,
   })
 
-  if (!cartonTriplet && !options.batch.cartonWeightKg && !options.batch.packagingType) {
-    return { tone: 'warning', text: 'Carton details not set for this batch' }
+  const parts: string[] = []
+
+  if (!cartonTriplet) {
+    parts.push('Carton dims not set')
+
+    if (options.batch.cartonWeightKg) {
+      parts.push(`KG/ctn: ${options.batch.cartonWeightKg.toFixed(2)}`)
+      if (cartons) {
+        parts.push(`KG: ${(options.batch.cartonWeightKg * cartons).toFixed(2)}`)
+      }
+    }
+
+    if (options.batch.packagingType) {
+      parts.push(`Pkg: ${options.batch.packagingType}`)
+    }
+
+    return { tone: 'warning', text: parts.join(' • ') }
   }
 
-  const parts: string[] = []
-  if (cartonTriplet) {
-    parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
-    const cbmPerCarton =
-      (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
-    parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
-    if (cartons) {
-      parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
-    }
+  parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
+  const cbmPerCarton =
+    (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+  parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
+  if (cartons) {
+    parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
   }
 
   if (options.batch.cartonWeightKg) {
