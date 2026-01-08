@@ -15,7 +15,17 @@ import { PageLoading } from '@/components/ui/loading-spinner'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { ArrowLeft, Truck, XCircle, FileText, Upload, Check, Loader2 } from '@/lib/lucide-icons'
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Loader2,
+  Truck,
+  Upload,
+  XCircle,
+} from '@/lib/lucide-icons'
 import { format } from 'date-fns'
 
 type FulfillmentOrderStatus = 'DRAFT' | 'SHIPPED' | 'CANCELLED'
@@ -97,35 +107,6 @@ type FulfillmentOrderDocumentSummary = {
   viewUrl: string
 }
 
-type AmazonFreightFormState = {
-  referenceId: string
-  shipmentReference: string
-  shipperId: string
-  pickupNumber: string
-  pickupAppointmentId: string
-  deliveryAppointmentId: string
-  loadId: string
-  freightBillNumber: string
-  billOfLadingNumber: string
-  pickupWindowStart: string
-  pickupWindowEnd: string
-  deliveryWindowStart: string
-  deliveryWindowEnd: string
-  pickupAddress: string
-  pickupContactName: string
-  pickupContactPhone: string
-  deliveryAddress: string
-  shipmentMode: string
-  boxCount: string
-  palletCount: string
-  commodityDescription: string
-  distanceMiles: string
-  basePrice: string
-  fuelSurcharge: string
-  totalPrice: string
-  currency: string
-}
-
 const STATUS_BADGE_CLASSES: Record<FulfillmentOrderStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 border border-slate-200',
   SHIPPED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
@@ -168,18 +149,16 @@ function formatAmazonAddress(address?: Record<string, unknown> | null) {
   const name = getField('Name')
   const line1 = getField('AddressLine1')
   const line2 = getField('AddressLine2')
-  const line3 = getField('AddressLine3')
   const city = getField('City')
   const state = getField('StateOrProvinceCode')
   const postal = getField('PostalCode')
   const country = getField('CountryCode')
-  const phone = getField('Phone')
 
   const cityState = [city, state].filter(Boolean).join(', ')
   const cityStatePostal = [cityState, postal].filter(Boolean).join(' ')
 
-  const lines = [name, line1, line2, line3, cityStatePostal, country, phone].filter(Boolean)
-  return lines.length > 0 ? lines.join('\n') : '—'
+  const lines = [name, line1, line2, cityStatePostal, country].filter(Boolean)
+  return lines.length > 0 ? lines.join(', ') : '—'
 }
 
 export default function FulfillmentOrderDetailPage() {
@@ -192,6 +171,9 @@ export default function FulfillmentOrderDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
+  // Collapsible freight section
+  const [freightExpanded, setFreightExpanded] = useState(false)
+
   const [shipForm, setShipForm] = useState({
     shippedDate: '',
     deliveredDate: '',
@@ -199,8 +181,9 @@ export default function FulfillmentOrderDetailPage() {
     shippingMethod: '',
     trackingNumber: '',
   })
-  const [amazonForm, setAmazonForm] = useState<AmazonFreightFormState>({
-    referenceId: '',
+
+  // Amazon Freight form state
+  const [amazonFreight, setAmazonFreight] = useState({
     shipmentReference: '',
     shipperId: '',
     pickupNumber: '',
@@ -228,6 +211,7 @@ export default function FulfillmentOrderDetailPage() {
     currency: '',
   })
   const [amazonSaving, setAmazonSaving] = useState(false)
+
   const [documents, setDocuments] = useState<FulfillmentOrderDocumentSummary[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState<Record<string, boolean>>({})
@@ -262,15 +246,12 @@ export default function FulfillmentOrderDetailPage() {
       setOrder(data)
       setShipForm({
         shippedDate: data.shippedDate ? new Date(data.shippedDate).toISOString().slice(0, 16) : '',
-        deliveredDate: data.deliveredDate
-          ? new Date(data.deliveredDate).toISOString().slice(0, 16)
-          : '',
+        deliveredDate: data.deliveredDate ? new Date(data.deliveredDate).toISOString().slice(0, 16) : '',
         shippingCarrier: data.shippingCarrier ?? '',
         shippingMethod: data.shippingMethod ?? '',
         trackingNumber: data.trackingNumber ?? '',
       })
-      setAmazonForm({
-        referenceId: data.amazonReferenceId ?? '',
+      setAmazonFreight({
         shipmentReference: data.amazonShipmentReference ?? '',
         shipperId: data.amazonShipperId ?? '',
         pickupNumber: data.amazonPickupNumber ?? '',
@@ -288,28 +269,13 @@ export default function FulfillmentOrderDetailPage() {
         pickupContactPhone: data.amazonPickupContactPhone ?? '',
         deliveryAddress: data.amazonDeliveryAddress ?? '',
         shipmentMode: data.amazonShipmentMode ?? '',
-        boxCount: data.amazonBoxCount !== null && data.amazonBoxCount !== undefined ? String(data.amazonBoxCount) : '',
-        palletCount:
-          data.amazonPalletCount !== null && data.amazonPalletCount !== undefined
-            ? String(data.amazonPalletCount)
-            : '',
+        boxCount: data.amazonBoxCount !== null ? String(data.amazonBoxCount) : '',
+        palletCount: data.amazonPalletCount !== null ? String(data.amazonPalletCount) : '',
         commodityDescription: data.amazonCommodityDescription ?? '',
-        distanceMiles:
-          data.amazonDistanceMiles !== null && data.amazonDistanceMiles !== undefined
-            ? String(data.amazonDistanceMiles)
-            : '',
-        basePrice:
-          data.amazonBasePrice !== null && data.amazonBasePrice !== undefined
-            ? String(data.amazonBasePrice)
-            : '',
-        fuelSurcharge:
-          data.amazonFuelSurcharge !== null && data.amazonFuelSurcharge !== undefined
-            ? String(data.amazonFuelSurcharge)
-            : '',
-        totalPrice:
-          data.amazonTotalPrice !== null && data.amazonTotalPrice !== undefined
-            ? String(data.amazonTotalPrice)
-            : '',
+        distanceMiles: data.amazonDistanceMiles !== null ? String(data.amazonDistanceMiles) : '',
+        basePrice: data.amazonBasePrice !== null ? String(data.amazonBasePrice) : '',
+        fuelSurcharge: data.amazonFuelSurcharge !== null ? String(data.amazonFuelSurcharge) : '',
+        totalPrice: data.amazonTotalPrice !== null ? String(data.amazonTotalPrice) : '',
         currency: data.amazonCurrency ?? '',
       })
     } catch (_error) {
@@ -363,79 +329,8 @@ export default function FulfillmentOrderDetailPage() {
     return map
   }, [documents])
 
-  const renderDocumentStage = (stage: FulfillmentOrderDocumentStage, title: string) => {
-    const required = DOCUMENT_REQUIREMENTS[stage] ?? []
-    if (required.length === 0) return null
-
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            {title}
-          </h4>
-          {documentsLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
-        </div>
-        <div className="space-y-2">
-          {required.map(docType => {
-            const key = `${stage}::${docType.id}`
-            const existing = documentsByKey.get(key)
-            const isUploading = Boolean(uploadingDoc[key])
-
-            return (
-              <div
-                key={key}
-                className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  {existing ? (
-                    <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
-                  ) : (
-                    <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
-                  )}
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-slate-900">{docType.label}</span>
-                    {existing ? (
-                      <a
-                        href={existing.viewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-xs text-primary hover:underline"
-                        title={existing.fileName}
-                      >
-                        {existing.fileName}
-                      </a>
-                    ) : (
-                      <span className="block text-xs text-muted-foreground">
-                        Not uploaded yet
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors flex-shrink-0">
-                  <Upload className="h-3.5 w-3.5" />
-                  {existing ? 'Replace' : 'Upload'}
-                  <input
-                    type="file"
-                    className="hidden"
-                    disabled={isUploading}
-                    onChange={e => handleDocumentUpload(e, stage, docType.id)}
-                  />
-                  {isUploading && <span className="text-xs text-muted-foreground ml-1">…</span>}
-                </label>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-  const canShip = order?.status === 'DRAFT'
-
-  const updateAmazonFormField = (field: keyof AmazonFreightFormState, value: string) => {
-    setAmazonForm(prev => ({ ...prev, [field]: value }))
-  }
+  const isAmazonFBA = order?.destinationType === 'AMAZON_FBA'
+  const canEdit = order?.status === 'DRAFT'
 
   const handleShip = async () => {
     if (!order) return
@@ -445,9 +340,7 @@ export default function FulfillmentOrderDetailPage() {
         targetStatus: 'SHIPPED',
         stageData: {
           shippedDate: shipForm.shippedDate ? new Date(shipForm.shippedDate).toISOString() : undefined,
-          deliveredDate: shipForm.deliveredDate
-            ? new Date(shipForm.deliveredDate).toISOString()
-            : undefined,
+          deliveredDate: shipForm.deliveredDate ? new Date(shipForm.deliveredDate).toISOString() : undefined,
           shippingCarrier: shipForm.shippingCarrier || undefined,
           shippingMethod: shipForm.shippingMethod || undefined,
           trackingNumber: shipForm.trackingNumber || undefined,
@@ -504,32 +397,31 @@ export default function FulfillmentOrderDetailPage() {
     try {
       setAmazonSaving(true)
       const payload = {
-        amazonReferenceId: amazonForm.referenceId || null,
-        amazonShipmentReference: amazonForm.shipmentReference || null,
-        amazonShipperId: amazonForm.shipperId || null,
-        amazonPickupNumber: amazonForm.pickupNumber || null,
-        amazonPickupAppointmentId: amazonForm.pickupAppointmentId || null,
-        amazonDeliveryAppointmentId: amazonForm.deliveryAppointmentId || null,
-        amazonLoadId: amazonForm.loadId || null,
-        amazonFreightBillNumber: amazonForm.freightBillNumber || null,
-        amazonBillOfLadingNumber: amazonForm.billOfLadingNumber || null,
-        amazonPickupWindowStart: amazonForm.pickupWindowStart || null,
-        amazonPickupWindowEnd: amazonForm.pickupWindowEnd || null,
-        amazonDeliveryWindowStart: amazonForm.deliveryWindowStart || null,
-        amazonDeliveryWindowEnd: amazonForm.deliveryWindowEnd || null,
-        amazonPickupAddress: amazonForm.pickupAddress || null,
-        amazonPickupContactName: amazonForm.pickupContactName || null,
-        amazonPickupContactPhone: amazonForm.pickupContactPhone || null,
-        amazonDeliveryAddress: amazonForm.deliveryAddress || null,
-        amazonShipmentMode: amazonForm.shipmentMode || null,
-        amazonBoxCount: amazonForm.boxCount || null,
-        amazonPalletCount: amazonForm.palletCount || null,
-        amazonCommodityDescription: amazonForm.commodityDescription || null,
-        amazonDistanceMiles: amazonForm.distanceMiles || null,
-        amazonBasePrice: amazonForm.basePrice || null,
-        amazonFuelSurcharge: amazonForm.fuelSurcharge || null,
-        amazonTotalPrice: amazonForm.totalPrice || null,
-        amazonCurrency: amazonForm.currency || null,
+        amazonShipmentReference: amazonFreight.shipmentReference || null,
+        amazonShipperId: amazonFreight.shipperId || null,
+        amazonPickupNumber: amazonFreight.pickupNumber || null,
+        amazonPickupAppointmentId: amazonFreight.pickupAppointmentId || null,
+        amazonDeliveryAppointmentId: amazonFreight.deliveryAppointmentId || null,
+        amazonLoadId: amazonFreight.loadId || null,
+        amazonFreightBillNumber: amazonFreight.freightBillNumber || null,
+        amazonBillOfLadingNumber: amazonFreight.billOfLadingNumber || null,
+        amazonPickupWindowStart: amazonFreight.pickupWindowStart || null,
+        amazonPickupWindowEnd: amazonFreight.pickupWindowEnd || null,
+        amazonDeliveryWindowStart: amazonFreight.deliveryWindowStart || null,
+        amazonDeliveryWindowEnd: amazonFreight.deliveryWindowEnd || null,
+        amazonPickupAddress: amazonFreight.pickupAddress || null,
+        amazonPickupContactName: amazonFreight.pickupContactName || null,
+        amazonPickupContactPhone: amazonFreight.pickupContactPhone || null,
+        amazonDeliveryAddress: amazonFreight.deliveryAddress || null,
+        amazonShipmentMode: amazonFreight.shipmentMode || null,
+        amazonBoxCount: amazonFreight.boxCount || null,
+        amazonPalletCount: amazonFreight.palletCount || null,
+        amazonCommodityDescription: amazonFreight.commodityDescription || null,
+        amazonDistanceMiles: amazonFreight.distanceMiles || null,
+        amazonBasePrice: amazonFreight.basePrice || null,
+        amazonFuelSurcharge: amazonFreight.fuelSurcharge || null,
+        amazonTotalPrice: amazonFreight.totalPrice || null,
+        amazonCurrency: amazonFreight.currency || null,
       }
 
       const response = await fetchWithCSRF(`/api/fulfillment-orders/${order.id}`, {
@@ -605,6 +497,74 @@ export default function FulfillmentOrderDetailPage() {
     }
   }
 
+  const renderDocumentStage = (stage: FulfillmentOrderDocumentStage, title: string) => {
+    const required = DOCUMENT_REQUIREMENTS[stage] ?? []
+    if (required.length === 0) return null
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {title}
+          </h4>
+          {documentsLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
+        </div>
+        <div className="space-y-2">
+          {required.map(docType => {
+            const key = `${stage}::${docType.id}`
+            const existing = documentsByKey.get(key)
+            const isUploading = Boolean(uploadingDoc[key])
+
+            return (
+              <div
+                key={key}
+                className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {existing ? (
+                    <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
+                  ) : (
+                    <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-slate-900">{docType.label}</span>
+                    {existing ? (
+                      <a
+                        href={existing.viewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate text-xs text-primary hover:underline"
+                        title={existing.fileName}
+                      >
+                        {existing.fileName}
+                      </a>
+                    ) : (
+                      <span className="block text-xs text-muted-foreground">
+                        Not uploaded yet
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors flex-shrink-0">
+                  <Upload className="h-3.5 w-3.5" />
+                  {existing ? 'Replace' : 'Upload'}
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={isUploading}
+                    onChange={e => handleDocumentUpload(e, stage, docType.id)}
+                  />
+                  {isUploading && <span className="text-xs text-muted-foreground ml-1">…</span>}
+                </label>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   if (status === 'loading' || loading) {
     return (
       <DashboardLayout>
@@ -657,7 +617,7 @@ export default function FulfillmentOrderDetailPage() {
                   Back
                 </Link>
               </Button>
-              {order.status === 'DRAFT' ? (
+              {order.status === 'DRAFT' && (
                 <Button
                   variant="destructive"
                   className="gap-2"
@@ -667,469 +627,513 @@ export default function FulfillmentOrderDetailPage() {
                   <XCircle className="h-4 w-4" />
                   Cancel
                 </Button>
-              ) : null}
+              )}
             </div>
           }
         />
         <PageContent>
           <div className="flex flex-col gap-6">
-            <div className="rounded-xl border bg-white shadow-soft">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b">
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">Warehouse</span>
-                  <span className="text-sm font-semibold text-foreground">
-                    {order.warehouseCode} — {order.warehouseName}
-                  </span>
+            {/* Order Type (read-only) - matches new page structure */}
+            <div className="rounded-xl border bg-white p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Order Type</h3>
+                  <div className="flex gap-3">
+                    {(['AMAZON_FBA', 'CUSTOMER', 'TRANSFER'] as const).map(type => (
+                      <div
+                        key={type}
+                        className={`px-4 py-2 rounded-lg border text-sm font-medium ${
+                          order.destinationType === type
+                            ? 'bg-cyan-50 border-cyan-500 text-cyan-700'
+                            : 'bg-slate-50 border-slate-200 text-slate-400'
+                        }`}
+                      >
+                        {type === 'AMAZON_FBA' ? 'Amazon FBA' : type === 'CUSTOMER' ? 'Customer' : 'Transfer'}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <Badge className={STATUS_BADGE_CLASSES[order.status]}>
-                    {order.status === 'DRAFT'
-                      ? 'Draft'
-                      : order.status === 'SHIPPED'
-                        ? 'Shipped'
-                        : 'Cancelled'}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground mt-1">
-                    Created: {formatDateTimeDisplay(order.createdAt)}
-                  </span>
+                <Badge className={STATUS_BADGE_CLASSES[order.status]}>
+                  {order.status === 'DRAFT' ? 'Draft' : order.status === 'SHIPPED' ? 'Shipped' : 'Cancelled'}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Amazon Shipment Info (for Amazon FBA) - matches new page structure */}
+            {isAmazonFBA && (
+              <div className="rounded-xl border bg-white p-5">
+                <h3 className="text-sm font-semibold mb-4">Amazon Shipment</h3>
+                {order.amazonShipmentId ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-emerald-600" />
+                      <span className="font-medium text-slate-900">Imported:</span>
+                      <span className="text-slate-600">
+                        {order.amazonShipmentId} → {order.amazonDestinationFulfillmentCenterId || 'N/A'}
+                      </span>
+                      {order.amazonShipmentName && (
+                        <span className="text-muted-foreground">({order.amazonShipmentName})</span>
+                      )}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-3 text-sm">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Status</div>
+                        <div className="font-medium">{order.amazonShipmentStatus || '—'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Label Prep</div>
+                        <div className="font-medium">{order.amazonLabelPrepType || '—'}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Reference ID</div>
+                        <div className="font-medium">{order.amazonReferenceId || '—'}</div>
+                      </div>
+                    </div>
+                    {order.amazonShipFromAddress && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Ship From</div>
+                        <div className="text-sm text-slate-600">{formatAmazonAddress(order.amazonShipFromAddress)}</div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">No Amazon shipment imported</div>
+                )}
+              </div>
+            )}
+
+            {/* Destination Details (for non-Amazon) - matches new page structure */}
+            {!isAmazonFBA && (
+              <div className="rounded-xl border bg-white p-5">
+                <h3 className="text-sm font-semibold mb-4">Destination Details</h3>
+                <div className="grid gap-4 md:grid-cols-2 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Warehouse</div>
+                    <div className="font-medium">{order.warehouseCode} — {order.warehouseName}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Destination Name</div>
+                    <div className="font-medium">{order.destinationName || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Shipping Carrier</div>
+                    <div className="font-medium">{order.shippingCarrier || '—'}</div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="text-xs text-muted-foreground">Destination Address</div>
+                    <div className="font-medium">{order.destinationAddress || '—'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Line Items Section - matches new page structure */}
+            <div className="rounded-xl border bg-white p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Line Items</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {order.lines.length} item{order.lines.length !== 1 ? 's' : ''} · {totalQuantity.toLocaleString()} cartons
+                  </p>
                 </div>
               </div>
 
-              <div className="px-6 py-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <div className="text-xs text-muted-foreground">Destination</div>
-                  <div className="text-sm text-foreground">
-                    {order.destinationName || (order.destinationType === 'AMAZON_FBA' ? 'Amazon FBA' : order.destinationType)}
-                  </div>
+              <div className="rounded-lg border bg-white overflow-hidden">
+                <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground p-3 border-b bg-slate-50/50">
+                  <div className="col-span-3">SKU</div>
+                  <div className="col-span-3">Batch/Lot</div>
+                  <div className="col-span-4">Description</div>
+                  <div className="col-span-2 text-right">Qty</div>
+                  <div className="col-span-2">Status</div>
                 </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Tracking</div>
-                  <div className="text-sm text-foreground">{order.trackingNumber || '—'}</div>
-                  {order.shippingCarrier ? (
-                    <div className="text-xs text-muted-foreground mt-1">{order.shippingCarrier}</div>
-                  ) : null}
+
+                <div className="divide-y">
+                  {order.lines.map(line => (
+                    <div key={line.id} className="grid grid-cols-14 gap-2 items-center p-3">
+                      <div className="col-span-3">
+                        <span className="text-sm font-semibold text-slate-900">{line.skuCode}</span>
+                      </div>
+                      <div className="col-span-3">
+                        <span className="text-sm text-slate-600 uppercase">{line.batchLot}</span>
+                      </div>
+                      <div className="col-span-4">
+                        <span className="text-sm text-muted-foreground truncate" title={line.skuDescription ?? undefined}>
+                          {line.skuDescription || '—'}
+                        </span>
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <span className="text-sm font-semibold tabular-nums">{line.quantity.toLocaleString()}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-sm text-muted-foreground">{line.status}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="rounded-xl border bg-white shadow-soft">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b">
-                <div className="space-y-1">
-                  <h2 className="text-sm font-semibold">Amazon Shipment & Freight</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Shipment plan details and Amazon Freight capture.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAmazonSave}
-                  disabled={amazonSaving}
-                  className="gap-2"
+            {/* Collapsible Freight Section (for Amazon FBA) - matches new page structure */}
+            {isAmazonFBA && (
+              <div className="rounded-xl border bg-white overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setFreightExpanded(!freightExpanded)}
+                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
                 >
-                  {amazonSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Saving…
-                    </>
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold">Freight & Logistics</span>
+                    {canEdit && <Badge variant="outline" className="text-xs">Editable</Badge>}
+                  </div>
+                  {freightExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
                   ) : (
-                    'Save Amazon Freight'
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   )}
-                </Button>
+                </button>
+                {freightExpanded && (
+                  <div className="border-t px-5 py-4">
+                    <div className="space-y-4">
+                      <div className="mb-2">
+                        <h3 className="text-sm font-semibold">Amazon Freight Details</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Freight booking, BOL, and delivery information
+                        </p>
+                      </div>
+
+                      {/* Identifiers */}
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shipment Identifiers</h4>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Shipment Reference</label>
+                            <Input
+                              value={amazonFreight.shipmentReference}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, shipmentReference: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Shipper ID</label>
+                            <Input
+                              value={amazonFreight.shipperId}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, shipperId: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Load ID</label>
+                            <Input
+                              value={amazonFreight.loadId}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, loadId: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pro/Freight Bill Number</label>
+                            <Input
+                              value={amazonFreight.freightBillNumber}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, freightBillNumber: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1.5">BOL Number</label>
+                            <Input
+                              value={amazonFreight.billOfLadingNumber}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, billOfLadingNumber: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Appointments */}
+                      <div className="space-y-3 pt-4 border-t">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pickup & Delivery Appointments</h4>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pickup Number</label>
+                            <Input
+                              value={amazonFreight.pickupNumber}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupNumber: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pickup Appointment ID</label>
+                            <Input
+                              value={amazonFreight.pickupAppointmentId}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupAppointmentId: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">ISA / Delivery Appointment ID</label>
+                            <Input
+                              value={amazonFreight.deliveryAppointmentId}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryAppointmentId: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pickup Window Start</label>
+                            <Input
+                              type="datetime-local"
+                              value={amazonFreight.pickupWindowStart}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupWindowStart: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pickup Window End</label>
+                            <Input
+                              type="datetime-local"
+                              value={amazonFreight.pickupWindowEnd}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupWindowEnd: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Delivery Window Start</label>
+                            <Input
+                              type="datetime-local"
+                              value={amazonFreight.deliveryWindowStart}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryWindowStart: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Delivery Window End</label>
+                            <Input
+                              type="datetime-local"
+                              value={amazonFreight.deliveryWindowEnd}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryWindowEnd: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pickup & Delivery Details */}
+                      <div className="space-y-3 pt-4 border-t">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pickup & Delivery Details</h4>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pickup Contact Name</label>
+                            <Input
+                              value={amazonFreight.pickupContactName}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupContactName: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pickup Contact Phone</label>
+                            <Input
+                              value={amazonFreight.pickupContactPhone}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupContactPhone: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1.5">Pickup Address</label>
+                            <Textarea
+                              value={amazonFreight.pickupAddress}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupAddress: e.target.value }))}
+                              disabled={!canEdit}
+                              rows={2}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Shipment Mode</label>
+                            <Input
+                              value={amazonFreight.shipmentMode}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, shipmentMode: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1.5">Delivery Address</label>
+                            <Textarea
+                              value={amazonFreight.deliveryAddress}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                              disabled={!canEdit}
+                              rows={2}
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cargo & Pricing */}
+                      <div className="space-y-3 pt-4 border-t">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cargo & Pricing</h4>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Box Count</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={amazonFreight.boxCount}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, boxCount: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Pallet Count</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={amazonFreight.palletCount}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, palletCount: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1.5">Commodity Description</label>
+                            <Textarea
+                              value={amazonFreight.commodityDescription}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, commodityDescription: e.target.value }))}
+                              disabled={!canEdit}
+                              rows={2}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Distance (miles)</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={amazonFreight.distanceMiles}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, distanceMiles: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Currency</label>
+                            <Input
+                              value={amazonFreight.currency}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, currency: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Base Price</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={amazonFreight.basePrice}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, basePrice: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1.5">Fuel Surcharge</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={amazonFreight.fuelSurcharge}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, fuelSurcharge: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium mb-1.5">Total Price</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={amazonFreight.totalPrice}
+                              onChange={e => setAmazonFreight(prev => ({ ...prev, totalPrice: e.target.value }))}
+                              disabled={!canEdit}
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Save Button */}
+                      {canEdit && (
+                        <div className="flex justify-end pt-4 border-t">
+                          <Button onClick={handleAmazonSave} disabled={amazonSaving} className="gap-2">
+                            {amazonSaving ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving…
+                              </>
+                            ) : (
+                              'Save Freight Details'
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
+            )}
 
-              <div className="px-6 py-4 space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs text-muted-foreground">Shipment ID</div>
-                    <div className="text-sm text-foreground">{order.amazonShipmentId || '—'}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Shipment Name</div>
-                    <div className="text-sm text-foreground">
-                      {order.amazonShipmentName || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Shipment Status</div>
-                    <div className="text-sm text-foreground">
-                      {order.amazonShipmentStatus || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Destination FC</div>
-                    <div className="text-sm text-foreground">
-                      {order.amazonDestinationFulfillmentCenterId || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Label Prep Type</div>
-                    <div className="text-sm text-foreground">
-                      {order.amazonLabelPrepType || '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">Box Contents Source</div>
-                    <div className="text-sm text-foreground">
-                      {order.amazonBoxContentsSource || '—'}
-                    </div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-1.5">
-                      Amazon Reference ID (PO)
-                    </label>
-                    <Input
-                      value={amazonForm.referenceId}
-                      onChange={e => updateAmazonFormField('referenceId', e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-1.5">Ship From</label>
-                    <Textarea
-                      value={formatAmazonAddress(order.amazonShipFromAddress)}
-                      readOnly
-                      rows={3}
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="border-t pt-6 space-y-4">
-                  <h3 className="text-sm font-semibold">Amazon Freight</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Shipment Reference</label>
-                      <Input
-                        value={amazonForm.shipmentReference}
-                        onChange={e => updateAmazonFormField('shipmentReference', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Shipper ID</label>
-                      <Input
-                        value={amazonForm.shipperId}
-                        onChange={e => updateAmazonFormField('shipperId', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Pickup Number</label>
-                      <Input
-                        value={amazonForm.pickupNumber}
-                        onChange={e => updateAmazonFormField('pickupNumber', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Pickup Appointment ID
-                      </label>
-                      <Input
-                        value={amazonForm.pickupAppointmentId}
-                        onChange={e =>
-                          updateAmazonFormField('pickupAppointmentId', e.target.value)
-                        }
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        ISA / Delivery Appointment ID
-                      </label>
-                      <Input
-                        value={amazonForm.deliveryAppointmentId}
-                        onChange={e =>
-                          updateAmazonFormField('deliveryAppointmentId', e.target.value)
-                        }
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Load ID</label>
-                      <Input
-                        value={amazonForm.loadId}
-                        onChange={e => updateAmazonFormField('loadId', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Pro/Freight Bill Number
-                      </label>
-                      <Input
-                        value={amazonForm.freightBillNumber}
-                        onChange={e => updateAmazonFormField('freightBillNumber', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">BOL Number</label>
-                      <Input
-                        value={amazonForm.billOfLadingNumber}
-                        onChange={e => updateAmazonFormField('billOfLadingNumber', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Shipment Mode</label>
-                      <Input
-                        value={amazonForm.shipmentMode}
-                        onChange={e => updateAmazonFormField('shipmentMode', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Box Count</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={amazonForm.boxCount}
-                        onChange={e => updateAmazonFormField('boxCount', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Pallet Count</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={amazonForm.palletCount}
-                        onChange={e => updateAmazonFormField('palletCount', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Pickup Window Start
-                      </label>
-                      <Input
-                        type="datetime-local"
-                        value={amazonForm.pickupWindowStart}
-                        onChange={e => updateAmazonFormField('pickupWindowStart', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Pickup Window End
-                      </label>
-                      <Input
-                        type="datetime-local"
-                        value={amazonForm.pickupWindowEnd}
-                        onChange={e => updateAmazonFormField('pickupWindowEnd', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Delivery Window Start
-                      </label>
-                      <Input
-                        type="datetime-local"
-                        value={amazonForm.deliveryWindowStart}
-                        onChange={e => updateAmazonFormField('deliveryWindowStart', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Delivery Window End
-                      </label>
-                      <Input
-                        type="datetime-local"
-                        value={amazonForm.deliveryWindowEnd}
-                        onChange={e => updateAmazonFormField('deliveryWindowEnd', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Pickup Contact Name
-                      </label>
-                      <Input
-                        value={amazonForm.pickupContactName}
-                        onChange={e => updateAmazonFormField('pickupContactName', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Pickup Contact Phone
-                      </label>
-                      <Input
-                        value={amazonForm.pickupContactPhone}
-                        onChange={e => updateAmazonFormField('pickupContactPhone', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-1.5">Pickup Address</label>
-                      <Textarea
-                        value={amazonForm.pickupAddress}
-                        onChange={e => updateAmazonFormField('pickupAddress', e.target.value)}
-                        rows={3}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-1.5">Delivery Address</label>
-                      <Textarea
-                        value={amazonForm.deliveryAddress}
-                        onChange={e => updateAmazonFormField('deliveryAddress', e.target.value)}
-                        rows={3}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-1.5">
-                        Commodity Description
-                      </label>
-                      <Textarea
-                        value={amazonForm.commodityDescription}
-                        onChange={e =>
-                          updateAmazonFormField('commodityDescription', e.target.value)
-                        }
-                        rows={2}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">
-                        Distance (miles)
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={amazonForm.distanceMiles}
-                        onChange={e => updateAmazonFormField('distanceMiles', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Base Price</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={amazonForm.basePrice}
-                        onChange={e => updateAmazonFormField('basePrice', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Fuel Surcharge</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={amazonForm.fuelSurcharge}
-                        onChange={e => updateAmazonFormField('fuelSurcharge', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Total Price</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={amazonForm.totalPrice}
-                        onChange={e => updateAmazonFormField('totalPrice', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1.5">Currency</label>
-                      <Input
-                        value={amazonForm.currency}
-                        onChange={e => updateAmazonFormField('currency', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border bg-white shadow-soft">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b">
-                <div className="space-y-1">
-                  <h2 className="text-sm font-semibold">Documents</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Upload BOL, POD, and invoice files for the shipment.
+            {/* Documents Section */}
+            <div className="rounded-xl border bg-white p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Documents</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Upload BOL, POD, and invoice files
                   </p>
                 </div>
-                {documentsLoading ? (
-                  <span className="text-xs text-muted-foreground">Loading…</span>
-                ) : null}
+                {documentsLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
               </div>
-              <div className="px-6 py-4 space-y-6">
+              <div className="space-y-6">
                 {renderDocumentStage('SHIPPING', 'Shipping Documents')}
                 {renderDocumentStage('DELIVERY', 'Delivery Documents')}
               </div>
             </div>
 
-            <div className="rounded-xl border bg-white shadow-soft">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b">
-                <h2 className="text-sm font-semibold">Line Items</h2>
-                <div className="text-sm text-muted-foreground">
-                  Total cartons: <span className="font-semibold text-foreground">{totalQuantity}</span>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] table-auto text-sm">
-                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-semibold">SKU</th>
-                      <th className="px-3 py-2 text-left font-semibold">Batch/Lot</th>
-                      <th className="px-3 py-2 text-left font-semibold">Description</th>
-                      <th className="px-3 py-2 text-right font-semibold">Qty</th>
-                      <th className="px-3 py-2 text-left font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.lines.map(line => (
-                      <tr key={line.id} className="odd:bg-muted/20">
-                        <td className="px-3 py-2 font-semibold text-foreground whitespace-nowrap">
-                          {line.skuCode}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground uppercase whitespace-nowrap">
-                          {line.batchLot}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground max-w-[18rem] truncate" title={line.skuDescription ?? undefined}>
-                          {line.skuDescription ?? '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
-                          {line.quantity.toLocaleString()}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                          {line.status}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="rounded-xl border bg-white shadow-soft">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b">
-                <h2 className="text-sm font-semibold">Shipping</h2>
-                <div className="text-xs text-muted-foreground">
-                  Shipped: {formatDateTimeDisplay(order.shippedDate)} • Delivered: {formatDateTimeDisplay(order.deliveredDate)}
+            {/* Shipping Section */}
+            <div className="rounded-xl border bg-white p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-semibold">Shipping</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Shipped: {formatDateTimeDisplay(order.shippedDate)} · Delivered: {formatDateTimeDisplay(order.deliveredDate)}
+                  </p>
                 </div>
               </div>
 
-              <div className="px-6 py-4 grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium mb-1.5">Shipped Date</label>
                   <Input
                     type="datetime-local"
                     value={shipForm.shippedDate}
                     onChange={e => setShipForm(prev => ({ ...prev, shippedDate: e.target.value }))}
-                    disabled={!canShip || submitting}
+                    disabled={!canEdit || submitting}
                     className="text-sm"
                   />
                 </div>
@@ -1139,7 +1143,7 @@ export default function FulfillmentOrderDetailPage() {
                     type="datetime-local"
                     value={shipForm.deliveredDate}
                     onChange={e => setShipForm(prev => ({ ...prev, deliveredDate: e.target.value }))}
-                    disabled={!canShip || submitting}
+                    disabled={!canEdit || submitting}
                     className="text-sm"
                   />
                 </div>
@@ -1148,7 +1152,7 @@ export default function FulfillmentOrderDetailPage() {
                   <Input
                     value={shipForm.shippingCarrier}
                     onChange={e => setShipForm(prev => ({ ...prev, shippingCarrier: e.target.value }))}
-                    disabled={!canShip || submitting}
+                    disabled={!canEdit || submitting}
                     className="text-sm"
                   />
                 </div>
@@ -1157,7 +1161,7 @@ export default function FulfillmentOrderDetailPage() {
                   <Input
                     value={shipForm.shippingMethod}
                     onChange={e => setShipForm(prev => ({ ...prev, shippingMethod: e.target.value }))}
-                    disabled={!canShip || submitting}
+                    disabled={!canEdit || submitting}
                     className="text-sm"
                   />
                 </div>
@@ -1166,19 +1170,19 @@ export default function FulfillmentOrderDetailPage() {
                   <Input
                     value={shipForm.trackingNumber}
                     onChange={e => setShipForm(prev => ({ ...prev, trackingNumber: e.target.value }))}
-                    disabled={!canShip || submitting}
+                    disabled={!canEdit || submitting}
                     className="text-sm"
                   />
                 </div>
 
-                <div className="md:col-span-2 flex justify-end">
-                  {canShip ? (
+                {canEdit && (
+                  <div className="md:col-span-2 flex justify-end">
                     <Button onClick={handleShip} disabled={submitting} className="gap-2">
                       <Truck className="h-4 w-4" />
                       {submitting ? 'Shipping…' : 'Mark Shipped'}
                     </Button>
-                  ) : null}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
