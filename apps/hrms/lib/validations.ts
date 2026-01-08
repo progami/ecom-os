@@ -147,7 +147,7 @@ export const ReviewTypeEnum = z.enum(REVIEW_TYPE_VALUES)
 export const ReviewStatusEnum = z.enum(REVIEW_STATUS_VALUES)
 export const ReviewPeriodTypeEnum = z.enum(REVIEW_PERIOD_TYPES)
 
-const RatingSchema = z.coerce.number().int().min(1).max(5)
+const RatingSchema = z.coerce.number().int().min(1).max(10)
 const PeriodYearSchema = z.coerce.number().int().min(2000).max(2100)
 
 export const CreatePerformanceReviewSchema = z.object({
