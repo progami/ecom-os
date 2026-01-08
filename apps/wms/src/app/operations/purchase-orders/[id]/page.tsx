@@ -2152,11 +2152,12 @@ export default function PurchaseOrderDetailPage() {
                         </td>
                       </tr>
                     ) : (
-                      order.lines.map(line => {
+                      order.lines.map((line, idx) => {
                         const pkg = buildLinePackagingDetails(line)
+                        const isLast = idx === order.lines.length - 1
                         return (
                           <Fragment key={line.id}>
-                            <tr className="border-t hover:bg-muted/10">
+                            <tr className="border-t border-slate-200 hover:bg-muted/10">
                               <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
                                 {line.skuCode}
                               </td>
@@ -2204,12 +2205,12 @@ export default function PurchaseOrderDetailPage() {
                               </td>
                             </tr>
                             {pkg ? (
-                              <tr className="border-t bg-transparent">
-                                <td colSpan={10} className="px-4 pb-3 pt-1">
+                              <tr className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
+                                <td colSpan={10} className="px-4 pb-2 pt-1">
                                   <div
-                                    className={`grid grid-cols-6 gap-3 text-xs ${
-                                      pkg.hasWarning ? 'bg-amber-50/50' : 'bg-slate-50/30'
-                                    } rounded-lg px-3 py-2`}
+                                    className={`grid grid-cols-6 gap-3 text-xs border-l-2 ${
+                                      pkg.hasWarning ? 'border-amber-400 bg-amber-50/30' : 'border-cyan-400 bg-transparent'
+                                    } pl-3 py-1`}
                                   >
                                     <div>
                                       <span className="text-muted-foreground">Carton</span>
@@ -2251,6 +2252,10 @@ export default function PurchaseOrderDetailPage() {
                                     </div>
                                   </div>
                                 </td>
+                              </tr>
+                            ) : !isLast ? (
+                              <tr className="border-b-2 border-slate-200">
+                                <td colSpan={10} className="h-0"></td>
                               </tr>
                             ) : null}
                           </Fragment>

@@ -781,16 +781,17 @@ export default function NewPurchaseOrderPage() {
                   </div>
 
                   {/* Line Items */}
-                  <div className="divide-y">
-                    {lineItems.map(item => {
+                  <div>
+                    {lineItems.map((item, idx) => {
                       const pkg = getLinePackagingDetails(item)
                       const parsedCost = parseMoney(item.totalCost)
                       const unitCost =
                         parsedCost !== null && item.unitsOrdered > 0
                           ? parsedCost / item.unitsOrdered
                           : null
+                      const isLast = idx === lineItems.length - 1
                       return (
-                        <div key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <div key={item.id} className={`hover:bg-slate-50/50 transition-colors ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
                           <div className="grid grid-cols-14 gap-2 items-start px-4 py-3">
                           <div className="col-span-2">
                             <select
@@ -935,44 +936,46 @@ export default function NewPurchaseOrderPage() {
                           </div>
                           {/* Packaging details sub-row */}
                           {pkg ? (
-                            <div
-                              className={`px-4 pb-3 pt-1 grid grid-cols-6 gap-3 text-xs ${
-                                pkg.hasWarning ? 'bg-amber-50/50' : 'bg-slate-50/30'
-                              }`}
-                            >
-                              <div>
-                                <span className="text-muted-foreground">Carton</span>
-                                <p
-                                  className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
-                                >
-                                  {pkg.cartonDims ?? 'Not set'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">CBM/ctn</span>
-                                <p className="font-medium text-slate-700">
-                                  {pkg.cbmPerCarton ?? '—'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">CBM Total</span>
-                                <p className="font-medium text-slate-700">{pkg.cbmTotal ?? '—'}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">KG/ctn</span>
-                                <p className="font-medium text-slate-700">
-                                  {pkg.kgPerCarton ?? '—'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">KG Total</span>
-                                <p className="font-medium text-slate-700">{pkg.kgTotal ?? '—'}</p>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Pkg Type</span>
-                                <p className="font-medium text-slate-700">
-                                  {pkg.packagingType ?? '—'}
-                                </p>
+                            <div className="px-4 pb-3 pt-1 bg-slate-50/40">
+                              <div
+                                className={`grid grid-cols-6 gap-3 text-xs border-l-2 pl-3 py-1 ${
+                                  pkg.hasWarning ? 'border-amber-400 bg-amber-50/30' : 'border-cyan-400 bg-transparent'
+                                }`}
+                              >
+                                <div>
+                                  <span className="text-muted-foreground">Carton</span>
+                                  <p
+                                    className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
+                                  >
+                                    {pkg.cartonDims ?? 'Not set'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">CBM/ctn</span>
+                                  <p className="font-medium text-slate-700">
+                                    {pkg.cbmPerCarton ?? '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">CBM Total</span>
+                                  <p className="font-medium text-slate-700">{pkg.cbmTotal ?? '—'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">KG/ctn</span>
+                                  <p className="font-medium text-slate-700">
+                                    {pkg.kgPerCarton ?? '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">KG Total</span>
+                                  <p className="font-medium text-slate-700">{pkg.kgTotal ?? '—'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Pkg Type</span>
+                                  <p className="font-medium text-slate-700">
+                                    {pkg.packagingType ?? '—'}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           ) : null}
