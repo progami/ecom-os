@@ -1036,9 +1036,9 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                             colIndex === 1 && 'border-r-2',
                             config.editable &&
                               'cursor-text font-medium bg-cyan-50/80 dark:bg-cyan-950/40',
-                            hasInbound &&
-                              !isPinned &&
-                              'bg-success-100/90 dark:bg-success-500/15 dark:ring-1 dark:ring-inset dark:ring-success-400/25',
+                            config.key === 'inventorySpend' &&
+                              hasInbound &&
+                              'bg-danger-100/90 dark:bg-danger-500/25 dark:ring-1 dark:ring-inset dark:ring-danger-300/45',
                             isSelected && 'bg-accent',
                             isCurrent && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
                           )}
