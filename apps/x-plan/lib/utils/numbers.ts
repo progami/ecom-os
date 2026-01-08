@@ -23,12 +23,6 @@ export function coerceNumber(value: unknown, fallback = 0): number {
   return numeric ?? fallback;
 }
 
-export function coercePositiveNumber(value: unknown, fallback = 0): number {
-  const numeric = parseNumber(value);
-  if (numeric == null || !Number.isFinite(numeric) || numeric <= 0) return fallback;
-  return numeric;
-}
-
 export function parsePercent(value: unknown): number | null {
   const numeric = parseNumber(value);
   if (numeric == null) return null;
