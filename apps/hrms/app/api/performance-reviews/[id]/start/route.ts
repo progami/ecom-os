@@ -93,6 +93,22 @@ export async function POST(req: Request, context: RouteContext) {
       },
     })
 
+    await prisma.auditLog.create({
+      data: {
+        actorId: currentEmployeeId,
+        action: 'UPDATE',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: id,
+        summary: 'Manager started review',
+        metadata: {
+          fromStatus: review.status,
+          toStatus: 'IN_PROGRESS',
+        },
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+        userAgent: req.headers.get('user-agent') ?? null,
+      },
+    })
+
     console.log(`[Performance Review] Review ${id} started by ${currentEmployeeId} for ${review.employee.firstName} ${review.employee.lastName}`)
 
     return NextResponse.json({

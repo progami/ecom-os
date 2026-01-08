@@ -69,6 +69,8 @@ export async function POST(req: Request, context: RouteContext) {
       )
     }
 
+    const recordLink = `/performance/reviews/${id}`
+
     if (approved) {
       // Super Admin approves - move to PENDING_ACKNOWLEDGMENT
       const updated = await prisma.performanceReview.update({
@@ -98,10 +100,27 @@ export async function POST(req: Request, context: RouteContext) {
           type: 'REVIEW_APPROVED',
           title: 'Performance Review Ready',
           message: `Your performance review is ready for acknowledgment.`,
-          link: `/performance/reviews/${id}`,
+          link: recordLink,
           employeeId: updated.employee.id,
           relatedId: id,
           relatedType: 'REVIEW',
+        },
+      })
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'APPROVE',
+          entityType: 'PERFORMANCE_REVIEW',
+          entityId: id,
+          summary: 'Super Admin approved review',
+          metadata: {
+            fromStatus: review.status,
+            toStatus: 'PENDING_ACKNOWLEDGMENT',
+            note: notes ?? null,
+          },
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
         },
       })
 
@@ -111,11 +130,10 @@ export async function POST(req: Request, context: RouteContext) {
         review: updated,
       })
     } else {
-      // Super Admin rejects - move back to DRAFT (manager can revise)
+      // Super Admin requests changes - self-loop on PENDING_SUPER_ADMIN
       const updated = await prisma.performanceReview.update({
         where: { id },
         data: {
-          status: 'DRAFT',
           superAdminApprovedAt: new Date(),
           superAdminApprovedById: currentEmployeeId,
           superAdminNotes: notes ?? null,
@@ -133,39 +151,46 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
-      // Notify the manager who created it
-      if (review.employee.reportsToId) {
-        await prisma.notification.create({
-          data: {
-            type: 'REVIEW_REJECTED',
-            title: 'Review Returned by Super Admin',
-            message: `The performance review for ${updated.employee.firstName} ${updated.employee.lastName} has been returned by Super Admin for revision.`,
-            link: `/performance/reviews/${id}`,
-            employeeId: review.employee.reportsToId,
-            relatedId: id,
-            relatedType: 'REVIEW',
-          },
-        })
-      }
+      const targets = new Set<string>()
+      if (review.assignedReviewerId) targets.add(review.assignedReviewerId)
+      if (!targets.size && review.employee.reportsToId) targets.add(review.employee.reportsToId)
+      if (review.hrReviewedById) targets.add(review.hrReviewedById)
+      targets.delete(currentEmployeeId)
 
-      // Notify HR who approved it
-      if (review.hrReviewedById) {
-        await prisma.notification.create({
-          data: {
-            type: 'REVIEW_REJECTED',
-            title: 'Review Returned by Super Admin',
-            message: `The performance review for ${updated.employee.firstName} ${updated.employee.lastName} that you approved has been returned by Super Admin for revision.`,
-            link: `/performance/reviews/${id}`,
-            employeeId: review.hrReviewedById,
-            relatedId: id,
-            relatedType: 'REVIEW',
+      await Promise.all(
+        Array.from(targets).map((employeeId) =>
+          prisma.notification.create({
+            data: {
+              type: 'REVIEW_REJECTED',
+              title: 'Review Needs Changes (Final Approval)',
+              message: `Super Admin requested changes to the performance review for ${updated.employee.firstName} ${updated.employee.lastName}.${notes ? ` Notes: ${notes}` : ''}`,
+              link: recordLink,
+              employeeId,
+              relatedId: id,
+              relatedType: 'REVIEW',
+            },
+          })
+        )
+      )
+
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'COMMENT',
+          entityType: 'PERFORMANCE_REVIEW',
+          entityId: id,
+          summary: 'Super Admin requested changes',
+          metadata: {
+            note: notes ?? null,
           },
-        })
-      }
+          ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent') ?? null,
+        },
+      })
 
       return NextResponse.json({
         success: true,
-        message: 'Review returned to manager for revision',
+        message: 'Changes requested by Super Admin',
         review: updated,
       })
     }

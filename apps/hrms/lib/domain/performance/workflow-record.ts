@@ -55,6 +55,12 @@ function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDT
   const isOverdue = Boolean(dueMs && dueMs < nowMs && ['PENDING_HR_REVIEW', 'PENDING_SUPER_ADMIN', 'PENDING_ACKNOWLEDGMENT', 'IN_PROGRESS', 'DRAFT'].includes(review.status))
   const overdueLabel = isOverdue ? `Overdue by ${Math.max(1, Math.ceil((nowMs - (dueMs ?? nowMs)) / 86_400_000))}d` : undefined
 
+  const statusBadgeLabel = (() => {
+    if (review.status === 'PENDING_HR_REVIEW' && review.hrApproved === false) return 'Changes requested (HR)'
+    if (review.status === 'PENDING_SUPER_ADMIN' && review.superAdminApproved === false) return 'Changes requested (Admin)'
+    return statusLabel(review.status)
+  })()
+
   return {
     currentStageId,
     currentStageLabel:
@@ -74,7 +80,7 @@ function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDT
       { id: 'admin', label: 'Admin', status: stageStatus(order, currentStageId, 'admin') },
       { id: 'ack', label: 'Ack', status: stageStatus(order, currentStageId, 'ack') },
     ],
-    statusBadge: { label: statusLabel(review.status), tone: toneForStatus(review.status) },
+    statusBadge: { label: statusBadgeLabel, tone: toneForStatus(review.status) },
     sla: dueAt ? { dueAt, isOverdue, overdueLabel, tone: isOverdue ? 'danger' : 'none' } : { isOverdue: false, tone: 'none' },
   }
 }
