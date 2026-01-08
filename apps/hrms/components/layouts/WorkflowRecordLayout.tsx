@@ -83,6 +83,13 @@ export function WorkflowRecordLayout({
   const summary = Array.isArray(safeData.summary) ? safeData.summary : [];
   const timeline = Array.isArray(safeData.timeline) ? safeData.timeline : [];
   const stages = Array.isArray(workflow.stages) ? workflow.stages : [];
+  const disabledHint = useMemo(() => {
+    if (actions.primary?.disabled && actions.primary.disabledReason) return actions.primary.disabledReason;
+    const secondaryHint = actions.secondary.find((a) => a.disabled && a.disabledReason)?.disabledReason;
+    if (secondaryHint) return secondaryHint;
+    const moreHint = actions.more.find((a) => a.disabled && a.disabledReason)?.disabledReason;
+    return moreHint ?? null;
+  }, [actions.more, actions.primary, actions.secondary]);
 
   const headerBadges = useMemo(() => {
     const badges: Array<{ label: string; tone: WorkflowTone }> = [];
@@ -174,62 +181,72 @@ export function WorkflowRecordLayout({
               ) : null}
             </div>
 
-            <div className="shrink-0 flex flex-wrap items-start justify-end gap-2">
-              {headerActions ?? null}
-              {actions.primary ? (
-                <Button
-                  variant={actionVariantToButtonVariant(actions.primary.variant)}
-                  disabled={actions.primary.disabled}
-                  onClick={() => {
-                    if (onAction) void onAction(actions.primary!.id);
-                  }}
-                >
-                  {actions.primary.label}
-                </Button>
-              ) : null}
+            <div className="shrink-0 flex flex-col items-end gap-2">
+              <div className="flex flex-wrap items-start justify-end gap-2">
+                {headerActions ?? null}
+                {actions.primary ? (
+                  <Button
+                    variant={actionVariantToButtonVariant(actions.primary.variant)}
+                    disabled={actions.primary.disabled}
+                    title={actions.primary.disabled ? actions.primary.disabledReason : undefined}
+                    onClick={() => {
+                      if (onAction) void onAction(actions.primary!.id);
+                    }}
+                  >
+                    {actions.primary.label}
+                  </Button>
+                ) : null}
 
-              {actions.secondary.map((action) => (
-                <Button
-                  key={action.id}
-                  variant={actionVariantToButtonVariant(action.variant)}
-                  disabled={action.disabled}
-                  onClick={() => {
-                    if (onAction) void onAction(action.id);
-                  }}
-                >
-                  {action.label}
-                </Button>
-              ))}
+                {actions.secondary.map((action) => (
+                  <Button
+                    key={action.id}
+                    variant={actionVariantToButtonVariant(action.variant)}
+                    disabled={action.disabled}
+                    title={action.disabled ? action.disabledReason : undefined}
+                    onClick={() => {
+                      if (onAction) void onAction(action.id);
+                    }}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
 
-              {actions.more.length ? (
-                <details className="relative">
-                  <summary className="list-none">
-                    <Button variant="secondary">More</Button>
-                  </summary>
-                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-card shadow-lg p-2 z-10">
-                    {actions.more.map((action) => (
-                      <Button
-                        key={action.id}
-                        variant={action.variant === 'danger' ? 'danger' : 'ghost'}
-                        size="sm"
-                        className="w-full justify-start"
-                        onClick={() => {
-                          if (!onAction) {
-                            // eslint-disable-next-line no-console
-                            console.warn(
-                              '[WorkflowRecordLayout] onAction not provided for',
-                              action.id,
-                            );
-                            return;
-                          }
-                          void onAction(action.id);
-                        }}
-                      >
-                        {action.label}
-                      </Button>
-                    ))}
-                  </div>
-                </details>
+                {actions.more.length ? (
+                  <details className="relative">
+                    <summary className="list-none">
+                      <Button variant="secondary">More</Button>
+                    </summary>
+                    <div className="absolute right-0 mt-2 w-56 rounded-lg border border-border bg-card shadow-lg p-2 z-10">
+                      {actions.more.map((action) => (
+                        <Button
+                          key={action.id}
+                          variant={action.variant === 'danger' ? 'danger' : 'ghost'}
+                          size="sm"
+                          className="w-full justify-start"
+                          disabled={action.disabled}
+                          title={action.disabled ? action.disabledReason : undefined}
+                          onClick={() => {
+                            if (action.disabled) return;
+                            if (!onAction) {
+                              // eslint-disable-next-line no-console
+                              console.warn('[WorkflowRecordLayout] onAction not provided for', action.id);
+                              return;
+                            }
+                            void onAction(action.id);
+                          }}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </div>
+
+              {disabledHint ? (
+                <p className="max-w-[360px] text-xs text-muted-foreground text-right leading-snug">
+                  {disabledHint}
+                </p>
               ) : null}
             </div>
           </div>

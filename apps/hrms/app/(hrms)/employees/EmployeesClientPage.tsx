@@ -41,7 +41,7 @@ export function EmployeesClientPage() {
   const columns = useMemo<ColumnDef<Employee>[]>(
     () => [
       {
-        accessorKey: 'firstName',
+        accessorKey: 'employeeId',
         header: 'Employee',
         cell: ({ row }) => {
           const emp = row.original
@@ -112,6 +112,7 @@ export function EmployeesClientPage() {
         <DataTable
           columns={columns}
           data={items}
+          initialSorting={[{ id: 'employeeId', desc: false }]}
           loading={loading}
           skeletonRows={6}
           onRowClick={handleRowClick}
