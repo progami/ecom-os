@@ -145,7 +145,7 @@ function quoteIdent(name: string) {
 
 function expectedSchemas(tenant: TenantCode, tiers: SchemaTier[]) {
   const suffix = tenant.toLowerCase()
-  return tiers.map((tier) => `${tier}_wms_${suffix}`)
+  return tiers.map(tier => `${tier}_wms_${suffix}`)
 }
 
 async function schemaExists(client: Client, schema: string): Promise<boolean> {
@@ -157,10 +157,9 @@ async function schemaExists(client: Client, schema: string): Promise<boolean> {
 }
 
 async function resolveUnitsFirstCutoff(client: Client): Promise<Date | null> {
-  const exists = await client.query<{ reg: string | null }>(
-    `SELECT to_regclass($1) AS reg`,
-    ['_prisma_migrations']
-  )
+  const exists = await client.query<{ reg: string | null }>(`SELECT to_regclass($1) AS reg`, [
+    '_prisma_migrations',
+  ])
   if (!exists.rows[0]?.reg) return UNITS_FIRST_FALLBACK_CUTOFF
 
   const result = await client.query<{ finished_at: Date | null }>(
@@ -183,7 +182,12 @@ function fmtMoney(value: string | null) {
   return Number.isFinite(parsed) ? parsed.toFixed(2) : value
 }
 
-async function applyForSchema(client: Client, schema: string, options: ScriptOptions, tenant: TenantCode) {
+async function applyForSchema(
+  client: Client,
+  schema: string,
+  options: ScriptOptions,
+  tenant: TenantCode
+) {
   const banner = `[${tenant}] schema=${schema}`
   console.log(`\n${banner}`)
 
@@ -234,11 +238,10 @@ async function applyForSchema(client: Client, schema: string, options: ScriptOpt
       const unitCost =
         row.total_cost && row.legacy_units > 0
           ? (Number(row.total_cost) / row.legacy_units).toFixed(4)
-          : row.unit_cost ?? '—'
-      const postedCartons =
-        row.posted_quantity === row.legacy_units ? cartons : row.posted_quantity
+          : (row.unit_cost ?? '—')
+      const postedCartons = row.posted_quantity === row.legacy_units ? cartons : row.posted_quantity
       const receivedCartons =
-        row.quantity_received === row.legacy_units ? cartons : row.quantity_received ?? null
+        row.quantity_received === row.legacy_units ? cartons : (row.quantity_received ?? null)
 
       console.log(
         `${banner} ${row.po_number ?? row.purchase_order_id} ${row.sku_code} ${row.batch_lot ?? ''}`.trim()
@@ -373,7 +376,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error)
   process.exitCode = 1
 })

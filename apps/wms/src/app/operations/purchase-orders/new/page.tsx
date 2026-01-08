@@ -261,61 +261,61 @@ export default function NewPurchaseOrderPage() {
   const updateLineItem = (id: string, field: keyof LineItem, value: LineItem[keyof LineItem]) => {
     if (field === 'skuCode') {
       const skuCode = String(value)
-	      const selectedSku = skus.find(s => s.skuCode === skuCode)
-	      if (!selectedSku) {
-	        setLineItems(prev =>
-	          prev.map(item =>
-	            item.id === id
-	              ? {
-	                  ...item,
-	                  skuId: undefined,
-	                  skuCode: '',
-	                  skuDescription: '',
-	                  batchLot: '',
-	                  unitsPerCarton: null,
-	                }
-	              : item
-	          )
-	        )
-	        return
-	      }
+      const selectedSku = skus.find(s => s.skuCode === skuCode)
+      if (!selectedSku) {
+        setLineItems(prev =>
+          prev.map(item =>
+            item.id === id
+              ? {
+                  ...item,
+                  skuId: undefined,
+                  skuCode: '',
+                  skuDescription: '',
+                  batchLot: '',
+                  unitsPerCarton: null,
+                }
+              : item
+          )
+        )
+        return
+      }
 
-	      setLineItems(prev =>
-	        prev.map(item =>
-	          item.id === id
-	            ? {
-	                ...item,
-	                skuId: selectedSku.id,
-	                skuCode: selectedSku.skuCode,
-	                skuDescription: selectedSku.description || '',
-	                batchLot: '',
-	                unitsPerCarton: null,
-	              }
-	            : item
-	        )
-	      )
+      setLineItems(prev =>
+        prev.map(item =>
+          item.id === id
+            ? {
+                ...item,
+                skuId: selectedSku.id,
+                skuCode: selectedSku.skuCode,
+                skuDescription: selectedSku.description || '',
+                batchLot: '',
+                unitsPerCarton: null,
+              }
+            : item
+        )
+      )
       void ensureSkuBatchesLoaded(selectedSku.id)
       return
     }
 
-	    if (field === 'batchLot') {
-	      const batchLot = String(value).trim().toUpperCase()
-	      setLineItems(prev =>
-	        prev.map(item => {
-	          if (item.id !== id) return item
-	          if (!item.skuId) return { ...item, batchLot }
+    if (field === 'batchLot') {
+      const batchLot = String(value).trim().toUpperCase()
+      setLineItems(prev =>
+        prev.map(item => {
+          if (item.id !== id) return item
+          if (!item.skuId) return { ...item, batchLot }
 
-	          const batches = batchesBySkuId[item.skuId] ?? []
-	          const selectedBatch = batches.find(batch => batch.batchCode === batchLot)
-	          return {
-	            ...item,
-	            batchLot,
-	            unitsPerCarton: selectedBatch?.unitsPerCarton ?? null,
-	          }
-	        })
-	      )
-	      return
-	    }
+          const batches = batchesBySkuId[item.skuId] ?? []
+          const selectedBatch = batches.find(batch => batch.batchCode === batchLot)
+          return {
+            ...item,
+            batchLot,
+            unitsPerCarton: selectedBatch?.unitsPerCarton ?? null,
+          }
+        })
+      )
+      return
+    }
 
     setLineItems(prev =>
       prev.map(item => (item.id === id ? ({ ...item, [field]: value } as LineItem) : item))
@@ -422,7 +422,9 @@ export default function NewPurchaseOrderPage() {
             batchLot: item.batchLot.trim().toUpperCase(),
             unitsOrdered: item.unitsOrdered,
             unitsPerCarton: item.unitsPerCarton ?? 1,
-            ...(parseMoney(item.totalCost) !== null ? { totalCost: parseMoney(item.totalCost) ?? 0 } : {}),
+            ...(parseMoney(item.totalCost) !== null
+              ? { totalCost: parseMoney(item.totalCost) ?? 0 }
+              : {}),
             currency: item.currency,
             notes: item.notes || undefined,
           })),
@@ -540,9 +542,7 @@ export default function NewPurchaseOrderPage() {
                     </label>
                     <select
                       value={formData.incoterms}
-                      onChange={e =>
-                        setFormData(prev => ({ ...prev, incoterms: e.target.value }))
-                      }
+                      onChange={e => setFormData(prev => ({ ...prev, incoterms: e.target.value }))}
                       className="w-full h-9 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
                       required
                     >
