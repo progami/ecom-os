@@ -11,6 +11,8 @@ const CreateLineSchema = z.object({
   skuDescription: z.string().optional(),
   batchLot: z.string().trim().min(1),
   quantity: z.number().int().positive(),
+  storageCartonsPerPallet: z.number().int().positive().optional(),
+  shippingCartonsPerPallet: z.number().int().positive().optional(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
   notes: z.string().optional(),
@@ -136,6 +138,20 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     )
   }
 
+  const batchUpdate: Prisma.SkuBatchUpdateInput = {}
+  if (result.data.storageCartonsPerPallet !== undefined) {
+    batchUpdate.storageCartonsPerPallet = result.data.storageCartonsPerPallet
+  }
+  if (result.data.shippingCartonsPerPallet !== undefined) {
+    batchUpdate.shippingCartonsPerPallet = result.data.shippingCartonsPerPallet
+  }
+  if (Object.keys(batchUpdate).length > 0) {
+    await prisma.skuBatch.update({
+      where: { id: existingBatch.id },
+      data: batchUpdate,
+    })
+  }
+
   let line
   try {
     line = await prisma.purchaseOrderLine.create({
@@ -153,7 +169,9 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return ApiResponses.conflict('A line with this SKU and batch already exists for the purchase order')
+      return ApiResponses.conflict(
+        'A line with this SKU and batch already exists for the purchase order'
+      )
     }
     throw error
   }
@@ -172,6 +190,8 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
       quantity: line.quantity,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
       currency: line.currency ?? null,
+      storageCartonsPerPallet: result.data.storageCartonsPerPallet ?? null,
+      shippingCartonsPerPallet: result.data.shippingCartonsPerPallet ?? null,
       notes: line.lineNotes ?? null,
     },
   })

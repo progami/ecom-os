@@ -441,6 +441,8 @@ export async function postMovementNote(id: string, _user: UserContext) {
           cartonDimensionsCm: true,
           cartonWeightKg: true,
           packagingType: true,
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
         },
       })
 
@@ -452,39 +454,26 @@ export async function postMovementNote(id: string, _user: UserContext) {
 
       const unitsPerCarton = batchRecord.unitsPerCarton ?? sku.unitsPerCarton ?? 1
 
-      const skuConfig = await tx.warehouseSkuStorageConfig.findUnique({
-        where: {
-          warehouseId_skuId: {
-            warehouseId: warehouse.id,
-            skuId: sku.id,
-          },
-        },
-        select: {
-          storageCartonsPerPallet: true,
-          shippingCartonsPerPallet: true,
-        },
-      })
-
       const storageCartonsPerPallet =
-        line.storageCartonsPerPallet ?? skuConfig?.storageCartonsPerPallet ?? null
+        line.storageCartonsPerPallet ?? batchRecord.storageCartonsPerPallet ?? null
       const shippingCartonsPerPallet =
-        line.shippingCartonsPerPallet ?? skuConfig?.shippingCartonsPerPallet ?? null
+        line.shippingCartonsPerPallet ?? batchRecord.shippingCartonsPerPallet ?? null
 
       if (isInbound && (!storageCartonsPerPallet || storageCartonsPerPallet <= 0)) {
         throw new ValidationError(
-          `Storage configuration is required for SKU ${poLine.skuCode} at warehouse ${warehouse.name}. Set Storage Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+          `Storage cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}. Configure it on the batch in Config → Products → Batches.`
         )
       }
 
       if (isInbound && (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0)) {
         throw new ValidationError(
-          `Shipping configuration is required for SKU ${poLine.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+          `Shipping cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}. Configure it on the batch in Config → Products → Batches.`
         )
       }
 
       if (!isInbound && (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0)) {
         throw new ValidationError(
-          `Shipping configuration is required for SKU ${poLine.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+          `Shipping cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}. Configure it on the batch in Config → Products → Batches.`
         )
       }
 
@@ -510,9 +499,7 @@ export async function postMovementNote(id: string, _user: UserContext) {
             ? Math.ceil(line.quantity / Math.max(1, storageCartonsPerPallet ?? unitsPerCarton))
             : 0,
           shippingPalletsOut: !isInbound
-            ? Math.ceil(
-                line.quantity / Math.max(1, shippingCartonsPerPallet ?? unitsPerCarton)
-              )
+            ? Math.ceil(line.quantity / Math.max(1, shippingCartonsPerPallet ?? unitsPerCarton))
             : 0,
           storageCartonsPerPallet: isInbound ? (storageCartonsPerPallet ?? null) : null,
           shippingCartonsPerPallet: shippingCartonsPerPallet ?? null,
