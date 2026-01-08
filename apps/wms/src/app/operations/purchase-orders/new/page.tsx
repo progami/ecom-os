@@ -382,11 +382,11 @@ export default function NewPurchaseOrderPage() {
       if (batchLot.toUpperCase() === 'DEFAULT') return true
       if (!isPositiveInteger(item.unitsOrdered)) return true
       if (!isPositiveInteger(item.unitsPerCarton)) return true
-      return item.unitsOrdered % item.unitsPerCarton !== 0
+      return false
     })
     if (invalidLines.length > 0) {
       toast.error(
-        'Please fill in SKU, batch/lot, units ordered, and units per carton (units must divide evenly) for all line items'
+        'Please fill in SKU, batch/lot, units ordered, and units per carton for all line items'
       )
       return
     }
@@ -777,8 +777,7 @@ export default function NewPurchaseOrderPage() {
                                 value={(() => {
                                   if (!item.unitsPerCarton) return '—'
                                   if (item.unitsOrdered <= 0) return '—'
-                                  if (item.unitsOrdered % item.unitsPerCarton !== 0) return '—'
-                                  return String(item.unitsOrdered / item.unitsPerCarton)
+                                  return String(Math.ceil(item.unitsOrdered / item.unitsPerCarton))
                                 })()}
                                 readOnly
                                 className="text-sm h-8 bg-muted/30 text-muted-foreground"
