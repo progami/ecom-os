@@ -21,6 +21,11 @@ html, body {
   overflow: hidden;
 }
 
+/* Prevent layout shift when scrollbars appear/disappear inside scroll containers */
+.scrollbar-gutter-stable {
+  scrollbar-gutter: stable;
+}
+
 /* Disable autofill styling on login form */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
