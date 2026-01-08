@@ -6,5 +6,5 @@ type Props = {
 
 export default async function DisciplinaryEditRedirectPage({ params }: Props) {
   const { id } = await params
-  redirect(`/performance/violations/${id}/edit`)
+  redirect(`/performance/violations/${id}`)
 }
