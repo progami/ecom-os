@@ -23,7 +23,7 @@ export function DashboardLayout({ children, hideBreadcrumb = false, customBreadc
  <div className="px-4 sm:px-6 md:px-8 py-4">
  {hideBreadcrumb ? customBreadcrumb ?? null : customBreadcrumb ?? <Breadcrumb />}
  </div>
- <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 pb-4 min-h-0 overflow-y-auto">
+ <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 pb-4 min-h-0 overflow-y-auto scrollbar-gutter-stable">
  {children}
  </div>
  </main>
