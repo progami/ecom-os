@@ -1995,7 +1995,7 @@ export default function PurchaseOrderDetailPage() {
                       Supplier
                     </label>
                     <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.manufacturing?.factoryName || order.counterpartyName || '—'}
+                      {order.counterpartyName || '—'}
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -2791,7 +2791,6 @@ export default function PurchaseOrderDetailPage() {
                   const mfg = order.stageData.manufacturing
                   const hasData =
                     mfg?.proformaInvoiceNumber ||
-                    mfg?.factoryName ||
                     mfg?.manufacturingStartDate ||
                     mfg?.totalCartons ||
                     mfg?.totalWeightKg
@@ -2837,10 +2836,10 @@ export default function PurchaseOrderDetailPage() {
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Factory
+                              Supplier
                             </p>
                             <p className="text-sm font-medium text-slate-900">
-                              {mfg?.factoryName || order.counterpartyName || '—'}
+                              {order.counterpartyName || '—'}
                             </p>
                           </div>
                           <div className="space-y-1">
