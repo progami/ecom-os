@@ -38,7 +38,6 @@ type FulfillmentOrder = {
   destinationType: string
   destinationName: string | null
   destinationAddress: string | null
-  destinationCountry: string | null
   shippingCarrier: string | null
   shippingMethod: string | null
   trackingNumber: string | null
@@ -702,9 +701,6 @@ export default function FulfillmentOrderDetailPage() {
                   <div className="text-sm text-foreground">
                     {order.destinationName || (order.destinationType === 'AMAZON_FBA' ? 'Amazon FBA' : order.destinationType)}
                   </div>
-                  {order.destinationCountry ? (
-                    <div className="text-xs text-muted-foreground mt-1">{order.destinationCountry}</div>
-                  ) : null}
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">Tracking</div>
