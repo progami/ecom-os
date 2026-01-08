@@ -2339,7 +2339,7 @@ export function SalesPlanningGrid({
                       <TableCell
                         key={column.id}
                         className={cn(
-                          'h-8 whitespace-nowrap border-r px-2 text-sm overflow-hidden',
+                          'h-8 whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
                           meta?.sticky
                             ? isEvenRow
                               ? 'bg-muted'
