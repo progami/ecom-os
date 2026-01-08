@@ -175,7 +175,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
 
   return (
     <section className={cn('space-y-2', className)}>
-      <div className="flex justify-end">
+      <div className="flex justify-start">
         {!isAdding ? (
           <button type="button" onClick={() => setIsAdding(true)} className={primaryActionClass}>
             <span className="inline-flex items-center gap-1.5">
