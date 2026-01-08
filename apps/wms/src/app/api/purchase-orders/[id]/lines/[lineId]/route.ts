@@ -206,7 +206,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
 
     const nextBatchLot = requestedBatchLot
       ? requestedBatchLot.trim().toUpperCase()
-      : line.batchLot?.trim().toUpperCase() ?? ''
+      : (line.batchLot?.trim().toUpperCase() ?? '')
 
     if (requestedBatchLot) {
       if (nextBatchLot === 'DEFAULT') {

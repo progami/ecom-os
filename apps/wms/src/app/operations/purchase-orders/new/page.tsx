@@ -813,7 +813,7 @@ export default function NewPurchaseOrderPage() {
 
                   {/* Line Items */}
                   <div className="divide-y divide-slate-100">
-                    {lineItems.map((item, idx) => {
+                    {lineItems.map(item => {
                       const pkg = getLinePackagingDetails(item)
                       const parsedCost = parseMoney(item.totalCost)
                       const unitCost =
