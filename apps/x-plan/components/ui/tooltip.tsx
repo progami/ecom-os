@@ -130,4 +130,4 @@ function Tooltip({
   );
 }
 
-export { Tooltip, TooltipRoot, TooltipTrigger, TooltipContent, TooltipProvider };
+export { Tooltip, TooltipProvider };
