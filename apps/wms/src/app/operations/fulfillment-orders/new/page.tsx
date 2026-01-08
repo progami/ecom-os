@@ -45,14 +45,14 @@ export default function NewFulfillmentOrderPage() {
   const [skus, setSkus] = useState<SkuOption[]>([])
 
   // Source type selection (replaces destination type in Order Details tab)
-  const [sourceType, setSourceType] = useState<DestinationType>('CUSTOMER')
+  const [sourceType, setSourceType] = useState<DestinationType>('AMAZON_FBA')
 
   // Collapsible freight section
   const [freightExpanded, setFreightExpanded] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
     warehouseCode: '',
-    destinationType: 'CUSTOMER',
+    destinationType: 'AMAZON_FBA',
     destinationName: '',
     destinationAddress: '',
     shippingCarrier: '',
