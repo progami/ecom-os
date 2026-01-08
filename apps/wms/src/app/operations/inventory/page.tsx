@@ -262,7 +262,7 @@ function InventoryPage() {
  <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft overflow-x-auto flex-1">
  {/* Scrollable table area */}
  <div
- className="relative min-h-0 overflow-y-auto flex-1"
+ className="relative min-h-0 overflow-y-auto scrollbar-gutter-stable flex-1"
  >
  <table className="w-full min-w-[1200px] table-auto text-sm">
  <thead>
