@@ -525,6 +525,71 @@ export default function NewPurchaseOrderPage() {
     }
   }
 
+  const lineTotals = (() => {
+    let totalUnits = 0
+    let totalCartons = 0
+    let totalCost = 0
+    let hasCost = false
+    let totalCbm = 0
+    let hasCbm = false
+    let totalKg = 0
+    let hasKg = false
+
+    lineItems.forEach(item => {
+      totalUnits += item.unitsOrdered > 0 ? item.unitsOrdered : 0
+
+      const cartons =
+        item.unitsPerCarton && item.unitsOrdered > 0
+          ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
+          : null
+      if (cartons !== null) {
+        totalCartons += cartons
+      }
+
+      const parsedCost = parseMoney(item.totalCost)
+      if (parsedCost !== null) {
+        totalCost += parsedCost
+        hasCost = true
+      }
+
+      if (!item.skuId || !item.batchLot || cartons === null) return
+      const batchCode = item.batchLot.trim().toUpperCase()
+      if (!batchCode) return
+      const batch =
+        (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === batchCode) ?? null
+      if (!batch) return
+
+      const cartonTriplet = resolveDimensionTripletCm({
+        lengthCm: batch.cartonLengthCm,
+        widthCm: batch.cartonWidthCm,
+        heightCm: batch.cartonHeightCm,
+        legacy: batch.cartonDimensionsCm,
+      })
+      if (cartonTriplet) {
+        const cbmPerCarton =
+          (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+        totalCbm += cbmPerCarton * cartons
+        hasCbm = true
+      }
+
+      if (batch.cartonWeightKg) {
+        totalKg += batch.cartonWeightKg * cartons
+        hasKg = true
+      }
+    })
+
+    return {
+      totalUnits,
+      totalCartons,
+      totalCost,
+      hasCost,
+      totalCbm,
+      hasCbm,
+      totalKg,
+      hasKg,
+    }
+  })()
+
   if (status === 'loading' || loading) {
     return (
       <DashboardLayout>
@@ -682,7 +747,17 @@ export default function NewPurchaseOrderPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Line Items</h3>
                   <p className="text-xs text-muted-foreground">
-                    {lineItems.length} item{lineItems.length !== 1 ? 's' : ''}
+                    {lineItems.length} item{lineItems.length !== 1 ? 's' : ''} •{' '}
+                    {lineTotals.totalUnits.toLocaleString()} units •{' '}
+                    {lineTotals.totalCartons.toLocaleString()} cartons
+                    {lineTotals.hasCbm ? ` • ${lineTotals.totalCbm.toFixed(3)} CBM` : ''}
+                    {lineTotals.hasKg ? ` • ${lineTotals.totalKg.toFixed(2)} kg` : ''}
+                    {lineTotals.hasCost
+                      ? ` • ${lineTotals.totalCost.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} ${formData.currency}`
+                      : ''}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
@@ -709,6 +784,11 @@ export default function NewPurchaseOrderPage() {
                   <div className="divide-y">
                     {lineItems.map(item => {
                       const pkg = getLinePackagingDetails(item)
+                      const parsedCost = parseMoney(item.totalCost)
+                      const unitCost =
+                        parsedCost !== null && item.unitsOrdered > 0
+                          ? parsedCost / item.unitsOrdered
+                          : null
                       return (
                         <div key={item.id} className="hover:bg-slate-50/50 transition-colors">
                           <div className="grid grid-cols-14 gap-2 items-start px-4 py-3">
@@ -830,6 +910,9 @@ export default function NewPurchaseOrderPage() {
                                 {item.currency}
                               </div>
                             </div>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              Unit: {unitCost !== null ? unitCost.toFixed(4) : '—'}
+                            </p>
                           </div>
                           <div className="col-span-2 flex gap-1.5">
                             <Input

@@ -163,59 +163,89 @@ async function renderPurchaseOrderPdf(params: {
   // FROM / TO SECTION
   // ============================================
 
-  const colWidth = (contentWidth - 30) / 2
+  const colWidth = (contentWidth - 40) / 2
 
   // SUPPLIER
   doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
   doc.text('SUPPLIER', margin, y)
-  doc.fillColor(COLORS.navy).fontSize(10).font('Helvetica-Bold')
-  doc.text(params.supplierName || '—', margin, y + 11, { width: colWidth })
 
+  let supplierY = y + 12
+  doc.fillColor(COLORS.navy).fontSize(10).font('Helvetica-Bold')
+  doc.text(params.supplierName || '—', margin, supplierY, { width: colWidth })
+  supplierY += doc.heightOfString(params.supplierName || '—', { width: colWidth }) + 2
+
+  let supplierEndY = supplierY
   if (params.supplierAddress) {
-    doc.fillColor(COLORS.slate).fontSize(9).font('Helvetica')
-    doc.text(params.supplierAddress, margin, y + 24, { width: colWidth })
+    doc.fillColor(COLORS.slate).fontSize(8).font('Helvetica')
+    doc.text(params.supplierAddress, margin, supplierY, { width: colWidth })
+    supplierEndY = supplierY + doc.heightOfString(params.supplierAddress, { width: colWidth })
   }
 
-  // TO
-  const toX = margin + colWidth + 30
+  // SHIP TO
+  const toX = margin + colWidth + 40
   doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
   doc.text('SHIP TO', toX, y)
 
+  let shipToY = y + 12
   const shipTo = params.warehouseName || params.destinationCountry || '—'
   doc.fillColor(COLORS.navy).fontSize(10).font('Helvetica-Bold')
-  doc.text(shipTo, toX, y + 11, { width: colWidth })
+  doc.text(shipTo, toX, shipToY, { width: colWidth })
+  shipToY += doc.heightOfString(shipTo, { width: colWidth }) + 2
 
+  let shipToEndY = shipToY
   if (params.warehouseName && params.destinationCountry) {
-    doc.fillColor(COLORS.slate).fontSize(9).font('Helvetica')
-    doc.text(params.destinationCountry, toX, y + 24, { width: colWidth })
+    doc.fillColor(COLORS.slate).fontSize(8).font('Helvetica')
+    doc.text(params.destinationCountry, toX, shipToY, { width: colWidth })
+    shipToEndY = shipToY + doc.heightOfString(params.destinationCountry, { width: colWidth })
   }
 
-  y += 50
+  // Move y past whichever column is taller
+  y = Math.max(supplierEndY, shipToEndY) + 16
 
   // ============================================
-  // ORDER DETAILS
+  // ORDER DETAILS ROW
   // ============================================
 
   const orderCurrency =
     totalsByCurrency.size === 1 ? Array.from(totalsByCurrency.keys())[0] : '—'
 
-  const details = [
-    { label: 'CARGO READY', value: formatDate(params.expectedDate), w: 95 },
-    { label: 'INCOTERMS', value: params.incoterms || '—', w: 70 },
-    { label: 'CURRENCY', value: orderCurrency, w: 70 },
-    { label: 'PAYMENT TERMS', value: params.paymentTerms || '—', w: contentWidth - 235 },
-  ]
+  // First 3 columns fixed width, payment terms gets remaining space
+  const col1W = 80  // Cargo Ready
+  const col2W = 60  // Incoterms
+  const col3W = 60  // Currency
+  const col4W = contentWidth - col1W - col2W - col3W  // Payment Terms
 
-  let detailX = margin
-  for (const d of details) {
-    doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
-    doc.text(d.label, detailX, y, { width: d.w })
-    doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica-Bold')
-    doc.text(d.value, detailX, y + 11, { width: d.w, lineBreak: false, ellipsis: true })
-    detailX += d.w
-  }
+  // Cargo Ready
+  doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
+  doc.text('CARGO READY', margin, y)
+  doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica-Bold')
+  doc.text(formatDate(params.expectedDate), margin, y + 11, { width: col1W - 8 })
 
-  y += 40
+  // Incoterms
+  const col2X = margin + col1W
+  doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
+  doc.text('INCOTERMS', col2X, y)
+  doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica-Bold')
+  doc.text(params.incoterms || '—', col2X, y + 11, { width: col2W - 8 })
+
+  // Currency
+  const col3X = col2X + col2W
+  doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
+  doc.text('CURRENCY', col3X, y)
+  doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica-Bold')
+  doc.text(orderCurrency, col3X, y + 11, { width: col3W - 8 })
+
+  // Payment Terms (allow wrapping)
+  const col4X = col3X + col3W
+  doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
+  doc.text('PAYMENT TERMS', col4X, y)
+  doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica-Bold')
+  const paymentTermsText = params.paymentTerms || '—'
+  doc.text(paymentTermsText, col4X, y + 11, { width: col4W })
+
+  // Calculate height of payment terms for y advancement
+  const paymentTermsHeight = doc.heightOfString(paymentTermsText, { width: col4W })
+  y += Math.max(28, 11 + paymentTermsHeight + 8)
 
   // ============================================
   // LINE ITEMS TABLE
@@ -291,8 +321,8 @@ async function renderPurchaseOrderPdf(params: {
 
   // Draw all rows
   for (let i = 0; i < params.lines.length; i++) {
-    // Page break check - only if we truly don't have space
-    if (rowY + rowHeight > pageHeight - 150) {
+    // Page break check - 80pt reserved for footer
+    if (rowY + rowHeight > pageHeight - 80) {
       doc.addPage()
       rowY = margin
       rowY = drawTableHeader(rowY)
@@ -308,9 +338,9 @@ async function renderPurchaseOrderPdf(params: {
   // TOTALS
   // ============================================
 
-  // Check if totals fit
-  const totalsHeight = 50 + totalsByCurrency.size * 18
-  if (y + totalsHeight > pageHeight - 50) {
+  // Check if totals fit (need space for totals box + footer)
+  const totalsHeight = 60 + totalsByCurrency.size * 18
+  if (y + totalsHeight > pageHeight - 60) {
     doc.addPage()
     y = margin
   }
@@ -351,7 +381,7 @@ async function renderPurchaseOrderPdf(params: {
 
   if (params.notes?.trim()) {
     y = ty + 20
-    if (y + 50 > pageHeight - 50) {
+    if (y + 60 > pageHeight - 60) {
       doc.addPage()
       y = margin
     }
