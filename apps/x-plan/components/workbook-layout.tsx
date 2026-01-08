@@ -42,7 +42,6 @@ const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
   '4-sales-planning',
   '5-fin-planning-pl',
   '6-fin-planning-cash-flow',
-  '7-po-profitability',
 ]);
 
 export function WorkbookLayout({
