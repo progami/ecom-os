@@ -13,6 +13,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -49,7 +50,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { withBasePath } from '@/lib/utils/base-path'
-import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 
 // 5-Stage State Machine Types
 type POStageStatus =
@@ -62,15 +62,16 @@ type POStageStatus =
   | 'REJECTED'
   | 'CANCELLED'
 
-const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
-
 interface PurchaseOrderLineSummary {
   id: string
   skuCode: string
   skuDescription: string | null
   batchLot: string | null
+  unitsOrdered: number
+  unitsPerCarton: number
   quantity: number
   unitCost: number | null
+  totalCost: number | null
   currency?: string
   status: 'PENDING' | 'POSTED' | 'CANCELLED'
   postedQuantity: number
@@ -88,8 +89,7 @@ interface SkuSummary {
 
 interface BatchOption {
   batchCode: string
-  storageCartonsPerPallet: number | null
-  shippingCartonsPerPallet: number | null
+  unitsPerCarton: number | null
 }
 
 interface StageApproval {
@@ -210,7 +210,7 @@ interface PurchaseOrderSummary {
 
 const DEFAULT_BADGE_CLASS = 'bg-muted text-muted-foreground border border-muted'
 
-type PurchaseOrderDocumentStage = 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED'
+type PurchaseOrderDocumentStage = 'ISSUED' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED'
 
 interface PurchaseOrderDocumentSummary {
   id: string
@@ -229,7 +229,8 @@ const STAGE_DOCUMENTS: Record<
   Exclude<PurchaseOrderDocumentStage, 'SHIPPED'>,
   Array<{ id: string; label: string }>
 > = {
-  MANUFACTURING: [{ id: 'proforma_invoice', label: 'Proforma Invoice' }],
+  ISSUED: [{ id: 'proforma_invoice', label: 'Signed PI / Proforma Invoice' }],
+  MANUFACTURING: [],
   OCEAN: [
     { id: 'commercial_invoice', label: 'Commercial Invoice' },
     { id: 'bill_of_lading', label: 'Bill of Lading' },
@@ -245,6 +246,7 @@ const DOCUMENT_STAGE_META: Record<
   PurchaseOrderDocumentStage,
   { label: string; icon: ComponentType<{ className?: string }> }
 > = {
+  ISSUED: { label: 'Issued', icon: Send },
   MANUFACTURING: { label: 'Manufacturing', icon: Factory },
   OCEAN: { label: 'In Transit', icon: Ship },
   WAREHOUSE: { label: 'At Warehouse', icon: Warehouse },
@@ -549,7 +551,9 @@ export default function PurchaseOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [order, setOrder] = useState<PurchaseOrderSummary | null>(null)
   const [tenantDestination, setTenantDestination] = useState<string>('')
+  const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [transitioning, setTransitioning] = useState(false)
+  const [pdfDownloading, setPdfDownloading] = useState(false)
   const [detailsSaving, setDetailsSaving] = useState(false)
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [detailsDraft, setDetailsDraft] = useState({
@@ -579,9 +583,9 @@ export default function PurchaseOrderDetailPage() {
   const [newLineDraft, setNewLineDraft] = useState({
     skuId: '',
     batchLot: '',
-    quantity: 1,
-    storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-    shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+    unitsOrdered: 1,
+    unitsPerCarton: null as number | null,
+    totalCost: '',
     notes: '',
   })
 
@@ -666,8 +670,12 @@ export default function PurchaseOrderDetailPage() {
         const response = await fetch('/api/tenant/current')
         if (!response.ok) return
         const payload = await response.json().catch(() => null)
+        const currency = payload?.current?.currency
         const tenantName = payload?.current?.name
         const tenantCode = payload?.current?.displayName ?? payload?.current?.code
+        if (typeof currency === 'string' && currency.trim()) {
+          setTenantCurrency(currency.trim().toUpperCase())
+        }
         if (typeof tenantName !== 'string' || !tenantName.trim()) return
         const label =
           typeof tenantCode === 'string' && tenantCode.trim()
@@ -859,8 +867,7 @@ export default function PurchaseOrderDetailPage() {
 
             return {
               batchCode,
-              storageCartonsPerPallet: coercePositiveInt(batch?.storageCartonsPerPallet),
-              shippingCartonsPerPallet: coercePositiveInt(batch?.shippingCartonsPerPallet),
+              unitsPerCarton: coercePositiveInt(batch?.unitsPerCarton),
             }
           })
           .filter((batch): batch is BatchOption => Boolean(batch))
@@ -896,8 +903,7 @@ export default function PurchaseOrderDetailPage() {
       return {
         ...prev,
         batchLot: selected.batchCode,
-        storageCartonsPerPallet: selected.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
-        shippingCartonsPerPallet: selected.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+        unitsPerCarton: selected.unitsPerCarton ?? null,
       }
     })
   }, [batchesBySkuId, newLineDraft.batchLot, newLineDraft.skuId])
@@ -1129,17 +1135,18 @@ export default function PurchaseOrderDetailPage() {
     return null
   }
 
-  const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
+  const totalUnits = order.lines.reduce((sum, line) => sum + (line.unitsOrdered ?? 0), 0)
+  const totalCartons = order.lines.reduce((sum, line) => sum + line.quantity, 0)
   const isTerminal =
     order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'REJECTED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
-  const canDownloadPdf = order.status !== 'DRAFT'
+  const canDownloadPdf = true
   const documentsCount = documents.length
   const historyCount = auditLogs.length || order.approvalHistory?.length || 0
   const selectedSku = newLineDraft.skuId
     ? skus.find(sku => sku.id === newLineDraft.skuId)
     : undefined
-  const documentStages: PurchaseOrderDocumentStage[] = ['MANUFACTURING', 'OCEAN', 'WAREHOUSE']
+  const documentStages: PurchaseOrderDocumentStage[] = ['ISSUED', 'MANUFACTURING', 'OCEAN', 'WAREHOUSE']
   if (documents.some(doc => doc.stage === 'SHIPPED')) {
     documentStages.push('SHIPPED')
   }
@@ -1166,19 +1173,35 @@ export default function PurchaseOrderDetailPage() {
       toast.error('Please select a batch / lot')
       return
     }
-    const storageCartonsPerPallet = Number(newLineDraft.storageCartonsPerPallet)
-    if (!Number.isInteger(storageCartonsPerPallet) || storageCartonsPerPallet <= 0) {
-      toast.error('Please enter a valid storage cartons / pallet value')
+
+    const unitsOrdered = Number(newLineDraft.unitsOrdered)
+    if (!Number.isInteger(unitsOrdered) || unitsOrdered <= 0) {
+      toast.error('Please enter a valid units ordered value')
       return
     }
-    const shippingCartonsPerPallet = Number(newLineDraft.shippingCartonsPerPallet)
-    if (!Number.isInteger(shippingCartonsPerPallet) || shippingCartonsPerPallet <= 0) {
-      toast.error('Please enter a valid shipping cartons / pallet value')
+
+    const unitsPerCarton = newLineDraft.unitsPerCarton
+    if (!unitsPerCarton || !Number.isInteger(unitsPerCarton) || unitsPerCarton <= 0) {
+      toast.error('Please enter a valid units per carton value')
       return
     }
-    const quantity = Number(newLineDraft.quantity)
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      toast.error('Please enter a valid quantity')
+
+    if (unitsOrdered % unitsPerCarton !== 0) {
+      toast.error('Units ordered must be divisible by units per carton')
+      return
+    }
+
+    const totalCostInput = newLineDraft.totalCost.trim()
+    const totalCost =
+      totalCostInput.length === 0
+        ? undefined
+        : (() => {
+            const parsed = Number(totalCostInput)
+            return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+          })()
+
+    if (totalCost === null) {
+      toast.error('Please enter a valid total cost')
       return
     }
 
@@ -1191,9 +1214,10 @@ export default function PurchaseOrderDetailPage() {
           skuCode: selectedSku.skuCode,
           skuDescription: selectedSku.description,
           batchLot,
-          quantity,
-          storageCartonsPerPallet,
-          shippingCartonsPerPallet,
+          unitsOrdered,
+          unitsPerCarton,
+          totalCost,
+          currency: tenantCurrency,
           notes: newLineDraft.notes.trim() ? newLineDraft.notes.trim() : undefined,
         }),
       })
@@ -1210,9 +1234,9 @@ export default function PurchaseOrderDetailPage() {
       setNewLineDraft({
         skuId: '',
         batchLot: '',
-        quantity: 1,
-        storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-        shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+        unitsOrdered: 1,
+        unitsPerCarton: null,
+        totalCost: '',
         notes: '',
       })
       void refreshAuditLogs()
@@ -1223,62 +1247,47 @@ export default function PurchaseOrderDetailPage() {
     }
   }
 
-  const breadcrumbItems = [
-    { label: 'Operations', href: '/operations' },
-    { label: 'Purchase Orders', href: '/operations/purchase-orders' },
-    { label: order.poNumber || order.orderNumber },
-  ]
+  const handleDownloadPdf = async () => {
+    if (!order || pdfDownloading) return
 
-  const breadcrumbContent = (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button variant="outline" className="gap-2" onClick={() => router.back()}>
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Button>
-      <nav className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-        {breadcrumbItems.map((item, index) => (
-          <div key={`${item.label}-${index}`} className="flex items-center gap-1">
-            {index > 0 && <ChevronRight className="h-4 w-4 text-slate-300" />}
-            {item.href ? (
-              <Link href={item.href} className="hover:text-foreground transition-colors">
-                {item.label}
-              </Link>
-            ) : (
-              <span className="font-semibold text-foreground">{item.label}</span>
-            )}
-          </div>
-        ))}
-      </nav>
-    </div>
-  )
+    try {
+      setPdfDownloading(true)
+      const response = await fetch(withBasePath(`/api/purchase-orders/${order.id}/pdf`), {
+        method: 'GET',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        toast.error(payload?.error ?? 'Failed to download PDF')
+        return
+      }
+
+      const blob = await response.blob()
+      const disposition = response.headers.get('Content-Disposition') ?? ''
+      const match = disposition.match(/filename="?([^\";]+)"?/i)
+      const headerFilename = match?.[1]?.trim()
+      const fallbackFilename = `${order.poNumber || order.orderNumber || 'purchase-order'}.pdf`
+      const filename = headerFilename && headerFilename.length > 0 ? headerFilename : fallbackFilename
+
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      toast.error('Failed to download PDF')
+    } finally {
+      setPdfDownloading(false)
+    }
+  }
 
   // Stage-specific form fields based on next stage
   const renderStageTransitionForm = () => {
     if (!nextStage) return null
-
-    if (nextStage.value === 'ISSUED') {
-      const missingFields = [
-        !order?.expectedDate ? 'Cargo ready date' : null,
-        !order?.incoterms ? 'Incoterms' : null,
-        !order?.paymentTerms ? 'Payment terms' : null,
-      ].filter((value): value is string => value !== null)
-      return (
-        <div className="space-y-4">
-          <p className="text-sm text-slate-700">
-            Marking this PO as issued locks draft edits and indicates it has been sent to the
-            supplier.
-          </p>
-          {missingFields.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Missing required details: {missingFields.join(', ')}. Set them in Order Details.
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground">
-            You can download the PDF and share it with the supplier once issued.
-          </p>
-        </div>
-      )
-    }
 
     const fields: Array<{
       key: string
@@ -1289,17 +1298,44 @@ export default function PurchaseOrderDetailPage() {
       disabled?: boolean
     }> = []
 
+    const intro =
+      nextStage.value === 'ISSUED'
+        ? (() => {
+            const missingFields = [
+              !order?.expectedDate ? 'Cargo ready date' : null,
+              !order?.incoterms ? 'Incoterms' : null,
+              !order?.paymentTerms ? 'Payment terms' : null,
+            ].filter((value): value is string => value !== null)
+
+            fields.push(
+              { key: 'proformaInvoiceNumber', label: 'Proforma Invoice Number (PI #)', type: 'text' },
+              { key: 'proformaInvoiceDate', label: 'Proforma Invoice Date', type: 'date' }
+            )
+
+            return (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-700">
+                  Marking this PO as issued means the supplier accepted it (signed PI received).
+                  This locks draft edits.
+                </p>
+                {missingFields.length > 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Missing required details: {missingFields.join(', ')}. Set them in Order Details.
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Upload the signed PI and enter its reference number before advancing.
+                </p>
+              </div>
+            )
+          })()
+        : null
+
     switch (nextStage.value) {
       case 'MANUFACTURING':
         fields.push(
-          { key: 'proformaInvoiceNumber', label: 'Proforma Invoice Number', type: 'text' },
-          { key: 'proformaInvoiceDate', label: 'Proforma Invoice Date', type: 'date' },
           { key: 'manufacturingStartDate', label: 'Manufacturing Start Date', type: 'date' },
           { key: 'expectedCompletionDate', label: 'Expected Completion Date', type: 'date' },
-          { key: 'totalCartons', label: 'Total Cartons', type: 'number' },
-          { key: 'totalPallets', label: 'Total Pallets', type: 'number' },
-          { key: 'totalWeightKg', label: 'Total Weight (kg)', type: 'number' },
-          { key: 'totalVolumeCbm', label: 'Total Volume (CBM)', type: 'number' },
           { key: 'packagingNotes', label: 'Packaging Notes', type: 'text' }
         )
         break
@@ -1354,6 +1390,7 @@ export default function PurchaseOrderDetailPage() {
 
     return (
       <div className="space-y-5">
+        {intro}
         <div className="grid grid-cols-1 gap-4">
           {fields.map(field => (
             <div key={field.key} className="space-y-1.5">
@@ -1460,19 +1497,21 @@ export default function PurchaseOrderDetailPage() {
   }
 
   return (
-    <DashboardLayout hideBreadcrumb customBreadcrumb={breadcrumbContent}>
-      <div className="flex h-full min-h-0 flex-col space-y-6 overflow-y-auto pr-2">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full border bg-emerald-50 border-emerald-200 text-emerald-600">
-              <Package2 className="h-6 w-6" />
-            </span>
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">
-                {order.poNumber || order.orderNumber}
-              </h1>
-              <p className="text-sm text-muted-foreground">
+    <DashboardLayout>
+      <PageContainer>
+        <PageHeaderSection
+          title={order.poNumber || order.orderNumber}
+          description="Operations"
+          icon={Package2}
+          metadata={
+            <>
+              <Badge className={statusBadgeClasses(order.status)}>
+                {formatStatusLabel(order.status)}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                Supplier: {order.counterpartyName || '—'}
+              </span>
+              <span className="text-sm text-muted-foreground">
                 {order.warehouseCode || order.warehouseName ? (
                   <>
                     Warehouse: {order.warehouseName ?? order.warehouseCode}
@@ -1483,35 +1522,52 @@ export default function PurchaseOrderDetailPage() {
                 ) : (
                   'Warehouse: Not assigned'
                 )}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {canDownloadPdf && (
-              <Button variant="outline" size="sm" asChild>
-                <a
-                  href={withBasePath(`/api/purchase-orders/${order.id}/pdf`)}
-                  download
-                  className="flex items-center"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  PDF
-                </a>
-              </Button>
-            )}
-            {!isTerminal && (
+              </span>
+            </>
+          }
+          actions={
+            <>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                onClick={() => handleTransition('CANCELLED')}
-                disabled={transitioning}
-                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                onClick={() => router.back()}
+                className="gap-2"
               >
-                <Trash2 className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
+                Back
               </Button>
-            )}
-          </div>
-        </div>
+              {canDownloadPdf && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleDownloadPdf()}
+                  disabled={pdfDownloading}
+                  className="gap-2"
+                >
+                  {pdfDownloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  PDF
+                </Button>
+              )}
+              {!isTerminal && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleTransition('CANCELLED')}
+                  disabled={transitioning}
+                  className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </>
+          }
+        />
+        <PageContent>
+          <div className="flex flex-col gap-6">
 
         {/* Stage Progress Bar */}
         {!order.isLegacy && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
@@ -1827,8 +1883,8 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-4">
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-sm text-slate-700">
-                    This PO has been issued to the supplier. Capture supplier confirmation (e.g.
-                    proforma invoice) before advancing to manufacturing.
+                    This PO has been accepted by the supplier (signed PI received). Draft details
+                    and line items are now locked.
                   </p>
                 </div>
 
@@ -2244,7 +2300,7 @@ export default function PurchaseOrderDetailPage() {
             {activeBottomTab === 'cargo' && (
               <div className="ml-auto flex items-center gap-3 pr-6">
                 <span className="text-sm text-muted-foreground">
-                  Total: {totalQuantity.toLocaleString()} cartons
+                  Total: {totalUnits.toLocaleString()} units · {totalCartons.toLocaleString()} cartons
                 </span>
                 {canEdit && (
                   <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
@@ -2274,8 +2330,10 @@ export default function PurchaseOrderDetailPage() {
                               ...prev,
                               skuId,
                               batchLot: '',
-                              storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-                              shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+                              unitsOrdered: 1,
+                              unitsPerCarton: null,
+                              totalCost: '',
+                              notes: '',
                             }))
                             void ensureSkuBatchesLoaded(skuId)
                           }}
@@ -2310,10 +2368,7 @@ export default function PurchaseOrderDetailPage() {
                               return {
                                 ...prev,
                                 batchLot,
-                                storageCartonsPerPallet:
-                                  selected?.storageCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
-                                shippingCartonsPerPallet:
-                                  selected?.shippingCartonsPerPallet ?? DEFAULT_CARTONS_PER_PALLET,
+                                unitsPerCarton: selected?.unitsPerCarton ?? null,
                               }
                             })
                           }}
@@ -2336,78 +2391,114 @@ export default function PurchaseOrderDetailPage() {
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-2">
                           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Storage cartons / pallet
+                            Units
                           </label>
                           <Input
                             type="number"
                             inputMode="numeric"
                             min="1"
                             step="1"
-                            value={newLineDraft.storageCartonsPerPallet}
+                            value={newLineDraft.unitsOrdered}
                             onChange={e =>
                               setNewLineDraft(prev => ({
                                 ...prev,
-                                storageCartonsPerPallet: parseInt(e.target.value) || 0,
+                                unitsOrdered: parseInt(e.target.value) || 0,
                               }))
                             }
-                            disabled={!newLineDraft.skuId || addLineSubmitting}
+                            disabled={addLineSubmitting}
                           />
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Shipping cartons / pallet
+                            Units/Ctn
                           </label>
                           <Input
                             type="number"
                             inputMode="numeric"
                             min="1"
                             step="1"
-                            value={newLineDraft.shippingCartonsPerPallet}
+                            value={newLineDraft.unitsPerCarton ?? ''}
                             onChange={e =>
                               setNewLineDraft(prev => ({
                                 ...prev,
-                                shippingCartonsPerPallet: parseInt(e.target.value) || 0,
+                                unitsPerCarton: (() => {
+                                  const parsed = Number.parseInt(e.target.value, 10)
+                                  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                                })(),
                               }))
                             }
-                            disabled={!newLineDraft.skuId || addLineSubmitting}
+                            disabled={!newLineDraft.skuId || !newLineDraft.batchLot || addLineSubmitting}
+                            placeholder="—"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Cartons
+                          </label>
+                          <Input
+                            value={(() => {
+                              if (!newLineDraft.unitsPerCarton) return '—'
+                              if (newLineDraft.unitsOrdered <= 0) return '—'
+                              if (newLineDraft.unitsOrdered % newLineDraft.unitsPerCarton !== 0) return '—'
+                              return String(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
+                            })()}
+                            readOnly
+                            disabled
+                            className="bg-muted/30 text-muted-foreground"
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Qty
-                          </label>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Total Cost
+                        </label>
+                        <div className="relative">
                           <Input
                             type="number"
-                            min="1"
-                            value={newLineDraft.quantity}
+                            step="0.01"
+                            min="0"
+                            value={newLineDraft.totalCost}
                             onChange={e =>
-                              setNewLineDraft(prev => ({
-                                ...prev,
-                                quantity: parseInt(e.target.value) || 0,
-                              }))
+                              setNewLineDraft(prev => ({ ...prev, totalCost: e.target.value }))
                             }
+                            placeholder="0.00"
+                            className="pr-12"
                             disabled={addLineSubmitting}
                           />
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
+                            {tenantCurrency}
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Notes
-                          </label>
-                          <Input
-                            value={newLineDraft.notes}
-                            onChange={e =>
-                              setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
-                            }
-                            placeholder="Optional"
-                            disabled={addLineSubmitting}
-                          />
-                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          Unit:{' '}
+                          {(() => {
+                            const trimmed = newLineDraft.totalCost.trim()
+                            if (!trimmed) return '—'
+                            const parsed = Number(trimmed)
+                            if (!Number.isFinite(parsed) || parsed < 0) return '—'
+                            if (!Number.isInteger(newLineDraft.unitsOrdered) || newLineDraft.unitsOrdered <= 0)
+                              return '—'
+                            return (parsed / newLineDraft.unitsOrdered).toFixed(4)
+                          })()}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Notes
+                        </label>
+                        <Input
+                          value={newLineDraft.notes}
+                          onChange={e =>
+                            setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
+                          }
+                          placeholder="Optional"
+                          disabled={addLineSubmitting}
+                        />
                       </div>
 
                       <div className="flex items-center justify-end gap-2">
@@ -2424,7 +2515,13 @@ export default function PurchaseOrderDetailPage() {
                           type="button"
                           size="sm"
                           onClick={() => void handleAddLineItem()}
-                          disabled={!newLineDraft.skuId || addLineSubmitting}
+                          disabled={
+                            !newLineDraft.skuId ||
+                            !newLineDraft.batchLot ||
+                            !newLineDraft.unitsPerCarton ||
+                            newLineDraft.unitsOrdered <= 0 ||
+                            addLineSubmitting
+                          }
                           className="gap-2"
                         >
                           {addLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -2442,13 +2539,21 @@ export default function PurchaseOrderDetailPage() {
           {activeBottomTab === 'cargo' && (
             <div>
               <div className="border-b bg-slate-50/50 px-4 py-3">
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Total Units
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {totalUnits.toLocaleString()}
+                    </p>
+                  </div>
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Total Cartons
                     </p>
                     <p className="text-sm font-semibold text-slate-900">
-                      {totalQuantity.toLocaleString()}
+                      {totalCartons.toLocaleString()}
                     </p>
                   </div>
                   <div className="space-y-1">
@@ -2483,9 +2588,12 @@ export default function PurchaseOrderDetailPage() {
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
                       <th className="px-4 py-2 text-left font-semibold">SKU</th>
-                      <th className="px-4 py-2 text-left font-semibold">Description</th>
                       <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
-                      <th className="px-4 py-2 text-right font-semibold">Cartons Ordered</th>
+                      <th className="px-4 py-2 text-left font-semibold">Description</th>
+                      <th className="px-4 py-2 text-right font-semibold">Units</th>
+                      <th className="px-4 py-2 text-right font-semibold">Units/Ctn</th>
+                      <th className="px-4 py-2 text-right font-semibold">Cartons</th>
+                      <th className="px-4 py-2 text-right font-semibold">Total</th>
                       <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
                       <th className="px-4 py-2 text-left font-semibold">Status</th>
                     </tr>
@@ -2493,7 +2601,7 @@ export default function PurchaseOrderDetailPage() {
                   <tbody>
                     {order.lines.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                        <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
                           No lines added to this order yet.
                         </td>
                       </tr>
@@ -2503,14 +2611,36 @@ export default function PurchaseOrderDetailPage() {
                           <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
                             {line.skuCode}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
-                            {line.skuDescription || '—'}
-                          </td>
                           <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                             {line.batchLot || '—'}
                           </td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate">
+                            {line.skuDescription || '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                            {line.unitsOrdered.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                            {line.unitsPerCarton.toLocaleString()}
+                          </td>
                           <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
                             {line.quantity.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                            <div className="text-right">
+                              <div className="font-semibold text-foreground">
+                                {line.totalCost !== null
+                                  ? `${line.totalCost.toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })} ${(line.currency || tenantCurrency).toUpperCase()}`
+                                  : '—'}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Unit:{' '}
+                                {line.unitCost !== null ? Number(line.unitCost).toFixed(4) : '—'}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
                             {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
@@ -3366,10 +3496,22 @@ export default function PurchaseOrderDetailPage() {
                 }}
                 disabled={
                   transitioning ||
+                  pdfDownloading ||
                   documentsLoading ||
                   !nextStageDocsComplete ||
                   (nextStage.value === 'ISSUED' &&
-                    (!order.expectedDate || !order.incoterms || !order.paymentTerms))
+                    (!order.expectedDate ||
+                      !order.incoterms ||
+                      !order.paymentTerms ||
+                      !(
+                        stageFormData.proformaInvoiceNumber?.trim() ||
+                        order.stageData.manufacturing.proformaInvoiceNumber?.trim()
+                      ))) ||
+                  (nextStage.value === 'MANUFACTURING' &&
+                    !(
+                      stageFormData.manufacturingStartDate?.trim() ||
+                      order.stageData.manufacturing.manufacturingStartDate
+                    ))
                 }
                 className="gap-2"
               >
@@ -3498,6 +3640,8 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
       )}
+          </PageContent>
+        </PageContainer>
     </DashboardLayout>
   )
 }

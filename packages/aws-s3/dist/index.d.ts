@@ -32,7 +32,7 @@ export type FileContext = {
     tenantCode?: string;
     /** Optional public order number (e.g., PO-0001) to keep PO uploads human-navigable in S3. */
     purchaseOrderNumber?: string;
-    stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
+    stage: 'ISSUED' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
     documentType: string;
 } | {
     type: 'fulfillment-order';

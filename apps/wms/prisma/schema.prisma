@@ -551,8 +551,11 @@ model PurchaseOrderLine {
   skuCode           String                  @map("sku_code")
   skuDescription    String?                 @map("sku_description")
   batchLot          String?                 @map("batch_lot")
+  unitsOrdered      Int                     @map("units_ordered")
+  unitsPerCarton    Int                     @map("units_per_carton")
   quantity          Int
-  unitCost          Decimal?                @map("unit_cost") @db.Decimal(12, 2)
+  unitCost          Decimal?                @map("unit_cost") @db.Decimal(12, 4)
+  totalCost         Decimal?                @map("total_cost") @db.Decimal(12, 2)
   currency          String                  @default("USD")
   status            PurchaseOrderLineStatus @default(PENDING)
   postedQuantity    Int                     @default(0) @map("posted_quantity")
@@ -880,6 +883,7 @@ enum OutboundShipMode {
 }
 
 enum PurchaseOrderDocumentStage {
+  ISSUED
   MANUFACTURING
   OCEAN
   WAREHOUSE

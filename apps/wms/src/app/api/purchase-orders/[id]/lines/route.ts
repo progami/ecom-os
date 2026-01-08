@@ -10,13 +10,37 @@ const CreateLineSchema = z.object({
   skuCode: z.string().trim().min(1),
   skuDescription: z.string().optional(),
   batchLot: z.string().trim().min(1),
-  quantity: z.number().int().positive(),
-  storageCartonsPerPallet: z.number().int().positive().optional(),
-  shippingCartonsPerPallet: z.number().int().positive().optional(),
-  unitCost: z.number().optional(),
+  unitsOrdered: z.number().int().positive(),
+  unitsPerCarton: z.number().int().positive(),
+  totalCost: z.number().min(0).optional(),
   currency: z.string().optional(),
   notes: z.string().optional(),
 })
+
+function computeCartonsOrdered(input: {
+  skuCode: string
+  unitsOrdered: number
+  unitsPerCarton: number
+}): number {
+  const unitsOrdered = Number(input.unitsOrdered)
+  const unitsPerCarton = Number(input.unitsPerCarton)
+
+  if (!Number.isInteger(unitsOrdered) || unitsOrdered <= 0) {
+    throw new Error(`Units ordered must be a positive integer for SKU ${input.skuCode}`)
+  }
+
+  if (!Number.isInteger(unitsPerCarton) || unitsPerCarton <= 0) {
+    throw new Error(`Units per carton must be a positive integer for SKU ${input.skuCode}`)
+  }
+
+  if (unitsOrdered % unitsPerCarton !== 0) {
+    throw new Error(
+      `Units ordered must be a multiple of units per carton for SKU ${input.skuCode} (${unitsOrdered} ÷ ${unitsPerCarton})`
+    )
+  }
+
+  return unitsOrdered / unitsPerCarton
+}
 
 /**
  * GET /api/purchase-orders/[id]/lines
@@ -37,16 +61,19 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
   }
 
   return ApiResponses.success({
-    data: order.lines.map(line => ({
-      id: line.id,
-      skuCode: line.skuCode,
-      skuDescription: line.skuDescription,
-      batchLot: line.batchLot,
-      quantity: line.quantity,
-      unitCost: line.unitCost ? Number(line.unitCost) : null,
-      currency: line.currency || tenant.currency,
-      status: line.status,
-      postedQuantity: line.postedQuantity,
+	    data: order.lines.map(line => ({
+	      id: line.id,
+	      skuCode: line.skuCode,
+	      skuDescription: line.skuDescription,
+	      batchLot: line.batchLot,
+	      unitsOrdered: line.unitsOrdered,
+	      unitsPerCarton: line.unitsPerCarton,
+	      quantity: line.quantity,
+	      unitCost: line.unitCost ? Number(line.unitCost) : null,
+	      totalCost: line.totalCost ? Number(line.totalCost) : null,
+	      currency: line.currency || tenant.currency,
+	      status: line.status,
+	      postedQuantity: line.postedQuantity,
       quantityReceived: line.quantityReceived,
       lineNotes: line.lineNotes,
       createdAt: line.createdAt.toISOString(),
@@ -138,18 +165,17 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     )
   }
 
-  const batchUpdate: Prisma.SkuBatchUpdateInput = {}
-  if (result.data.storageCartonsPerPallet !== undefined) {
-    batchUpdate.storageCartonsPerPallet = result.data.storageCartonsPerPallet
-  }
-  if (result.data.shippingCartonsPerPallet !== undefined) {
-    batchUpdate.shippingCartonsPerPallet = result.data.shippingCartonsPerPallet
-  }
-  if (Object.keys(batchUpdate).length > 0) {
-    await prisma.skuBatch.update({
-      where: { id: existingBatch.id },
-      data: batchUpdate,
+  let cartonsOrdered: number
+  try {
+    cartonsOrdered = computeCartonsOrdered({
+      skuCode: sku.skuCode,
+      unitsOrdered: result.data.unitsOrdered,
+      unitsPerCarton: result.data.unitsPerCarton,
     })
+  } catch (error) {
+    return ApiResponses.badRequest(
+      error instanceof Error ? error.message : 'Invalid units/carton inputs'
+    )
   }
 
   let line
@@ -160,8 +186,19 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
         skuCode: sku.skuCode,
         skuDescription: result.data.skuDescription ?? sku.description ?? '',
         batchLot: existingBatch.batchCode,
-        quantity: result.data.quantity,
-        unitCost: result.data.unitCost,
+        unitsOrdered: result.data.unitsOrdered,
+        unitsPerCarton: result.data.unitsPerCarton,
+        quantity: cartonsOrdered,
+        totalCost:
+          typeof result.data.totalCost === 'number' && Number.isFinite(result.data.totalCost)
+            ? result.data.totalCost.toFixed(2)
+            : undefined,
+        unitCost:
+          typeof result.data.totalCost === 'number' &&
+          Number.isFinite(result.data.totalCost) &&
+          result.data.unitsOrdered > 0
+            ? (result.data.totalCost / result.data.unitsOrdered).toFixed(4)
+            : undefined,
         currency: result.data.currency || tenant.currency,
         lineNotes: result.data.notes,
         status: 'PENDING',
@@ -187,11 +224,12 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
       skuCode: line.skuCode,
       skuDescription: line.skuDescription ?? null,
       batchLot: line.batchLot ?? null,
+      unitsOrdered: line.unitsOrdered,
+      unitsPerCarton: line.unitsPerCarton,
       quantity: line.quantity,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
       currency: line.currency ?? null,
-      storageCartonsPerPallet: result.data.storageCartonsPerPallet ?? null,
-      shippingCartonsPerPallet: result.data.shippingCartonsPerPallet ?? null,
+      totalCost: line.totalCost ? Number(line.totalCost) : null,
       notes: line.lineNotes ?? null,
     },
   })
@@ -201,8 +239,11 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     skuCode: line.skuCode,
     skuDescription: line.skuDescription,
     batchLot: line.batchLot,
+    unitsOrdered: line.unitsOrdered,
+    unitsPerCarton: line.unitsPerCarton,
     quantity: line.quantity,
     unitCost: line.unitCost ? Number(line.unitCost) : null,
+    totalCost: line.totalCost ? Number(line.totalCost) : null,
     currency: line.currency || tenant.currency,
     status: line.status,
     postedQuantity: line.postedQuantity,

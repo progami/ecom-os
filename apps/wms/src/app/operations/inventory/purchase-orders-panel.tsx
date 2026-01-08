@@ -26,6 +26,8 @@ export interface PurchaseOrderLineSummary {
   skuCode: string
   skuDescription: string | null
   batchLot: string | null
+  unitsOrdered: number
+  unitsPerCarton: number
   quantity: number
   unitCost: number | null
   status: PurchaseOrderLineStatusOption
@@ -87,7 +89,11 @@ function formatDateDisplay(value: string | null) {
   return format(parsed, 'PP')
 }
 
-function sumLineQuantities(lines: PurchaseOrderLineSummary[]) {
+function sumLineUnits(lines: PurchaseOrderLineSummary[]) {
+  return lines.reduce((sum, line) => sum + (line.unitsOrdered ?? 0), 0)
+}
+
+function sumLineCartons(lines: PurchaseOrderLineSummary[]) {
   return lines.reduce((sum, line) => sum + line.quantity, 0)
 }
 
@@ -235,14 +241,14 @@ export function PurchaseOrdersPanel({
       cols.push(
         {
           key: 'ordered',
-          header: 'Ordered',
+          header: 'Cartons Ordered',
           thClassName: 'text-right',
           tdClassName: 'px-3 py-2 text-right font-semibold whitespace-nowrap',
-          render: order => sumLineQuantities(order.lines).toLocaleString(),
+          render: order => sumLineCartons(order.lines).toLocaleString(),
         },
         {
           key: 'received',
-          header: 'Received',
+          header: 'Cartons Received',
           thClassName: 'text-right',
           tdClassName: 'px-3 py-2 text-right font-semibold whitespace-nowrap',
           render: order => sumReceivedQuantities(order.lines).toLocaleString(),
@@ -279,10 +285,10 @@ export function PurchaseOrdersPanel({
     } else {
       cols.push({
         key: 'quantity',
-        header: 'Quantity',
+        header: 'Units',
         thClassName: 'text-right',
         tdClassName: 'px-3 py-2 text-right font-semibold whitespace-nowrap',
-        render: order => sumLineQuantities(order.lines).toLocaleString(),
+        render: order => sumLineUnits(order.lines).toLocaleString(),
       })
     }
 
@@ -352,7 +358,7 @@ export function PurchaseOrdersPanel({
         cols.push(
           {
             key: 'supplier-ref',
-            header: 'Supplier Ref (PI)',
+            header: 'PI #',
             tdClassName: 'px-3 py-2',
             render: order => (
               <span className="block min-w-[180px] text-sm font-medium text-foreground">
