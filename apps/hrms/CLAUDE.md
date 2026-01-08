@@ -1,4 +1,4 @@
-# HRMS App - Claude Instructions
+# Atlas App - Claude Instructions
 
 ## Port Configuration
 

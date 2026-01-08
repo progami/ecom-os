@@ -20,7 +20,7 @@ async function findExistingOpenRequest(employeeId: string): Promise<{ id: string
   return prisma.task.findFirst({
     where: {
       createdById: employeeId,
-      title: 'HRMS access request',
+      title: { in: ['HRMS access request', 'Atlas access request'] },
       status: { in: ['OPEN', 'IN_PROGRESS'] },
       createdAt: { gte: since },
     },
@@ -78,13 +78,13 @@ export async function POST(req: Request) {
     const recipients = hrEmployees.length > 0 ? hrEmployees : superAdmins
     const assigneeId = recipients[0]?.id ?? null
 
-    const reason = validation.data.reason?.trim() || 'HRMS access request'
+    const reason = validation.data.reason?.trim() || 'Atlas access request'
     const note = validation.data.note?.trim() || null
     const requesterName = formatName(employee.firstName, employee.lastName)
 
     const task = await prisma.task.create({
       data: {
-        title: 'HRMS access request',
+        title: 'Atlas access request',
         description: [
           `Requester: ${requesterName}`,
           `Email: ${employee.email}`,
@@ -93,8 +93,8 @@ export async function POST(req: Request) {
           note ? `Note: ${note}` : null,
           '',
           'Next steps:',
-          '- Confirm the user should have HRMS entitlement in the Portal.',
-          '- If approved, grant HRMS access and assign appropriate HRMS roles.',
+          '- Confirm the user should have Atlas entitlement in the Portal.',
+          '- If approved, grant Atlas access and assign appropriate Atlas roles.',
         ]
           .filter(Boolean)
           .join('\n'),
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
           data: {
             type: 'SYSTEM',
             title,
-            message: `${requesterName} requested HRMS access.`,
+            message: `${requesterName} requested Atlas access.`,
             link: '/admin/access',
             employeeId: r.id,
             relatedType: 'TASK',
