@@ -8,7 +8,6 @@ import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, FileEdit, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
@@ -487,24 +486,25 @@ export default function NewPurchaseOrderPage() {
           }
         />
         <PageContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Order Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
+          <form onSubmit={handleSubmit}>
+            {/* Two-column layout: Order Details (left) + Line Items (right) */}
+            <div className="flex gap-6 items-start">
+              {/* Left Column: Order Details - Fixed width */}
+              <div className="w-[340px] flex-shrink-0 space-y-4">
+                <div className="rounded-xl border bg-white p-5 space-y-4 overflow-visible">
+                  <h3 className="text-sm font-semibold text-slate-900">Order Details</h3>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
                       Supplier <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.supplierId}
                       onChange={e => handleSupplierChange(e.target.value)}
-                      className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      className="w-full h-9 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
                       required
                     >
-                      <option value="">Select a supplier</option>
+                      <option value="">Select supplier</option>
                       {suppliers.map(supplier => (
                         <option key={supplier.id} value={supplier.id}>
                           {supplier.name}
@@ -513,22 +513,27 @@ export default function NewPurchaseOrderPage() {
                       ))}
                     </select>
                     {suppliers.length === 0 && !loading && (
-                      <p className="text-sm text-muted-foreground">
-                        No suppliers found.{' '}
-                        <Link href="/config/suppliers" className="text-primary hover:underline">
+                      <p className="text-xs text-muted-foreground">
+                        No suppliers.{' '}
+                        <Link href="/config/suppliers" className="text-cyan-600 hover:underline">
                           Add one
                         </Link>
                       </p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Destination Country</label>
-                    <Input value={tenantDestination} disabled readOnly />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">Destination</label>
+                    <Input
+                      value={tenantDestination}
+                      disabled
+                      readOnly
+                      className="h-9 text-sm bg-slate-50"
+                    />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
                       Cargo Ready Date <span className="text-red-500">*</span>
                     </label>
                     <Input
@@ -537,18 +542,21 @@ export default function NewPurchaseOrderPage() {
                       onChange={e =>
                         setFormData(prev => ({ ...prev, expectedDate: e.target.value }))
                       }
+                      className="h-9 text-sm"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
                       Incoterms <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.incoterms}
-                      onChange={e => setFormData(prev => ({ ...prev, incoterms: e.target.value }))}
-                      className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      onChange={e =>
+                        setFormData(prev => ({ ...prev, incoterms: e.target.value }))
+                      }
+                      className="w-full h-9 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
                       required
                     >
                       <option value="">Select incoterms</option>
@@ -559,18 +567,14 @@ export default function NewPurchaseOrderPage() {
                       ))}
                     </select>
                     {formData.supplierId && !selectedSupplier?.defaultIncoterms && (
-                      <p className="text-xs text-muted-foreground">
-                        No default incoterms set for this supplier. Set one in{' '}
-                        <Link href="/config/suppliers" className="text-primary hover:underline">
-                          Config → Suppliers
-                        </Link>
-                        .
+                      <p className="text-[11px] text-amber-600">
+                        No default incoterms for this supplier
                       </p>
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
                       Payment Terms <span className="text-red-500">*</span>
                     </label>
                     <Input
@@ -579,264 +583,272 @@ export default function NewPurchaseOrderPage() {
                         setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))
                       }
                       placeholder="e.g., 30% deposit, 70% before shipment"
+                      className="h-9 text-sm"
                       required
                     />
                     {formData.supplierId && !selectedSupplier?.defaultPaymentTerms && (
-                      <p className="text-xs text-muted-foreground">
-                        No default payment terms set for this supplier. Set one in{' '}
-                        <Link href="/config/suppliers" className="text-primary hover:underline">
-                          Config → Suppliers
-                        </Link>
-                        .
+                      <p className="text-[11px] text-amber-600">
+                        No default payment terms for this supplier
                       </p>
                     )}
                   </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">Notes</label>
+                    <Textarea
+                      value={formData.notes}
+                      onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Optional internal notes…"
+                      rows={2}
+                      className="text-sm resize-none"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Notes</label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Optional internal notes…"
-                    rows={3}
-                  />
+                {/* Action buttons - sticky at bottom of left column */}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.push('/operations/purchase-orders')}
+                    disabled={submitting}
+                    className="flex-1 h-9"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={
+                      submitting ||
+                      !formData.supplierId ||
+                      !formData.expectedDate ||
+                      !formData.incoterms ||
+                      !formData.paymentTerms.trim() ||
+                      lineItems.length === 0
+                    }
+                    className="flex-1 h-9"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Order'
+                    )}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card>
-              <CardHeader className="flex-row items-center justify-between gap-4 space-y-0">
-                <div>
-                  <CardTitle className="text-base">Line Items</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Add products to this purchase order
-                  </p>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Item
-                </Button>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="rounded-lg border bg-white overflow-x-auto">
-                  <div className="min-w-[980px]">
-                    {/* Table Header */}
-                    <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground p-3 border-b bg-slate-50/50">
-                      <div className="col-span-3">SKU</div>
-                      <div className="col-span-2">Batch/Lot</div>
-                      <div className="col-span-3">Description</div>
-                      <div className="col-span-1">Cartons</div>
-                      <div className="col-span-2">Actual Cost</div>
-                      <div className="col-span-2">Notes</div>
-                      <div className="col-span-1"></div>
+              {/* Right Column: Line Items - Flexible width */}
+              <div className="flex-1 min-w-0">
+                <div className="rounded-xl border bg-white overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3 border-b bg-slate-50/50">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-900">Line Items</h3>
+                      <p className="text-xs text-muted-foreground">
+                        {lineItems.length} item{lineItems.length !== 1 ? 's' : ''}
+                      </p>
                     </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Item
+                    </Button>
+                  </div>
 
-                    {/* Line Items */}
-                    <div className="divide-y">
-                      {lineItems.map(item => (
-                        <div key={item.id} className="grid grid-cols-14 gap-2 items-start p-3">
-                          <div className="col-span-3">
-                            <select
-                              value={item.skuCode}
-                              onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
-                              className="w-full h-8 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                              required
-                            >
-                              <option value="">Select SKU</option>
-                              {skus.map(sku => (
-                                <option key={sku.id} value={sku.skuCode}>
-                                  {sku.skuCode}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div className="col-span-2 space-y-2">
-                            <select
-                              value={item.batchLot}
-                              onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
-                              className="w-full h-8 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                              required
-                              disabled={!item.skuId}
-                            >
-                              {item.skuId ? (
-                                batchesLoadingBySkuId[item.skuId] ? (
-                                  <option value="">Loading…</option>
-                                ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
-                                  (batchesBySkuId[item.skuId] ?? []).map(batch => (
-                                    <option key={batch.batchCode} value={batch.batchCode}>
-                                      {batch.batchCode}
-                                    </option>
-                                  ))
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[820px]">
+                      {/* Table Header */}
+                      <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground px-4 py-2.5 border-b bg-slate-50/30">
+                        <div className="col-span-2">SKU</div>
+                        <div className="col-span-2">Batch/Lot</div>
+                        <div className="col-span-3">Description</div>
+                        <div className="col-span-1">Qty</div>
+                        <div className="col-span-2">Actual Cost</div>
+                        <div className="col-span-2">Notes</div>
+                      </div>
+
+                      {/* Line Items */}
+                      <div className="divide-y">
+                        {lineItems.map(item => (
+                          <div
+                            key={item.id}
+                            className="grid grid-cols-12 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
+                          >
+                            <div className="col-span-2">
+                              <select
+                                value={item.skuCode}
+                                onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
+                                className="w-full h-8 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
+                                required
+                              >
+                                <option value="">Select SKU</option>
+                                {skus.map(sku => (
+                                  <option key={sku.id} value={sku.skuCode}>
+                                    {sku.skuCode}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="col-span-2 space-y-1.5">
+                              <select
+                                value={item.batchLot}
+                                onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
+                                className="w-full h-8 px-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
+                                required
+                                disabled={!item.skuId}
+                              >
+                                {item.skuId ? (
+                                  batchesLoadingBySkuId[item.skuId] ? (
+                                    <option value="">Loading…</option>
+                                  ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
+                                    (batchesBySkuId[item.skuId] ?? []).map(batch => (
+                                      <option key={batch.batchCode} value={batch.batchCode}>
+                                        {batch.batchCode}
+                                      </option>
+                                    ))
+                                  ) : (
+                                    <option value="">No batches</option>
+                                  )
                                 ) : (
-                                  <option value="">No batches found</option>
-                                )
-                              ) : (
-                                <option value="">Select SKU first</option>
-                              )}
-                            </select>
+                                  <option value="">Select SKU first</option>
+                                )}
+                              </select>
 
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                  Storage
-                                </p>
-                                <Input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  step={1}
-                                  value={item.storageCartonsPerPallet ?? ''}
-                                  onChange={e =>
-                                    updateLineItem(
-                                      item.id,
-                                      'storageCartonsPerPallet',
-                                      (() => {
-                                        const parsed = Number.parseInt(e.target.value, 10)
-                                        return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-                                      })()
-                                    )
-                                  }
-                                  placeholder="—"
-                                  className="h-8 text-xs"
-                                  disabled={!item.skuId || !item.batchLot}
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                  Shipping
-                                </p>
-                                <Input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  step={1}
-                                  value={item.shippingCartonsPerPallet ?? ''}
-                                  onChange={e =>
-                                    updateLineItem(
-                                      item.id,
-                                      'shippingCartonsPerPallet',
-                                      (() => {
-                                        const parsed = Number.parseInt(e.target.value, 10)
-                                        return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-                                      })()
-                                    )
-                                  }
-                                  placeholder="—"
-                                  className="h-8 text-xs"
-                                  disabled={!item.skuId || !item.batchLot}
-                                  required
-                                />
+                              <div className="flex gap-1.5">
+                                <div className="flex-1">
+                                  <p className="text-[9px] font-medium text-muted-foreground uppercase mb-0.5">
+                                    Stor
+                                  </p>
+                                  <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    step={1}
+                                    value={item.storageCartonsPerPallet ?? ''}
+                                    onChange={e =>
+                                      updateLineItem(
+                                        item.id,
+                                        'storageCartonsPerPallet',
+                                        (() => {
+                                          const parsed = Number.parseInt(e.target.value, 10)
+                                          return Number.isInteger(parsed) && parsed > 0
+                                            ? parsed
+                                            : null
+                                        })()
+                                      )
+                                    }
+                                    placeholder="—"
+                                    className="h-7 text-xs px-1.5"
+                                    disabled={!item.skuId || !item.batchLot}
+                                    required
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-[9px] font-medium text-muted-foreground uppercase mb-0.5">
+                                    Ship
+                                  </p>
+                                  <Input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    step={1}
+                                    value={item.shippingCartonsPerPallet ?? ''}
+                                    onChange={e =>
+                                      updateLineItem(
+                                        item.id,
+                                        'shippingCartonsPerPallet',
+                                        (() => {
+                                          const parsed = Number.parseInt(e.target.value, 10)
+                                          return Number.isInteger(parsed) && parsed > 0
+                                            ? parsed
+                                            : null
+                                        })()
+                                      )
+                                    }
+                                    placeholder="—"
+                                    className="h-7 text-xs px-1.5"
+                                    disabled={!item.skuId || !item.batchLot}
+                                    required
+                                  />
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="col-span-3">
-                            <Input
-                              value={item.skuDescription}
-                              onChange={e =>
-                                updateLineItem(item.id, 'skuDescription', e.target.value)
-                              }
-                              placeholder="Description"
-                              className="text-sm h-8"
-                            />
-                          </div>
-                          <div className="col-span-1">
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={e =>
-                                updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)
-                              }
-                              className="text-sm h-8"
-                              required
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <div className="relative">
+                            <div className="col-span-3">
+                              <Input
+                                value={item.skuDescription}
+                                onChange={e =>
+                                  updateLineItem(item.id, 'skuDescription', e.target.value)
+                                }
+                                placeholder="Description"
+                                className="text-sm h-8"
+                              />
+                            </div>
+                            <div className="col-span-1">
                               <Input
                                 type="number"
-                                step="0.01"
-                                min="0"
-                                value={item.actualCost}
+                                min="1"
+                                value={item.quantity}
                                 onChange={e =>
-                                  updateLineItem(item.id, 'actualCost', e.target.value)
+                                  updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)
                                 }
-                                placeholder="0.00"
-                                className="text-sm h-8 pr-14"
+                                className="text-sm h-8"
+                                required
                               />
-                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
-                                {item.currency}
-                              </div>
                             </div>
-                            <p className="mt-1 text-[11px] text-muted-foreground leading-none">
-                              Unit:{' '}
-                              {(() => {
-                                const money = parseMoney(item.actualCost)
-                                if (money === null) return '—'
-                                const unit = calculateUnitCost(money, item.quantity, 2)
-                                return `${unit.toFixed(2)} ${item.currency}`
-                              })()}
-                            </p>
+                            <div className="col-span-2">
+                              <div className="relative">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={item.actualCost}
+                                  onChange={e =>
+                                    updateLineItem(item.id, 'actualCost', e.target.value)
+                                  }
+                                  placeholder="0.00"
+                                  className="text-sm h-8 pr-12"
+                                />
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
+                                  {item.currency}
+                                </div>
+                              </div>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                Unit:{' '}
+                                {(() => {
+                                  const money = parseMoney(item.actualCost)
+                                  if (money === null) return '—'
+                                  const unit = calculateUnitCost(money, item.quantity, 2)
+                                  return `${unit.toFixed(2)}`
+                                })()}
+                              </p>
+                            </div>
+                            <div className="col-span-2 flex gap-1.5">
+                              <Input
+                                value={item.notes}
+                                onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
+                                placeholder="Notes"
+                                className="text-sm h-8 flex-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeLineItem(item.id)}
+                                disabled={lineItems.length === 1}
+                                className="h-8 w-8 p-0 flex-shrink-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="col-span-2">
-                            <Input
-                              value={item.notes}
-                              onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
-                              placeholder="Notes"
-                              className="text-sm h-8"
-                            />
-                          </div>
-                          <div className="col-span-1 flex justify-end self-center">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeLineItem(item.id)}
-                              disabled={lineItems.length === 1}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </CardContent>
-              <CardFooter className="justify-end gap-3 border-t bg-slate-50/60 p-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push('/operations/purchase-orders')}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    submitting ||
-                    !formData.supplierId ||
-                    !formData.expectedDate ||
-                    !formData.incoterms ||
-                    !formData.paymentTerms.trim() ||
-                    lineItems.length === 0
-                  }
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Purchase Order'
-                  )}
-                </Button>
-              </CardFooter>
-            </Card>
+              </div>
+            </div>
           </form>
         </PageContent>
       </PageContainer>
