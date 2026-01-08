@@ -187,6 +187,10 @@ function getEnvLifecycle(appId: string): AppLifecycle | undefined {
 }
 
 function resolveLifecycle(appId: string): AppLifecycle {
+  if (appId.toLowerCase() === 'hrms') {
+    return 'active'
+  }
+
   const envLifecycle = getEnvLifecycle(appId)
   if (envLifecycle) {
     return envLifecycle
