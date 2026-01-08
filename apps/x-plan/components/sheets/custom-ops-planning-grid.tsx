@@ -267,16 +267,68 @@ type ColumnDef = {
   headerWeeks?: string;
   headerDates?: string;
   width: number;
-  type: 'text' | 'numeric' | 'date' | 'stage';
+  type: 'text' | 'numeric' | 'date' | 'stage' | 'dropdown';
   editable?: boolean;
   precision?: number;
+  options?: ReadonlyArray<{ value: string; label: string }>;
 };
+
+const PURCHASE_ORDER_STATUS_OPTIONS = [
+  { value: 'PLANNED', label: 'Planned' },
+  { value: 'PRODUCTION', label: 'Production' },
+  { value: 'IN_TRANSIT', label: 'Transit' },
+  { value: 'ARRIVED', label: 'Arrived' },
+  { value: 'CLOSED', label: 'Closed' },
+  { value: 'CANCELLED', label: 'Cancelled' },
+] as const;
+
+type PurchaseOrderStatusValue = (typeof PURCHASE_ORDER_STATUS_OPTIONS)[number]['value'];
+
+function normalizePurchaseOrderStatus(value: string): PurchaseOrderStatusValue | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '');
+  switch (normalized) {
+    case 'PLANNED':
+      return 'PLANNED';
+    case 'PRODUCTION':
+      return 'PRODUCTION';
+    case 'INTRANSIT':
+    case 'TRANSIT':
+      return 'IN_TRANSIT';
+    case 'ARRIVED':
+      return 'ARRIVED';
+    case 'CLOSED':
+      return 'CLOSED';
+    case 'CANCELLED':
+    case 'CANCELED':
+      return 'CANCELLED';
+    default:
+      return null;
+  }
+}
+
+function formatPurchaseOrderStatus(value: string): string {
+  const normalized = normalizePurchaseOrderStatus(value);
+  if (!normalized) return value;
+  return (
+    PURCHASE_ORDER_STATUS_OPTIONS.find((option) => option.value === normalized)?.label ?? normalized
+  );
+}
 
 const COLUMNS: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 150, type: 'text', editable: true },
   { key: 'poDate', header: 'PO Date', width: 150, type: 'date', editable: true },
   { key: 'shipName', header: 'Ship', width: 160, type: 'text', editable: true },
   { key: 'containerNumber', header: 'Container #', width: 160, type: 'text', editable: true },
+  {
+    key: 'status',
+    header: 'Status',
+    width: 130,
+    type: 'dropdown',
+    editable: true,
+    options: PURCHASE_ORDER_STATUS_OPTIONS,
+  },
   {
     key: 'productionWeeks',
     header: 'Prod.',
@@ -370,6 +422,15 @@ function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageM
     return toIsoDate(row[column.key]) ?? '';
   }
 
+  if (column.type === 'dropdown') {
+    const currentValue = row[column.key] ?? '';
+    return (
+      normalizePurchaseOrderStatus(currentValue) ??
+      PURCHASE_ORDER_STATUS_OPTIONS[0]?.value ??
+      currentValue
+    );
+  }
+
   return row[column.key] ?? '';
 }
 
@@ -386,6 +447,10 @@ function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: S
     return isoValue ? formatDateDisplay(isoValue) : '';
   }
 
+  if (column.type === 'dropdown') {
+    return formatPurchaseOrderStatus(row[column.key] ?? '');
+  }
+
   return row[column.key] ?? '';
 }
 
@@ -399,12 +464,12 @@ type CustomOpsPlanningRowProps = {
   editValue: string;
   isDatePickerOpen: boolean;
   selection: CellRange | null;
-  inputRef: { current: HTMLInputElement | null };
+  inputRef: { current: HTMLInputElement | HTMLSelectElement | null };
   onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void;
   onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void;
   onSetEditValue: (value: string) => void;
   onCommitEdit?: (nextValue?: string) => void;
-  onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
+  onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void;
   setIsDatePickerOpen: (open: boolean) => void;
   onPointerDown?: (
     e: PointerEvent<HTMLTableCellElement>,
@@ -467,6 +532,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         const isEditable = column.editable !== false;
         const isDateCell =
           column.type === 'date' || (column.type === 'stage' && stageMode === 'dates');
+        const isDropdownCell = column.type === 'dropdown';
         const isNumericCell =
           column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks');
 
@@ -481,7 +547,11 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
           'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
           colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
           isNumericCell && 'text-right',
-          isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+          isEditable
+            ? isDropdownCell
+              ? 'cursor-pointer bg-accent/50 font-medium'
+              : 'cursor-text bg-accent/50 font-medium'
+            : 'bg-muted/50 text-muted-foreground',
           isSelected && 'bg-accent',
           (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
           colIndex === COLUMNS.length - 1 && 'border-r-0',
@@ -499,7 +569,26 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
               className={cellClassName}
               style={{ width: column.width, minWidth: column.width, boxShadow }}
             >
-              {isDateCell ? (
+              {isDropdownCell ? (
+                <select
+                  ref={inputRef as React.RefObject<HTMLSelectElement>}
+                  value={editValue}
+                  onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                    onSetEditValue(event.target.value)
+                  }
+                  onKeyDown={onInputKeyDown}
+                  onBlur={() => onCommitEdit()}
+                  onClick={(event) => event.stopPropagation()}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  className="h-9 w-full bg-transparent px-3 text-sm font-medium text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
+                >
+                  {column.options?.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : isDateCell ? (
                 <Flatpickr
                   value={editValue}
                   options={{
@@ -539,7 +628,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                 />
               ) : (
                 <input
-                  ref={inputRef}
+                  ref={inputRef as React.RefObject<HTMLInputElement>}
                   type="text"
                   value={editValue}
                   onChange={(event: ChangeEvent<HTMLInputElement>) =>
@@ -619,7 +708,7 @@ export function CustomOpsPlanningGrid({
   const [selection, setSelection] = useState<CellRange | null>(null);
   const selectionAnchorRef = useRef<CellCoords | null>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
   const clipboardRef = useRef<HTMLTextAreaElement | null>(null);
   const pasteStartRef = useRef<{ rowId: string; colKey: keyof OpsInputRow } | null>(null);
 
@@ -717,7 +806,9 @@ export function CustomOpsPlanningGrid({
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.select();
+      if (inputRef.current instanceof HTMLInputElement) {
+        inputRef.current.select();
+      }
     }
   }, [editingCell]);
 
@@ -806,6 +897,23 @@ export function CustomOpsPlanningGrid({
           toast.error('Invalid date');
           cancelEditing();
           return;
+        }
+      } else if (column.type === 'dropdown') {
+        if (colKey === 'status') {
+          const normalized = normalizePurchaseOrderStatus(finalValue);
+          if (!normalized) {
+            toast.error('Select a valid status');
+            cancelEditing();
+            return;
+          }
+          finalValue = normalized;
+        } else if (column.options?.length) {
+          const isValid = column.options.some((option) => option.value === finalValue);
+          if (!isValid) {
+            toast.error('Select a valid option');
+            cancelEditing();
+            return;
+          }
         }
       }
 
@@ -1076,10 +1184,13 @@ export function CustomOpsPlanningGrid({
     startEditing(row.id, column.key, getCellEditValue(row, column, stageMode));
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const overrideValue =
+      e.currentTarget instanceof HTMLSelectElement ? e.currentTarget.value : undefined;
+
     if (e.key === 'Enter') {
       e.preventDefault();
-      commitEdit();
+      commitEdit(overrideValue);
       moveSelection(1, 0);
       requestAnimationFrame(() => {
         tableScrollRef.current?.focus();
@@ -1092,11 +1203,13 @@ export function CustomOpsPlanningGrid({
       });
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      commitEdit();
+      commitEdit(overrideValue);
       moveSelectionTab(e.shiftKey ? -1 : 1);
       requestAnimationFrame(() => {
         tableScrollRef.current?.focus();
       });
+    } else if (e.currentTarget instanceof HTMLSelectElement) {
+      return;
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       commitEdit();
@@ -1285,6 +1398,7 @@ export function CustomOpsPlanningGrid({
         const column = COLUMNS[colIndex];
         if (!column || column.editable === false) continue;
         if (column.type === 'stage') continue;
+        if (column.type === 'dropdown') continue;
 
         const colKey = column.key;
         const oldValue = row[colKey] ?? '';
@@ -1420,6 +1534,17 @@ export function CustomOpsPlanningGrid({
         if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
           const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2;
           finalValue = normalizeNumeric(finalValue, precision);
+        }
+
+        if (column.type === 'dropdown') {
+          if (update.colKey === 'status') {
+            const normalized = normalizePurchaseOrderStatus(finalValue);
+            if (!normalized) continue;
+            finalValue = normalized;
+          } else if (column.options?.length) {
+            const isValid = column.options.some((option) => option.value === finalValue);
+            if (!isValid) continue;
+          }
         }
 
         undoEdits.push({
