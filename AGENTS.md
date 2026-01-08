@@ -17,3 +17,7 @@ Once work is complete:
 7. **Fast-forward dev to main** - Ensure `dev` and `main` are on the same commit
 
 Always wait for CI to pass before merging. Merge PRs yourself without requiring approval.
+
+## Deployment & Caching
+
+Do **not** suggest “hard refresh” as a troubleshooting step. Instead, use the in-app version badge (bottom-right) to confirm the deployed version and wait for the deploy pipeline if the version hasn’t updated yet.
