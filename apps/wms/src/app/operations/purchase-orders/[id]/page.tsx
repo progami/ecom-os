@@ -2647,7 +2647,7 @@ export default function PurchaseOrderDetailPage() {
                                     type="file"
                                     className="hidden"
                                     disabled={isUploading}
-                                    onChange={e => void handleDocumentUpload(e, row.stage as DocumentStage, row.documentType)}
+                                    onChange={e => void handleDocumentUpload(e, row.stage as PurchaseOrderDocumentStage, row.documentType)}
                                   />
                                 </label>
                               )}
