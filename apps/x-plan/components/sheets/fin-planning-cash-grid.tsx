@@ -610,7 +610,6 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return;
       if (editingCell) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -810,6 +809,15 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       undo,
     ],
   );
+
+  useEffect(() => {
+    if (!editingCell) return;
+    const coords = editingCell.coords;
+    selectionAnchorRef.current = coords;
+    setActiveCell(coords);
+    setSelection({ from: coords, to: coords });
+    requestAnimationFrame(() => ensureCellVisible(coords));
+  }, [editingCell, ensureCellVisible]);
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {

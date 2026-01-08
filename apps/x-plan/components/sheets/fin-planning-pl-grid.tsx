@@ -640,7 +640,6 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.target !== e.currentTarget) return;
       if (editingCell) return;
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -840,6 +839,15 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       undo,
     ],
   );
+
+  useEffect(() => {
+    if (!editingCell) return;
+    const coords = editingCell.coords;
+    selectionAnchorRef.current = coords;
+    setActiveCell(coords);
+    setSelection({ from: coords, to: coords });
+    requestAnimationFrame(() => ensureCellVisible(coords));
+  }, [editingCell, ensureCellVisible]);
 
   const handleCopy = useCallback(
     (e: ClipboardEvent<HTMLDivElement>) => {
