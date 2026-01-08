@@ -554,15 +554,6 @@ export default function PurchaseOrderDetailPage() {
   const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [transitioning, setTransitioning] = useState(false)
   const [pdfDownloading, setPdfDownloading] = useState(false)
-  const [detailsSaving, setDetailsSaving] = useState(false)
-  const [isEditingDetails, setIsEditingDetails] = useState(false)
-  const [detailsDraft, setDetailsDraft] = useState({
-    counterpartyName: '',
-    expectedDate: '',
-    incoterms: '',
-    paymentTerms: '',
-    notes: '',
-  })
 
   // Stage transition form data
   const [stageFormData, setStageFormData] = useState<Record<string, string>>({})
@@ -603,7 +594,7 @@ export default function PurchaseOrderDetailPage() {
   // Bottom section tabs
   const [activeBottomTab, setActiveBottomTab] = useState<
     'cargo' | 'documents' | 'details' | 'history'
-  >('cargo')
+  >('details')
   const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
 
   // Collapsible sections state for Details tab
@@ -913,18 +904,6 @@ export default function PurchaseOrderDetailPage() {
     void ensureSkusLoaded()
   }, [addLineOpen, ensureSkusLoaded])
 
-  useEffect(() => {
-    if (!order || isEditingDetails) return
-
-    setDetailsDraft({
-      counterpartyName: order.counterpartyName ?? '',
-      expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : '',
-      incoterms: order.incoterms ?? '',
-      paymentTerms: order.paymentTerms ?? '',
-      notes: order.notes ?? '',
-    })
-  }, [order, isEditingDetails])
-
   const currentStageIndex = useMemo(() => {
     if (!order) return 0
     const idx = STAGES.findIndex(s => s.value === order.status)
@@ -939,9 +918,6 @@ export default function PurchaseOrderDetailPage() {
     if (!order) return 'DRAFT'
     return order.status
   }, [selectedStageView, order])
-
-  // Is the active view stage the current stage?
-  const isViewingCurrentStage = activeViewStage === order?.status
 
   // Can user click on a stage to view it?
   const canViewStage = (stageValue: string) => {
@@ -1058,64 +1034,6 @@ export default function PurchaseOrderDetailPage() {
 
   const handleConfirmDialogClose = () => {
     setConfirmDialog({ open: false, type: null, title: '', message: '' })
-  }
-
-  const handleEditDetails = () => {
-    if (!order) return
-    setDetailsDraft({
-      counterpartyName: order.counterpartyName ?? '',
-      expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : '',
-      incoterms: order.incoterms ?? '',
-      paymentTerms: order.paymentTerms ?? '',
-      notes: order.notes ?? '',
-    })
-    setIsEditingDetails(true)
-  }
-
-  const handleCancelEditDetails = () => {
-    if (!order) return
-    setDetailsDraft({
-      counterpartyName: order.counterpartyName ?? '',
-      expectedDate: order.expectedDate ? order.expectedDate.slice(0, 10) : '',
-      incoterms: order.incoterms ?? '',
-      paymentTerms: order.paymentTerms ?? '',
-      notes: order.notes ?? '',
-    })
-    setIsEditingDetails(false)
-  }
-
-  const handleSaveDetails = async () => {
-    if (!order || detailsSaving) return
-    try {
-      setDetailsSaving(true)
-      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          counterpartyName: detailsDraft.counterpartyName,
-          expectedDate: detailsDraft.expectedDate,
-          incoterms: detailsDraft.incoterms,
-          paymentTerms: detailsDraft.paymentTerms,
-          notes: detailsDraft.notes,
-        }),
-      })
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        toast.error(payload?.error ?? 'Failed to update purchase order')
-        return
-      }
-
-      const updated = await response.json()
-      setOrder(updated)
-      toast.success('Purchase order updated')
-      setIsEditingDetails(false)
-      void refreshAuditLogs()
-    } catch (_error) {
-      toast.error('Failed to update purchase order')
-    } finally {
-      setDetailsSaving(false)
-    }
   }
 
   if (status === 'loading' || loading) {
@@ -1722,501 +1640,26 @@ export default function PurchaseOrderDetailPage() {
           </div>
         )}
 
-        {/* Stage-Based Content View */}
-        <div className="rounded-xl border bg-white shadow-sm">
-          {/* Stage Content Header */}
-          <div className="flex items-center justify-between border-b px-6 py-4">
-            <p className="text-xs text-muted-foreground">
-              {isViewingCurrentStage ? 'Current stage' : 'Viewing past stage (read-only)'}
-            </p>
-            {/* Inline edit controls for DRAFT stage */}
-            {activeViewStage === 'DRAFT' && canEdit && (
-              <div className="flex items-center gap-2">
-                {isEditingDetails ? (
-                  <>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveDetails}
-                      disabled={detailsSaving}
-                      className="gap-1.5"
-                    >
-                      <Save className="h-3.5 w-3.5" />
-                      {detailsSaving ? 'Saving...' : 'Save'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={handleCancelEditDetails}
-                      disabled={detailsSaving}
-                      className="gap-1.5"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Cancel
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleEditDetails}
-                    className="gap-1.5"
-                  >
-                    <FileEdit className="h-3.5 w-3.5" />
-                    Edit
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
 
-          {/* Stage Content Body */}
-          <div className="p-6 space-y-6">
-            {/* DRAFT Stage View */}
-            {activeViewStage === 'DRAFT' && (
-              <>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">PO Number</label>
-                    <Input value={order.poNumber || order.orderNumber} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Supplier</label>
-                    <Input value={order.counterpartyName || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Destination Country
-                    </label>
-                    <Input value={tenantDestination || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Cargo Ready Date
-                    </label>
-                    {isEditingDetails ? (
-                      <Input
-                        type="date"
-                        value={detailsDraft.expectedDate}
-                        onChange={e =>
-                          setDetailsDraft(d => ({ ...d, expectedDate: e.target.value }))
-                        }
-                        disabled={detailsSaving}
-                      />
-                    ) : (
-                      <Input
-                        value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
-                        disabled
-                        readOnly
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Incoterms</label>
-                    {isEditingDetails ? (
-                      <select
-                        value={detailsDraft.incoterms}
-                        onChange={e => setDetailsDraft(d => ({ ...d, incoterms: e.target.value }))}
-                        disabled={detailsSaving}
-                        className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      >
-                        <option value="">Select incoterms</option>
-                        {INCOTERMS_OPTIONS.map(option => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <Input value={order.incoterms || '—'} disabled readOnly />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Payment Terms
-                    </label>
-                    {isEditingDetails ? (
-                      <Input
-                        value={detailsDraft.paymentTerms}
-                        onChange={e =>
-                          setDetailsDraft(d => ({ ...d, paymentTerms: e.target.value }))
-                        }
-                        disabled={detailsSaving}
-                        placeholder="e.g., 30% deposit, 70% before shipment"
-                      />
-                    ) : (
-                      <Input value={order.paymentTerms || '—'} disabled readOnly />
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Created</label>
-                    <Input
-                      value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                  {isEditingDetails ? (
-                    <Textarea
-                      value={detailsDraft.notes}
-                      onChange={e => setDetailsDraft(d => ({ ...d, notes: e.target.value }))}
-                      rows={3}
-                      disabled={detailsSaving}
-                      placeholder="Add internal notes for the team"
-                    />
-                  ) : (
-                    <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
-                      {order.notes || (
-                        <span className="text-muted-foreground italic">No notes</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* ISSUED Stage View */}
-            {activeViewStage === 'ISSUED' && (
-              <div className="space-y-4">
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-                  <p className="text-sm text-slate-700">
-                    This PO has been accepted by the supplier (signed PI received). Draft details
-                    and line items are now locked.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">PO Number</label>
-                    <Input value={order.poNumber || order.orderNumber} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Supplier</label>
-                    <Input value={order.counterpartyName || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Destination Country
-                    </label>
-                    <Input value={tenantDestination || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Cargo Ready Date
-                    </label>
-                    <Input
-                      value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Incoterms</label>
-                    <Input value={order.incoterms || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Payment Terms
-                    </label>
-                    <Input value={order.paymentTerms || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Created</label>
-                    <Input
-                      value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                  <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
-                    {order.notes || <span className="text-muted-foreground italic">No notes</span>}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* REJECTED Stage View */}
-            {activeViewStage === 'REJECTED' && (
-              <div className="space-y-4">
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
-                  <p className="text-sm text-slate-700">
-                    This PO was rejected by the supplier. Reopen as a draft to revise and re-issue.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">PO Number</label>
-                    <Input value={order.poNumber || order.orderNumber} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Supplier</label>
-                    <Input value={order.counterpartyName || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Destination Country
-                    </label>
-                    <Input value={tenantDestination || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Cargo Ready Date
-                    </label>
-                    <Input
-                      value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Incoterms</label>
-                    <Input value={order.incoterms || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Payment Terms
-                    </label>
-                    <Input value={order.paymentTerms || '—'} disabled readOnly />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">Created</label>
-                    <Input
-                      value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
-                  <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
-                    {order.notes || <span className="text-muted-foreground italic">No notes</span>}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* MANUFACTURING Stage View */}
-            {activeViewStage === 'MANUFACTURING' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Proforma Invoice
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.manufacturing?.proformaInvoiceNumber || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Supplier
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.counterpartyName || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Manufacturing Start
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {formatDateOnly(
-                        order.stageData.manufacturing?.manufacturingStartDate ||
-                          order.stageData.manufacturing?.manufacturingStart
-                      ) || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Expected Completion
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {formatDateOnly(order.stageData.manufacturing?.expectedCompletionDate) || '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* OCEAN Stage View */}
-            {activeViewStage === 'OCEAN' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      House B/L
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.ocean?.houseBillOfLading || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Master B/L
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.ocean?.masterBillOfLading || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Commercial Invoice
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.ocean?.commercialInvoiceNumber || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Vessel
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.ocean?.vesselName || '—'}
-                      {order.stageData.ocean?.voyageNumber
-                        ? ` (${order.stageData.ocean.voyageNumber})`
-                        : ''}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Route
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.ocean?.portOfLoading &&
-                      order.stageData.ocean?.portOfDischarge
-                        ? `${order.stageData.ocean.portOfLoading} → ${order.stageData.ocean.portOfDischarge}`
-                        : '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      ETA
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {formatDateOnly(order.stageData.ocean?.estimatedArrival) || '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* WAREHOUSE Stage View */}
-            {activeViewStage === 'WAREHOUSE' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Warehouse
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.warehouse?.warehouseName || order.warehouseName || '—'}
-                      {order.stageData.warehouse?.warehouseCode || order.warehouseCode
-                        ? ` (${order.stageData.warehouse?.warehouseCode || order.warehouseCode})`
-                        : ''}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Customs Entry
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.warehouse?.customsEntryNumber || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Customs Cleared
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {formatDateOnly(order.stageData.warehouse?.customsClearedDate) || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Received Date
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {formatDateOnly(order.stageData.warehouse?.receivedDate) || '—'}
-                    </p>
-                  </div>
-                  {order.stageData.warehouse?.dutyAmount != null && (
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Duty
-                      </label>
-                      <p className="text-sm font-medium text-slate-900">
-                        {order.stageData.warehouse.dutyCurrency || ''}{' '}
-                        {order.stageData.warehouse.dutyAmount.toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* SHIPPED Stage View */}
-            {activeViewStage === 'SHIPPED' && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Ship To
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.shipped?.shipToName || '—'}
-                    </p>
-                    {order.stageData.shipped?.shipToAddress && (
-                      <p className="text-xs text-muted-foreground">
-                        {order.stageData.shipped.shipToAddress}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Carrier
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.shipped?.shippingCarrier || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Tracking
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {order.stageData.shipped?.trackingNumber || '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Shipped Date
-                    </label>
-                    <p className="text-sm font-medium text-slate-900">
-                      {formatDateOnly(
-                        order.stageData.shipped?.shippedDate || order.stageData.shipped?.shippedAt
-                      ) || '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Cargo, Documents & History Tabs */}
+        {/* Details, Cargo, Documents & History Tabs */}
         <div className="rounded-xl border bg-white shadow-sm">
           {/* Tab Headers */}
           <div className="flex items-center border-b">
+            <button
+              type="button"
+              onClick={() => setActiveBottomTab('details')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'details'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Info className="h-4 w-4" />
+              Details
+              {activeBottomTab === 'details' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
             <button
               type="button"
               onClick={() => setActiveBottomTab('cargo')}
@@ -2255,21 +1698,6 @@ export default function PurchaseOrderDetailPage() {
                 </Badge>
               )}
               {activeBottomTab === 'documents' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveBottomTab('details')}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeBottomTab === 'details'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Info className="h-4 w-4" />
-              Details
-              {activeBottomTab === 'details' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
