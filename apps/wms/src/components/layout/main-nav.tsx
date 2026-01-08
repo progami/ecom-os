@@ -112,7 +112,7 @@ export function MainNav() {
  "hidden md:fixed md:inset-y-0 md:z-50 md:flex md:flex-col transition-all duration-300",
  isTabletCollapsed ? "md:w-16 lg:w-64" : "md:w-64"
  )}>
- <div className="flex grow flex-col gap-y-3 overflow-y-auto border-r border-slate-200 bg-white px-4 pb-3">
+ <div className="flex grow flex-col gap-y-3 overflow-y-auto scrollbar-gutter-stable border-r border-slate-200 bg-white px-4 pb-3">
  <div className="flex h-16 shrink-0 items-center justify-between">
  <div className="flex items-center gap-3">
  <Link href="/dashboard" scroll={false} prefetch={false} className="flex items-center gap-3">
@@ -269,7 +269,7 @@ export function MainNav() {
  <X className="h-6 w-6 text-white" aria-hidden="true" />
  </button>
  </div>
- <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
+ <div className="flex grow flex-col gap-y-5 overflow-y-auto scrollbar-gutter-stable bg-white px-6 pb-4">
  <div className="flex h-16 shrink-0 items-center">
  <Link href="/dashboard" scroll={false} prefetch={false} className="flex items-center gap-3">
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-brand-teal-500 shadow-md ">
