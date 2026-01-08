@@ -561,28 +561,15 @@ export default function PurchaseOrderDetailPage() {
   // Stage-based navigation - which stage view is currently selected
   const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
 
-  // Stage-based bottom tabs - each stage shows its details + documents
-  type StageTab = 'order' | 'manufacturing' | 'ocean' | 'warehouse' | 'shipped' | 'history'
-  const [activeBottomTab, setActiveBottomTab] = useState<StageTab>('order')
-
-  // Determine which stage tabs are enabled based on current status
-  const STAGE_TAB_ORDER: POStageStatus[] = ['DRAFT', 'ISSUED', 'MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED']
-  const stageTabIndex = STAGE_TAB_ORDER.indexOf(order?.status ?? 'DRAFT')
-
-  const isStageTabEnabled = (tab: StageTab): boolean => {
-    if (tab === 'order' || tab === 'history') return true
-    const tabToStageMap: Record<Exclude<StageTab, 'order' | 'history'>, POStageStatus> = {
-      manufacturing: 'MANUFACTURING',
-      ocean: 'OCEAN',
-      warehouse: 'WAREHOUSE',
-      shipped: 'SHIPPED',
-    }
-    const requiredStage = tabToStageMap[tab]
-    const requiredIndex = STAGE_TAB_ORDER.indexOf(requiredStage)
-    // Enable tab if current stage is at or past the required stage
-    return stageTabIndex >= requiredIndex
-  }
+  // Bottom section tabs
+  const [activeBottomTab, setActiveBottomTab] = useState<'cargo' | 'documents' | 'details' | 'history'>('cargo')
   const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
+
+  // Collapsible sections state for Documents tab
+  const [collapsedDocSections, setCollapsedDocSections] = useState<Record<string, boolean>>({})
+
+  // Collapsible sections state for Details tab
+  const [collapsedDetailSections, setCollapsedDetailSections] = useState<Record<string, boolean>>({})
 
   // Actions dropdown open state
   const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false)
@@ -2102,118 +2089,73 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        {/* Stage-based Tabs */}
+        {/* Cargo, Documents & History Tabs */}
         <div className="rounded-xl border bg-white shadow-sm">
           {/* Tab Headers */}
-          <div className="flex items-center border-b overflow-x-auto">
-            {/* Order & Cargo Tab - Always enabled */}
+          <div className="flex items-center border-b">
             <button
               type="button"
-              onClick={() => setActiveBottomTab('order')}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                activeBottomTab === 'order'
+              onClick={() => setActiveBottomTab('cargo')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'cargo'
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Package2 className="h-4 w-4" />
-              Order & Cargo
+              Cargo
               <Badge variant="outline" className="text-xs ml-1">
                 {order.lines.length}
               </Badge>
-              {activeBottomTab === 'order' && (
+              {activeBottomTab === 'cargo' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-
-            {/* Manufacturing Tab */}
             <button
               type="button"
-              onClick={() => isStageTabEnabled('manufacturing') && setActiveBottomTab('manufacturing')}
-              disabled={!isStageTabEnabled('manufacturing')}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                !isStageTabEnabled('manufacturing')
-                  ? 'text-muted-foreground/40 cursor-not-allowed'
-                  : activeBottomTab === 'manufacturing'
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+              onClick={() => {
+                setActiveBottomTab('documents')
+                void refreshDocuments()
+              }}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'documents'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Factory className="h-4 w-4" />
-              Manufacturing
-              {activeBottomTab === 'manufacturing' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500" />
+              <FileText className="h-4 w-4" />
+              Documents
+              {documentsCount > 0 && (
+                <Badge variant="outline" className="text-xs ml-1">
+                  {documentsCount}
+                </Badge>
+              )}
+              {activeBottomTab === 'documents' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-
-            {/* In Transit Tab */}
             <button
               type="button"
-              onClick={() => isStageTabEnabled('ocean') && setActiveBottomTab('ocean')}
-              disabled={!isStageTabEnabled('ocean')}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                !isStageTabEnabled('ocean')
-                  ? 'text-muted-foreground/40 cursor-not-allowed'
-                  : activeBottomTab === 'ocean'
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+              onClick={() => setActiveBottomTab('details')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                activeBottomTab === 'details'
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Ship className="h-4 w-4" />
-              In Transit
-              {activeBottomTab === 'ocean' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500" />
+              <Info className="h-4 w-4" />
+              Details
+              {activeBottomTab === 'details' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-
-            {/* Warehouse Tab */}
-            <button
-              type="button"
-              onClick={() => isStageTabEnabled('warehouse') && setActiveBottomTab('warehouse')}
-              disabled={!isStageTabEnabled('warehouse')}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                !isStageTabEnabled('warehouse')
-                  ? 'text-muted-foreground/40 cursor-not-allowed'
-                  : activeBottomTab === 'warehouse'
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Warehouse className="h-4 w-4" />
-              Warehouse
-              {activeBottomTab === 'warehouse' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" />
-              )}
-            </button>
-
-            {/* Shipped Tab */}
-            <button
-              type="button"
-              onClick={() => isStageTabEnabled('shipped') && setActiveBottomTab('shipped')}
-              disabled={!isStageTabEnabled('shipped')}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                !isStageTabEnabled('shipped')
-                  ? 'text-muted-foreground/40 cursor-not-allowed'
-                  : activeBottomTab === 'shipped'
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Send className="h-4 w-4" />
-              Shipped
-              {activeBottomTab === 'shipped' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500" />
-              )}
-            </button>
-
-            {/* History Tab - Always enabled */}
             <button
               type="button"
               onClick={() => {
                 setActiveBottomTab('history')
                 void refreshAuditLogs()
               }}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors relative whitespace-nowrap ${
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
                 activeBottomTab === 'history'
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -2230,9 +2172,8 @@ export default function PurchaseOrderDetailPage() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
               )}
             </button>
-
-            {/* Spacer to push total to the right when order tab is active */}
-            {activeBottomTab === 'order' && (
+	            {/* Spacer to push total to the right when cargo tab is active */}
+	            {activeBottomTab === 'cargo' && (
 	              <div className="ml-auto flex items-center gap-3 pr-6">
 	                <span className="text-sm text-muted-foreground">
 	                  Total: {totalQuantity.toLocaleString()} units
@@ -2382,58 +2323,9 @@ export default function PurchaseOrderDetailPage() {
 	          </div>
 
           {/* Tab Content */}
-          {activeBottomTab === 'order' && (
-            <div className="p-6 space-y-6">
-              {/* Order Info */}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PO Number</p>
-                  <p className="text-sm font-medium text-slate-900">{order.poNumber || order.orderNumber}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</p>
-                  <p className="text-sm font-medium text-slate-900">{order.counterpartyName || '—'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Destination</p>
-                  <p className="text-sm font-medium text-slate-900">{tenantDestination || '—'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cargo Ready Date</p>
-                  <p className="text-sm font-medium text-slate-900">{order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Incoterms</p>
-                  <p className="text-sm font-medium text-slate-900">{order.incoterms || '—'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</p>
-                  <p className="text-sm font-medium text-slate-900">{order.paymentTerms || '—'}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</p>
-                  <p className="text-sm font-medium text-slate-900">
-                    {formatDateOnly(order.createdAt) || '—'}
-                    {order.createdByName ? ` by ${order.createdByName}` : ''}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
-                  <Badge className={statusBadgeClasses(order.status)}>{formatStatusLabel(order.status)}</Badge>
-                </div>
-              </div>
-              {order.notes && (
-                <div className="pt-3 border-t">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
-                  <p className="text-sm text-slate-700">{order.notes}</p>
-                </div>
-              )}
-
-              {/* Cargo Items */}
-              <div className="pt-4 border-t">
-                <h4 className="text-sm font-semibold text-slate-900 mb-3">Cargo Items</h4>
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="min-w-full table-auto text-sm">
+          {activeBottomTab === 'cargo' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto text-sm">
                 <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2 text-left font-semibold">SKU</th>
@@ -2476,295 +2368,513 @@ export default function PurchaseOrderDetailPage() {
                     ))
                   )}
                 </tbody>
-                  </table>
+              </table>
+            </div>
+          )}
+
+          {activeBottomTab === 'documents' && (
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">Documents</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Supplier paperwork and supporting files, grouped by stage.
+                  </p>
+                </div>
+                {documentsLoading && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Refreshing…
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-6">
+                {documentStages.map(stage => {
+                  const stageDocs = documents
+                    .filter(doc => doc.stage === stage)
+                    .sort(
+                      (a, b) =>
+                        new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+                    )
+
+                  const requiredDocs = stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
+                  const requiredIds = new Set(requiredDocs.map(doc => doc.id))
+                  const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+                  const otherDocs = stageDocs.filter(doc => !requiredIds.has(doc.documentType))
+
+                  const rows: Array<{
+                    documentType: string
+                    label: string
+                    doc: PurchaseOrderDocumentSummary | undefined
+                  }> = [
+                    ...requiredDocs.map(doc => ({
+                      documentType: doc.id,
+                      label: doc.label,
+                      doc: docsByType.get(doc.id),
+                    })),
+                    ...otherDocs.map(doc => ({
+                      documentType: doc.documentType,
+                      label: getDocumentLabel(stage, doc.documentType),
+                      doc,
+                    })),
+                  ]
+
+                  if (rows.length === 0) return null
+
+                  const meta = DOCUMENT_STAGE_META[stage]
+                  const StageIcon = meta.icon
+                  // Default: expanded if has documents, collapsed if empty
+                  const isCollapsed = collapsedDocSections[stage] ?? (stageDocs.length === 0)
+
+                  return (
+                    <div key={stage} className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDocSections(prev => ({ ...prev, [stage]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                            <StageIcon className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{meta.label}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {stageDocs.length === 0
+                                ? 'No uploads yet'
+                                : `${stageDocs.length} uploaded`}
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+
+                      <div className={`divide-y border-t transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        {rows.map(row => {
+                          const key = `${stage}::${row.documentType}`
+                          const existing = row.doc
+                          const isUploading = Boolean(uploadingDoc[key])
+                          const uploadedBy = existing?.uploadedByName ? ` by ${existing.uploadedByName}` : ''
+
+                          return (
+                            <div
+                              key={key}
+                              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="flex items-start gap-3 min-w-0">
+                                {existing ? (
+                                  <Check className="h-4 w-4 flex-shrink-0 text-emerald-600 mt-0.5" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400 mt-0.5" />
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-slate-900">{row.label}</p>
+                                  {existing ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewDocument(existing)}
+                                      className="mt-0.5 block truncate text-left text-xs text-primary hover:underline"
+                                      title={existing.fileName}
+                                    >
+                                      {existing.fileName}
+                                    </button>
+                                  ) : (
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      Not uploaded yet
+                                    </p>
+                                  )}
+                                  {existing && (
+                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                      Uploaded {formatDate(existing.uploadedAt)}
+                                      {uploadedBy}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0">
+                                {existing && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setPreviewDocument(existing)}
+                                    className="gap-2"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                    Preview
+                                  </Button>
+                                )}
+                                {existing && (
+                                  <Button asChild type="button" size="sm" variant="outline" className="gap-2">
+                                    <a href={existing.viewUrl} target="_blank" rel="noreferrer">
+                                      <ExternalLink className="h-4 w-4" />
+                                      Open
+                                    </a>
+                                  </Button>
+                                )}
+
+                                {(stage !== 'SHIPPED' || existing) && (
+                                  <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors">
+                                    <Upload className="h-3.5 w-3.5" />
+                                    {existing ? 'Replace' : 'Upload'}
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      disabled={isUploading}
+                                      onChange={e => void handleDocumentUpload(e, stage, row.documentType)}
+                                    />
+                                    {isUploading && (
+                                      <span className="text-xs text-muted-foreground ml-1">…</span>
+                                    )}
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeBottomTab === 'details' && (
+            <div className="p-6">
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-900">Order Details</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Consolidated view of all essential information across stages.
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Manufacturing Tab Content */}
-          {activeBottomTab === 'manufacturing' && (
-            <div className="p-6 space-y-6">
-              {/* Manufacturing Details */}
-              {(() => {
-                const mfg = order.stageData.manufacturing
-                return (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proforma Invoice</p>
-                      <p className="text-sm font-medium text-slate-900">{mfg?.proformaInvoiceNumber || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Factory</p>
-                      <p className="text-sm font-medium text-slate-900">{mfg?.factoryName || order.counterpartyName || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.manufacturingStartDate || mfg?.manufacturingStart) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.expectedCompletionDate) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cartons</p>
-                      <p className="text-sm font-medium text-slate-900">{mfg?.totalCartons?.toLocaleString() || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pallets</p>
-                      <p className="text-sm font-medium text-slate-900">{mfg?.totalPallets?.toLocaleString() || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight (kg)</p>
-                      <p className="text-sm font-medium text-slate-900">{mfg?.totalWeightKg?.toLocaleString() || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Volume (CBM)</p>
-                      <p className="text-sm font-medium text-slate-900">{mfg?.totalVolumeCbm?.toLocaleString() || '—'}</p>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Manufacturing Documents */}
-              <div className="pt-4 border-t">
-                <h4 className="text-sm font-semibold text-slate-900 mb-3">Documents</h4>
+              <div className="space-y-4">
+                {/* Order Info Section */}
                 {(() => {
-                  const stageDocs = documents.filter(d => d.stage === 'MANUFACTURING')
-                  if (stageDocs.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No documents uploaded for this stage.</p>
-                  }
+                  const sectionKey = 'order-info'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
                   return (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {stageDocs.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 hover:bg-slate-50 transition-colors">
-                          <FileText className="h-5 w-5 text-amber-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">{getDocumentLabel('MANUFACTURING', doc.documentType)}</p>
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                            <FileEdit className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Order Info</p>
+                            <p className="text-xs text-muted-foreground">Basic order details</p>
                           </div>
-                          <a href={doc.viewUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
                         </div>
-                      ))}
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PO Number</p>
+                            <p className="text-sm font-medium text-slate-900">{order.poNumber || order.orderNumber}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</p>
+                            <p className="text-sm font-medium text-slate-900">{order.counterpartyName || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Destination</p>
+                            <p className="text-sm font-medium text-slate-900">{tenantDestination || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cargo Ready Date</p>
+                            <p className="text-sm font-medium text-slate-900">{order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Incoterms</p>
+                            <p className="text-sm font-medium text-slate-900">{order.incoterms || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</p>
+                            <p className="text-sm font-medium text-slate-900">{order.paymentTerms || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {formatDateOnly(order.createdAt) || '—'}
+                              {order.createdByName ? ` by ${order.createdByName}` : ''}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</p>
+                            <Badge className={statusBadgeClasses(order.status)}>{formatStatusLabel(order.status)}</Badge>
+                          </div>
+                        </div>
+                        {order.notes && (
+                          <div className="mt-4 pt-3 border-t">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Notes</p>
+                            <p className="text-sm text-slate-700">{order.notes}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )
                 })()}
-              </div>
-            </div>
-          )}
 
-          {/* In Transit (Ocean) Tab Content */}
-          {activeBottomTab === 'ocean' && (
-            <div className="p-6 space-y-6">
-              {/* Ocean/Transit Details */}
-              {(() => {
-                const ocean = order.stageData.ocean
-                return (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">House B/L</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.houseBillOfLading || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Master B/L</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.masterBillOfLading || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vessel</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.vesselName || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Voyage</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.voyageNumber || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Loading</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.portOfLoading || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Discharge</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.portOfDischarge || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETD</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedDeparture) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETA</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedArrival) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commercial Invoice</p>
-                      <p className="text-sm font-medium text-slate-900">{ocean?.commercialInvoiceNumber || '—'}</p>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Ocean Documents */}
-              <div className="pt-4 border-t">
-                <h4 className="text-sm font-semibold text-slate-900 mb-3">Documents</h4>
+                {/* Manufacturing Section */}
                 {(() => {
-                  const stageDocs = documents.filter(d => d.stage === 'OCEAN')
-                  if (stageDocs.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No documents uploaded for this stage.</p>
-                  }
+                  const mfg = order.stageData.manufacturing
+                  const hasData = mfg?.proformaInvoiceNumber || mfg?.factoryName || mfg?.manufacturingStartDate || mfg?.totalCartons || mfg?.totalWeightKg
+                  if (!hasData) return null
+                  const sectionKey = 'manufacturing'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
                   return (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {stageDocs.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 hover:bg-slate-50 transition-colors">
-                          <FileText className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">{getDocumentLabel('OCEAN', doc.documentType)}</p>
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-amber-50 text-amber-700">
+                            <Factory className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Manufacturing</p>
+                            <p className="text-xs text-muted-foreground">Production details</p>
                           </div>
-                          <a href={doc.viewUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
                         </div>
-                      ))}
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proforma Invoice</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.proformaInvoiceNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Factory</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.factoryName || order.counterpartyName || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.manufacturingStartDate || mfg?.manufacturingStart) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(mfg?.expectedCompletionDate) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cartons</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalCartons?.toLocaleString() || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pallets</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalPallets?.toLocaleString() || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Weight (kg)</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalWeightKg?.toLocaleString() || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Volume (CBM)</p>
+                            <p className="text-sm font-medium text-slate-900">{mfg?.totalVolumeCbm?.toLocaleString() || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )
                 })()}
-              </div>
-            </div>
-          )}
 
-          {/* Warehouse Tab Content */}
-          {activeBottomTab === 'warehouse' && (
-            <div className="p-6 space-y-6">
-              {/* Warehouse Details */}
-              {(() => {
-                const wh = order.stageData.warehouse
-                return (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warehouse</p>
-                      <p className="text-sm font-medium text-slate-900">{wh?.warehouseName || wh?.warehouseCode || order.warehouseName || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Entry</p>
-                      <p className="text-sm font-medium text-slate-900">{wh?.customsEntryNumber || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Cleared</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.customsClearedDate) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duty Amount</p>
-                      <p className="text-sm font-medium text-slate-900">
-                        {wh?.dutyAmount != null ? `${wh.dutyCurrency || 'USD'} ${wh.dutyAmount.toLocaleString()}` : '—'}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Received Date</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.receivedDate) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Transaction Cert</p>
-                      <p className="text-sm font-medium text-slate-900">{wh?.transactionCertNumber || '—'}</p>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Warehouse Documents */}
-              <div className="pt-4 border-t">
-                <h4 className="text-sm font-semibold text-slate-900 mb-3">Documents</h4>
+                {/* In Transit Section */}
                 {(() => {
-                  const stageDocs = documents.filter(d => d.stage === 'WAREHOUSE')
-                  if (stageDocs.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No documents uploaded for this stage.</p>
-                  }
+                  const ocean = order.stageData.ocean
+                  const hasData = ocean?.houseBillOfLading || ocean?.masterBillOfLading || ocean?.vesselName || ocean?.portOfLoading || ocean?.estimatedDeparture
+                  if (!hasData) return null
+                  const sectionKey = 'ocean'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
                   return (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {stageDocs.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 hover:bg-slate-50 transition-colors">
-                          <FileText className="h-5 w-5 text-purple-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">{getDocumentLabel('WAREHOUSE', doc.documentType)}</p>
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-blue-50 text-blue-700">
+                            <Ship className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">In Transit</p>
+                            <p className="text-xs text-muted-foreground">Shipping & logistics</p>
                           </div>
-                          <a href={doc.viewUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
                         </div>
-                      ))}
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">House B/L</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.houseBillOfLading || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Master B/L</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.masterBillOfLading || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vessel</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.vesselName || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Voyage</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.voyageNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Loading</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.portOfLoading || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Port of Discharge</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.portOfDischarge || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETD</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedDeparture) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETA</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(ocean?.estimatedArrival) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commercial Invoice</p>
+                            <p className="text-sm font-medium text-slate-900">{ocean?.commercialInvoiceNumber || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )
                 })()}
-              </div>
-            </div>
-          )}
 
-          {/* Shipped Tab Content */}
-          {activeBottomTab === 'shipped' && (
-            <div className="p-6 space-y-6">
-              {/* Shipped Details */}
-              {(() => {
-                const ship = order.stageData.shipped
-                return (
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ship To</p>
-                      <p className="text-sm font-medium text-slate-900">{ship?.shipToName || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</p>
-                      <p className="text-sm font-medium text-slate-900">{ship?.shipToAddress || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</p>
-                      <p className="text-sm font-medium text-slate-900">{ship?.shipToCity || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</p>
-                      <p className="text-sm font-medium text-slate-900">{ship?.shipToCountry || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Carrier</p>
-                      <p className="text-sm font-medium text-slate-900">{ship?.shippingCarrier || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tracking</p>
-                      <p className="text-sm font-medium text-slate-900">{ship?.trackingNumber || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Shipped Date</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(ship?.shippedDate || ship?.shippedAt) || '—'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivered Date</p>
-                      <p className="text-sm font-medium text-slate-900">{formatDateOnly(ship?.deliveredDate) || '—'}</p>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {/* Shipped Documents */}
-              <div className="pt-4 border-t">
-                <h4 className="text-sm font-semibold text-slate-900 mb-3">Documents</h4>
+                {/* Warehouse Section */}
                 {(() => {
-                  const stageDocs = documents.filter(d => d.stage === 'SHIPPED')
-                  if (stageDocs.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No documents uploaded for this stage.</p>
-                  }
+                  const wh = order.stageData.warehouse
+                  const hasData = wh?.warehouseName || wh?.warehouseCode || wh?.customsEntryNumber || wh?.customsClearedDate || wh?.receivedDate
+                  if (!hasData) return null
+                  const sectionKey = 'warehouse'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
                   return (
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                      {stageDocs.map(doc => (
-                        <div key={doc.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 hover:bg-slate-50 transition-colors">
-                          <FileText className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{doc.fileName}</p>
-                            <p className="text-xs text-muted-foreground">{getDocumentLabel('SHIPPED', doc.documentType)}</p>
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-purple-50 text-purple-700">
+                            <Warehouse className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Warehouse</p>
+                            <p className="text-xs text-muted-foreground">Receiving & customs</p>
                           </div>
-                          <a href={doc.viewUrl} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-700">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
                         </div>
-                      ))}
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warehouse</p>
+                            <p className="text-sm font-medium text-slate-900">{wh?.warehouseName || wh?.warehouseCode || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Entry</p>
+                            <p className="text-sm font-medium text-slate-900">{wh?.customsEntryNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Cleared</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.customsClearedDate) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duty Amount</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {wh?.dutyAmount != null ? `${wh.dutyAmount.toLocaleString()} ${wh.dutyCurrency || ''}` : '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Received Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(wh?.receivedDate) || '—'}</p>
+                          </div>
+                        </div>
+                        {wh?.discrepancyNotes && (
+                          <div className="mt-4 pt-3 border-t">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Discrepancy Notes</p>
+                            <p className="text-sm text-slate-700">{wh.discrepancyNotes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Shipped Section */}
+                {(() => {
+                  const shipped = order.stageData.shipped
+                  const hasData = shipped?.shipToName || shipped?.shippingCarrier || shipped?.trackingNumber || shipped?.shippedDate
+                  if (!hasData) return null
+                  const sectionKey = 'shipped'
+                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                  return (
+                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setCollapsedDetailSections(prev => ({ ...prev, [sectionKey]: !isCollapsed }))}
+                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700">
+                            <Package2 className="h-4 w-4" />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">Shipped</p>
+                            <p className="text-xs text-muted-foreground">Delivery details</p>
+                          </div>
+                        </div>
+                        <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                      </button>
+                      <div className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                          <div className="space-y-1 col-span-2">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ship To</p>
+                            <p className="text-sm font-medium text-slate-900">
+                              {[shipped?.shipToName, shipped?.shipToAddress, shipped?.shipToCity, shipped?.shipToCountry].filter(Boolean).join(', ') || '—'}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Carrier</p>
+                            <p className="text-sm font-medium text-slate-900">{shipped?.shippingCarrier || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Method</p>
+                            <p className="text-sm font-medium text-slate-900">{shipped?.shippingMethod || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tracking</p>
+                            <p className="text-sm font-medium text-slate-900">{shipped?.trackingNumber || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Shipped Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(shipped?.shippedDate || shipped?.shippedAt) || '—'}</p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivered Date</p>
+                            <p className="text-sm font-medium text-slate-900">{formatDateOnly(shipped?.deliveredDate) || '—'}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )
                 })()}
