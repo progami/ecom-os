@@ -1455,11 +1455,36 @@ export function SalesPlanningGrid({
       }
 
       if (event.key === 'Backspace' || event.key === 'Delete') {
-        const columnId = leafColumnIds[activeCell.col];
-        const meta = columnId ? columnMeta[columnId] : undefined;
-        if (!meta || !isEditableMetric(meta.field)) return;
         event.preventDefault();
-        applyEdits([{ visibleRowIndex: activeCell.row, columnId, rawValue: '' }]);
+        const normalizedSelection = selectionRef.current
+          ? normalizeRange(selectionRef.current)
+          : normalizeRange({ from: activeCell, to: activeCell });
+
+        const edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }> = [];
+        for (
+          let rowIndex = normalizedSelection.top;
+          rowIndex <= normalizedSelection.bottom;
+          rowIndex += 1
+        ) {
+          if (rowIndex >= visibleRows.length) continue;
+          for (
+            let colIndex = normalizedSelection.left;
+            colIndex <= normalizedSelection.right;
+            colIndex += 1
+          ) {
+            if (colIndex >= leafColumnIds.length) continue;
+            const columnId = leafColumnIds[colIndex];
+            if (!columnId) continue;
+            const meta = columnMeta[columnId];
+            if (!meta || !isEditableMetric(meta.field)) continue;
+            edits.push({ visibleRowIndex: rowIndex, columnId, rawValue: '' });
+          }
+        }
+
+        if (edits.length === 0) return;
+
+        applyEdits(edits);
+        setSelectionStats(null);
         return;
       }
 
