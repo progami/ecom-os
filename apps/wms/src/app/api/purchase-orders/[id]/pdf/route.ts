@@ -9,14 +9,14 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
-// Targon brand colors
+// Refined color palette - professional and understated
 const COLORS = {
-  primary: '#002C51', // Dark navy
-  accent: '#00C2B9', // Teal
-  lightGray: '#F8FAFC',
-  mediumGray: '#E2E8F0',
-  darkGray: '#64748B',
-  text: '#1E293B',
+  navy: '#0F172A',
+  slate: '#334155',
+  muted: '#64748B',
+  border: '#CBD5E1',
+  lightBg: '#F8FAFC',
+  accent: '#0EA5E9',
   white: '#FFFFFF',
 } as const
 
@@ -26,7 +26,11 @@ function sanitizeFilename(value: string): string {
 
 function formatDate(value: Date | null | undefined): string {
   if (!value) return '—'
-  return value.toISOString().slice(0, 10)
+  return value.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 function toNumber(value: unknown): number | null {
@@ -35,17 +39,18 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(num) ? num : null
 }
 
-function formatMoney(value: number | null, decimals = 2): string {
+function formatCurrency(value: number | null, currency: string): string {
   if (value === null) return '—'
-  return value.toFixed(decimals)
+  return `${currency} ${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 async function renderPurchaseOrderPdf(params: {
   poNumber: string
   supplierName: string
-  status: string
+  supplierAddress?: string | null
   createdAt: Date
   destinationCountry?: string | null
+  destinationAddress?: string | null
   expectedDate?: Date | null
   incoterms?: string | null
   paymentTerms?: string | null
@@ -64,7 +69,11 @@ async function renderPurchaseOrderPdf(params: {
     totalCost: number | null
   }>
 }): Promise<Buffer> {
-  const doc = new PDFDocument({ size: 'A4', margin: 50 })
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: 50, bottom: 50, left: 50, right: 50 },
+    bufferPages: true // Enable buffering for page count
+  })
   doc.info.Title = `Purchase Order ${params.poNumber}`
   doc.info.Author = 'Targon Global'
 
@@ -77,333 +86,366 @@ async function renderPurchaseOrderPdf(params: {
 
   const pageWidth = doc.page.width
   const pageHeight = doc.page.height
-  const margin = doc.page.margins.left
+  const margin = 50
   const contentWidth = pageWidth - margin * 2
 
-  // ============================================
-  // HEADER - Targon Branding
-  // ============================================
+  // Track totals
+  const totalsByCurrency = new Map<string, number>()
+  let totalUnits = 0
+  let totalCartons = 0
 
-  // Header background
-  doc.rect(0, 0, pageWidth, 100).fill(COLORS.primary)
-
-  // Accent bar
-  doc.rect(0, 100, pageWidth, 4).fill(COLORS.accent)
-
-  // Company name "Targon."
-  doc.fillColor(COLORS.white).fontSize(28).font('Helvetica-Bold')
-  doc.text('Targon.', margin, 30, { continued: false })
-
-  // Tagline
-  doc.fontSize(9).font('Helvetica').fillColor(COLORS.accent)
-  doc.text('Innovation to Impact', margin, 60)
-
-  // Document title on right
-  doc.fillColor(COLORS.white).fontSize(22).font('Helvetica-Bold')
-  doc.text('PURCHASE ORDER', pageWidth - margin - 200, 35, { width: 200, align: 'right' })
-
-  // PO Number badge
-  doc.fontSize(11).font('Helvetica')
-  doc.text(params.poNumber, pageWidth - margin - 200, 62, { width: 200, align: 'right' })
-
-  // ============================================
-  // ORDER INFO SECTION
-  // ============================================
-
-  let y = 130
-
-  // Status badge
-  const statusColors: Record<string, string> = {
-    ISSUED: '#059669',
-    MANUFACTURING: '#D97706',
-    OCEAN: '#2563EB',
-    WAREHOUSE: '#7C3AED',
-    SHIPPED: '#10B981',
-    DRAFT: '#6B7280',
-    REJECTED: '#DC2626',
-    CANCELLED: '#991B1B',
+  // Pre-calculate totals
+  for (const line of params.lines) {
+    const lineTotal = line.totalCost ?? (line.unitCost !== null ? line.unitCost * line.unitsOrdered : null)
+    totalUnits += line.unitsOrdered
+    totalCartons += line.cartons
+    if (lineTotal !== null) {
+      const currency = (line.currency || 'USD').toUpperCase()
+      totalsByCurrency.set(currency, (totalsByCurrency.get(currency) ?? 0) + lineTotal)
+    }
   }
-  const statusColor = statusColors[params.status] ?? '#6B7280'
 
-  // Dynamic badge width based on status length
-  const statusText = params.status
-  const badgeWidth = statusText.length > 8 ? 110 : 80
-  const statusFontSize = statusText.length > 8 ? 8 : 9
+  // ============================================
+  // HEADER SECTION
+  // ============================================
 
-  doc.roundedRect(margin, y, badgeWidth, 22, 4).fill(statusColor)
-  doc.fillColor(COLORS.white).fontSize(statusFontSize).font('Helvetica-Bold')
-  doc.text(statusText, margin + 5, y + 7, { width: badgeWidth - 10, align: 'center' })
+  let y = margin
 
-  y += 40
+  // Company name - understated
+  doc.fillColor(COLORS.muted).fontSize(10).font('Helvetica')
+  doc.text('TARGON GLOBAL', margin, y)
 
-  // Two-column layout for details
-  const leftColX = margin
-  const rightColX = margin + contentWidth / 2 + 20
-  const colWidth = contentWidth / 2 - 20
+  // PO Number - THE HERO ELEMENT
+  doc.fillColor(COLORS.navy).fontSize(32).font('Helvetica-Bold')
+  doc.text(params.poNumber, margin, y + 20)
 
-  // Left column - Supplier Info
-  doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
-  doc.text('SUPPLIER', leftColX, y)
+  // Document type label
+  doc.fillColor(COLORS.muted).fontSize(10).font('Helvetica')
+  doc.text('PURCHASE ORDER', margin, y + 58)
+
+  // Order date on the right
+  doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
+  doc.text('ORDER DATE', pageWidth - margin - 120, y, { width: 120, align: 'right' })
+  doc.fillColor(COLORS.navy).fontSize(11).font('Helvetica-Bold')
+  doc.text(formatDate(params.createdAt), pageWidth - margin - 120, y + 12, { width: 120, align: 'right' })
+
+  y += 90
+
+  // Divider line
+  doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.border).lineWidth(1).stroke()
+
+  y += 25
+
+  // ============================================
+  // FROM / TO SECTION (Two columns)
+  // ============================================
+
+  const colWidth = (contentWidth - 40) / 2
+
+  // FROM (Supplier)
+  doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
+  doc.text('FROM', margin, y)
   y += 14
-  doc.fillColor(COLORS.text).fontSize(11).font('Helvetica')
-  doc.text(params.supplierName || '—', leftColX, y, { width: colWidth })
+  doc.fillColor(COLORS.navy).fontSize(11).font('Helvetica-Bold')
+  doc.text(params.supplierName || '—', margin, y, { width: colWidth })
 
-  // Right column - Ship To
-  doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
-  doc.text('SHIP TO', rightColX, y - 14)
-  doc.fillColor(COLORS.text).fontSize(11).font('Helvetica')
-  doc.text(params.destinationCountry || '—', rightColX, y, { width: colWidth })
-  if (params.warehouseName || params.warehouseCode) {
-    doc.text(
-      `${params.warehouseName ?? params.warehouseCode}${params.warehouseName && params.warehouseCode ? ` (${params.warehouseCode})` : ''}`,
-      rightColX,
-      y + 14,
-      { width: colWidth }
-    )
+  const supplierNameHeight = doc.heightOfString(params.supplierName || '—', { width: colWidth })
+  let fromY = y + supplierNameHeight + 4
+
+  if (params.supplierAddress) {
+    doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
+    doc.text(params.supplierAddress, margin, fromY, { width: colWidth })
   }
 
-  y += 50
+  // TO (Ship To) - same baseline as FROM
+  const toX = margin + colWidth + 40
+  doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
+  doc.text('SHIP TO', toX, y - 14)
 
-  // Divider
-  doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.mediumGray).lineWidth(1).stroke()
+  // Build ship-to text
+  const shipToLines: string[] = []
+  if (params.warehouseName) shipToLines.push(params.warehouseName)
+  if (params.warehouseCode && params.warehouseCode !== params.warehouseName) {
+    shipToLines.push(`Code: ${params.warehouseCode}`)
+  }
+  if (params.destinationAddress) shipToLines.push(params.destinationAddress)
+  if (params.destinationCountry) shipToLines.push(params.destinationCountry)
 
-  y += 20
+  const shipToText = shipToLines.length > 0 ? shipToLines.join('\n') : params.destinationCountry || '—'
 
-  // Order details grid - first row (3 columns)
-  const gridColWidth3 = contentWidth / 3
-  const detailsRow1 = [
-    { label: 'Order Date', value: formatDate(params.createdAt) },
-    { label: 'Cargo Ready Date', value: formatDate(params.expectedDate ?? null) },
-    { label: 'Incoterms', value: params.incoterms?.trim() || '—' },
+  doc.fillColor(COLORS.navy).fontSize(11).font('Helvetica-Bold')
+  const firstShipToLine = shipToLines[0] || params.destinationCountry || '—'
+  doc.text(firstShipToLine, toX, y, { width: colWidth })
+
+  if (shipToLines.length > 1) {
+    const restLines = shipToLines.slice(1).join('\n')
+    const firstLineHeight = doc.heightOfString(firstShipToLine, { width: colWidth })
+    doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
+    doc.text(restLines, toX, y + firstLineHeight + 4, { width: colWidth })
+  }
+
+  y += 70
+
+  // ============================================
+  // ORDER DETAILS GRID
+  // ============================================
+
+  // 4-column grid for order details
+  const gridCols = 4
+  const gridColWidth = contentWidth / gridCols
+
+  const orderDetails = [
+    { label: 'CARGO READY DATE', value: formatDate(params.expectedDate) },
+    { label: 'INCOTERMS', value: params.incoterms || '—' },
+    { label: 'PAYMENT TERMS', value: params.paymentTerms || '—', span: 2 },
   ]
 
-  detailsRow1.forEach((item, i) => {
-    const x = margin + i * gridColWidth3
-    doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
-    doc.text(item.label.toUpperCase(), x, y, { width: gridColWidth3 - 10 })
-    doc.fillColor(COLORS.text).fontSize(10).font('Helvetica-Bold')
-    doc.text(item.value, x, y + 12, { width: gridColWidth3 - 10, lineBreak: false })
-  })
+  let gridX = margin
+  for (const detail of orderDetails) {
+    const span = detail.span || 1
+    const width = gridColWidth * span - 15
 
-  y += 32
+    doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
+    doc.text(detail.label, gridX, y, { width })
+    doc.fillColor(COLORS.navy).fontSize(10).font('Helvetica-Bold')
+    doc.text(detail.value, gridX, y + 12, { width, lineBreak: detail.span === 2 })
 
-  // Payment terms - full width if present and long
-  const paymentTerms = params.paymentTerms?.trim() || '—'
-  doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
-  doc.text('PAYMENT TERMS', margin, y, { width: contentWidth })
-  doc.fillColor(COLORS.text).fontSize(10).font('Helvetica-Bold')
-  doc.text(paymentTerms, margin, y + 12, { width: contentWidth, lineBreak: false, ellipsis: true })
-
-  y += 32
-
-  // Notes section (if present)
-  if (params.notes?.trim()) {
-    doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
-    doc.text('NOTES', margin, y)
-    y += 14
-    doc.roundedRect(margin, y, contentWidth, 40, 4).fill(COLORS.lightGray)
-    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
-    doc.text(params.notes.trim(), margin + 10, y + 10, { width: contentWidth - 20 })
-    y += 55
+    gridX += gridColWidth * span
   }
+
+  y += 45
 
   // ============================================
   // LINE ITEMS TABLE
   // ============================================
 
-  y += 10
+  // Table header background
+  doc.rect(margin, y, contentWidth, 28).fill(COLORS.navy)
 
-  // Table header
-  doc.fillColor(COLORS.primary).fontSize(10).font('Helvetica-Bold')
-  doc.text('ORDER ITEMS', margin, y)
-  y += 20
-
-  // Column definitions - adjusted for better text fit
-  const cols = {
-    sku: { x: margin, width: 60 },
-    description: { x: margin + 60, width: 155 },
-    units: { x: margin + 215, width: 55 },
-    unitsPerCarton: { x: margin + 270, width: 50 },
-    cartons: { x: margin + 320, width: 50 },
-    unit: { x: margin + 370, width: 60 },
-    total: { x: margin + 430, width: 65 },
+  // Column definitions - optimized widths
+  const tableConfig = {
+    sku: { x: margin, w: 75, label: 'SKU', align: 'left' as const },
+    batch: { x: margin + 75, w: 70, label: 'BATCH', align: 'left' as const },
+    description: { x: margin + 145, w: 130, label: 'DESCRIPTION', align: 'left' as const },
+    units: { x: margin + 275, w: 55, label: 'UNITS', align: 'right' as const },
+    upc: { x: margin + 330, w: 45, label: 'U/CTN', align: 'right' as const },
+    cartons: { x: margin + 375, w: 50, label: 'CTNS', align: 'right' as const },
+    unitPrice: { x: margin + 425, w: 55, label: 'UNIT', align: 'right' as const },
+    total: { x: margin + 480, w: 55, label: 'TOTAL', align: 'right' as const },
   }
 
-  // Table header row
-  doc.rect(margin, y, contentWidth, 28).fill(COLORS.primary)
-  doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
-  doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 12 })
-  doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 12 })
-  doc.text('UNITS', cols.units.x, y + 10, { width: cols.units.width - 8, align: 'right' })
-  doc.text('U/CTN', cols.unitsPerCarton.x, y + 10, {
-    width: cols.unitsPerCarton.width - 8,
-    align: 'right',
-  })
-  doc.text('CTNS', cols.cartons.x, y + 10, { width: cols.cartons.width - 8, align: 'right' })
-  doc.text('UNIT', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
-  doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width - 8, align: 'right' })
+  // Header text
+  doc.fillColor(COLORS.white).fontSize(7).font('Helvetica-Bold')
+  for (const [, col] of Object.entries(tableConfig)) {
+    const textOpts = { width: col.w - 10, align: col.align }
+    doc.text(col.label, col.x + 5, y + 10, textOpts)
+  }
 
   y += 28
 
   // Table rows
-  const totalsByCurrency = new Map<string, { total: number }>()
-  let totalUnits = 0
-  let totalCartons = 0
-  const rowHeight = 32
+  const rowHeight = 28
+  let rowY = y
 
-  const drawTableRow = (line: (typeof params.lines)[0], rowY: number, isAlt: boolean) => {
+  const drawTableRow = (line: (typeof params.lines)[0], isAlt: boolean) => {
     const currency = (line.currency || 'USD').toUpperCase()
     const unitCost = line.unitCost
-    const lineTotal =
-      line.totalCost !== null ? line.totalCost : unitCost !== null ? unitCost * line.unitsOrdered : null
+    const lineTotal = line.totalCost ?? (unitCost !== null ? unitCost * line.unitsOrdered : null)
 
-    totalUnits += line.unitsOrdered
-    totalCartons += line.cartons
-
-    if (lineTotal !== null) {
-      const entry = totalsByCurrency.get(currency) ?? { total: 0 }
-      entry.total += lineTotal
-      totalsByCurrency.set(currency, entry)
-    }
-
-    // Alternating row background
+    // Alternating background
     if (isAlt) {
-      doc.rect(margin, rowY, contentWidth, rowHeight).fill(COLORS.lightGray)
+      doc.rect(margin, rowY, contentWidth, rowHeight).fill(COLORS.lightBg)
     }
 
-    // Row content - vertically centered text
-    const textY = rowY + 7
+    const textY = rowY + 9
 
-    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica-Bold')
-    doc.text(line.skuCode, cols.sku.x + 8, textY, { width: cols.sku.width - 12, lineBreak: false })
-
-    doc.fillColor(COLORS.darkGray).fontSize(7).font('Helvetica')
-    doc.text(line.batchLot ?? '—', cols.sku.x + 8, textY + 12, {
-      width: cols.sku.width - 12,
+    // SKU - bold
+    doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica-Bold')
+    doc.text(line.skuCode, tableConfig.sku.x + 5, textY, {
+      width: tableConfig.sku.w - 10,
       lineBreak: false,
-      ellipsis: true,
+      ellipsis: true
     })
 
-    // Description with ellipsis for long text
-    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
-    doc.text(line.skuDescription ?? '—', cols.description.x + 8, textY, {
-      width: cols.description.width - 12,
+    // Batch - regular
+    doc.fillColor(COLORS.slate).fontSize(8).font('Helvetica')
+    doc.text(line.batchLot || '—', tableConfig.batch.x + 5, textY, {
+      width: tableConfig.batch.w - 10,
       lineBreak: false,
-      ellipsis: true,
+      ellipsis: true
     })
 
-    // Numeric columns - right aligned with padding
-    doc.font('Helvetica-Bold')
-    doc.text(line.unitsOrdered.toLocaleString(), cols.units.x, textY, {
-      width: cols.units.width - 8,
-      align: 'right',
-    })
-    doc.text(line.unitsPerCarton.toLocaleString(), cols.unitsPerCarton.x, textY, {
-      width: cols.unitsPerCarton.width - 8,
-      align: 'right',
-    })
-    doc.text(line.cartons.toLocaleString(), cols.cartons.x, textY, {
-      width: cols.cartons.width - 8,
-      align: 'right',
+    // Description
+    doc.fillColor(COLORS.slate).fontSize(8).font('Helvetica')
+    doc.text(line.skuDescription || '—', tableConfig.description.x + 5, textY, {
+      width: tableConfig.description.w - 10,
+      lineBreak: false,
+      ellipsis: true
     })
 
-    doc.font('Helvetica').fontSize(9)
-    doc.text(`${currency} ${formatMoney(unitCost)}`, cols.unit.x, textY, { width: cols.unit.width - 8, align: 'right' })
+    // Numeric columns - right aligned
+    doc.fillColor(COLORS.navy).fontSize(9).font('Helvetica')
+    doc.text(line.unitsOrdered.toLocaleString(), tableConfig.units.x, textY, {
+      width: tableConfig.units.w - 5,
+      align: 'right'
+    })
+    doc.text(line.unitsPerCarton.toLocaleString(), tableConfig.upc.x, textY, {
+      width: tableConfig.upc.w - 5,
+      align: 'right'
+    })
+    doc.text(line.cartons.toLocaleString(), tableConfig.cartons.x, textY, {
+      width: tableConfig.cartons.w - 5,
+      align: 'right'
+    })
 
-    doc.font('Helvetica-Bold').fontSize(9)
-    doc.text(lineTotal !== null ? `${currency} ${formatMoney(lineTotal)}` : '—', cols.total.x, textY, {
-      width: cols.total.width - 8,
-      align: 'right',
+    // Unit price
+    doc.fontSize(8).fillColor(COLORS.muted)
+    doc.text(unitCost !== null ? formatCurrency(unitCost, currency) : '—', tableConfig.unitPrice.x, textY, {
+      width: tableConfig.unitPrice.w - 5,
+      align: 'right'
+    })
+
+    // Total - bold
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(COLORS.navy)
+    doc.text(lineTotal !== null ? formatCurrency(lineTotal, currency) : '—', tableConfig.total.x, textY, {
+      width: tableConfig.total.w - 5,
+      align: 'right'
     })
 
     // Bottom border
-    doc.moveTo(margin, rowY + rowHeight).lineTo(pageWidth - margin, rowY + rowHeight).strokeColor(COLORS.mediumGray).lineWidth(0.5).stroke()
+    doc.moveTo(margin, rowY + rowHeight)
+      .lineTo(pageWidth - margin, rowY + rowHeight)
+      .strokeColor(COLORS.border)
+      .lineWidth(0.5)
+      .stroke()
   }
 
+  // Render all rows with page break handling
   for (let i = 0; i < params.lines.length; i++) {
-    // Check for page break - leave space for totals and footer
-    if (y + rowHeight > pageHeight - 100) {
+    // Check if we need a new page (leave space for totals + footer)
+    const spaceNeeded = rowHeight + (i === params.lines.length - 1 ? 120 : 0)
+    if (rowY + spaceNeeded > pageHeight - 80) {
       doc.addPage()
-      y = margin
+      rowY = margin
+
       // Redraw table header on new page
-      doc.rect(margin, y, contentWidth, 28).fill(COLORS.primary)
-      doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
-      doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 12 })
-      doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 12 })
-      doc.text('UNITS', cols.units.x, y + 10, { width: cols.units.width - 8, align: 'right' })
-      doc.text('U/CTN', cols.unitsPerCarton.x, y + 10, {
-        width: cols.unitsPerCarton.width - 8,
-        align: 'right',
-      })
-      doc.text('CTNS', cols.cartons.x, y + 10, { width: cols.cartons.width - 8, align: 'right' })
-      doc.text('UNIT', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
-      doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width - 8, align: 'right' })
-      y += 28
+      doc.rect(margin, rowY, contentWidth, 28).fill(COLORS.navy)
+      doc.fillColor(COLORS.white).fontSize(7).font('Helvetica-Bold')
+      for (const [, col] of Object.entries(tableConfig)) {
+        doc.text(col.label, col.x + 5, rowY + 10, { width: col.w - 10, align: col.align })
+      }
+      rowY += 28
     }
 
-    drawTableRow(params.lines[i], y, i % 2 === 1)
-    y += rowHeight
+    drawTableRow(params.lines[i], i % 2 === 1)
+    rowY += rowHeight
   }
+
+  y = rowY + 15
 
   // ============================================
   // TOTALS SECTION
   // ============================================
 
-  y += 15
+  const totalsWidth = 200
+  const totalsX = pageWidth - margin - totalsWidth
 
-  // Totals box - calculate dynamic height based on currency count
-  const totalsBoxWidth = 220
-  const totalsBoxX = pageWidth - margin - totalsBoxWidth
-  const currencyCount = totalsByCurrency.size
-  const totalsBoxHeight = 44 + Math.max(1, currencyCount) * 20
+  // Check if totals fit on current page
+  const totalsHeight = 60 + totalsByCurrency.size * 22
+  if (y + totalsHeight > pageHeight - 60) {
+    doc.addPage()
+    y = margin
+  }
 
-  doc.rect(totalsBoxX, y, totalsBoxWidth, totalsBoxHeight).fill(COLORS.lightGray)
-  doc.rect(totalsBoxX, y, totalsBoxWidth, totalsBoxHeight).strokeColor(COLORS.mediumGray).lineWidth(1).stroke()
+  // Totals box
+  doc.rect(totalsX, y, totalsWidth, totalsHeight).fill(COLORS.lightBg)
 
-  // Total units row
-  const labelX = totalsBoxX + 15
-  const valueX = totalsBoxX + 100
-  const valueWidth = totalsBoxWidth - 115
+  let totalsY = y + 12
+  const labelX = totalsX + 15
+  const valueX = totalsX + totalsWidth - 15
 
-  doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
-  doc.text('Total Units:', labelX, y + 10, { width: 80 })
-  doc.fillColor(COLORS.text).font('Helvetica-Bold').fontSize(9)
-  doc.text(totalUnits.toLocaleString(), valueX, y + 10, { width: valueWidth, align: 'right' })
+  // Total Units
+  doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
+  doc.text('Total Units', labelX, totalsY)
+  doc.fillColor(COLORS.navy).font('Helvetica-Bold')
+  doc.text(totalUnits.toLocaleString(), labelX, totalsY, { width: totalsWidth - 30, align: 'right' })
 
-  doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
-  doc.text('Total Cartons:', labelX, y + 28, { width: 80 })
-  doc.fillColor(COLORS.text).font('Helvetica-Bold').fontSize(9)
-  doc.text(totalCartons.toLocaleString(), valueX, y + 28, { width: valueWidth, align: 'right' })
+  totalsY += 18
+
+  // Total Cartons
+  doc.fillColor(COLORS.muted).font('Helvetica')
+  doc.text('Total Cartons', labelX, totalsY)
+  doc.fillColor(COLORS.navy).font('Helvetica-Bold')
+  doc.text(totalCartons.toLocaleString(), labelX, totalsY, { width: totalsWidth - 30, align: 'right' })
+
+  totalsY += 22
+
+  // Divider in totals box
+  doc.moveTo(totalsX + 10, totalsY - 4).lineTo(totalsX + totalsWidth - 10, totalsY - 4).strokeColor(COLORS.border).lineWidth(0.5).stroke()
 
   // Currency totals
-  let totalsY = y + 46
-  for (const [currency, totals] of totalsByCurrency.entries()) {
-    doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
-    doc.text(`Total (${currency}):`, labelX, totalsY, { width: 80 })
-    doc.fillColor(COLORS.primary).font('Helvetica-Bold').fontSize(10)
-    doc.text(totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }), valueX, totalsY, {
-      width: valueWidth,
-      align: 'right',
-    })
-    totalsY += 18
+  for (const [currency, total] of totalsByCurrency.entries()) {
+    doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
+    doc.text(`Total (${currency})`, labelX, totalsY)
+    doc.fillColor(COLORS.navy).fontSize(11).font('Helvetica-Bold')
+    doc.text(formatCurrency(total, currency), labelX, totalsY, { width: totalsWidth - 30, align: 'right' })
+    totalsY += 22
+  }
+
+  y = totalsY + 20
+
+  // ============================================
+  // NOTES SECTION (if present)
+  // ============================================
+
+  if (params.notes?.trim()) {
+    // Check if notes fit on current page
+    const notesHeight = 60
+    if (y + notesHeight > pageHeight - 60) {
+      doc.addPage()
+      y = margin
+    }
+
+    doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
+    doc.text('NOTES', margin, y)
+    y += 14
+
+    doc.rect(margin, y, contentWidth, 50).fill(COLORS.lightBg)
+    doc.fillColor(COLORS.slate).fontSize(9).font('Helvetica')
+    doc.text(params.notes.trim(), margin + 12, y + 10, { width: contentWidth - 24 })
   }
 
   // ============================================
-  // FOOTER
+  // FOOTER (on every page)
   // ============================================
 
-  const footerY = pageHeight - 40
+  const pageCount = doc.bufferedPageRange().count
 
-  // Footer line
-  doc.moveTo(margin, footerY).lineTo(pageWidth - margin, footerY).strokeColor(COLORS.accent).lineWidth(2).stroke()
+  for (let i = 0; i < pageCount; i++) {
+    doc.switchToPage(i)
 
-  // Footer text - full timestamp
-  const now = new Date()
-  const timestamp = now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+    const footerY = pageHeight - 35
 
-  doc.fillColor(COLORS.darkGray).fontSize(8).font('Helvetica')
-  doc.text(`Generated: ${timestamp}`, margin, footerY + 10)
-  doc.text('Targon.', pageWidth - margin - 80, footerY + 10, { width: 80, align: 'right' })
+    // Footer line
+    doc.moveTo(margin, footerY)
+      .lineTo(pageWidth - margin, footerY)
+      .strokeColor(COLORS.accent)
+      .lineWidth(2)
+      .stroke()
+
+    // Footer text
+    doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
+
+    // Generation timestamp
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'
+    doc.text(`Generated: ${timestamp}`, margin, footerY + 10)
+
+    // Page number
+    doc.text(`Page ${i + 1} of ${pageCount}`, pageWidth / 2 - 30, footerY + 10, { width: 60, align: 'center' })
+
+    // Company name
+    doc.text('targon.io', pageWidth - margin - 60, footerY + 10, { width: 60, align: 'right' })
+  }
 
   doc.end()
   return await result
@@ -443,9 +485,10 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
   const pdf = await renderPurchaseOrderPdf({
     poNumber,
     supplierName: order.counterpartyName ?? '',
-    status: order.status,
+    supplierAddress: null, // TODO: Add supplier address when available
     createdAt: order.createdAt,
     destinationCountry,
+    destinationAddress: null, // TODO: Add destination address when available
     expectedDate: order.expectedDate,
     incoterms: order.incoterms,
     paymentTerms: order.paymentTerms,
