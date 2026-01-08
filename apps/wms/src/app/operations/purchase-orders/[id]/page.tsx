@@ -47,7 +47,7 @@ import {
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
+import { PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { withBasePath } from '@/lib/utils/base-path'
 
@@ -208,8 +208,6 @@ interface PurchaseOrderSummary {
   approvalHistory: StageApproval[]
 }
 
-const DEFAULT_BADGE_CLASS = 'bg-muted text-muted-foreground border border-muted'
-
 type PurchaseOrderDocumentStage = 'ISSUED' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED'
 
 interface PurchaseOrderDocumentSummary {
@@ -290,10 +288,6 @@ const INCOTERMS_OPTIONS = [
   'DPU',
   'DDP',
 ] as const
-
-function statusBadgeClasses(status: POStageStatus) {
-  return PO_STATUS_BADGE_CLASSES[status] ?? DEFAULT_BADGE_CLASS
-}
 
 function formatStatusLabel(status: POStageStatus) {
   return PO_STATUS_LABELS[status] ?? status
@@ -1421,28 +1415,6 @@ export default function PurchaseOrderDetailPage() {
           title={order.poNumber || order.orderNumber}
           description="Operations"
           icon={Package2}
-          metadata={
-            <>
-              <Badge className={statusBadgeClasses(order.status)}>
-                {formatStatusLabel(order.status)}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                Supplier: {order.counterpartyName || '—'}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {order.warehouseCode || order.warehouseName ? (
-                  <>
-                    Warehouse: {order.warehouseName ?? order.warehouseCode}
-                    {order.warehouseName && order.warehouseCode
-                      ? ` (${order.warehouseCode})`
-                      : null}
-                  </>
-                ) : (
-                  'Warehouse: Not assigned'
-                )}
-              </span>
-            </>
-          }
           actions={
             <>
               <Button
@@ -1527,7 +1499,7 @@ export default function PurchaseOrderDetailPage() {
                         isCompleted
                           ? 'bg-emerald-500 border-emerald-500 text-white group-hover:bg-emerald-600'
                           : isCurrent
-                            ? 'bg-white border-emerald-500 text-emerald-600 group-hover:bg-emerald-50'
+                            ? 'bg-white border-emerald-500 text-emerald-600 group-hover:bg-emerald-50 animate-pulse'
                             : 'bg-white border-slate-300 text-slate-400'
                       }`}
                     >
@@ -1544,8 +1516,10 @@ export default function PurchaseOrderDetailPage() {
                     >
                       {stage.label}
                     </span>
-                    {isViewing && (
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {isCurrent && (
+                      <span className="mt-0.5 text-[10px] font-medium text-emerald-600 uppercase tracking-wider">
+                        Current
+                      </span>
                     )}
                   </button>
                 )
@@ -2332,14 +2306,6 @@ export default function PurchaseOrderDetailPage() {
                               {order.createdByName ? ` by ${order.createdByName}` : ''}
                             </p>
                           </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Status
-                            </p>
-                            <Badge className={statusBadgeClasses(order.status)}>
-                              {formatStatusLabel(order.status)}
-                            </Badge>
-                          </div>
                         </div>
                         {order.notes && (
                           <div className="mt-4 pt-3 border-t">
@@ -2400,14 +2366,6 @@ export default function PurchaseOrderDetailPage() {
                             </p>
                             <p className="text-sm font-medium text-slate-900">
                               {mfg?.proformaInvoiceNumber || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Supplier
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {order.counterpartyName || '—'}
                             </p>
                           </div>
                           <div className="space-y-1">
