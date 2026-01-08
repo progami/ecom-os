@@ -351,18 +351,13 @@ export function PurchaseOrdersPanel({
       case 'MANUFACTURING': {
         cols.push(
           {
-            key: 'factory',
-            header: 'Factory / PI',
+            key: 'supplier-ref',
+            header: 'Supplier Ref (PI)',
             tdClassName: 'px-3 py-2',
             render: order => (
-              <div className="min-w-[180px]">
-                <div className="text-sm font-medium text-foreground">
-                  {order.factoryName || '—'}
-                </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  PI: {order.proformaInvoiceNumber || '—'}
-                </div>
-              </div>
+              <span className="block min-w-[180px] text-sm font-medium text-foreground">
+                {order.proformaInvoiceNumber || '—'}
+              </span>
             ),
           },
           {
