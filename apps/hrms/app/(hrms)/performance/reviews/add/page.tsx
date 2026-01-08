@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { PerformanceReviewsApi, EmployeesApi, MeApi, type Employee, type Me } from '@/lib/api-client'
-import { ArrowLeftIcon, ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
+import { ArrowLeftIcon, ClipboardDocumentCheckIcon } from '@/components/ui/Icons'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes } from '@/lib/review-period'
 import { CreatePerformanceReviewSchema } from '@/lib/validations'
+import { RatingInputRow } from '@/components/performance/reviews/RatingRows'
 
 type FormData = z.infer<typeof CreatePerformanceReviewSchema>
 
@@ -44,54 +45,6 @@ const RATING_FIELDS = [
   { key: 'initiative', label: 'Initiative', description: 'Self-motivation and proactivity' },
   { key: 'attendance', label: 'Attendance', description: 'Punctuality and reliability' },
 ] as const
-
-const RATING_SCALE_MAX = 10
-const RATING_SCALE = Array.from({ length: RATING_SCALE_MAX }, (_, idx) => idx + 1)
-
-function RatingInput({
-  label,
-  description,
-  value,
-  onChange,
-  error,
-}: {
-  label: string
-  description?: string
-  value: number
-  onChange: (v: number) => void
-  error?: string
-}) {
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
-      <div className="flex-1">
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        {description && (
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        )}
-        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
-      </div>
-      <div className="flex items-center gap-1">
-        {RATING_SCALE.map((star) => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => onChange(star)}
-            className="p-0.5 hover:scale-110 transition-transform"
-          >
-            {star <= value ? (
-              <StarFilledIcon className="h-4 w-4 text-warning-400" />
-            ) : (
-              <StarIcon className="h-4 w-4 text-muted-foreground/40 hover:text-warning-300" />
-            )}
-          </button>
-        ))}
-        <span className="ml-2 text-sm font-medium text-muted-foreground min-w-[3.5rem] text-right tabular-nums">
-          {value}/10
-        </span>
-      </div>
-    </div>
-  )
-}
 
 function AddReviewContent() {
   const router = useRouter()
@@ -424,7 +377,7 @@ function AddReviewContent() {
             <TabsContent value="ratings">
               <div className="rounded-lg border border-border">
                 {RATING_FIELDS.map((field) => (
-                  <RatingInput
+                  <RatingInputRow
                     key={field.key}
                     label={field.label}
                     description={field.description}

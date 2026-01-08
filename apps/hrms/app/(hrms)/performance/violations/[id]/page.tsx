@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,10 +15,10 @@ import {
 } from '@/lib/api-client'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
+import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
+import { RecordAlerts } from '@/components/workflow/RecordAlerts'
 import { Card, CardDivider } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Alert } from '@/components/ui/alert'
-import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -33,12 +32,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { WorkflowTimeline } from '@/components/workflow/WorkflowTimeline'
 import {
-  ArrowLeftIcon,
-  ExclamationTriangleIcon,
   PencilIcon,
-  UserIcon,
   XIcon,
 } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
@@ -566,168 +561,65 @@ export default function ViolationWorkflowPage() {
     }
   }, [record])
 
-  // Workflow data
-  const stages = dto?.workflow?.stages ?? []
-  const timeline = dto?.timeline ?? []
-  const actions = dto?.actions ?? { primary: null, secondary: [], more: [] }
+  const layoutDto = useMemo(() => {
+    if (!dto) return null
+    if (!isEditing) return dto
+    return { ...dto, actions: { primary: null, secondary: [], more: [] } }
+  }, [dto, isEditing])
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Link
-          href="/performance/violations"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeftIcon className="h-4 w-4" />
-          Back to Violations
-        </Link>
-        <Card padding="lg">
-          <div className="animate-pulse space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-full bg-muted" />
-              <div className="space-y-2 flex-1">
-                <div className="h-5 bg-muted rounded w-1/3" />
-                <div className="h-4 bg-muted rounded w-1/2" />
-              </div>
-            </div>
-            <div className="h-40 bg-muted rounded" />
-          </div>
-        </Card>
-      </div>
+      <Card padding="lg">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-muted rounded w-1/3" />
+          <div className="h-4 bg-muted rounded w-2/3" />
+          <div className="h-40 bg-muted rounded" />
+        </div>
+      </Card>
     )
   }
 
   if (!dto || !record) {
     return (
-      <div className="space-y-6">
-        <Link
-          href="/performance/violations"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeftIcon className="h-4 w-4" />
-          Back to Violations
-        </Link>
-        <Card padding="lg">
-          <p className="text-sm font-medium text-foreground">Violation</p>
-          <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
-        </Card>
-      </div>
+      <Card padding="lg">
+        <p className="text-sm font-medium text-foreground">Violation</p>
+        <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
+      </Card>
     )
   }
 
   return (
     <>
-      <div className="space-y-6">
-        {/* Back link */}
-        <Link
-          href="/performance/violations"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeftIcon className="h-4 w-4" />
-          Back to Violations
-        </Link>
+      <RecordAlerts
+        className="mb-6"
+        error={error}
+        errorDetails={errorDetails}
+        success={successMessage}
+        onDismissError={() => {
+          setError(null)
+          setErrorDetails(null)
+        }}
+        onDismissSuccess={() => setSuccessMessage(null)}
+      />
 
-        {/* Alerts */}
-        {error && (
-          <Alert
-            variant="error"
-            title={errorDetails?.length ? error : undefined}
-            onDismiss={() => {
-              setError(null)
-              setErrorDetails(null)
-            }}
-          >
-            {errorDetails?.length ? (
-              <ul className="list-disc pl-5 space-y-1">
-                {errorDetails.map((d, idx) => (
-                  <li key={`${idx}:${d}`}>{d}</li>
-                ))}
-              </ul>
-            ) : (
-              error
-            )}
-          </Alert>
-        )}
-
-        {successMessage && (
-          <Alert variant="success" onDismiss={() => setSuccessMessage(null)}>
-            {successMessage}
-          </Alert>
-        )}
-
-        {/* Main layout */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Main content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Header card */}
-            <Card padding="lg" className="relative overflow-hidden border-destructive/20">
-              <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 to-transparent" />
-              <div className="relative">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-destructive/20 to-destructive/5 ring-2 ring-destructive/20">
-                    <ExclamationTriangleIcon className="h-7 w-7 text-destructive" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-semibold tracking-wider text-destructive uppercase">
-                          Violation File
-                        </p>
-                        <h1 className="text-lg font-semibold text-foreground mt-1">
-                          {record.employee?.firstName} {record.employee?.lastName}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                          {record.employee?.position}
-                          {record.employee?.department && ` • ${record.employee.department}`}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={record.status.replaceAll('_', ' ')} />
-                        {canEdit && !isEditing && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setIsEditing(true)}
-                            icon={<PencilIcon className="h-4 w-4" />}
-                          >
-                            Edit
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Workflow stages */}
-                    {stages.length > 0 && (
-                      <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
-                        {stages.map((stage, idx) => (
-                          <div key={stage.id ?? idx} className="flex items-center gap-2">
-                            <div
-                              className={cn(
-                                'h-2 w-2 rounded-full shrink-0',
-                                stage.status === 'completed' && 'bg-success',
-                                stage.status === 'current' && 'bg-accent',
-                                stage.status === 'upcoming' && 'bg-border'
-                              )}
-                            />
-                            <span
-                              className={cn(
-                                'text-xs whitespace-nowrap',
-                                stage.status === 'upcoming' ? 'text-muted-foreground' : 'text-foreground'
-                              )}
-                            >
-                              {stage.label}
-                            </span>
-                            {idx < stages.length - 1 && <div className="w-6 h-px bg-border" />}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Edit Mode or View Mode */}
+      <WorkflowRecordLayout
+        data={layoutDto ?? dto}
+        onAction={onAction}
+        backHref="/performance/violations"
+        headerActions={
+          canEdit && !isEditing ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              icon={<PencilIcon className="h-4 w-4" />}
+            >
+              Edit
+            </Button>
+          ) : null
+        }
+      >
+        {/* Edit Mode or View Mode */}
             {isEditing ? (
               /* Edit Mode */
               <form onSubmit={handleSubmit(onSave)}>
@@ -1108,49 +1000,9 @@ export default function ViolationWorkflowPage() {
                   </div>
                 </Card>
 
-                {/* Workflow actions */}
-                {(actions.primary || actions.secondary.length > 0) && (
-                  <Card padding="md">
-                    <div className="flex items-center justify-end gap-3">
-                      {actions.secondary.map((action) => (
-                        <Button
-                          key={action.id}
-                          variant={action.variant === 'danger' ? 'danger' : 'secondary'}
-                          disabled={action.disabled}
-                          onClick={() => onAction(action.id)}
-                        >
-                          {action.label}
-                        </Button>
-                      ))}
-                      {actions.primary && (
-                        <Button
-                          variant={actions.primary.variant === 'danger' ? 'danger' : 'primary'}
-                          disabled={actions.primary.disabled}
-                          onClick={() => onAction(actions.primary!.id)}
-                        >
-                          {actions.primary.label}
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                )}
               </div>
             )}
-          </div>
-
-          {/* Sidebar - Timeline */}
-          <div className="space-y-6">
-            <Card padding="md">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Activity</h3>
-              {timeline.length > 0 ? (
-                <WorkflowTimeline items={timeline} />
-              ) : (
-                <p className="text-sm text-muted-foreground">No activity yet</p>
-              )}
-            </Card>
-          </div>
-        </div>
-      </div>
+      </WorkflowRecordLayout>
 
       {/* Notes Dialog */}
       <Dialog

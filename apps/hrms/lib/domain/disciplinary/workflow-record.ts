@@ -2,6 +2,7 @@ import type { WorkflowRecordDTO, WorkflowStageStatus, WorkflowTone } from '@/lib
 import { timelineFromAudit } from '@/lib/domain/workflow/timeline-from-audit'
 import { toneForStatus } from '@/lib/domain/workflow/tone'
 import { buildDisciplinaryNextActions, type DisciplinaryViewerContext, type DisciplinaryWorkflowRecordInput } from './next-actions'
+import { DISCIPLINARY_ACTION_TYPE_LABELS, VIOLATION_REASON_LABELS, VIOLATION_TYPE_LABELS } from './constants'
 
 function stageStatus(order: string[], current: string, id: string): WorkflowStageStatus {
   if (current === id) return 'current'
@@ -162,11 +163,23 @@ export async function disciplinaryToWorkflowRecordDTO(
     workflow: buildWorkflow(action),
     actions: buildDisciplinaryNextActions(action, viewer),
     summary: [
-      { label: 'Violation type', value: action.violationType.replaceAll('_', ' ') },
-      { label: 'Reason', value: action.violationReason.replaceAll('_', ' ') },
+      {
+        label: 'Violation type',
+        value: VIOLATION_TYPE_LABELS[action.violationType as keyof typeof VIOLATION_TYPE_LABELS] ??
+          action.violationType.replaceAll('_', ' '),
+      },
+      {
+        label: 'Reason',
+        value: VIOLATION_REASON_LABELS[action.violationReason as keyof typeof VIOLATION_REASON_LABELS] ??
+          action.violationReason.replaceAll('_', ' '),
+      },
       { label: 'Incident date', value: action.incidentDate.toLocaleDateString('en-US') },
       { label: 'Reported', value: action.reportedDate.toLocaleDateString('en-US') },
-      { label: 'Action taken', value: action.actionTaken.replaceAll('_', ' ') },
+      {
+        label: 'Action taken',
+        value: DISCIPLINARY_ACTION_TYPE_LABELS[action.actionTaken as keyof typeof DISCIPLINARY_ACTION_TYPE_LABELS] ??
+          action.actionTaken.replaceAll('_', ' '),
+      },
       { label: 'Status', value: statusLabel(action.status) },
     ],
     timeline,

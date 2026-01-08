@@ -7,7 +7,7 @@ import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 import { executeAction } from '@/lib/actions/execute-action'
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { Alert } from '@/components/ui/alert'
+import { RecordAlerts } from '@/components/workflow/RecordAlerts'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS } from '@/lib/domain/leave/constants'
@@ -213,36 +213,23 @@ export default function LeaveWorkflowPage() {
 
   return (
     <>
-      {error ? (
-        <Alert
-          variant="error"
-          className="mb-6"
-          title={errorDetails?.length ? error : undefined}
-          onDismiss={() => {
-            setError(null)
-            setErrorDetails(null)
-          }}
-        >
-          {errorDetails?.length ? (
-            <div className="space-y-3">
-              <ul className="list-disc pl-5 space-y-1">
-                {errorDetails.map((d, idx) => (
-                  <li key={`${idx}:${d}`}>{d}</li>
-                ))}
-              </ul>
-              {leave ? (
-                <div>
-                  <Button variant="secondary" href={`/leaves/${id}`}>
-                    Refresh
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            error
-          )}
-        </Alert>
-      ) : null}
+      <RecordAlerts
+        className="mb-6"
+        error={error}
+        errorDetails={errorDetails}
+        errorFooter={
+          leave ? (
+            <Button variant="secondary" href={`/leaves/${id}`}>
+              Refresh
+            </Button>
+          ) : null
+        }
+        success={null}
+        onDismissError={() => {
+          setError(null)
+          setErrorDetails(null)
+        }}
+      />
 
       <WorkflowRecordLayout data={dto} onAction={onAction} backHref="/leave">
         {leave ? (
@@ -316,4 +303,3 @@ export default function LeaveWorkflowPage() {
     </>
   )
 }
-
