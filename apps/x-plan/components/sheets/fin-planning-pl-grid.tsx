@@ -1057,7 +1057,8 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                               : 'bg-card',
                           isPinned && 'sticky z-10',
                           colIndex === 1 && 'border-r-2',
-                          config.editable && 'cursor-text font-medium bg-accent/50',
+                          config.editable &&
+                            'cursor-text font-medium bg-cyan-50/80 dark:bg-cyan-950/40',
                           isSelected && 'bg-accent',
                           isCurrent && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
                         )}
