@@ -688,6 +688,8 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         const config = columnConfig[activeCell.col];
         if (config?.editable) {
           e.preventDefault();
+          selectionAnchorRef.current = activeCell;
+          setSelection({ from: activeCell, to: activeCell });
           const row = data[activeCell.row];
           if (row) {
             setEditingCell({
@@ -704,6 +706,8 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         const config = columnConfig[activeCell.col];
         if (config?.editable) {
           e.preventDefault();
+          selectionAnchorRef.current = activeCell;
+          setSelection({ from: activeCell, to: activeCell });
           const row = data[activeCell.row];
           if (row) {
             setEditingCell({
@@ -782,6 +786,8 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         const config = columnConfig[activeCell.col];
         if (!config?.editable) return;
         e.preventDefault();
+        selectionAnchorRef.current = activeCell;
+        setSelection({ from: activeCell, to: activeCell });
         setEditingCell({ coords: activeCell, key: config.key, value: e.key });
         return;
       }
