@@ -4,18 +4,44 @@ import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
 import { auditLog } from '@/lib/security/audit-logger'
-import { PurchaseOrderDocumentStage, Prisma } from '@ecom-os/prisma-wms'
+import { PurchaseOrderDocumentStage, Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // 60 seconds for file uploads
 
 const STAGES: readonly PurchaseOrderDocumentStage[] = [
+  'ISSUED',
   'MANUFACTURING',
   'OCEAN',
   'WAREHOUSE',
   'SHIPPED',
 ]
+
+const DOCUMENT_STAGE_ORDER: Record<PurchaseOrderDocumentStage, number> = {
+  ISSUED: 1,
+  MANUFACTURING: 2,
+  OCEAN: 3,
+  WAREHOUSE: 4,
+  SHIPPED: 5,
+}
+
+function statusToDocumentStage(status: PurchaseOrderStatus): PurchaseOrderDocumentStage | null {
+  switch (status) {
+    case PurchaseOrderStatus.ISSUED:
+      return PurchaseOrderDocumentStage.ISSUED
+    case PurchaseOrderStatus.MANUFACTURING:
+      return PurchaseOrderDocumentStage.MANUFACTURING
+    case PurchaseOrderStatus.OCEAN:
+      return PurchaseOrderDocumentStage.OCEAN
+    case PurchaseOrderStatus.WAREHOUSE:
+      return PurchaseOrderDocumentStage.WAREHOUSE
+    case PurchaseOrderStatus.SHIPPED:
+      return PurchaseOrderDocumentStage.SHIPPED
+    default:
+      return null
+  }
+}
 
 function parseStage(value: unknown): PurchaseOrderDocumentStage | null {
   if (typeof value !== 'string') return null
@@ -63,7 +89,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
 
     const order = await prisma.purchaseOrder.findUnique({
       where: { id },
-      select: { id: true, isLegacy: true, orderNumber: true },
+      select: { id: true, isLegacy: true, orderNumber: true, status: true },
     })
 
     if (!order) {
@@ -72,6 +98,21 @@ export const POST = withAuthAndParams(async (request, params, session) => {
 
     if (order.isLegacy) {
       return NextResponse.json({ error: 'Cannot attach documents to legacy orders' }, { status: 409 })
+    }
+
+    if (order.status === PurchaseOrderStatus.CANCELLED || order.status === PurchaseOrderStatus.REJECTED) {
+      return NextResponse.json(
+        { error: `Cannot modify documents for ${order.status.toLowerCase()} purchase orders` },
+        { status: 409 }
+      )
+    }
+
+    const currentStage = statusToDocumentStage(order.status as PurchaseOrderStatus)
+    if (currentStage && DOCUMENT_STAGE_ORDER[stage] < DOCUMENT_STAGE_ORDER[currentStage]) {
+      return NextResponse.json(
+        { error: `Documents for completed stages are locked (current stage: ${order.status})` },
+        { status: 409 }
+      )
     }
 
     const validation = await validateFile(file, 'purchase-order-document')

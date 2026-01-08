@@ -10,12 +10,38 @@ const UpdateLineSchema = z.object({
   skuCode: z.string().trim().min(1).optional(),
   skuDescription: z.string().optional(),
   batchLot: z.string().trim().min(1).optional(),
-  quantity: z.number().int().positive().optional(),
-  unitCost: z.number().optional(),
+  unitsOrdered: z.number().int().positive().optional(),
+  unitsPerCarton: z.number().int().positive().optional(),
+  totalCost: z.number().min(0).optional(),
   currency: z.string().optional(),
   notes: z.string().optional(),
   quantityReceived: z.number().int().min(0).optional(),
 })
+
+function computeCartonsOrdered(input: {
+  skuCode: string
+  unitsOrdered: number
+  unitsPerCarton: number
+}): number {
+  const unitsOrdered = Number(input.unitsOrdered)
+  const unitsPerCarton = Number(input.unitsPerCarton)
+
+  if (!Number.isInteger(unitsOrdered) || unitsOrdered <= 0) {
+    throw new Error(`Units ordered must be a positive integer for SKU ${input.skuCode}`)
+  }
+
+  if (!Number.isInteger(unitsPerCarton) || unitsPerCarton <= 0) {
+    throw new Error(`Units per carton must be a positive integer for SKU ${input.skuCode}`)
+  }
+
+  if (unitsOrdered % unitsPerCarton !== 0) {
+    throw new Error(
+      `Units ordered must be a multiple of units per carton for SKU ${input.skuCode} (${unitsOrdered} ÷ ${unitsPerCarton})`
+    )
+  }
+
+  return unitsOrdered / unitsPerCarton
+}
 
 /**
  * GET /api/purchase-orders/[id]/lines/[lineId]
@@ -43,8 +69,11 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
     skuCode: line.skuCode,
     skuDescription: line.skuDescription,
     batchLot: line.batchLot,
+    unitsOrdered: line.unitsOrdered,
+    unitsPerCarton: line.unitsPerCarton,
     quantity: line.quantity,
     unitCost: line.unitCost ? Number(line.unitCost) : null,
+    totalCost: line.totalCost ? Number(line.totalCost) : null,
     currency: line.currency || tenant.currency,
     status: line.status,
     quantityReceived: line.quantityReceived,
@@ -105,10 +134,56 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     if (result.data.skuCode !== undefined) updateData.skuCode = result.data.skuCode
     if (result.data.skuDescription !== undefined)
       updateData.skuDescription = result.data.skuDescription
-    if (result.data.quantity !== undefined) updateData.quantity = result.data.quantity
-    if (result.data.unitCost !== undefined) updateData.unitCost = result.data.unitCost
     if (result.data.currency !== undefined) updateData.currency = result.data.currency
     if (result.data.notes !== undefined) updateData.lineNotes = result.data.notes
+
+    const unitsChanged =
+      result.data.unitsOrdered !== undefined || result.data.unitsPerCarton !== undefined
+    const totalCostChanged = result.data.totalCost !== undefined
+
+    if (unitsChanged) {
+      const nextUnitsOrdered = result.data.unitsOrdered ?? line.unitsOrdered
+      const nextUnitsPerCarton = result.data.unitsPerCarton ?? line.unitsPerCarton
+
+      let cartonsOrdered: number
+      try {
+        cartonsOrdered = computeCartonsOrdered({
+          skuCode: line.skuCode,
+          unitsOrdered: nextUnitsOrdered,
+          unitsPerCarton: nextUnitsPerCarton,
+        })
+      } catch (error) {
+        return ApiResponses.badRequest(
+          error instanceof Error ? error.message : 'Invalid units/carton inputs'
+        )
+      }
+
+      updateData.unitsOrdered = nextUnitsOrdered
+      updateData.unitsPerCarton = nextUnitsPerCarton
+      updateData.quantity = cartonsOrdered
+    }
+
+    const existingTotalCost = line.totalCost ? Number(line.totalCost) : null
+    const nextTotalCost =
+      result.data.totalCost !== undefined ? result.data.totalCost : existingTotalCost
+
+    if (totalCostChanged) {
+      updateData.totalCost =
+        typeof nextTotalCost === 'number' && Number.isFinite(nextTotalCost)
+          ? nextTotalCost.toFixed(2)
+          : undefined
+    }
+
+    if (
+      (totalCostChanged || unitsChanged) &&
+      typeof nextTotalCost === 'number' &&
+      Number.isFinite(nextTotalCost)
+    ) {
+      const nextUnitsOrdered = result.data.unitsOrdered ?? line.unitsOrdered
+      if (nextUnitsOrdered > 0) {
+        updateData.unitCost = (nextTotalCost / nextUnitsOrdered).toFixed(4)
+      }
+    }
   }
 
   // quantityReceived - editable in WAREHOUSE status
@@ -119,7 +194,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     updateData.quantityReceived = result.data.quantityReceived
   }
 
-  if (Object.keys(updateData).length === 0) {
+  if (Object.keys(updateData).length === 0 && order.status !== 'DRAFT') {
     return ApiResponses.badRequest('No valid fields to update for current order status')
   }
 
@@ -200,6 +275,10 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     }
   }
 
+  if (Object.keys(updateData).length === 0) {
+    return ApiResponses.badRequest('No valid fields to update for current order status')
+  }
+
   let updated
   try {
     updated = await prisma.purchaseOrderLine.update({
@@ -218,8 +297,11 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuCode: line.skuCode,
     skuDescription: line.skuDescription ?? null,
     batchLot: line.batchLot ?? null,
+    unitsOrdered: line.unitsOrdered,
+    unitsPerCarton: line.unitsPerCarton,
     quantity: line.quantity,
     unitCost: line.unitCost ? Number(line.unitCost) : null,
+    totalCost: line.totalCost ? Number(line.totalCost) : null,
     currency: line.currency ?? null,
     notes: line.lineNotes ?? null,
     quantityReceived: line.quantityReceived ?? null,
@@ -229,8 +311,11 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuCode: updated.skuCode,
     skuDescription: updated.skuDescription ?? null,
     batchLot: updated.batchLot ?? null,
+    unitsOrdered: updated.unitsOrdered,
+    unitsPerCarton: updated.unitsPerCarton,
     quantity: updated.quantity,
     unitCost: updated.unitCost ? Number(updated.unitCost) : null,
+    totalCost: updated.totalCost ? Number(updated.totalCost) : null,
     currency: updated.currency ?? null,
     notes: updated.lineNotes ?? null,
     quantityReceived: updated.quantityReceived ?? null,
@@ -262,8 +347,11 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuCode: updated.skuCode,
     skuDescription: updated.skuDescription,
     batchLot: updated.batchLot,
+    unitsOrdered: updated.unitsOrdered,
+    unitsPerCarton: updated.unitsPerCarton,
     quantity: updated.quantity,
     unitCost: updated.unitCost ? Number(updated.unitCost) : null,
+    totalCost: updated.totalCost ? Number(updated.totalCost) : null,
     currency: updated.currency,
     status: updated.status,
     quantityReceived: updated.quantityReceived,
@@ -324,8 +412,11 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
       skuCode: line.skuCode,
       skuDescription: line.skuDescription ?? null,
       batchLot: line.batchLot ?? null,
+      unitsOrdered: line.unitsOrdered,
+      unitsPerCarton: line.unitsPerCarton,
       quantity: line.quantity,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
+      totalCost: line.totalCost ? Number(line.totalCost) : null,
       currency: line.currency ?? null,
       notes: line.lineNotes ?? null,
     },

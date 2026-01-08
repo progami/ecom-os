@@ -56,9 +56,12 @@ async function renderPurchaseOrderPdf(params: {
     skuCode: string
     skuDescription: string | null
     batchLot: string | null
-    quantity: number
+    unitsOrdered: number
+    unitsPerCarton: number
+    cartons: number
     currency: string
     unitCost: number | null
+    totalCost: number | null
   }>
 }): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margin: 50 })
@@ -217,12 +220,13 @@ async function renderPurchaseOrderPdf(params: {
 
   // Column definitions - adjusted for better text fit
   const cols = {
-    sku: { x: margin, width: 65 },
-    description: { x: margin + 65, width: 165 },
-    batch: { x: margin + 230, width: 65 },
-    qty: { x: margin + 295, width: 55 },
-    unit: { x: margin + 350, width: 75 },
-    total: { x: margin + 425, width: 70 },
+    sku: { x: margin, width: 60 },
+    description: { x: margin + 60, width: 155 },
+    units: { x: margin + 215, width: 55 },
+    unitsPerCarton: { x: margin + 270, width: 50 },
+    cartons: { x: margin + 320, width: 50 },
+    unit: { x: margin + 370, width: 60 },
+    total: { x: margin + 430, width: 65 },
   }
 
   // Table header row
@@ -230,23 +234,31 @@ async function renderPurchaseOrderPdf(params: {
   doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
   doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 12 })
   doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 12 })
-  doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 12 })
-  doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width - 8, align: 'right' })
-  doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
+  doc.text('UNITS', cols.units.x, y + 10, { width: cols.units.width - 8, align: 'right' })
+  doc.text('U/CTN', cols.unitsPerCarton.x, y + 10, {
+    width: cols.unitsPerCarton.width - 8,
+    align: 'right',
+  })
+  doc.text('CTNS', cols.cartons.x, y + 10, { width: cols.cartons.width - 8, align: 'right' })
+  doc.text('UNIT', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
   doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width - 8, align: 'right' })
 
   y += 28
 
   // Table rows
   const totalsByCurrency = new Map<string, { total: number }>()
-  let totalQuantity = 0
-  const rowHeight = 24
+  let totalUnits = 0
+  let totalCartons = 0
+  const rowHeight = 32
 
   const drawTableRow = (line: (typeof params.lines)[0], rowY: number, isAlt: boolean) => {
     const currency = (line.currency || 'USD').toUpperCase()
     const unitCost = line.unitCost
-    const lineTotal = unitCost !== null ? unitCost * line.quantity : null
-    totalQuantity += line.quantity
+    const lineTotal =
+      line.totalCost !== null ? line.totalCost : unitCost !== null ? unitCost * line.unitsOrdered : null
+
+    totalUnits += line.unitsOrdered
+    totalCartons += line.cartons
 
     if (lineTotal !== null) {
       const entry = totalsByCurrency.get(currency) ?? { total: 0 }
@@ -262,21 +274,38 @@ async function renderPurchaseOrderPdf(params: {
     // Row content - vertically centered text
     const textY = rowY + 7
 
-    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
+    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica-Bold')
     doc.text(line.skuCode, cols.sku.x + 8, textY, { width: cols.sku.width - 12, lineBreak: false })
 
+    doc.fillColor(COLORS.darkGray).fontSize(7).font('Helvetica')
+    doc.text(line.batchLot ?? '—', cols.sku.x + 8, textY + 12, {
+      width: cols.sku.width - 12,
+      lineBreak: false,
+      ellipsis: true,
+    })
+
     // Description with ellipsis for long text
+    doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
     doc.text(line.skuDescription ?? '—', cols.description.x + 8, textY, {
       width: cols.description.width - 12,
       lineBreak: false,
       ellipsis: true,
     })
 
-    doc.text(line.batchLot ?? '—', cols.batch.x + 8, textY, { width: cols.batch.width - 12, lineBreak: false })
-
     // Numeric columns - right aligned with padding
     doc.font('Helvetica-Bold')
-    doc.text(line.quantity.toLocaleString(), cols.qty.x, textY, { width: cols.qty.width - 8, align: 'right' })
+    doc.text(line.unitsOrdered.toLocaleString(), cols.units.x, textY, {
+      width: cols.units.width - 8,
+      align: 'right',
+    })
+    doc.text(line.unitsPerCarton.toLocaleString(), cols.unitsPerCarton.x, textY, {
+      width: cols.unitsPerCarton.width - 8,
+      align: 'right',
+    })
+    doc.text(line.cartons.toLocaleString(), cols.cartons.x, textY, {
+      width: cols.cartons.width - 8,
+      align: 'right',
+    })
 
     doc.font('Helvetica').fontSize(9)
     doc.text(`${currency} ${formatMoney(unitCost)}`, cols.unit.x, textY, { width: cols.unit.width - 8, align: 'right' })
@@ -301,9 +330,13 @@ async function renderPurchaseOrderPdf(params: {
       doc.fillColor(COLORS.white).fontSize(8).font('Helvetica-Bold')
       doc.text('SKU', cols.sku.x + 8, y + 10, { width: cols.sku.width - 12 })
       doc.text('DESCRIPTION', cols.description.x + 8, y + 10, { width: cols.description.width - 12 })
-      doc.text('BATCH/LOT', cols.batch.x + 8, y + 10, { width: cols.batch.width - 12 })
-      doc.text('QTY', cols.qty.x, y + 10, { width: cols.qty.width - 8, align: 'right' })
-      doc.text('UNIT PRICE', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
+      doc.text('UNITS', cols.units.x, y + 10, { width: cols.units.width - 8, align: 'right' })
+      doc.text('U/CTN', cols.unitsPerCarton.x, y + 10, {
+        width: cols.unitsPerCarton.width - 8,
+        align: 'right',
+      })
+      doc.text('CTNS', cols.cartons.x, y + 10, { width: cols.cartons.width - 8, align: 'right' })
+      doc.text('UNIT', cols.unit.x, y + 10, { width: cols.unit.width - 8, align: 'right' })
       doc.text('TOTAL', cols.total.x, y + 10, { width: cols.total.width - 8, align: 'right' })
       y += 28
     }
@@ -322,23 +355,28 @@ async function renderPurchaseOrderPdf(params: {
   const totalsBoxWidth = 220
   const totalsBoxX = pageWidth - margin - totalsBoxWidth
   const currencyCount = totalsByCurrency.size
-  const totalsBoxHeight = 24 + Math.max(1, currencyCount) * 20
+  const totalsBoxHeight = 44 + Math.max(1, currencyCount) * 20
 
   doc.rect(totalsBoxX, y, totalsBoxWidth, totalsBoxHeight).fill(COLORS.lightGray)
   doc.rect(totalsBoxX, y, totalsBoxWidth, totalsBoxHeight).strokeColor(COLORS.mediumGray).lineWidth(1).stroke()
 
-  // Total quantity row
+  // Total units row
   const labelX = totalsBoxX + 15
   const valueX = totalsBoxX + 100
   const valueWidth = totalsBoxWidth - 115
 
   doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
-  doc.text('Total Quantity:', labelX, y + 10, { width: 80 })
+  doc.text('Total Units:', labelX, y + 10, { width: 80 })
   doc.fillColor(COLORS.text).font('Helvetica-Bold').fontSize(9)
-  doc.text(totalQuantity.toLocaleString(), valueX, y + 10, { width: valueWidth, align: 'right' })
+  doc.text(totalUnits.toLocaleString(), valueX, y + 10, { width: valueWidth, align: 'right' })
+
+  doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
+  doc.text('Total Cartons:', labelX, y + 28, { width: 80 })
+  doc.fillColor(COLORS.text).font('Helvetica-Bold').fontSize(9)
+  doc.text(totalCartons.toLocaleString(), valueX, y + 28, { width: valueWidth, align: 'right' })
 
   // Currency totals
-  let totalsY = y + 28
+  let totalsY = y + 46
   for (const [currency, totals] of totalsByCurrency.entries()) {
     doc.fillColor(COLORS.darkGray).fontSize(9).font('Helvetica')
     doc.text(`Total (${currency}):`, labelX, totalsY, { width: 80 })
@@ -384,10 +422,6 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     return ApiResponses.notFound('Purchase order not found')
   }
 
-  if (order.status === 'DRAFT') {
-    return ApiResponses.badRequest('Issue the purchase order before generating a PDF')
-  }
-
   const tenant = await getCurrentTenant()
   const destinationCountry = `${tenant.name} (${tenant.displayName})`
 
@@ -398,9 +432,12 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     skuCode: line.skuCode,
     skuDescription: line.skuDescription ?? null,
     batchLot: line.batchLot ?? null,
-    quantity: line.quantity,
+    unitsOrdered: line.unitsOrdered,
+    unitsPerCarton: line.unitsPerCarton,
+    cartons: line.quantity,
     currency: line.currency,
     unitCost: toNumber(line.unitCost),
+    totalCost: toNumber(line.totalCost),
   }))
 
   const pdf = await renderPurchaseOrderPdf({

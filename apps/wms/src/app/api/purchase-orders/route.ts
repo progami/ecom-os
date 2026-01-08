@@ -24,10 +24,9 @@ const LineItemSchema = z.object({
     .trim()
     .min(1)
     .refine(value => value.trim().toUpperCase() !== 'DEFAULT', 'Batch / lot is required'),
-  quantity: z.number().int().positive(),
-  storageCartonsPerPallet: z.number().int().positive().optional(),
-  shippingCartonsPerPallet: z.number().int().positive().optional(),
-  unitCost: z.number().optional(),
+  unitsOrdered: z.number().int().positive(),
+  unitsPerCarton: z.number().int().positive(),
+  totalCost: z.number().min(0).optional(),
   currency: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -79,10 +78,9 @@ export const POST = withAuth(async (request: NextRequest, session) => {
           skuCode: line.skuCode,
           skuDescription: line.skuDescription,
           batchLot: line.batchLot,
-          quantity: line.quantity,
-          storageCartonsPerPallet: line.storageCartonsPerPallet,
-          shippingCartonsPerPallet: line.shippingCartonsPerPallet,
-          unitCost: line.unitCost,
+          unitsOrdered: line.unitsOrdered,
+          unitsPerCarton: line.unitsPerCarton,
+          totalCost: line.totalCost,
           currency: line.currency,
           notes: line.notes,
         })),
