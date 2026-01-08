@@ -602,9 +602,6 @@ export default function PurchaseOrderDetailPage() {
   >('cargo')
   const [previewDocument, setPreviewDocument] = useState<PurchaseOrderDocumentSummary | null>(null)
 
-  // Collapsible sections state for Documents tab
-  const [collapsedDocSections, setCollapsedDocSections] = useState<Record<string, boolean>>({})
-
   // Collapsible sections state for Details tab
   const [collapsedDetailSections, setCollapsedDetailSections] = useState<Record<string, boolean>>(
     {}
@@ -2521,190 +2518,147 @@ export default function PurchaseOrderDetailPage() {
           )}
 
           {activeBottomTab === 'documents' && (
-            <div className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900">Documents</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Supplier paperwork and supporting files, grouped by stage.
-                  </p>
-                </div>
-                {documentsLoading && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Refreshing…
-                  </div>
-                )}
-              </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto text-sm">
+                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-semibold">Stage</th>
+                    <th className="px-4 py-2 text-left font-semibold">Document Type</th>
+                    <th className="px-4 py-2 text-left font-semibold">File</th>
+                    <th className="px-4 py-2 text-left font-semibold">Uploaded</th>
+                    <th className="px-4 py-2 text-left font-semibold">Status</th>
+                    <th className="px-4 py-2 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const allRows: Array<{
+                      stage: string
+                      stageLabel: string
+                      documentType: string
+                      label: string
+                      doc: PurchaseOrderDocumentSummary | undefined
+                    }> = []
 
-              <div className="mt-6 space-y-6">
-                {documentStages.map(stage => {
-                  const stageDocs = documents
-                    .filter(doc => doc.stage === stage)
-                    .sort(
-                      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-                    )
+                    documentStages.forEach(stage => {
+                      const stageDocs = documents.filter(doc => doc.stage === stage)
+                      const requiredDocs = stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
+                      const requiredIds = new Set(requiredDocs.map(doc => doc.id))
+                      const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+                      const otherDocs = stageDocs.filter(doc => !requiredIds.has(doc.documentType))
+                      const meta = DOCUMENT_STAGE_META[stage]
 
-                  const requiredDocs = stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
-                  const requiredIds = new Set(requiredDocs.map(doc => doc.id))
-                  const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
-                  const otherDocs = stageDocs.filter(doc => !requiredIds.has(doc.documentType))
+                      requiredDocs.forEach(doc => {
+                        allRows.push({
+                          stage,
+                          stageLabel: meta.label,
+                          documentType: doc.id,
+                          label: doc.label,
+                          doc: docsByType.get(doc.id),
+                        })
+                      })
+                      otherDocs.forEach(doc => {
+                        allRows.push({
+                          stage,
+                          stageLabel: meta.label,
+                          documentType: doc.documentType,
+                          label: getDocumentLabel(stage, doc.documentType),
+                          doc,
+                        })
+                      })
+                    })
 
-                  const rows: Array<{
-                    documentType: string
-                    label: string
-                    doc: PurchaseOrderDocumentSummary | undefined
-                  }> = [
-                    ...requiredDocs.map(doc => ({
-                      documentType: doc.id,
-                      label: doc.label,
-                      doc: docsByType.get(doc.id),
-                    })),
-                    ...otherDocs.map(doc => ({
-                      documentType: doc.documentType,
-                      label: getDocumentLabel(stage, doc.documentType),
-                      doc,
-                    })),
-                  ]
+                    if (allRows.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                            No documents configured for this order.
+                          </td>
+                        </tr>
+                      )
+                    }
 
-                  if (rows.length === 0) return null
+                    return allRows.map(row => {
+                      const key = `${row.stage}::${row.documentType}`
+                      const existing = row.doc
+                      const isUploading = Boolean(uploadingDoc[key])
 
-                  const meta = DOCUMENT_STAGE_META[stage]
-                  const StageIcon = meta.icon
-                  // Default: expanded if has documents, collapsed if empty
-                  const isCollapsed = collapsedDocSections[stage] ?? stageDocs.length === 0
-
-                  return (
-                    <div
-                      key={stage}
-                      className="rounded-xl border bg-white shadow-sm overflow-hidden"
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedDocSections(prev => ({ ...prev, [stage]: !isCollapsed }))
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
-                            <StageIcon className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">{meta.label}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {stageDocs.length === 0
-                                ? 'No uploads yet'
-                                : `${stageDocs.length} uploaded`}
-                            </p>
-                          </div>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                        />
-                      </button>
-
-                      <div
-                        className={`divide-y border-t transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
-                      >
-                        {rows.map(row => {
-                          const key = `${stage}::${row.documentType}`
-                          const existing = row.doc
-                          const isUploading = Boolean(uploadingDoc[key])
-                          const uploadedBy = existing?.uploadedByName
-                            ? ` by ${existing.uploadedByName}`
-                            : ''
-
-                          return (
-                            <div
-                              key={key}
-                              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                            >
-                              <div className="flex items-start gap-3 min-w-0">
-                                {existing ? (
-                                  <Check className="h-4 w-4 flex-shrink-0 text-emerald-600 mt-0.5" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400 mt-0.5" />
-                                )}
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium text-slate-900">{row.label}</p>
-                                  {existing ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => setPreviewDocument(existing)}
-                                      className="mt-0.5 block truncate text-left text-xs text-primary hover:underline"
-                                      title={existing.fileName}
-                                    >
-                                      {existing.fileName}
-                                    </button>
-                                  ) : (
-                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                      Not uploaded yet
-                                    </p>
-                                  )}
-                                  {existing && (
-                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                      Uploaded {formatDate(existing.uploadedAt)}
-                                      {uploadedBy}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0">
-                                {existing && (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setPreviewDocument(existing)}
-                                    className="gap-2"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                    Preview
-                                  </Button>
-                                )}
-                                {existing && (
-                                  <Button
-                                    asChild
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="gap-2"
-                                  >
-                                    <a href={existing.viewUrl} target="_blank" rel="noreferrer">
-                                      <ExternalLink className="h-4 w-4" />
-                                      Open
-                                    </a>
-                                  </Button>
-                                )}
-
-                                {(stage !== 'SHIPPED' || existing) && (
-                                  <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors">
-                                    <Upload className="h-3.5 w-3.5" />
-                                    {existing ? 'Replace' : 'Upload'}
-                                    <input
-                                      type="file"
-                                      className="hidden"
-                                      disabled={isUploading}
-                                      onChange={e =>
-                                        void handleDocumentUpload(e, stage, row.documentType)
-                                      }
-                                    />
-                                    {isUploading && (
-                                      <span className="text-xs text-muted-foreground ml-1">…</span>
-                                    )}
-                                  </label>
-                                )}
-                              </div>
+                      return (
+                        <tr key={key} className="border-t hover:bg-muted/10">
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {row.stageLabel}
+                          </td>
+                          <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                            {row.label}
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap max-w-[200px]">
+                            {existing ? (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewDocument(existing)}
+                                className="text-primary hover:underline truncate block max-w-full"
+                                title={existing.fileName}
+                              >
+                                {existing.fileName}
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {existing ? formatDateOnly(existing.uploadedAt) : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <Badge variant="outline" className={existing ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
+                              {existing ? 'UPLOADED' : 'PENDING'}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {existing && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setPreviewDocument(existing)}
+                                  className="h-7 w-7 p-0"
+                                  title="Preview"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {existing && (
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0"
+                                  title="Open in new tab"
+                                >
+                                  <a href={existing.viewUrl} target="_blank" rel="noreferrer">
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </Button>
+                              )}
+                              {(row.stage !== 'SHIPPED' || existing) && (
+                                <label className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-muted cursor-pointer" title={existing ? 'Replace' : 'Upload'}>
+                                  <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    disabled={isUploading}
+                                    onChange={e => void handleDocumentUpload(e, row.stage as DocumentStage, row.documentType)}
+                                  />
+                                </label>
+                              )}
                             </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  })()}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -3266,99 +3220,85 @@ export default function PurchaseOrderDetailPage() {
           )}
 
           {activeBottomTab === 'history' && (
-            <div className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900">Activity</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Every edit, upload, and stage change is recorded for full transparency.
-                  </p>
-                </div>
-              </div>
-
+            <div className="overflow-x-auto">
               {auditLogsLoading ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Loading history…
                 </div>
-              ) : auditLogs.length > 0 ? (
-                <div className="mt-6 space-y-4">
-                  {auditLogs.map((entry, index) => {
-                    const newValue = toAuditRecord(entry.newValue)
-                    const title = describeAuditAction(entry.action, newValue)
-                    const changes = describeAuditChanges(entry)
-                    const actor = entry.changedBy?.fullName || 'Unknown'
-                    const { Icon, wrapperClassName, iconClassName } = getAuditActionTheme(
-                      entry.action
-                    )
-
-                    return (
-                      <div key={entry.id} className="relative flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`flex h-9 w-9 items-center justify-center rounded-full border ${wrapperClassName}`}
-                          >
-                            <Icon className={`h-4 w-4 ${iconClassName}`} />
-                          </div>
-                          {index < auditLogs.length - 1 && (
-                            <div className="mt-2 w-px flex-1 bg-slate-200" />
-                          )}
-                        </div>
-
-                        <div className="flex-1 rounded-xl border bg-white px-4 py-3 shadow-sm">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-[220px]">
-                              <p className="text-sm font-semibold text-slate-900">{title}</p>
-                              <p className="mt-0.5 text-xs text-muted-foreground">by {actor}</p>
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(entry.createdAt)}
-                            </span>
-                          </div>
-
-                          {changes.length > 0 && (
-                            <ul className="mt-2 space-y-1 text-xs text-slate-700">
-                              {changes.map(change => (
-                                <li key={change} className="flex items-start gap-2">
-                                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-slate-300" />
-                                  <span>{change}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : order.approvalHistory && order.approvalHistory.length > 0 ? (
-                <div className="mt-6 space-y-3">
-                  {order.approvalHistory.map((approval, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border p-3 bg-muted/20"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{approval.stage}</p>
-                          <p className="text-xs text-muted-foreground">
-                            by {approval.approvedBy || 'Unknown'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {approval.approvedAt ? formatDate(approval.approvedAt) : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               ) : (
-                <div className="py-10 text-center text-sm text-muted-foreground">
-                  No activity recorded yet.
-                </div>
+                <table className="min-w-full table-auto text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="w-10 px-4 py-2"></th>
+                      <th className="px-4 py-2 text-left font-semibold">Action</th>
+                      <th className="px-4 py-2 text-left font-semibold">Changes</th>
+                      <th className="px-4 py-2 text-left font-semibold">By</th>
+                      <th className="px-4 py-2 text-left font-semibold">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLogs.length > 0 ? (
+                      auditLogs.map(entry => {
+                        const newValue = toAuditRecord(entry.newValue)
+                        const title = describeAuditAction(entry.action, newValue)
+                        const changes = describeAuditChanges(entry)
+                        const actor = entry.changedBy?.fullName || 'Unknown'
+                        const { Icon, iconClassName } = getAuditActionTheme(entry.action)
+
+                        return (
+                          <tr key={entry.id} className="border-t hover:bg-muted/10">
+                            <td className="px-4 py-2.5">
+                              <Icon className={`h-4 w-4 ${iconClassName}`} />
+                            </td>
+                            <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                              {title}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground max-w-[300px]">
+                              {changes.length > 0 ? (
+                                <span className="line-clamp-2" title={changes.join(', ')}>
+                                  {changes.join(', ')}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {actor}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {formatDateOnly(entry.createdAt)}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : order.approvalHistory && order.approvalHistory.length > 0 ? (
+                      order.approvalHistory.map((approval, index) => (
+                        <tr key={index} className="border-t hover:bg-muted/10">
+                          <td className="px-4 py-2.5">
+                            <Check className="h-4 w-4 text-emerald-600" />
+                          </td>
+                          <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                            {approval.stage}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground">—</td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {approval.approvedBy || 'Unknown'}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {approval.approvedAt ? formatDateOnly(approval.approvedAt) : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                          No activity recorded yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               )}
             </div>
           )}
