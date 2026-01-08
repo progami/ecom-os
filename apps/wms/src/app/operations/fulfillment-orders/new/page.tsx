@@ -55,7 +55,6 @@ export default function NewFulfillmentOrderPage() {
     destinationType: 'CUSTOMER',
     destinationName: '',
     destinationAddress: '',
-    destinationCountry: '',
     shippingCarrier: '',
     shippingMethod: '',
     trackingNumber: '',
@@ -262,7 +261,6 @@ export default function NewFulfillmentOrderPage() {
         destinationType: formData.destinationType,
         destinationName: formData.destinationName || undefined,
         destinationAddress: formData.destinationAddress || undefined,
-        destinationCountry: formData.destinationCountry || undefined,
         shippingCarrier: formData.shippingCarrier || undefined,
         shippingMethod: formData.shippingMethod || undefined,
         trackingNumber: formData.trackingNumber || undefined,
@@ -419,15 +417,6 @@ export default function NewFulfillmentOrderPage() {
                       value={formData.destinationName}
                       onChange={e => setFormData(prev => ({ ...prev, destinationName: e.target.value }))}
                       placeholder="Customer / Warehouse name"
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1.5">Destination Country</label>
-                    <Input
-                      value={formData.destinationCountry}
-                      onChange={e => setFormData(prev => ({ ...prev, destinationCountry: e.target.value }))}
-                      placeholder="US, UK, ..."
                       className="text-sm"
                     />
                   </div>

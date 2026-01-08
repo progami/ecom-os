@@ -20,6 +20,7 @@ import { recordStorageCostEntry } from '@/services/storageCost.service'
 
 type PurchaseOrderWithLines = PurchaseOrder & { lines: PurchaseOrderLine[] }
 type PurchaseOrderWithOptionalLines = PurchaseOrder & { lines?: PurchaseOrderLine[] }
+type TenantPrisma = Awaited<ReturnType<typeof getTenantPrisma>>
 
 type ManufacturingStageData = {
   proformaInvoiceNumber: PurchaseOrder['proformaInvoiceNumber']
@@ -485,6 +486,155 @@ function validateStageDateOrdering(
   }
 }
 
+function toFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function parseDimensionsCm(value: string | null | undefined): [number, number, number] | null {
+  if (!value) return null
+  const matches = value.match(/(\d+(\.\d+)?)/g)
+  if (!matches || matches.length < 3) return null
+  const [a, b, c] = matches.slice(0, 3).map(n => Number(n))
+  if (![a, b, c].every(n => Number.isFinite(n) && n > 0)) return null
+  return [a, b, c]
+}
+
+function computeCartonVolumeCbm(input: {
+  cartonLengthCm?: unknown
+  cartonWidthCm?: unknown
+  cartonHeightCm?: unknown
+  cartonDimensionsCm?: string | null
+}): number | null {
+  const lengthCm = toFiniteNumber(input.cartonLengthCm)
+  const widthCm = toFiniteNumber(input.cartonWidthCm)
+  const heightCm = toFiniteNumber(input.cartonHeightCm)
+
+  if (lengthCm && widthCm && heightCm) {
+    return (lengthCm * widthCm * heightCm) / 1_000_000
+  }
+
+  const parsed = parseDimensionsCm(input.cartonDimensionsCm)
+  if (!parsed) return null
+  const [parsedLength, parsedWidth, parsedHeight] = parsed
+  return (parsedLength * parsedWidth * parsedHeight) / 1_000_000
+}
+
+function roundTo(value: number, decimals: number): number {
+  const factor = 10 ** decimals
+  return Math.round(value * factor) / factor
+}
+
+async function computeManufacturingCargoTotals(
+  prisma: TenantPrisma,
+  lines: PurchaseOrderLine[]
+): Promise<{
+  totalCartons: number
+  totalPallets: number | null
+  totalWeightKg: number | null
+  totalVolumeCbm: number | null
+}> {
+  const activeLines = lines.filter(line => line.status !== PurchaseOrderLineStatus.CANCELLED)
+  const totalCartons = activeLines.reduce((sum, line) => sum + line.quantity, 0)
+
+  if (activeLines.length === 0) {
+    return { totalCartons, totalPallets: null, totalWeightKg: null, totalVolumeCbm: null }
+  }
+
+  const skuCodes = Array.from(new Set(activeLines.map(line => line.skuCode)))
+  const skus = await prisma.sku.findMany({
+    where: { skuCode: { in: skuCodes } },
+    select: {
+      id: true,
+      skuCode: true,
+      cartonDimensionsCm: true,
+      cartonLengthCm: true,
+      cartonWidthCm: true,
+      cartonHeightCm: true,
+      cartonWeightKg: true,
+    },
+  })
+  const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
+
+  const batchCodes = Array.from(
+    new Set(activeLines.map(line => (line.batchLot ? String(line.batchLot) : '')).filter(Boolean))
+  )
+  const batchRecords = await prisma.skuBatch.findMany({
+    where: {
+      skuId: { in: skus.map(sku => sku.id) },
+      batchCode: { in: batchCodes },
+    },
+    select: {
+      skuId: true,
+      batchCode: true,
+      cartonDimensionsCm: true,
+      cartonLengthCm: true,
+      cartonWidthCm: true,
+      cartonHeightCm: true,
+      cartonWeightKg: true,
+      shippingCartonsPerPallet: true,
+    },
+  })
+  const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
+
+  let totalPallets = 0
+  let palletsComplete = true
+  let totalWeightKg = 0
+  let weightComplete = true
+  let totalVolumeCbm = 0
+  let volumeComplete = true
+
+  for (const line of activeLines) {
+    const sku = skuMap.get(line.skuCode)
+    if (!sku) {
+      palletsComplete = false
+      weightComplete = false
+      volumeComplete = false
+      continue
+    }
+
+    const batchLot = line.batchLot ? String(line.batchLot) : ''
+    const batch = batchLot ? batchMap.get(`${sku.id}::${batchLot}`) : null
+
+    const shippingCartonsPerPallet = batch?.shippingCartonsPerPallet ?? null
+    if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
+      palletsComplete = false
+    } else {
+      totalPallets += Math.ceil(line.quantity / shippingCartonsPerPallet)
+    }
+
+    const cartonWeightKg =
+      toFiniteNumber(batch?.cartonWeightKg) ?? toFiniteNumber(sku.cartonWeightKg)
+    if (!cartonWeightKg || cartonWeightKg <= 0) {
+      weightComplete = false
+    } else {
+      totalWeightKg += line.quantity * cartonWeightKg
+    }
+
+    const cartonVolumeCbm =
+      computeCartonVolumeCbm({
+        cartonLengthCm: batch?.cartonLengthCm ?? sku.cartonLengthCm,
+        cartonWidthCm: batch?.cartonWidthCm ?? sku.cartonWidthCm,
+        cartonHeightCm: batch?.cartonHeightCm ?? sku.cartonHeightCm,
+        cartonDimensionsCm: batch?.cartonDimensionsCm ?? sku.cartonDimensionsCm,
+      }) ?? null
+
+    if (!cartonVolumeCbm || cartonVolumeCbm <= 0) {
+      volumeComplete = false
+    } else {
+      totalVolumeCbm += line.quantity * cartonVolumeCbm
+    }
+  }
+
+  return {
+    totalCartons,
+    totalPallets: palletsComplete ? totalPallets : null,
+    totalWeightKg: weightComplete ? roundTo(totalWeightKg, 2) : null,
+    totalVolumeCbm: volumeComplete ? roundTo(totalVolumeCbm, 3) : null,
+  }
+}
+
 /**
  * Generate the next PO number in sequence (PO-0001 format)
  */
@@ -908,6 +1058,17 @@ export async function transitionPurchaseOrderStage(
     }
   }
 
+  const derivedManufacturingTotals =
+    targetStatus === PurchaseOrderStatus.MANUFACTURING
+      ? await computeManufacturingCargoTotals(prisma, order.lines)
+      : null
+
+  if (targetStatus === PurchaseOrderStatus.MANUFACTURING && derivedManufacturingTotals) {
+    if (derivedManufacturingTotals.totalCartons <= 0) {
+      throw new ValidationError('Cannot advance to manufacturing with no cargo lines')
+    }
+  }
+
   // Build the update data
   const updateData: Prisma.PurchaseOrderUpdateInput = {
     status: targetStatus,
@@ -934,15 +1095,23 @@ export async function transitionPurchaseOrderStage(
   }
   if (stageData.totalWeightKg !== undefined) {
     updateData.totalWeightKg = stageData.totalWeightKg
+  } else if (derivedManufacturingTotals?.totalWeightKg !== null) {
+    updateData.totalWeightKg = derivedManufacturingTotals.totalWeightKg
   }
   if (stageData.totalVolumeCbm !== undefined) {
     updateData.totalVolumeCbm = stageData.totalVolumeCbm
+  } else if (derivedManufacturingTotals?.totalVolumeCbm !== null) {
+    updateData.totalVolumeCbm = derivedManufacturingTotals.totalVolumeCbm
   }
   if (stageData.totalCartons !== undefined) {
     updateData.totalCartons = stageData.totalCartons
+  } else if (derivedManufacturingTotals?.totalCartons) {
+    updateData.totalCartons = derivedManufacturingTotals.totalCartons
   }
   if (stageData.totalPallets !== undefined) {
     updateData.totalPallets = stageData.totalPallets
+  } else if (derivedManufacturingTotals?.totalPallets !== null) {
+    updateData.totalPallets = derivedManufacturingTotals.totalPallets
   }
   if (stageData.packagingNotes !== undefined) {
     updateData.packagingNotes = stageData.packagingNotes
