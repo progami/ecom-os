@@ -41,6 +41,7 @@ export interface ColumnMeta {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  initialSorting?: SortingState
   loading?: boolean
   skeletonRows?: number
   emptyState?: React.ReactNode
@@ -104,6 +105,7 @@ function ColumnFilterDropdown({
 export function DataTable<TData, TValue>({
   columns,
   data,
+  initialSorting,
   loading = false,
   skeletonRows = 6,
   emptyState,
@@ -111,7 +113,7 @@ export function DataTable<TData, TValue>({
   filters = {},
   onFilterChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = React.useState<SortingState>(() => initialSorting ?? [])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
 
   const table = useReactTable({
