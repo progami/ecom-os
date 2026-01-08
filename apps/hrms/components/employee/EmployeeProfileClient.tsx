@@ -20,26 +20,26 @@ import {
   BuildingIcon,
   CalendarDaysIcon,
   CalendarIcon,
+  ChevronRightIcon,
   ClipboardDocumentCheckIcon,
+  DocumentIcon,
   EnvelopeIcon,
   FolderIcon,
   PencilIcon,
   PhoneIcon,
+  StarFilledIcon,
   UsersIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { TabButton } from '@/components/ui/TabButton'
-import { SelectField } from '@/components/ui/FormField'
+import { NativeSelect } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { EMPLOYMENT_TYPE_LABELS } from '@/lib/domain/employee/constants'
-
-const visibilityOptions = [
-  { value: 'HR_ONLY', label: 'HR only' },
-  { value: 'EMPLOYEE_AND_HR', label: 'Employee + HR' },
-]
+import { cn } from '@/lib/utils'
 
 type Tab = 'overview' | 'job' | 'documents' | 'performance' | 'leave'
 
@@ -125,12 +125,15 @@ function getLeaveTypeLabel(type: string): string {
   const labels: Record<string, string> = {
     PTO: 'PTO',
     PARENTAL: 'Parental Leave',
+    MATERNITY: 'Maternity',
+    PATERNITY: 'Paternity',
+    BEREAVEMENT: 'Bereavement',
     BEREAVEMENT_IMMEDIATE: 'Bereavement',
     BEREAVEMENT_EXTENDED: 'Extended Bereavement',
     JURY_DUTY: 'Jury Duty',
     UNPAID: 'Unpaid Leave',
   }
-  return labels[type] || type.replace(/_/g, ' ').toLowerCase()
+  return labels[type] || type.replace(/_/g, ' ')
 }
 
 function formatBytes(size: number | null | undefined): string {
@@ -143,6 +146,20 @@ function formatBytes(size: number | null | undefined): string {
     idx += 1
   }
   return `${s.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`
+}
+
+function getReviewStatusConfig(status: string): { label: string; bgClass: string; textClass: string } {
+  const s = status.toUpperCase()
+  if (s === 'COMPLETED' || s === 'ACKNOWLEDGED') {
+    return { label: 'Completed', bgClass: 'bg-success-100', textClass: 'text-success-700' }
+  }
+  if (s === 'PENDING_HR_REVIEW' || s === 'PENDING_ACKNOWLEDGMENT') {
+    return { label: 'Pending', bgClass: 'bg-warning-100', textClass: 'text-warning-700' }
+  }
+  if (s === 'IN_PROGRESS' || s === 'DRAFT' || s === 'NOT_STARTED') {
+    return { label: 'In Progress', bgClass: 'bg-accent/10', textClass: 'text-accent' }
+  }
+  return { label: status.replace(/_/g, ' '), bgClass: 'bg-muted', textClass: 'text-muted-foreground' }
 }
 
 type EmployeeProfileVariant = 'employee' | 'hub'
@@ -419,6 +436,32 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const canEditFields: string[] = permissions?.editableFields ?? []
   const canEdit = canEditFields.length > 0
 
+  // Group leave balances into categories
+  const groupedLeaveBalances = useMemo(() => {
+    const filtered = leaveBalances.filter(b => b.leaveType !== 'UNPAID')
+
+    // Core leave types (always show first)
+    const coreTypes = ['PTO']
+    // Parental leave types
+    const parentalTypes = ['PARENTAL', 'MATERNITY', 'PATERNITY']
+    // Bereavement types
+    const bereavementTypes = ['BEREAVEMENT', 'BEREAVEMENT_IMMEDIATE', 'BEREAVEMENT_EXTENDED']
+    // Other types
+    const otherTypes = ['JURY_DUTY']
+
+    const core = filtered.filter(b => coreTypes.includes(b.leaveType))
+    const parental = filtered.filter(b => parentalTypes.includes(b.leaveType))
+    const bereavement = filtered.filter(b => bereavementTypes.includes(b.leaveType))
+    const other = filtered.filter(b =>
+      !coreTypes.includes(b.leaveType) &&
+      !parentalTypes.includes(b.leaveType) &&
+      !bereavementTypes.includes(b.leaveType) &&
+      !['UNPAID'].includes(b.leaveType)
+    )
+
+    return { core, parental, bereavement, other }
+  }, [leaveBalances])
+
   if (loading && !employee) {
     return (
       <>
@@ -486,337 +529,343 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
         ))}
       </div>
 
+      {/* OVERVIEW TAB */}
       {activeTab === 'overview' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card padding="md">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Overview</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InfoRow icon={EnvelopeIcon} label="Email" value={employee.email} />
-                <InfoRow icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
-                <InfoRow icon={BuildingIcon} label="Department" value={employee.department || '—'} />
-                <InfoRow
-                  icon={UsersIcon}
-                  label="Employment type"
-                  value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
-                />
-                <InfoRow icon={CalendarIcon} label="Join date" value={formatDate(employee.joinDate)} />
-                <InfoRow icon={UsersIcon} label="Employee ID" value={employee.employeeId} />
-              </div>
-            </Card>
+        <Card padding="md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <InfoRow icon={EnvelopeIcon} label="Email" value={employee.email} href={`mailto:${employee.email}`} />
+            <InfoRow icon={PhoneIcon} label="Phone" value={employee.phone || '—'} href={employee.phone ? `tel:${employee.phone}` : undefined} />
+            <InfoRow icon={BuildingIcon} label="Department" value={employee.department || '—'} />
+            <InfoRow
+              icon={UsersIcon}
+              label="Employment type"
+              value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
+            />
+            <InfoRow icon={CalendarIcon} label="Join date" value={formatDate(employee.joinDate)} />
+            <InfoRow icon={UsersIcon} label="Employee ID" value={employee.employeeId} />
           </div>
-
-          <div className="space-y-6">
-            <Card padding="md">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Quick actions</h2>
-              <div className="space-y-2">
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  onClick={() => window.open(`mailto:${employee.email}`)}
-                  icon={<EnvelopeIcon className="h-4 w-4" />}
-                >
-                  Send email
-                </Button>
-                {employee.phone ? (
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => window.open(`tel:${employee.phone}`)}
-                    icon={<PhoneIcon className="h-4 w-4" />}
-                  >
-                    Call
-                  </Button>
-                ) : null}
-              </div>
-            </Card>
-
-            <Card padding="md">
-              <h2 className="text-sm font-semibold text-foreground mb-3">Security</h2>
-              <p className="text-xs text-muted-foreground">
-                Documents are served using short-lived download links. Emails contain only a title and a link to HRMS.
-              </p>
-            </Card>
-          </div>
-        </div>
+        </Card>
       ) : null}
 
+      {/* JOB & ORG TAB */}
       {activeTab === 'job' ? (
-        <div className="space-y-6">
-          <Card padding="md">
-            <h2 className="text-sm font-semibold text-foreground mb-3">Job & Org</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FieldRow label="Department" value={employee.department || '—'} fieldKey="department" permissions={permissions} />
-              <FieldRow label="Role / title" value={employee.position} fieldKey="position" permissions={permissions} />
-                <FieldRow
-                  label="Employment type"
-                  value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
-                  fieldKey="employmentType"
-                  permissions={permissions}
-                />
-              <FieldRow label="Join date" value={formatDate(employee.joinDate)} fieldKey="joinDate" permissions={permissions} />
-              <FieldRow label="Status" value={employee.status} fieldKey="status" permissions={permissions} />
-              <FieldRow
-                label="Manager"
-                value={employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : '—'}
-                fieldKey="reportsToId"
-                permissions={permissions}
-              />
-            </div>
-          </Card>
-        </div>
+        <Card padding="md">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FieldRow label="Department" value={employee.department || '—'} />
+            <FieldRow label="Role / Title" value={employee.position} />
+            <FieldRow
+              label="Employment Type"
+              value={EMPLOYMENT_TYPE_LABELS[employee.employmentType as keyof typeof EMPLOYMENT_TYPE_LABELS] || employee.employmentType}
+            />
+            <FieldRow label="Join Date" value={formatDate(employee.joinDate)} />
+            <FieldRow label="Status" value={employee.status} />
+            <FieldRow
+              label="Manager"
+              value={employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : '—'}
+            />
+          </div>
+        </Card>
       ) : null}
 
+      {/* DOCUMENTS TAB */}
       {activeTab === 'documents' && canViewDocuments ? (
         <div className="space-y-6">
-          <Card padding="md">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">Documents</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Uploads are stored securely. Email notifications include only a title + “View in HRMS” link.
-                </p>
-              </div>
-            </div>
-
-            {isHR || isSelf ? (
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="sm:col-span-1">
-                  <label className="text-xs font-medium text-foreground">Title (optional)</label>
-                  <input
-                    className="mt-1 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground"
+          {/* Upload Section - Only show if HR or self */}
+          {(isHR || isSelf) ? (
+            <Card padding="md">
+              <h2 className="text-sm font-semibold text-foreground mb-4">Upload Document</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                <div>
+                  <Label className="text-xs">Title (optional)</Label>
+                  <Input
                     value={uploadTitle}
                     onChange={(e) => setUploadTitle(e.target.value)}
                     placeholder="e.g. Offer Letter"
+                    className="mt-1"
                   />
                 </div>
-                <div className="sm:col-span-1">
-                  <SelectField
-                    label="Visibility"
-                    options={visibilityOptions}
+                <div>
+                  <Label className="text-xs">Who can view?</Label>
+                  <NativeSelect
                     value={uploadVisibility}
                     onChange={(e) => setUploadVisibility(e.target.value as any)}
-                    disabled={!isHR && isSelf}
+                    disabled={!isHR}
+                    className="mt-1"
+                  >
+                    <option value="HR_ONLY">HR only (private)</option>
+                    <option value="EMPLOYEE_AND_HR">Employee can view</option>
+                  </NativeSelect>
+                </div>
+                <div>
+                  <Label className="text-xs">File</Label>
+                  <Input
+                    type="file"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                    className="mt-1"
                   />
-                  {!isHR && isSelf ? (
-                    <p className="text-xs text-muted-foreground mt-1">Self uploads are visible to the employee and HR.</p>
-                  ) : null}
                 </div>
-                <div className="sm:col-span-1">
-                  <label className="text-xs font-medium text-foreground">File</label>
-                  <input className="mt-1 block w-full text-sm text-foreground" type="file" onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
-                </div>
-
-                <div className="sm:col-span-3 flex justify-end">
-                  <Button onClick={uploadDocument} disabled={!uploadFile || uploading}>
+                <div>
+                  <Button onClick={uploadDocument} disabled={!uploadFile || uploading} className="w-full">
                     {uploading ? 'Uploading…' : 'Upload'}
                   </Button>
                 </div>
               </div>
-            ) : (
-              <Alert variant="warning" className="mt-4">
-                Only HR or the employee can view/upload documents on this profile.
-              </Alert>
-            )}
-          </Card>
+              {!isHR && isSelf && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Documents you upload will be visible to you and HR.
+                </p>
+              )}
+            </Card>
+          ) : null}
 
+          {/* Files List */}
           <Card padding="md">
-            <h3 className="text-sm font-semibold text-foreground">Files</h3>
+            <h2 className="text-sm font-semibold text-foreground mb-4">Files</h2>
             {filesLoading ? (
-              <p className="text-sm text-muted-foreground mt-3">Loading…</p>
+              <div className="animate-pulse space-y-3">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-12 bg-muted rounded" />
+                ))}
+              </div>
             ) : files.length === 0 ? (
-              <p className="text-sm text-muted-foreground mt-3">No documents yet.</p>
+              <div className="text-center py-8">
+                <DocumentIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
+              </div>
             ) : (
-              <div className="mt-3 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted-foreground">
-                      <th className="py-2 pr-4">Title</th>
-                      <th className="py-2 pr-4">Visibility</th>
-                      <th className="py-2 pr-4">Uploaded</th>
-                      <th className="py-2 pr-4">Size</th>
-                      <th className="py-2 pr-0 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {files.map((f) => (
-                      <tr key={f.id}>
-                        <td className="py-3 pr-4">
-                          <div className="font-medium text-foreground">{f.title}</div>
-                          <div className="text-xs text-muted-foreground">{f.fileName || '—'}</div>
-                        </td>
-                        <td className="py-3 pr-4 text-foreground">{f.visibility === 'HR_ONLY' ? 'HR only' : 'Employee + HR'}</td>
-                        <td className="py-3 pr-4 text-foreground">{formatDate(f.uploadedAt)}</td>
-                        <td className="py-3 pr-4 text-foreground">{formatBytes(f.size)}</td>
-                        <td className="py-3 pr-0 text-right">
-                          <Button variant="secondary" onClick={() => downloadFile(f.id)}>
-                            Download
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="divide-y divide-border">
+                {files.map((f) => (
+                  <div key={f.id} className="py-3 flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{f.title || f.fileName}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>{formatDate(f.uploadedAt)}</span>
+                        <span>{formatBytes(f.size)}</span>
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded text-[10px] font-medium',
+                          f.visibility === 'HR_ONLY'
+                            ? 'bg-muted text-muted-foreground'
+                            : 'bg-accent/10 text-accent'
+                        )}>
+                          {f.visibility === 'HR_ONLY' ? 'HR only' : 'Shared'}
+                        </span>
+                      </div>
+                    </div>
+                    <Button variant="secondary" size="sm" onClick={() => downloadFile(f.id)}>
+                      Download
+                    </Button>
+                  </div>
+                ))}
               </div>
             )}
           </Card>
         </div>
       ) : null}
 
+      {/* PERFORMANCE TAB */}
       {activeTab === 'performance' && canViewPerformance ? (
         <Card padding="md">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Performance</h2>
-              <p className="text-xs text-muted-foreground mt-1">Performance reviews and cycles for this employee.</p>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-foreground">Performance Reviews</h2>
+            {reviews.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
 
           {reviewsLoading ? (
-            <p className="text-sm text-muted-foreground mt-4">Loading…</p>
-          ) : reviews.length === 0 ? (
-            <p className="text-sm text-muted-foreground mt-4">No performance reviews found.</p>
-          ) : (
-            <div className="mt-4 space-y-3">
-              {reviews.map((review) => (
-                <Link
-                  key={review.id}
-                  href={`/performance/reviews/${review.id}`}
-                  className="block rounded-lg border border-border bg-card p-4 hover:border-input"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-foreground truncate">{review.reviewPeriod}</div>
-                      <div className="text-sm text-muted-foreground">{review.reviewerName}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{formatDate(review.reviewDate)}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground shrink-0">{review.status.replaceAll('_', ' ').toLowerCase()}</div>
-                  </div>
-                </Link>
+            <div className="animate-pulse space-y-3">
+              {[1, 2].map(i => (
+                <div key={i} className="h-20 bg-muted rounded-lg" />
               ))}
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-8">
+              <ClipboardDocumentCheckIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No performance reviews yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map((review) => {
+                const statusConfig = getReviewStatusConfig(review.status)
+                const avgRating = review.overallRating || 0
+
+                return (
+                  <Link
+                    key={review.id}
+                    href={`/performance/reviews/${review.id}`}
+                    className="block group"
+                  >
+                    <div className="rounded-lg border border-border bg-card p-4 hover:border-input hover:bg-muted/30 transition-all">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold text-foreground">{review.reviewPeriod}</span>
+                            <span className={cn(
+                              'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider',
+                              statusConfig.bgClass, statusConfig.textClass
+                            )}>
+                              {statusConfig.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                            <span>Reviewer: {review.reviewerName || '—'}</span>
+                            <span>•</span>
+                            <span>{formatDate(review.reviewDate)}</span>
+                          </div>
+                          {avgRating > 0 && (
+                            <div className="flex items-center gap-1 mt-2">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <StarFilledIcon
+                                  key={star}
+                                  className={cn(
+                                    'h-3.5 w-3.5',
+                                    star <= avgRating ? 'text-warning' : 'text-muted-foreground/20'
+                                  )}
+                                />
+                              ))}
+                              <span className="text-xs text-muted-foreground ml-1">{avgRating}/5</span>
+                            </div>
+                          )}
+                        </div>
+                        <ChevronRightIcon className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           )}
         </Card>
       ) : null}
 
+      {/* LEAVE TAB */}
       {activeTab === 'leave' && canViewLeave ? (
         <div className="space-y-6">
-          {/* Balances Section */}
+          {/* Leave Balances */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">Leave Balances</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">Your available time off</p>
-              </div>
-              {isSelf ? (
-                <Button href="/leave?request=true" className="shadow-sm">
-                  <CalendarDaysIcon className="h-4 w-4 mr-2" />
+              <h2 className="text-base font-semibold text-foreground">Leave Balances</h2>
+              {isSelf && (
+                <Button href="/leave?request=true" size="sm">
                   Request Leave
                 </Button>
-              ) : null}
+              )}
             </div>
+
             {leaveLoading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-24 bg-muted rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : leaveBalances.filter(b => b.leaveType !== 'UNPAID').length === 0 ? (
               <Card padding="lg">
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-muted border-t-accent" />
+                <div className="text-center py-4">
+                  <CalendarDaysIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No leave balances configured</p>
                 </div>
               </Card>
             ) : (
-              <LeaveBalanceCards balances={leaveBalances} />
+              <div className="space-y-4">
+                {/* Core Leave (PTO) - Full width */}
+                {groupedLeaveBalances.core.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {groupedLeaveBalances.core.map(balance => (
+                      <LeaveBalanceCard key={balance.leaveType} balance={balance} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Parental Leave Row */}
+                {groupedLeaveBalances.parental.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {groupedLeaveBalances.parental.map(balance => (
+                      <LeaveBalanceCard key={balance.leaveType} balance={balance} compact />
+                    ))}
+                  </div>
+                )}
+
+                {/* Bereavement Row */}
+                {groupedLeaveBalances.bereavement.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {groupedLeaveBalances.bereavement.map(balance => (
+                      <LeaveBalanceCard key={balance.leaveType} balance={balance} compact />
+                    ))}
+                  </div>
+                )}
+
+                {/* Other Leave Types */}
+                {groupedLeaveBalances.other.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {groupedLeaveBalances.other.map(balance => (
+                      <LeaveBalanceCard key={balance.leaveType} balance={balance} compact />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* History Section */}
+          {/* Request History */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-foreground">Request History</h3>
+              <h2 className="text-base font-semibold text-foreground">Request History</h2>
               {leaveRequests.length > 0 && (
-                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                <span className="text-xs text-muted-foreground">
                   {leaveRequests.length} request{leaveRequests.length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
+
             {leaveLoading ? (
               <Card padding="lg">
-                <div className="animate-pulse space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex gap-4">
-                      <div className="w-1 h-16 bg-muted rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-muted rounded w-1/3" />
-                        <div className="h-3 bg-muted rounded w-2/3" />
-                      </div>
-                    </div>
+                <div className="animate-pulse space-y-3">
+                  {[1, 2].map(i => (
+                    <div key={i} className="h-16 bg-muted rounded" />
                   ))}
                 </div>
               </Card>
             ) : leaveRequests.length === 0 ? (
               <Card padding="lg">
-                <div className="text-center py-8">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/50 mb-3">
-                    <CalendarDaysIcon className="h-6 w-6 text-muted-foreground/50" />
-                  </div>
-                  <p className="text-sm font-medium text-muted-foreground">No leave requests yet</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Your request history will appear here</p>
+                <div className="text-center py-4">
+                  <CalendarDaysIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No leave requests yet</p>
                 </div>
               </Card>
             ) : (
               <div className="space-y-2">
-                {leaveRequests.map((request, index) => {
+                {leaveRequests.map((request) => {
                   const statusConfig = getLeaveStatusConfig(request.status)
-                  const leaveTypeLabel = getLeaveTypeLabel(request.leaveType)
-
                   return (
-                    <Link
-                      key={request.id}
-                      href={`/leaves/${request.id}`}
-                      className="group block"
-                    >
-                      <div className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:bg-muted/30 hover:border-border/80 transition-all duration-200">
-                        {/* Status indicator line */}
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`w-2.5 h-2.5 rounded-full ring-4 ${statusConfig.dotColor} ${statusConfig.ringColor}`}
-                          />
-                          {index < leaveRequests.length - 1 && (
-                            <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
-                          )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-foreground">
-                                  {leaveTypeLabel}
-                                </span>
-                                <span className={`
-                                  inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider
-                                  ${statusConfig.badgeClass}
-                                `}>
-                                  {statusConfig.label}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <span className="font-medium">{formatDateRange(request.startDate, request.endDate)}</span>
-                                <span className="text-muted-foreground/50">•</span>
-                                <span className="tabular-nums">{request.totalDays} day{request.totalDays !== 1 ? 's' : ''}</span>
-                              </div>
-                              {request.reason && (
-                                <p className="text-xs text-muted-foreground mt-2 line-clamp-1 italic">
-                                  "{request.reason}"
-                                </p>
-                              )}
+                    <Link key={request.id} href={`/leaves/${request.id}`} className="block group">
+                      <div className="rounded-lg border border-border bg-card p-4 hover:border-input hover:bg-muted/30 transition-all">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">
+                                {getLeaveTypeLabel(request.leaveType)}
+                              </span>
+                              <span className={cn(
+                                'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider',
+                                statusConfig.badgeClass
+                              )}>
+                                {statusConfig.label}
+                              </span>
                             </div>
-
-                            {/* Arrow indicator */}
-                            <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <svg className="w-5 h-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                              <span>{formatDateRange(request.startDate, request.endDate)}</span>
+                              <span>•</span>
+                              <span>{request.totalDays} day{request.totalDays !== 1 ? 's' : ''}</span>
                             </div>
+                            {request.reason && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">
+                                "{request.reason}"
+                              </p>
+                            )}
                           </div>
+                          <ChevronRightIcon className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                         </div>
                       </div>
                     </Link>
@@ -835,55 +884,110 @@ function InfoRow({
   icon: Icon,
   label,
   value,
+  href,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
+  href?: string
 }) {
-  return (
+  const content = (
     <div className="flex items-start gap-3">
-      <Icon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-sm text-foreground font-medium">{value || '—'}</p>
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted/50 flex-shrink-0">
+        <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={cn(
+          'text-sm font-medium truncate',
+          href ? 'text-accent hover:underline' : 'text-foreground'
+        )}>
+          {value || '—'}
+        </p>
+      </div>
+    </div>
+  )
+
+  if (href) {
+    return (
+      <a href={href} className="block">
+        {content}
+      </a>
+    )
+  }
+
+  return content
+}
+
+function FieldRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <p className="text-sm font-medium text-foreground">{value || '—'}</p>
     </div>
   )
 }
 
-function FieldRow({
-  label,
-  value,
-  fieldKey,
-  permissions,
-}: {
-  label: string
-  value: string
-  fieldKey: string
-  permissions: any
-}) {
-  const field = permissions?.fieldPermissions?.[fieldKey]
-  const canEdit = Boolean(field?.canEdit)
-  const reason = field?.reason as string | undefined
+function LeaveBalanceCard({ balance, compact }: { balance: LeaveBalance; compact?: boolean }) {
+  const available = balance.available
+  const total = balance.allocated
+  const used = total - available
+  const percentage = total > 0 ? (available / total) * 100 : 0
+  const isLow = total > 0 && available <= Math.ceil(total * 0.2) && available > 0
+  const isEmpty = available === 0
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="text-sm font-medium text-foreground mt-0.5 truncate">{value || '—'}</p>
-        </div>
-        <span
-          className={
-            canEdit
-              ? 'text-xs rounded-full bg-success-50 text-success-700 px-2 py-0.5'
-              : 'text-xs rounded-full bg-muted text-foreground px-2 py-0.5'
-          }
-        >
-          {canEdit ? 'Editable' : 'Read-only'}
+    <div className={cn(
+      'rounded-lg border border-border bg-card p-4 transition-all hover:border-input',
+      compact ? 'p-3' : 'p-4'
+    )}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={cn(
+          'font-medium text-foreground',
+          compact ? 'text-xs' : 'text-sm'
+        )}>
+          {getLeaveTypeLabel(balance.leaveType)}
         </span>
+        {balance.pending > 0 && (
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-warning-100 text-warning-700">
+            {balance.pending} pending
+          </span>
+        )}
       </div>
-      {!canEdit && reason ? <p className="text-xs text-muted-foreground mt-2">{reason}</p> : null}
+
+      <div className="flex items-end justify-between">
+        <div>
+          <span className={cn(
+            'font-bold tabular-nums',
+            compact ? 'text-2xl' : 'text-3xl',
+            isEmpty ? 'text-muted-foreground/50' : isLow ? 'text-warning-600' : 'text-foreground'
+          )}>
+            {available}
+          </span>
+          <span className={cn(
+            'text-muted-foreground ml-1',
+            compact ? 'text-xs' : 'text-sm'
+          )}>
+            / {total} days
+          </span>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={cn(
+            'h-full rounded-full transition-all',
+            isEmpty ? 'bg-muted-foreground/20' : isLow ? 'bg-warning' : 'bg-accent'
+          )}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+        <span>Available</span>
+        <span>{used} used</span>
+      </div>
     </div>
   )
 }
