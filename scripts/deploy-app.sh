@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: deploy-app.sh <app-key> <environment>" >&2
-  echo "  app-key: wms, ecomos, website, xplan, hrms" >&2
+  echo "  app-key: wms, ecomos, website, xplan, chronos, hrms" >&2
   echo "  environment: dev, main" >&2
   exit 1
 fi
@@ -69,6 +69,13 @@ case "$app_key" in
     pm2_name="${PM2_PREFIX}-x-plan"
     prisma_cmd="pnpm --filter $workspace prisma:generate"
     migrate_cmd="pnpm --filter $workspace prisma:migrate:deploy"
+    build_cmd="pnpm --filter $workspace build"
+    ;;
+  chronos)
+    workspace="@ecom-os/chronos"
+    app_dir="$REPO_DIR/apps/chronos"
+    pm2_name="${PM2_PREFIX}-chronos"
+    prisma_cmd=""
     build_cmd="pnpm --filter $workspace build"
     ;;
   hrms)
@@ -259,7 +266,17 @@ GEMINI_API_KEY= \
 CLAUDECODE= \
 CLAUDE_CODE_ENTRYPOINT= \
 CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
-pm2 restart "$pm2_name" --update-env
+pm2 restart "$pm2_name" --update-env 2>/dev/null || \
+CI= \
+GITHUB_ACTIONS= \
+GITHUB_PERSONAL_ACCESS_TOKEN= \
+GITHUB_TOKEN= \
+GH_TOKEN= \
+GEMINI_API_KEY= \
+CLAUDECODE= \
+CLAUDE_CODE_ENTRYPOINT= \
+CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
+pm2 start "$REPO_DIR/ecosystem.config.js" --only "$pm2_name" --update-env
 log "$pm2_name started"
 
 # Step 8: Save PM2 state
