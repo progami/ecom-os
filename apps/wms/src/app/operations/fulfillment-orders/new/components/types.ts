@@ -33,7 +33,6 @@ export type FormData = {
   destinationType: string
   destinationName: string
   destinationAddress: string
-  destinationCountry: string
   shippingCarrier: string
   shippingMethod: string
   trackingNumber: string
