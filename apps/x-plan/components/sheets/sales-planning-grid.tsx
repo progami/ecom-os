@@ -1507,7 +1507,18 @@ export function SalesPlanningGrid({
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
       if (event.target !== event.currentTarget) return;
-      if (!activeCell) return;
+      const normalizedSelection = selectionRef.current
+        ? normalizeRange(selectionRef.current)
+        : null;
+      const hasMultiSelection =
+        normalizedSelection &&
+        (normalizedSelection.top !== normalizedSelection.bottom ||
+          normalizedSelection.left !== normalizedSelection.right);
+      const start = normalizedSelection
+        ? { row: normalizedSelection.top, col: normalizedSelection.left }
+        : activeCell;
+      if (!start) return;
+
       const text = event.clipboardData.getData('text/plain');
       if (!text) return;
       event.preventDefault();
@@ -1522,19 +1533,45 @@ export function SalesPlanningGrid({
       if (rowsMatrix.length === 0) return;
 
       const edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }> = [];
-      for (let r = 0; r < rowsMatrix.length; r += 1) {
-        for (let c = 0; c < rowsMatrix[r]!.length; c += 1) {
-          const targetRow = activeCell.row + r;
-          const targetCol = activeCell.col + c;
-          if (targetRow >= visibleRows.length) continue;
-          if (targetCol >= leafColumnIds.length) continue;
-          const columnId = leafColumnIds[targetCol];
-          if (!columnId) continue;
-          edits.push({
-            visibleRowIndex: targetRow,
-            columnId,
-            rawValue: rowsMatrix[r]![c] ?? '',
-          });
+      if (
+        hasMultiSelection &&
+        normalizedSelection &&
+        rowsMatrix.length === 1 &&
+        rowsMatrix[0]?.length === 1
+      ) {
+        const rawValue = rowsMatrix[0]?.[0] ?? '';
+        for (
+          let rowIndex = normalizedSelection.top;
+          rowIndex <= normalizedSelection.bottom;
+          rowIndex += 1
+        ) {
+          for (
+            let colIndex = normalizedSelection.left;
+            colIndex <= normalizedSelection.right;
+            colIndex += 1
+          ) {
+            if (rowIndex >= visibleRows.length) continue;
+            if (colIndex >= leafColumnIds.length) continue;
+            const columnId = leafColumnIds[colIndex];
+            if (!columnId) continue;
+            edits.push({ visibleRowIndex: rowIndex, columnId, rawValue });
+          }
+        }
+      } else {
+        for (let r = 0; r < rowsMatrix.length; r += 1) {
+          for (let c = 0; c < rowsMatrix[r]!.length; c += 1) {
+            const targetRow = start.row + r;
+            const targetCol = start.col + c;
+            if (targetRow >= visibleRows.length) continue;
+            if (targetCol >= leafColumnIds.length) continue;
+            const columnId = leafColumnIds[targetCol];
+            if (!columnId) continue;
+            edits.push({
+              visibleRowIndex: targetRow,
+              columnId,
+              rawValue: rowsMatrix[r]![c] ?? '',
+            });
+          }
         }
       }
 
@@ -1545,7 +1582,16 @@ export function SalesPlanningGrid({
 
   const handleClipboardPaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
-      const start = pasteStartRef.current ?? activeCell;
+      const normalizedSelection = selectionRef.current
+        ? normalizeRange(selectionRef.current)
+        : null;
+      const hasMultiSelection =
+        normalizedSelection &&
+        (normalizedSelection.top !== normalizedSelection.bottom ||
+          normalizedSelection.left !== normalizedSelection.right);
+      const start = normalizedSelection
+        ? { row: normalizedSelection.top, col: normalizedSelection.left }
+        : (pasteStartRef.current ?? activeCell);
       pasteStartRef.current = null;
 
       const text = event.clipboardData.getData('text/plain');
@@ -1569,22 +1615,51 @@ export function SalesPlanningGrid({
         .filter((line) => line.length > 0)
         .map((line) => line.split('\t'));
 
-      if (rowsMatrix.length === 0) return;
+      if (rowsMatrix.length === 0) {
+        refocusClipboard();
+        return;
+      }
 
       const edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }> = [];
-      for (let r = 0; r < rowsMatrix.length; r += 1) {
-        for (let c = 0; c < rowsMatrix[r]!.length; c += 1) {
-          const targetRow = start.row + r;
-          const targetCol = start.col + c;
-          if (targetRow >= visibleRows.length) continue;
-          if (targetCol >= leafColumnIds.length) continue;
-          const columnId = leafColumnIds[targetCol];
-          if (!columnId) continue;
-          edits.push({
-            visibleRowIndex: targetRow,
-            columnId,
-            rawValue: rowsMatrix[r]![c] ?? '',
-          });
+      if (
+        hasMultiSelection &&
+        normalizedSelection &&
+        rowsMatrix.length === 1 &&
+        rowsMatrix[0]?.length === 1
+      ) {
+        const rawValue = rowsMatrix[0]?.[0] ?? '';
+        for (
+          let rowIndex = normalizedSelection.top;
+          rowIndex <= normalizedSelection.bottom;
+          rowIndex += 1
+        ) {
+          for (
+            let colIndex = normalizedSelection.left;
+            colIndex <= normalizedSelection.right;
+            colIndex += 1
+          ) {
+            if (rowIndex >= visibleRows.length) continue;
+            if (colIndex >= leafColumnIds.length) continue;
+            const columnId = leafColumnIds[colIndex];
+            if (!columnId) continue;
+            edits.push({ visibleRowIndex: rowIndex, columnId, rawValue });
+          }
+        }
+      } else {
+        for (let r = 0; r < rowsMatrix.length; r += 1) {
+          for (let c = 0; c < rowsMatrix[r]!.length; c += 1) {
+            const targetRow = start.row + r;
+            const targetCol = start.col + c;
+            if (targetRow >= visibleRows.length) continue;
+            if (targetCol >= leafColumnIds.length) continue;
+            const columnId = leafColumnIds[targetCol];
+            if (!columnId) continue;
+            edits.push({
+              visibleRowIndex: targetRow,
+              columnId,
+              rawValue: rowsMatrix[r]![c] ?? '',
+            });
+          }
         }
       }
 
@@ -2213,7 +2288,7 @@ export function SalesPlanningGrid({
                             cancelEditing();
                           }
                         }}
-                        className="h-7 w-full min-w-0 border-primary px-2 text-right text-sm focus-visible:ring-1"
+                        className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     ) : (
                       <span

@@ -7,10 +7,7 @@ interface ActiveStrategyIndicatorProps {
   className?: string;
 }
 
-export function ActiveStrategyIndicator({
-  strategyName,
-  className,
-}: ActiveStrategyIndicatorProps) {
+export function ActiveStrategyIndicator({ strategyName, className }: ActiveStrategyIndicatorProps) {
   return (
     <div
       className={cn(

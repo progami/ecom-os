@@ -356,12 +356,15 @@ export function CustomPurchasePaymentsGrid({
     setScheduleMode((previous) => (previous === 'weeks' ? 'dates' : 'weeks'));
   }, [setScheduleMode]);
 
-  const startEditing = (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
-    setIsDatePickerOpen(false);
-    setActiveCell({ rowId, colKey });
-    setEditingCell({ rowId, colKey });
-    setEditValue(currentValue);
-  };
+  const startEditing = useCallback(
+    (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
+      setIsDatePickerOpen(false);
+      setActiveCell({ rowId, colKey });
+      setEditingCell({ rowId, colKey });
+      setEditValue(currentValue);
+    },
+    [],
+  );
 
   const selectCell = useCallback(
     (row: PurchasePaymentRow, column: ColumnDef) => {
@@ -692,7 +695,7 @@ export function CustomPurchasePaymentsGrid({
     if (!row || !column) return;
     if (!column.editable) return;
     startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode));
-  }, [activeCell, data, scheduleMode]);
+  }, [activeCell, data, scheduleMode, startEditing]);
 
   const buildClipboardText = useCallback(() => {
     const range = selection ?? null;
@@ -1079,8 +1082,24 @@ export function CustomPurchasePaymentsGrid({
         requestAnimationFrame(() => tableScrollRef.current?.focus());
       };
 
-      const start = pasteStartRef.current ?? activeCell;
+      const fallbackStart = pasteStartRef.current ?? activeCell;
       pasteStartRef.current = null;
+
+      const normalizedSelection = selection ? normalizeRange(selection) : null;
+      const hasMultiSelection =
+        normalizedSelection &&
+        (normalizedSelection.top !== normalizedSelection.bottom ||
+          normalizedSelection.left !== normalizedSelection.right);
+      const selectionStart = normalizedSelection
+        ? (() => {
+            const row = data[normalizedSelection.top];
+            const column = COLUMNS[normalizedSelection.left];
+            if (!row || !column) return null;
+            return { rowId: row.id, colKey: column.key };
+          })()
+        : null;
+      const start = selectionStart ?? fallbackStart;
+
       if (!start) {
         refocus();
         return;
@@ -1093,10 +1112,38 @@ export function CustomPurchasePaymentsGrid({
         return;
       }
 
-      applyPastedText(text, start);
+      const matrix = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (matrix.length === 0) {
+        refocus();
+        return;
+      }
+
+      if (
+        hasMultiSelection &&
+        normalizedSelection &&
+        matrix.length === 1 &&
+        matrix[0]?.length === 1
+      ) {
+        const rawValue = matrix[0]?.[0] ?? '';
+        const rowCount = normalizedSelection.bottom - normalizedSelection.top + 1;
+        const colCount = normalizedSelection.right - normalizedSelection.left + 1;
+        const expandedText = new Array(rowCount)
+          .fill(0)
+          .map(() => new Array(colCount).fill(rawValue).join('\t'))
+          .join('\n');
+        applyPastedText(expandedText, start);
+      } else {
+        applyPastedText(text, start);
+      }
       refocus();
     },
-    [activeCell, applyPastedText],
+    [activeCell, applyPastedText, data, selection],
   );
 
   const handleGridKeyDown = useCallback(
@@ -1104,6 +1151,7 @@ export function CustomPurchasePaymentsGrid({
       key: string;
       ctrlKey: boolean;
       metaKey: boolean;
+      altKey: boolean;
       shiftKey: boolean;
       preventDefault: () => void;
     }) => {
@@ -1145,6 +1193,23 @@ export function CustomPurchasePaymentsGrid({
         return;
       }
 
+      if (
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        activeCell
+      ) {
+        const row = data.find((r) => r.id === activeCell.rowId);
+        const column = COLUMNS.find((c) => c.key === activeCell.colKey);
+        if (!row || !column) return;
+        if (!column.editable) return;
+
+        event.preventDefault();
+        startEditing(row.id, column.key, event.key);
+        return;
+      }
+
       if (event.key === 'Tab') {
         event.preventDefault();
         moveSelectionTab(event.shiftKey ? -1 : 1);
@@ -1176,9 +1241,11 @@ export function CustomPurchasePaymentsGrid({
       activeCell,
       clearSelectionValues,
       copySelectionToClipboard,
+      data,
       editingCell,
       moveSelection,
       moveSelectionTab,
+      startEditing,
       startEditingActiveCell,
     ],
   );

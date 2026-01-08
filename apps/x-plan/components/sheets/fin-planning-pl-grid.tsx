@@ -877,8 +877,18 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         requestAnimationFrame(() => scrollRef.current?.focus());
       };
 
-      const start = pasteStartRef.current ?? activeCell;
+      const fallbackStart = pasteStartRef.current ?? activeCell;
       pasteStartRef.current = null;
+
+      const normalizedSelection = selection ? normalizeRange(selection) : null;
+      const hasMultiSelection =
+        normalizedSelection &&
+        (normalizedSelection.top !== normalizedSelection.bottom ||
+          normalizedSelection.left !== normalizedSelection.right);
+      const start = normalizedSelection
+        ? { row: normalizedSelection.top, col: normalizedSelection.left }
+        : fallbackStart;
+
       if (!start) {
         refocusClipboard();
         return;
@@ -890,10 +900,33 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         return;
       }
 
-      applyPastedText(text, start);
+      const rows = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (rows.length === 0) {
+        refocusClipboard();
+        return;
+      }
+
+      if (hasMultiSelection && rows.length === 1 && rows[0]?.length === 1 && normalizedSelection) {
+        const rawValue = rows[0]?.[0] ?? '';
+        const rowCount = normalizedSelection.bottom - normalizedSelection.top + 1;
+        const colCount = normalizedSelection.right - normalizedSelection.left + 1;
+        const expandedText = new Array(rowCount)
+          .fill(0)
+          .map(() => new Array(colCount).fill(rawValue).join('\t'))
+          .join('\n');
+        applyPastedText(expandedText, start);
+      } else {
+        applyPastedText(text, start);
+      }
       refocusClipboard();
     },
-    [activeCell, applyPastedText],
+    [activeCell, applyPastedText, selection],
   );
 
   const handlePointerDown = useCallback(
@@ -1038,7 +1071,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                             cancelEditing();
                           }
                         }}
-                        className="h-7 w-full min-w-0 border-primary px-2 text-right text-sm focus-visible:ring-1"
+                        className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     ) : (
                       <span
