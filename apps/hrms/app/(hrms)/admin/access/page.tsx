@@ -222,29 +222,6 @@ export default function AccessManagementPage() {
         </Alert>
       )}
 
-      <Card padding="md" className="mb-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <RoleBadge role="SUPER_ADMIN" />
-              <span className="text-xs text-muted-foreground">System owner</span>
-            </div>
-            <p className="text-sm text-foreground">
-              Full system access. Can manage access, view all records, and provide final approval for violations and reviews.
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <RoleBadge role="HR" />
-              <span className="text-xs text-muted-foreground">People ops</span>
-            </div>
-            <p className="text-sm text-foreground">
-              Can review violations, access all employee records, and handle HR workflow steps and escalations.
-            </p>
-          </div>
-        </div>
-      </Card>
-
       <Card padding="lg">
         <div className="mb-6">
           <div className="relative max-w-md">
