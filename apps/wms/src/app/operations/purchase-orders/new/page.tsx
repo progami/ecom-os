@@ -13,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, FileEdit, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { calculateUnitCost } from '@/lib/utils/calculations'
 
 interface Supplier {
   id: string
@@ -800,15 +799,6 @@ export default function NewPurchaseOrderPage() {
                                   {item.currency}
                                 </div>
                               </div>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                                Unit:{' '}
-                                {(() => {
-                                  const money = parseMoney(item.totalCost)
-                                  if (money === null) return '—'
-                                  const unit = calculateUnitCost(money, item.unitsOrdered, 4)
-                                  return `${unit.toFixed(4)}`
-                                })()}
-                              </p>
                             </div>
                             <div className="col-span-2 flex gap-1.5">
                               <Input
