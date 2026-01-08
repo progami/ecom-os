@@ -17,6 +17,29 @@ const CreateLineSchema = z.object({
   notes: z.string().optional(),
 })
 
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === 'object') {
+    const maybe = value as { toNumber?: () => number; toString?: () => string }
+    if (typeof maybe.toNumber === 'function') {
+      const parsed = maybe.toNumber()
+      return Number.isFinite(parsed) ? parsed : null
+    }
+    if (typeof maybe.toString === 'function') {
+      const parsed = Number(maybe.toString())
+      return Number.isFinite(parsed) ? parsed : null
+    }
+  }
+  return null
+}
+
 function computeCartonsOrdered(input: {
   skuCode: string
   unitsOrdered: number
@@ -150,7 +173,16 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
       skuId: sku.id,
       batchCode: { equals: batchLot, mode: 'insensitive' },
     },
-    select: { id: true, batchCode: true },
+    select: {
+      id: true,
+      batchCode: true,
+      cartonDimensionsCm: true,
+      cartonLengthCm: true,
+      cartonWidthCm: true,
+      cartonHeightCm: true,
+      cartonWeightKg: true,
+      packagingType: true,
+    },
   })
 
   if (!existingBatch) {
@@ -233,6 +265,12 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, sessi
     skuCode: line.skuCode,
     skuDescription: line.skuDescription,
     batchLot: line.batchLot,
+    cartonDimensionsCm: existingBatch.cartonDimensionsCm ?? null,
+    cartonLengthCm: toNumberOrNull(existingBatch.cartonLengthCm),
+    cartonWidthCm: toNumberOrNull(existingBatch.cartonWidthCm),
+    cartonHeightCm: toNumberOrNull(existingBatch.cartonHeightCm),
+    cartonWeightKg: toNumberOrNull(existingBatch.cartonWeightKg),
+    packagingType: existingBatch.packagingType ? existingBatch.packagingType.trim().toUpperCase() : null,
     unitsOrdered: line.unitsOrdered,
     unitsPerCarton: line.unitsPerCarton,
     quantity: line.quantity,

@@ -373,9 +373,17 @@ export default function NewPurchaseOrderPage() {
     return parsed
   }
 
-  const getLinePackagingMeta = (
-    item: LineItem
-  ): { text: string; tone: 'muted' | 'warning' } | null => {
+  interface PackagingDetails {
+    cartonDims: string | null
+    cbmPerCarton: string | null
+    cbmTotal: string | null
+    kgPerCarton: string | null
+    kgTotal: string | null
+    packagingType: string | null
+    hasWarning: boolean
+  }
+
+  const getLinePackagingDetails = (item: LineItem): PackagingDetails | null => {
     if (!item.skuId || !item.batchLot) return null
     const batchCode = item.batchLot.trim().toUpperCase()
     if (!batchCode) return null
@@ -395,45 +403,24 @@ export default function NewPurchaseOrderPage() {
         ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
         : null
 
-    const parts: string[] = []
+    const hasWarning = !cartonTriplet && !batch.cartonWeightKg && !batch.packagingType
 
-    if (!cartonTriplet) {
-      parts.push('Carton dims not set')
-
-      if (batch.cartonWeightKg) {
-        parts.push(`KG/ctn: ${batch.cartonWeightKg.toFixed(2)}`)
-        if (cartons) {
-          parts.push(`KG: ${(batch.cartonWeightKg * cartons).toFixed(2)}`)
-        }
-      }
-
-      if (batch.packagingType) {
-        parts.push(`Pkg: ${batch.packagingType}`)
-      }
-
-      return { tone: 'warning', text: parts.join(' • ') }
+    let cbmPerCarton: number | null = null
+    if (cartonTriplet) {
+      cbmPerCarton =
+        (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
     }
 
-    parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
-    const cbmPerCarton =
-      (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
-    parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
-    if (cartons) {
-      parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
+    return {
+      cartonDims: cartonTriplet ? `${formatDimensionTripletCm(cartonTriplet)} cm` : null,
+      cbmPerCarton: cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : null,
+      cbmTotal: cbmPerCarton !== null && cartons ? (cbmPerCarton * cartons).toFixed(3) : null,
+      kgPerCarton: batch.cartonWeightKg ? batch.cartonWeightKg.toFixed(2) : null,
+      kgTotal:
+        batch.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : null,
+      packagingType: batch.packagingType ?? null,
+      hasWarning,
     }
-
-    if (batch.cartonWeightKg) {
-      parts.push(`KG/ctn: ${batch.cartonWeightKg.toFixed(2)}`)
-      if (cartons) {
-        parts.push(`KG: ${(batch.cartonWeightKg * cartons).toFixed(2)}`)
-      }
-    }
-
-    if (batch.packagingType) {
-      parts.push(`Pkg: ${batch.packagingType}`)
-    }
-
-    return { tone: 'muted', text: parts.join(' • ') }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -537,6 +524,71 @@ export default function NewPurchaseOrderPage() {
       setSubmitting(false)
     }
   }
+
+  const lineTotals = (() => {
+    let totalUnits = 0
+    let totalCartons = 0
+    let totalCost = 0
+    let hasCost = false
+    let totalCbm = 0
+    let hasCbm = false
+    let totalKg = 0
+    let hasKg = false
+
+    lineItems.forEach(item => {
+      totalUnits += item.unitsOrdered > 0 ? item.unitsOrdered : 0
+
+      const cartons =
+        item.unitsPerCarton && item.unitsOrdered > 0
+          ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
+          : null
+      if (cartons !== null) {
+        totalCartons += cartons
+      }
+
+      const parsedCost = parseMoney(item.totalCost)
+      if (parsedCost !== null) {
+        totalCost += parsedCost
+        hasCost = true
+      }
+
+      if (!item.skuId || !item.batchLot || cartons === null) return
+      const batchCode = item.batchLot.trim().toUpperCase()
+      if (!batchCode) return
+      const batch =
+        (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === batchCode) ?? null
+      if (!batch) return
+
+      const cartonTriplet = resolveDimensionTripletCm({
+        lengthCm: batch.cartonLengthCm,
+        widthCm: batch.cartonWidthCm,
+        heightCm: batch.cartonHeightCm,
+        legacy: batch.cartonDimensionsCm,
+      })
+      if (cartonTriplet) {
+        const cbmPerCarton =
+          (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+        totalCbm += cbmPerCarton * cartons
+        hasCbm = true
+      }
+
+      if (batch.cartonWeightKg) {
+        totalKg += batch.cartonWeightKg * cartons
+        hasKg = true
+      }
+    })
+
+    return {
+      totalUnits,
+      totalCartons,
+      totalCost,
+      hasCost,
+      totalCbm,
+      hasCbm,
+      totalKg,
+      hasKg,
+    }
+  })()
 
   if (status === 'loading' || loading) {
     return (
@@ -695,7 +747,17 @@ export default function NewPurchaseOrderPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Line Items</h3>
                   <p className="text-xs text-muted-foreground">
-                    {lineItems.length} item{lineItems.length !== 1 ? 's' : ''}
+                    {lineItems.length} item{lineItems.length !== 1 ? 's' : ''} •{' '}
+                    {lineTotals.totalUnits.toLocaleString()} units •{' '}
+                    {lineTotals.totalCartons.toLocaleString()} cartons
+                    {lineTotals.hasCbm ? ` • ${lineTotals.totalCbm.toFixed(3)} CBM` : ''}
+                    {lineTotals.hasKg ? ` • ${lineTotals.totalKg.toFixed(2)} kg` : ''}
+                    {lineTotals.hasCost
+                      ? ` • ${lineTotals.totalCost.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} ${formData.currency}`
+                      : ''}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
@@ -719,14 +781,18 @@ export default function NewPurchaseOrderPage() {
                   </div>
 
                   {/* Line Items */}
-                  <div className="divide-y">
-                    {lineItems.map(item => {
-                      const meta = getLinePackagingMeta(item)
+                  <div>
+                    {lineItems.map((item, idx) => {
+                      const pkg = getLinePackagingDetails(item)
+                      const parsedCost = parseMoney(item.totalCost)
+                      const unitCost =
+                        parsedCost !== null && item.unitsOrdered > 0
+                          ? parsedCost / item.unitsOrdered
+                          : null
+                      const isLast = idx === lineItems.length - 1
                       return (
-                        <div
-                          key={item.id}
-                          className="grid grid-cols-14 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
-                        >
+                        <div key={item.id} className={`hover:bg-slate-50/50 transition-colors ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
+                          <div className="grid grid-cols-14 gap-2 items-start px-4 py-3">
                           <div className="col-span-2">
                             <select
                               value={item.skuCode}
@@ -845,6 +911,9 @@ export default function NewPurchaseOrderPage() {
                                 {item.currency}
                               </div>
                             </div>
+                            <p className="mt-1 text-[10px] text-muted-foreground">
+                              Unit: {unitCost !== null ? unitCost.toFixed(4) : '—'}
+                            </p>
                           </div>
                           <div className="col-span-2 flex gap-1.5">
                             <Input
@@ -864,16 +933,51 @@ export default function NewPurchaseOrderPage() {
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
-                          {meta ? (
-                            <p
-                              className={`col-span-14 text-[10px] ${
-                                meta.tone === 'warning'
-                                  ? 'text-amber-600'
-                                  : 'text-muted-foreground'
-                              }`}
-                            >
-                              {meta.text}
-                            </p>
+                          </div>
+                          {/* Packaging details sub-row */}
+                          {pkg ? (
+                            <div className="px-4 pb-3 pt-1 bg-slate-50/40">
+                              <div
+                                className={`grid grid-cols-6 gap-3 text-xs border-l-2 pl-3 py-1 ${
+                                  pkg.hasWarning ? 'border-amber-400 bg-amber-50/30' : 'border-cyan-400 bg-transparent'
+                                }`}
+                              >
+                                <div>
+                                  <span className="text-muted-foreground">Carton</span>
+                                  <p
+                                    className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
+                                  >
+                                    {pkg.cartonDims ?? 'Not set'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">CBM/ctn</span>
+                                  <p className="font-medium text-slate-700">
+                                    {pkg.cbmPerCarton ?? '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">CBM Total</span>
+                                  <p className="font-medium text-slate-700">{pkg.cbmTotal ?? '—'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">KG/ctn</span>
+                                  <p className="font-medium text-slate-700">
+                                    {pkg.kgPerCarton ?? '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">KG Total</span>
+                                  <p className="font-medium text-slate-700">{pkg.kgTotal ?? '—'}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Pkg Type</span>
+                                  <p className="font-medium text-slate-700">
+                                    {pkg.packagingType ?? '—'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           ) : null}
                         </div>
                       )
