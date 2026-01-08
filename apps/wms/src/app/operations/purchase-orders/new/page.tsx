@@ -490,8 +490,8 @@ export default function NewPurchaseOrderPage() {
             {/* Two-column layout: Order Details (left) + Line Items (right) */}
             <div className="flex gap-6 items-start">
               {/* Left Column: Order Details - Fixed width */}
-              <div className="w-[320px] flex-shrink-0 space-y-4">
-                <div className="rounded-xl border bg-white p-5 space-y-4">
+              <div className="w-[340px] flex-shrink-0 space-y-4">
+                <div className="rounded-xl border bg-white p-5 space-y-4 overflow-visible">
                   <h3 className="text-sm font-semibold text-slate-900">Order Details</h3>
 
                   <div className="space-y-1.5">
@@ -532,48 +532,46 @@ export default function NewPurchaseOrderPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-600">
-                        Cargo Ready <span className="text-red-500">*</span>
-                      </label>
-                      <Input
-                        type="date"
-                        value={formData.expectedDate}
-                        onChange={e =>
-                          setFormData(prev => ({ ...prev, expectedDate: e.target.value }))
-                        }
-                        className="h-9 text-sm"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-medium text-slate-600">
-                        Incoterms <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={formData.incoterms}
-                        onChange={e =>
-                          setFormData(prev => ({ ...prev, incoterms: e.target.value }))
-                        }
-                        className="w-full h-9 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
-                        required
-                      >
-                        <option value="">Select</option>
-                        {INCOTERMS_OPTIONS.map(option => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
+                      Cargo Ready Date <span className="text-red-500">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={formData.expectedDate}
+                      onChange={e =>
+                        setFormData(prev => ({ ...prev, expectedDate: e.target.value }))
+                      }
+                      className="h-9 text-sm"
+                      required
+                    />
                   </div>
-                  {formData.supplierId && !selectedSupplier?.defaultIncoterms && (
-                    <p className="text-[11px] text-amber-600 -mt-2">
-                      No default incoterms for this supplier
-                    </p>
-                  )}
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
+                      Incoterms <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.incoterms}
+                      onChange={e =>
+                        setFormData(prev => ({ ...prev, incoterms: e.target.value }))
+                      }
+                      className="w-full h-9 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
+                      required
+                    >
+                      <option value="">Select incoterms</option>
+                      {INCOTERMS_OPTIONS.map(option => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    {formData.supplierId && !selectedSupplier?.defaultIncoterms && (
+                      <p className="text-[11px] text-amber-600">
+                        No default incoterms for this supplier
+                      </p>
+                    )}
+                  </div>
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-slate-600">
