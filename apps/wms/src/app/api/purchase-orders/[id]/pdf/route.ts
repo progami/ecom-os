@@ -4,6 +4,7 @@ import { withAuthAndParams, ApiResponses } from '@/lib/api'
 import { getPurchaseOrderById } from '@/lib/services/purchase-order-service'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 import { getCurrentTenant, getTenantPrisma } from '@/lib/tenant/server'
+import { BUYER_LEGAL_ENTITY, getBuyerVatNumber } from '@/lib/config/legal-entity'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -57,6 +58,9 @@ function extractBatchCode(batchLot: string | null): string {
 
 async function renderPurchaseOrderPdf(params: {
   poNumber: string
+  buyerName: string
+  buyerAddress: string
+  buyerVatNumber?: string | null
   supplierName: string
   supplierAddress?: string | null
   createdAt: Date
@@ -86,7 +90,7 @@ async function renderPurchaseOrderPdf(params: {
     bufferPages: true,
   })
   doc.info.Title = `Purchase Order ${params.poNumber}`
-  doc.info.Author = 'Targon Global'
+  doc.info.Author = params.buyerName
 
   const chunks: Buffer[] = []
   const result = new Promise<Buffer>((resolve, reject) => {
@@ -123,15 +127,25 @@ async function renderPurchaseOrderPdf(params: {
 
   // Company name - small, muted
   doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
-  doc.text('TARGON GLOBAL', margin, y)
+  doc.text(params.buyerName.toUpperCase(), margin, y)
+
+  doc.fillColor(COLORS.slate).fontSize(8).font('Helvetica')
+  doc.text(params.buyerAddress, margin, y + 12, { width: contentWidth * 0.6 })
+
+  if (params.buyerVatNumber) {
+    doc.fillColor(COLORS.slate).fontSize(8).font('Helvetica')
+    doc.text(`VAT: ${params.buyerVatNumber}`, margin, y + 24, { width: contentWidth * 0.6 })
+  }
+
+  const poY = y + (params.buyerVatNumber ? 38 : 28)
 
   // PO Number - HERO
   doc.fillColor(COLORS.navy).fontSize(28).font('Helvetica-Bold')
-  doc.text(params.poNumber, margin, y + 14)
+  doc.text(params.poNumber, margin, poY)
 
   // Document type
   doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
-  doc.text('PURCHASE ORDER', margin, y + 46)
+  doc.text('PURCHASE ORDER', margin, poY + 32)
 
   // Order date on right
   doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
@@ -139,7 +153,7 @@ async function renderPurchaseOrderPdf(params: {
   doc.fillColor(COLORS.navy).fontSize(10).font('Helvetica-Bold')
   doc.text(formatDate(params.createdAt), pageWidth - margin - 100, y + 11, { width: 100, align: 'right' })
 
-  y += 70
+  y = poY + 56
 
   // Divider
   doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.border).lineWidth(1).stroke()
@@ -151,9 +165,9 @@ async function renderPurchaseOrderPdf(params: {
 
   const colWidth = (contentWidth - 30) / 2
 
-  // FROM
+  // SUPPLIER
   doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica')
-  doc.text('FROM', margin, y)
+  doc.text('SUPPLIER', margin, y)
   doc.fillColor(COLORS.navy).fontSize(10).font('Helvetica-Bold')
   doc.text(params.supplierName || '—', margin, y + 11, { width: colWidth })
 
@@ -182,10 +196,14 @@ async function renderPurchaseOrderPdf(params: {
   // ORDER DETAILS
   // ============================================
 
+  const orderCurrency =
+    totalsByCurrency.size === 1 ? Array.from(totalsByCurrency.keys())[0] : '—'
+
   const details = [
-    { label: 'CARGO READY', value: formatDate(params.expectedDate), w: 100 },
-    { label: 'INCOTERMS', value: params.incoterms || '—', w: 80 },
-    { label: 'PAYMENT TERMS', value: params.paymentTerms || '—', w: contentWidth - 180 },
+    { label: 'CARGO READY', value: formatDate(params.expectedDate), w: 95 },
+    { label: 'INCOTERMS', value: params.incoterms || '—', w: 70 },
+    { label: 'CURRENCY', value: orderCurrency, w: 70 },
+    { label: 'PAYMENT TERMS', value: params.paymentTerms || '—', w: contentWidth - 235 },
   ]
 
   let detailX = margin
@@ -394,6 +412,7 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
 
   const tenant = await getCurrentTenant()
   const destinationCountry = `${tenant.name} (${tenant.displayName})`
+  const buyerVatNumber = getBuyerVatNumber(tenant.code)
 
   const poNumber = order.poNumber ?? toPublicOrderNumber(order.orderNumber)
   const filename = `${sanitizeFilename(poNumber)}.pdf`
@@ -412,6 +431,9 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
 
   const pdf = await renderPurchaseOrderPdf({
     poNumber,
+    buyerName: BUYER_LEGAL_ENTITY.name,
+    buyerAddress: BUYER_LEGAL_ENTITY.address,
+    buyerVatNumber,
     supplierName: order.counterpartyName ?? '',
     supplierAddress,
     createdAt: order.createdAt,
