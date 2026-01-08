@@ -362,11 +362,14 @@ export function CustomOpsCostGrid({
     }
   }, [editingCell]);
 
-  const startEditing = (rowId: string, colKey: keyof OpsBatchRow, currentValue: string) => {
-    setActiveCell({ rowId, colKey });
-    setEditingCell({ rowId, colKey });
-    setEditValue(currentValue);
-  };
+  const startEditing = useCallback(
+    (rowId: string, colKey: keyof OpsBatchRow, currentValue: string) => {
+      setActiveCell({ rowId, colKey });
+      setEditingCell({ rowId, colKey });
+      setEditValue(currentValue);
+    },
+    [],
+  );
 
   const cancelEditing = useCallback(() => {
     setEditingCell(null);
@@ -628,7 +631,7 @@ export function CustomOpsCostGrid({
     if (!row || !column) return;
     if (!column.editable) return;
     startEditing(row.id, column.key, row[column.key] ?? '');
-  }, [activeCell, columns, rows]);
+  }, [activeCell, columns, rows, startEditing]);
 
   const buildClipboardText = useCallback(() => {
     const range = selection ?? null;
@@ -904,8 +907,24 @@ export function CustomOpsCostGrid({
         requestAnimationFrame(() => tableScrollRef.current?.focus());
       };
 
-      const start = pasteStartRef.current ?? activeCell;
+      const fallbackStart = pasteStartRef.current ?? activeCell;
       pasteStartRef.current = null;
+
+      const normalizedSelection = selection ? normalizeRange(selection) : null;
+      const hasMultiSelection =
+        normalizedSelection &&
+        (normalizedSelection.top !== normalizedSelection.bottom ||
+          normalizedSelection.left !== normalizedSelection.right);
+      const selectionStart = normalizedSelection
+        ? (() => {
+            const row = localRows[normalizedSelection.top];
+            const column = columns[normalizedSelection.left];
+            if (!row || !column) return null;
+            return { rowId: row.id, colKey: column.key };
+          })()
+        : null;
+      const start = selectionStart ?? fallbackStart;
+
       if (!start) {
         refocus();
         return;
@@ -918,10 +937,38 @@ export function CustomOpsCostGrid({
         return;
       }
 
-      applyPastedText(text, start);
+      const matrix = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (matrix.length === 0) {
+        refocus();
+        return;
+      }
+
+      if (
+        hasMultiSelection &&
+        normalizedSelection &&
+        matrix.length === 1 &&
+        matrix[0]?.length === 1
+      ) {
+        const rawValue = matrix[0]?.[0] ?? '';
+        const rowCount = normalizedSelection.bottom - normalizedSelection.top + 1;
+        const colCount = normalizedSelection.right - normalizedSelection.left + 1;
+        const expandedText = new Array(rowCount)
+          .fill(0)
+          .map(() => new Array(colCount).fill(rawValue).join('\t'))
+          .join('\n');
+        applyPastedText(expandedText, start);
+      } else {
+        applyPastedText(text, start);
+      }
       refocus();
     },
-    [activeCell, applyPastedText],
+    [activeCell, applyPastedText, columns, localRows, selection],
   );
 
   const handleGridKeyDown = useCallback(
@@ -929,6 +976,7 @@ export function CustomOpsCostGrid({
       key: string;
       ctrlKey: boolean;
       metaKey: boolean;
+      altKey: boolean;
       shiftKey: boolean;
       preventDefault: () => void;
     }) => {
@@ -970,6 +1018,27 @@ export function CustomOpsCostGrid({
         return;
       }
 
+      if (
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        activeCell
+      ) {
+        const row = rows.find((r) => r.id === activeCell.rowId);
+        const column = columns.find((c) => c.key === activeCell.colKey);
+        if (!row || !column) return;
+        if (!column.editable) return;
+
+        event.preventDefault();
+        startEditing(
+          row.id,
+          column.key,
+          column.type === 'dropdown' ? (row[column.key] ?? '') : event.key,
+        );
+        return;
+      }
+
       if (event.key === 'Tab') {
         event.preventDefault();
         moveSelectionTab(event.shiftKey ? -1 : 1);
@@ -999,11 +1068,14 @@ export function CustomOpsCostGrid({
     },
     [
       activeCell,
+      columns,
       clearSelectionValues,
       copySelectionToClipboard,
       editingCell,
       moveSelection,
       moveSelectionTab,
+      rows,
+      startEditing,
       startEditingActiveCell,
     ],
   );

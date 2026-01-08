@@ -1575,6 +1575,7 @@ export function CustomOpsPlanningGrid({
       key: string;
       ctrlKey: boolean;
       metaKey: boolean;
+      altKey: boolean;
       shiftKey: boolean;
       preventDefault: () => void;
     }) => {
@@ -1637,6 +1638,27 @@ export function CustomOpsPlanningGrid({
         return;
       }
 
+      if (
+        event.key.length === 1 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        activeCell
+      ) {
+        const row = rows.find((r) => r.id === activeCell.rowId);
+        const column = COLUMNS.find((c) => c.key === activeCell.colKey);
+        if (!row || !column) return;
+        if ((column.editable ?? true) === false) return;
+
+        event.preventDefault();
+        startEditing(
+          row.id,
+          column.key,
+          column.type === 'dropdown' ? getCellEditValue(row, column, stageMode) : event.key,
+        );
+        return;
+      }
+
       if (event.key === 'Tab') {
         event.preventDefault();
         moveSelectionTab(event.shiftKey ? -1 : 1);
@@ -1672,7 +1694,10 @@ export function CustomOpsPlanningGrid({
       moveSelection,
       moveSelectionTab,
       redo,
+      rows,
       startEditingActiveCell,
+      stageMode,
+      startEditing,
       undo,
     ],
   );
@@ -1717,8 +1742,24 @@ export function CustomOpsPlanningGrid({
         requestAnimationFrame(() => tableScrollRef.current?.focus());
       };
 
-      const start = pasteStartRef.current ?? activeCell;
+      const fallbackStart = pasteStartRef.current ?? activeCell;
       pasteStartRef.current = null;
+
+      const normalizedSelection = selection ? normalizeRange(selection) : null;
+      const hasMultiSelection =
+        normalizedSelection &&
+        (normalizedSelection.top !== normalizedSelection.bottom ||
+          normalizedSelection.left !== normalizedSelection.right);
+      const selectionStart = normalizedSelection
+        ? (() => {
+            const row = rows[normalizedSelection.top];
+            const column = COLUMNS[normalizedSelection.left];
+            if (!row || !column) return null;
+            return { rowId: row.id, colKey: column.key };
+          })()
+        : null;
+
+      const start = selectionStart ?? fallbackStart;
       if (!start) {
         refocusClipboard();
         return;
@@ -1731,10 +1772,38 @@ export function CustomOpsPlanningGrid({
         return;
       }
 
-      applyPastedText(text, start);
+      const rowsMatrix = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (rowsMatrix.length === 0) {
+        refocusClipboard();
+        return;
+      }
+
+      if (
+        hasMultiSelection &&
+        normalizedSelection &&
+        rowsMatrix.length === 1 &&
+        rowsMatrix[0]?.length === 1
+      ) {
+        const rawValue = rowsMatrix[0]?.[0] ?? '';
+        const rowCount = normalizedSelection.bottom - normalizedSelection.top + 1;
+        const colCount = normalizedSelection.right - normalizedSelection.left + 1;
+        const expandedText = new Array(rowCount)
+          .fill(0)
+          .map(() => new Array(colCount).fill(rawValue).join('\t'))
+          .join('\n');
+        applyPastedText(expandedText, start);
+      } else {
+        applyPastedText(text, start);
+      }
       refocusClipboard();
     },
-    [activeCell, applyPastedText],
+    [activeCell, applyPastedText, rows, selection],
   );
 
   const getHeaderLabel = (column: ColumnDef): string => {
