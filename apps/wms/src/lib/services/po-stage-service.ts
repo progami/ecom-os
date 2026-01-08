@@ -147,7 +147,13 @@ export const STAGE_REQUIREMENTS: Record<string, string[]> = {
     'portOfDischarge',
   ],
   // Stage 4: Warehouse - now requires selecting the warehouse
-  WAREHOUSE: ['warehouseCode', 'receiveType', 'customsEntryNumber', 'customsClearedDate', 'receivedDate'],
+  WAREHOUSE: [
+    'warehouseCode',
+    'receiveType',
+    'customsEntryNumber',
+    'customsClearedDate',
+    'receivedDate',
+  ],
 }
 
 export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, string[]>> = {
@@ -308,10 +314,7 @@ export function validateStageData(
   }
 }
 
-function resolveDateValue(
-  value: Date | string | undefined | null,
-  label: string
-): Date | null {
+function resolveDateValue(value: Date | string | undefined | null, label: string): Date | null {
   if (value === undefined || value === null) return null
   if (typeof value === 'string' && value.trim().length === 0) return null
 
@@ -391,7 +394,12 @@ function validateStageDateOrdering(
     order,
     'Estimated departure'
   )
-  const estimatedArrival = resolveOrderDate('estimatedArrival', stageData, order, 'Estimated arrival')
+  const estimatedArrival = resolveOrderDate(
+    'estimatedArrival',
+    stageData,
+    order,
+    'Estimated arrival'
+  )
   const actualDeparture = resolveOrderDate('actualDeparture', stageData, order, 'Actual departure')
   const actualArrival = resolveOrderDate('actualArrival', stageData, order, 'Actual arrival')
 
@@ -400,7 +408,10 @@ function validateStageDateOrdering(
     { label: 'Estimated arrival', date: estimatedArrival },
     { label: 'Actual departure', date: actualDeparture },
     { label: 'Estimated departure', date: estimatedDeparture },
-    { label: manufacturingBaseline?.label ?? 'Manufacturing stage', date: manufacturingBaseline?.date ?? null },
+    {
+      label: manufacturingBaseline?.label ?? 'Manufacturing stage',
+      date: manufacturingBaseline?.date ?? null,
+    },
   ])
 
   const customsClearedDate = resolveOrderDate(
@@ -412,26 +423,61 @@ function validateStageDateOrdering(
   const receivedDate = resolveOrderDate('receivedDate', stageData, order, 'Received date')
 
   if (targetStatus === PurchaseOrderStatus.MANUFACTURING) {
-    assertNotEarlierThan('Manufacturing start date', manufacturingStartDate, 'Expected completion date', expectedCompletionDate)
-    assertNotEarlierThan('Manufacturing start date', manufacturingStartDate, 'Actual completion date', actualCompletionDate)
+    assertNotEarlierThan(
+      'Manufacturing start date',
+      manufacturingStartDate,
+      'Expected completion date',
+      expectedCompletionDate
+    )
+    assertNotEarlierThan(
+      'Manufacturing start date',
+      manufacturingStartDate,
+      'Actual completion date',
+      actualCompletionDate
+    )
     return
   }
 
   if (targetStatus === PurchaseOrderStatus.OCEAN) {
     if (manufacturingBaseline) {
-      assertNotEarlierThan(manufacturingBaseline.label, manufacturingBaseline.date, 'Estimated departure', estimatedDeparture)
-      assertNotEarlierThan(manufacturingBaseline.label, manufacturingBaseline.date, 'Actual departure', actualDeparture)
+      assertNotEarlierThan(
+        manufacturingBaseline.label,
+        manufacturingBaseline.date,
+        'Estimated departure',
+        estimatedDeparture
+      )
+      assertNotEarlierThan(
+        manufacturingBaseline.label,
+        manufacturingBaseline.date,
+        'Actual departure',
+        actualDeparture
+      )
     }
 
-    assertNotEarlierThan('Estimated departure', estimatedDeparture, 'Estimated arrival', estimatedArrival)
+    assertNotEarlierThan(
+      'Estimated departure',
+      estimatedDeparture,
+      'Estimated arrival',
+      estimatedArrival
+    )
     assertNotEarlierThan('Actual departure', actualDeparture, 'Actual arrival', actualArrival)
     return
   }
 
   if (targetStatus === PurchaseOrderStatus.WAREHOUSE) {
     if (inboundBaseline) {
-      assertNotEarlierThan(inboundBaseline.label, inboundBaseline.date, 'Customs cleared date', customsClearedDate)
-      assertNotEarlierThan(inboundBaseline.label, inboundBaseline.date, 'Received date', receivedDate)
+      assertNotEarlierThan(
+        inboundBaseline.label,
+        inboundBaseline.date,
+        'Customs cleared date',
+        customsClearedDate
+      )
+      assertNotEarlierThan(
+        inboundBaseline.label,
+        inboundBaseline.date,
+        'Received date',
+        receivedDate
+      )
     }
 
     assertNotEarlierThan('Customs cleared date', customsClearedDate, 'Received date', receivedDate)
@@ -470,6 +516,8 @@ export interface CreatePurchaseOrderLineInput {
   skuDescription?: string
   batchLot: string
   quantity: number
+  storageCartonsPerPallet?: number
+  shippingCartonsPerPallet?: number
   unitCost?: number
   currency?: string
   notes?: string
@@ -591,18 +639,45 @@ export async function createPurchaseOrder(
                   batchCode: { equals: combo.batchCode, mode: 'insensitive' },
                 })),
               },
-              select: { skuId: true, batchCode: true },
+              select: { id: true, skuId: true, batchCode: true },
             })
 
-            const existingSet = new Set(
-              existing.map(row => `${row.skuId}::${row.batchCode.toUpperCase()}`)
+            const existingMap = new Map(
+              existing.map(row => [`${row.skuId}::${row.batchCode.toUpperCase()}`, row])
             )
             for (const combo of requiredCombos) {
-              if (!existingSet.has(`${combo.skuId}::${combo.batchCode}`)) {
+              if (!existingMap.has(`${combo.skuId}::${combo.batchCode}`)) {
                 throw new ValidationError(
                   `Batch ${combo.batchCode} not found for SKU ${combo.skuCode}. Create it in Products → Batches first.`
                 )
               }
+            }
+
+            for (const line of input.lines) {
+              const skuRecord = skuByCode.get(line.skuCode.trim().toLowerCase())
+              if (!skuRecord) continue
+
+              const batchCode = line.batchLot?.trim().toUpperCase() ?? ''
+              if (!batchCode || batchCode === 'DEFAULT') continue
+
+              const key = `${skuRecord.id}::${batchCode}`
+              const batch = existingMap.get(key)
+              if (!batch) continue
+
+              const batchUpdate: Prisma.SkuBatchUpdateInput = {}
+              if (line.storageCartonsPerPallet !== undefined) {
+                batchUpdate.storageCartonsPerPallet = line.storageCartonsPerPallet
+              }
+              if (line.shippingCartonsPerPallet !== undefined) {
+                batchUpdate.shippingCartonsPerPallet = line.shippingCartonsPerPallet
+              }
+
+              if (Object.keys(batchUpdate).length === 0) continue
+
+              await tx.skuBatch.update({
+                where: { id: batch.id },
+                data: batchUpdate,
+              })
             }
           }
         }
@@ -768,7 +843,12 @@ export async function transitionPurchaseOrderStage(
       entityType: 'PurchaseOrder',
       entityId: orderId,
       oldValue: { status: currentStatus },
-      newValue: { status: targetStatus, fromStatus: currentStatus, toStatus: targetStatus, approvedBy: user.name },
+      newValue: {
+        status: targetStatus,
+        fromStatus: currentStatus,
+        toStatus: targetStatus,
+        approvedBy: user.name,
+      },
     })
 
     await recalculateStorageLedgerForTransactions(
@@ -986,14 +1066,14 @@ export async function transitionPurchaseOrderStage(
   }
 
   // Set approval tracking based on target status
-	  const now = new Date()
-	  switch (targetStatus) {
-	    case PurchaseOrderStatus.ISSUED:
-	      updateData.draftApprovedAt = now
-	      updateData.draftApprovedById = user.id
-	      updateData.draftApprovedByName = user.name
-	      break
-	    case PurchaseOrderStatus.OCEAN:
+  const now = new Date()
+  switch (targetStatus) {
+    case PurchaseOrderStatus.ISSUED:
+      updateData.draftApprovedAt = now
+      updateData.draftApprovedById = user.id
+      updateData.draftApprovedByName = user.name
+      break
+    case PurchaseOrderStatus.OCEAN:
       updateData.manufacturingApprovedAt = now
       updateData.manufacturingApprovedById = user.id
       updateData.manufacturingApprovedByName = user.name
@@ -1042,7 +1122,9 @@ export async function transitionPurchaseOrderStage(
         throw new ValidationError(`Invalid warehouse code: ${nextOrder.warehouseCode}`)
       }
 
-      const activeLines = nextOrder.lines.filter(line => line.status !== PurchaseOrderLineStatus.CANCELLED)
+      const activeLines = nextOrder.lines.filter(
+        line => line.status !== PurchaseOrderLineStatus.CANCELLED
+      )
       if (activeLines.length === 0) {
         throw new ValidationError('Cannot receive an order with no active cargo lines')
       }
@@ -1085,22 +1167,13 @@ export async function transitionPurchaseOrderStage(
           cartonDimensionsCm: true,
           cartonWeightKg: true,
           packagingType: true,
-        },
-      })
-      const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
-
-      const storageConfigs = await tx.warehouseSkuStorageConfig.findMany({
-        where: {
-          warehouseId: warehouse.id,
-          skuId: { in: skus.map(sku => sku.id) },
-        },
-        select: {
-          skuId: true,
           storageCartonsPerPallet: true,
           shippingCartonsPerPallet: true,
         },
       })
-      const storageConfigMap = new Map(storageConfigs.map(cfg => [cfg.skuId, cfg]))
+      const batchMap = new Map(
+        batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch])
+      )
 
       const createdTransactions: Array<{
         id: string
@@ -1133,19 +1206,18 @@ export async function transitionPurchaseOrderStage(
           )
         }
 
-        const skuConfig = storageConfigMap.get(sku.id)
-        const storageCartonsPerPallet = skuConfig?.storageCartonsPerPallet ?? null
-        const shippingCartonsPerPallet = skuConfig?.shippingCartonsPerPallet ?? null
+        const storageCartonsPerPallet = batch.storageCartonsPerPallet ?? null
+        const shippingCartonsPerPallet = batch.shippingCartonsPerPallet ?? null
 
         if (!storageCartonsPerPallet || storageCartonsPerPallet <= 0) {
           throw new ValidationError(
-            `Storage configuration is required for SKU ${line.skuCode} at warehouse ${warehouse.name}. Set Storage Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+            `Storage cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}. Configure it on the batch in Config → Products → Batches.`
           )
         }
 
         if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
           throw new ValidationError(
-            `Shipping configuration is required for SKU ${line.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+            `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}. Configure it on the batch in Config → Products → Batches.`
           )
         }
 
@@ -1260,7 +1332,10 @@ export async function transitionPurchaseOrderStage(
         orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }],
       })
 
-      const ratesByCostName = new Map<string, { costName: string; costValue: number; unitOfMeasure: string }>()
+      const ratesByCostName = new Map<
+        string,
+        { costName: string; costValue: number; unitOfMeasure: string }
+      >()
       for (const rate of rates) {
         if (!ratesByCostName.has(rate.costName)) {
           ratesByCostName.set(rate.costName, {
@@ -1369,20 +1444,20 @@ export async function transitionPurchaseOrderStage(
 /**
  * Get stage approval history for a Purchase Order
  */
-	export function getStageApprovalHistory(order: PurchaseOrder): {
+export function getStageApprovalHistory(order: PurchaseOrder): {
   stage: string
   approvedAt: Date | null
   approvedBy: string | null
 }[] {
   const history = []
 
-	  if (order.draftApprovedAt) {
-	    history.push({
-	      stage: 'DRAFT → ISSUED',
-	      approvedAt: order.draftApprovedAt,
-	      approvedBy: order.draftApprovedByName,
-	    })
-	  }
+  if (order.draftApprovedAt) {
+    history.push({
+      stage: 'DRAFT → ISSUED',
+      approvedAt: order.draftApprovedAt,
+      approvedBy: order.draftApprovedByName,
+    })
+  }
 
   if (order.manufacturingApprovedAt) {
     history.push({

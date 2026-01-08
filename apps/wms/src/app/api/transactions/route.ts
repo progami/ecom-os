@@ -706,24 +706,13 @@ export const POST = withAuth(async (request, session) => {
           cartonDimensionsCm: true,
           cartonWeightKg: true,
           packagingType: true,
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
         },
       })
       const batchMap = new Map(
         batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch])
       )
-
-      const storageConfigs = await tx.warehouseSkuStorageConfig.findMany({
-        where: {
-          warehouseId: warehouse.id,
-          skuId: { in: skus.map(sku => sku.id) },
-        },
-        select: {
-          skuId: true,
-          storageCartonsPerPallet: true,
-          shippingCartonsPerPallet: true,
-        },
-      })
-      const storageConfigMap = new Map(storageConfigs.map(cfg => [cfg.skuId, cfg]))
 
       let totalStoragePalletsIn = 0
       let totalShippingPalletsOut = 0
@@ -739,18 +728,17 @@ export const POST = withAuth(async (request, session) => {
           throw new Error(`Batch/Lot ${item.batchLot} not found for SKU ${item.skuCode}`)
         }
 
-        const skuConfig = storageConfigMap.get(sku.id)
         const resolvedStorageCartonsPerPallet =
-          item.storageCartonsPerPallet ?? skuConfig?.storageCartonsPerPallet ?? null
+          item.storageCartonsPerPallet ?? batchRecord.storageCartonsPerPallet ?? null
         let resolvedShippingCartonsPerPallet =
-          item.shippingCartonsPerPallet ?? skuConfig?.shippingCartonsPerPallet ?? null
+          item.shippingCartonsPerPallet ?? batchRecord.shippingCartonsPerPallet ?? null
 
         if (
           txType === 'RECEIVE' &&
           (!resolvedStorageCartonsPerPallet || resolvedStorageCartonsPerPallet <= 0)
         ) {
           throw new ValidationError(
-            `Storage configuration is required for SKU ${item.skuCode} at warehouse ${warehouse.name}. Set Storage Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+            `Storage cartons per pallet is required for SKU ${item.skuCode} batch ${item.batchLot}. Configure it on the batch in Config → Products → Batches.`
           )
         }
 
@@ -759,7 +747,7 @@ export const POST = withAuth(async (request, session) => {
           (!resolvedShippingCartonsPerPallet || resolvedShippingCartonsPerPallet <= 0)
         ) {
           throw new ValidationError(
-            `Shipping configuration is required for SKU ${item.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+            `Shipping cartons per pallet is required for SKU ${item.skuCode} batch ${item.batchLot}. Configure it on the batch in Config → Products → Batches.`
           )
         }
 
@@ -771,7 +759,7 @@ export const POST = withAuth(async (request, session) => {
             (!resolvedShippingCartonsPerPallet || resolvedShippingCartonsPerPallet <= 0)
           ) {
             throw new ValidationError(
-              `Shipping configuration is required for SKU ${item.skuCode} at warehouse ${warehouse.name}. Set Shipping Cartons / Pallet in Config → Warehouses → ${warehouse.name} → Rates → Storage.`
+              `Shipping cartons per pallet is required for SKU ${item.skuCode} batch ${item.batchLot}. Configure it on the batch in Config → Products → Batches.`
             )
           }
 

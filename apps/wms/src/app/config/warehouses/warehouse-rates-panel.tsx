@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Package,
   Warehouse as WarehouseIcon,
@@ -10,7 +10,6 @@ import {
   Save,
   X,
   Loader2,
-  Search,
 } from '@/lib/lucide-icons'
 import { Badge } from '@/components/ui/badge'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
@@ -48,37 +47,122 @@ interface InlineEditState {
 // Tactical Logistics CWH Rate Sheet (from actual invoices)
 const RATE_TEMPLATES = {
   inbound: [
-    { costName: "20' Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 650 },
-    { costName: "40' Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 825 },
-    { costName: "40' HQ Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 875 },
-    { costName: "45' HQ Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 950 },
-    { costName: "LCL Handling", costCategory: 'Inbound', unitOfMeasure: 'per_carton', defaultValue: 0.95 },
-    { costName: "Additional SKU Fee", costCategory: 'Inbound', unitOfMeasure: 'per_sku', defaultValue: 10 },
-    { costName: "Cartons Over 1200", costCategory: 'Inbound', unitOfMeasure: 'per_carton', defaultValue: 0.05 },
-    { costName: "Pallet & Shrink Wrap Fee", costCategory: 'Inbound', unitOfMeasure: 'per_pallet', defaultValue: 13.75 },
+    {
+      costName: "20' Container Handling",
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_container',
+      defaultValue: 650,
+    },
+    {
+      costName: "40' Container Handling",
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_container',
+      defaultValue: 825,
+    },
+    {
+      costName: "40' HQ Container Handling",
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_container',
+      defaultValue: 875,
+    },
+    {
+      costName: "45' HQ Container Handling",
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_container',
+      defaultValue: 950,
+    },
+    {
+      costName: 'LCL Handling',
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_carton',
+      defaultValue: 0.95,
+    },
+    {
+      costName: 'Additional SKU Fee',
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_sku',
+      defaultValue: 10,
+    },
+    {
+      costName: 'Cartons Over 1200',
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_carton',
+      defaultValue: 0.05,
+    },
+    {
+      costName: 'Pallet & Shrink Wrap Fee',
+      costCategory: 'Inbound',
+      unitOfMeasure: 'per_pallet',
+      defaultValue: 13.75,
+    },
   ],
   storage: [
-    { costName: "Warehouse Storage", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
-    { costName: "Warehouse Storage (6+ Months)", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
+    {
+      costName: 'Warehouse Storage',
+      costCategory: 'Storage',
+      unitOfMeasure: 'per_pallet_day',
+      defaultValue: 0.69,
+    },
+    {
+      costName: 'Warehouse Storage (6+ Months)',
+      costCategory: 'Storage',
+      unitOfMeasure: 'per_pallet_day',
+      defaultValue: 0.69,
+    },
   ],
   outbound: [
-    { costName: "Replenishment Handling", costCategory: 'Outbound', unitOfMeasure: 'per_carton', defaultValue: 1.00 },
-    { costName: "Replenishment Minimum", costCategory: 'Outbound', unitOfMeasure: 'per_shipment', defaultValue: 15 },
-    { costName: "FBA Trucking - Up to 8 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
-    { costName: "FBA Trucking - 9-12 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
-    { costName: "FBA Trucking - 13-28 Pallets (FTL)", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
+    {
+      costName: 'Replenishment Handling',
+      costCategory: 'Outbound',
+      unitOfMeasure: 'per_carton',
+      defaultValue: 1.0,
+    },
+    {
+      costName: 'Replenishment Minimum',
+      costCategory: 'Outbound',
+      unitOfMeasure: 'per_shipment',
+      defaultValue: 15,
+    },
+    {
+      costName: 'FBA Trucking - Up to 8 Pallets',
+      costCategory: 'Outbound',
+      unitOfMeasure: 'flat',
+      defaultValue: 0,
+    },
+    {
+      costName: 'FBA Trucking - 9-12 Pallets',
+      costCategory: 'Outbound',
+      unitOfMeasure: 'flat',
+      defaultValue: 0,
+    },
+    {
+      costName: 'FBA Trucking - 13-28 Pallets (FTL)',
+      costCategory: 'Outbound',
+      unitOfMeasure: 'flat',
+      defaultValue: 0,
+    },
   ],
   forwarding: [
-    { costName: "Pre-pull", costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 175 },
-    { costName: "Pierpass 20'", costCategory: 'Forwarding', unitOfMeasure: 'per_container', defaultValue: 34.52 },
-    { costName: "Pierpass 40'", costCategory: 'Forwarding', unitOfMeasure: 'per_container', defaultValue: 68.42 },
+    { costName: 'Pre-pull', costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 175 },
+    {
+      costName: "Pierpass 20'",
+      costCategory: 'Forwarding',
+      unitOfMeasure: 'per_container',
+      defaultValue: 34.52,
+    },
+    {
+      costName: "Pierpass 40'",
+      costCategory: 'Forwarding',
+      unitOfMeasure: 'per_container',
+      defaultValue: 68.42,
+    },
   ],
 }
 
 export function WarehouseRatesPanel({
   warehouseId,
   warehouseName,
-  warehouseCode
+  warehouseCode,
 }: WarehouseRatesPanelProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('inbound')
   const [rates, setRates] = useState<CostRate[]>([])
@@ -114,7 +198,7 @@ export function WarehouseRatesPanel({
     loadRates()
   }, [loadRates])
 
-  const getRateForTemplate = (template: typeof RATE_TEMPLATES.inbound[0]) => {
+  const getRateForTemplate = (template: (typeof RATE_TEMPLATES.inbound)[0]) => {
     return rates.find(r => r.costName === template.costName)
   }
 
@@ -138,7 +222,7 @@ export function WarehouseRatesPanel({
     })
   }
 
-  const startAddingRate = (template: typeof RATE_TEMPLATES.inbound[0]) => {
+  const startAddingRate = (template: (typeof RATE_TEMPLATES.inbound)[0]) => {
     setEditState({
       rateId: null,
       templateName: template.costName,
@@ -166,7 +250,7 @@ export function WarehouseRatesPanel({
 
       const response = await fetchWithCSRF(`/api/settings/rates/${rate.id}`, {
         method: 'PUT',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
@@ -184,7 +268,7 @@ export function WarehouseRatesPanel({
     }
   }
 
-  const createRate = async (template: typeof RATE_TEMPLATES.inbound[0]) => {
+  const createRate = async (template: (typeof RATE_TEMPLATES.inbound)[0]) => {
     if (!editState) return
 
     const numericValue = parseFloat(editState.value)
@@ -205,7 +289,7 @@ export function WarehouseRatesPanel({
           costValue: numericValue,
           effectiveDate: new Date(editState.effectiveDate),
           endDate: null,
-        })
+        }),
       })
 
       if (response.ok) {
@@ -223,10 +307,7 @@ export function WarehouseRatesPanel({
     }
   }
 
-  const renderRateRow = (
-    template: typeof RATE_TEMPLATES.inbound[0],
-    showCategory = false
-  ) => {
+  const renderRateRow = (template: (typeof RATE_TEMPLATES.inbound)[0], showCategory = false) => {
     const rate = getRateForTemplate(template)
     const isEditingThis = editState?.templateName === template.costName
     const isEditingRate = isEditingThis && editState?.field === 'rate'
@@ -250,7 +331,9 @@ export function WarehouseRatesPanel({
                   type="number"
                   step="0.01"
                   value={editState?.value || ''}
-                  onChange={(e) => setEditState(prev => prev ? { ...prev, value: e.target.value } : null)}
+                  onChange={e =>
+                    setEditState(prev => (prev ? { ...prev, value: e.target.value } : null))
+                  }
                   className="w-24 px-2 py-1 text-right border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                   autoFocus
                 />
@@ -289,7 +372,9 @@ export function WarehouseRatesPanel({
                 type="number"
                 step="0.01"
                 value={editState?.value || ''}
-                onChange={(e) => setEditState(prev => prev ? { ...prev, value: e.target.value } : null)}
+                onChange={e =>
+                  setEditState(prev => (prev ? { ...prev, value: e.target.value } : null))
+                }
                 className="w-24 px-2 py-1 text-right border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                 autoFocus
               />
@@ -305,7 +390,9 @@ export function WarehouseRatesPanel({
                 <input
                   type="date"
                   value={editState?.effectiveDate || ''}
-                  onChange={(e) => setEditState(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
+                  onChange={e =>
+                    setEditState(prev => (prev ? { ...prev, effectiveDate: e.target.value } : null))
+                  }
                   className="w-36 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                   autoFocus
                 />
@@ -342,7 +429,9 @@ export function WarehouseRatesPanel({
               <input
                 type="date"
                 value={editState?.effectiveDate || ''}
-                onChange={(e) => setEditState(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
+                onChange={e =>
+                  setEditState(prev => (prev ? { ...prev, effectiveDate: e.target.value } : null))
+                }
                 className="w-36 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
               <button
@@ -423,15 +512,16 @@ export function WarehouseRatesPanel({
       {/* Tabs */}
       <div className="border-b border-border">
         <nav className="flex gap-1 -mb-px">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`
                 flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
-                ${activeTab === tab.key
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                ${
+                  activeTab === tab.key
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }
               `}
             >
@@ -445,10 +535,7 @@ export function WarehouseRatesPanel({
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'inbound' && (
-          <InboundTab
-            templates={RATE_TEMPLATES.inbound}
-            renderRateRow={renderRateRow}
-          />
+          <InboundTab templates={RATE_TEMPLATES.inbound} renderRateRow={renderRateRow} />
         )}
         {activeTab === 'storage' && (
           <StorageTab
@@ -459,16 +546,10 @@ export function WarehouseRatesPanel({
           />
         )}
         {activeTab === 'outbound' && (
-          <OutboundTab
-            templates={RATE_TEMPLATES.outbound}
-            renderRateRow={renderRateRow}
-          />
+          <OutboundTab templates={RATE_TEMPLATES.outbound} renderRateRow={renderRateRow} />
         )}
         {activeTab === 'forwarding' && (
-          <ForwardingTab
-            templates={RATE_TEMPLATES.forwarding}
-            renderRateRow={renderRateRow}
-          />
+          <ForwardingTab templates={RATE_TEMPLATES.forwarding} renderRateRow={renderRateRow} />
         )}
       </div>
     </div>
@@ -477,7 +558,10 @@ export function WarehouseRatesPanel({
 
 interface TabProps {
   templates: typeof RATE_TEMPLATES.inbound
-  renderRateRow: (template: typeof RATE_TEMPLATES.inbound[0], showCategory?: boolean) => React.ReactNode
+  renderRateRow: (
+    template: (typeof RATE_TEMPLATES.inbound)[0],
+    showCategory?: boolean
+  ) => React.ReactNode
 }
 
 interface StorageTabProps extends TabProps {
@@ -498,11 +582,14 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
       {/* Container Handling */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Warehouse Handling and Carton Labeling</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            Warehouse Handling and Carton Labeling
+          </h3>
           <Badge className="bg-blue-50 text-blue-700 border-blue-200">Per Container</Badge>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          Covers unloading, sorting, labeling, palletizing, shrink-wrapping, FBA pallet labels, and delivery arrangement.
+          Covers unloading, sorting, labeling, palletizing, shrink-wrapping, FBA pallet labels, and
+          delivery arrangement.
         </p>
         <table className="w-full table-fixed text-sm">
           <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
@@ -525,20 +612,18 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
         <h3 className="text-sm font-semibold text-foreground mb-3">Additional SKU Charges</h3>
         <p className="text-xs text-muted-foreground mb-3">Up to 10 SKUs per container included.</p>
         <table className="w-full table-fixed text-sm">
-          <tbody>
-            {skuRates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{skuRates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
 
       {/* Carton Overage */}
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">Carton Overage</h3>
-        <p className="text-xs text-muted-foreground mb-3">Up to 1200 cartons per container included.</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Up to 1200 cartons per container included.
+        </p>
         <table className="w-full table-fixed text-sm">
-          <tbody>
-            {cartonOverageRates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{cartonOverageRates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
 
@@ -546,152 +631,14 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">Pallet &amp; Shrink Wrap</h3>
         <table className="w-full table-fixed text-sm">
-          <tbody>
-            {palletWrapRates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{palletWrapRates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
-
     </div>
   )
 }
 
-type WarehouseSkuStorageConfigRow = {
-  skuId: string
-  skuCode: string
-  description: string
-  storageCartonsPerPallet: string
-  shippingCartonsPerPallet: string
-  updatedAt: string | null
-}
-
-function StorageTab({ templates, renderRateRow, warehouseId, warehouseName }: StorageTabProps) {
-  const [configs, setConfigs] = useState<WarehouseSkuStorageConfigRow[]>([])
-  const [configsLoading, setConfigsLoading] = useState(true)
-  const [configsSaving, setConfigsSaving] = useState(false)
-  const [dirtyMap, setDirtyMap] = useState<Record<string, true>>({})
-  const [searchTerm, setSearchTerm] = useState('')
-
-  const loadConfigs = useCallback(async () => {
-    setConfigsLoading(true)
-    try {
-      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/storage-config`)
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        throw new Error(payload?.error ?? 'Failed to load storage configuration')
-      }
-
-      const data = await response.json()
-      const rows = Array.isArray(data?.storageConfigs) ? data.storageConfigs : []
-
-      setConfigs(
-        rows.map(
-          (row: {
-            skuId: string
-            skuCode: string
-            description: string
-            storageCartonsPerPallet: number | null
-            shippingCartonsPerPallet: number | null
-            updatedAt: string | null
-          }) => ({
-          skuId: row.skuId,
-          skuCode: row.skuCode,
-          description: row.description,
-          storageCartonsPerPallet:
-            row.storageCartonsPerPallet === null || row.storageCartonsPerPallet === undefined
-              ? ''
-              : String(row.storageCartonsPerPallet),
-          shippingCartonsPerPallet:
-            row.shippingCartonsPerPallet === null || row.shippingCartonsPerPallet === undefined
-              ? ''
-              : String(row.shippingCartonsPerPallet),
-          updatedAt: row.updatedAt ?? null,
-          })
-        )
-      )
-      setDirtyMap({})
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load storage configuration')
-    } finally {
-      setConfigsLoading(false)
-    }
-  }, [warehouseId])
-
-  useEffect(() => {
-    loadConfigs()
-  }, [loadConfigs])
-
-  const filteredConfigs = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
-    if (!term) return configs
-    return configs.filter(row => {
-      return (
-        row.skuCode.toLowerCase().includes(term) || row.description.toLowerCase().includes(term)
-      )
-    })
-  }, [configs, searchTerm])
-
-  const updateConfigValue = (
-    skuId: string,
-    key: 'storageCartonsPerPallet' | 'shippingCartonsPerPallet',
-    value: string
-  ) => {
-    setConfigs(prev =>
-      prev.map(row => (row.skuId === skuId ? { ...row, [key]: value } : row))
-    )
-    setDirtyMap(prev => ({ ...prev, [skuId]: true }))
-  }
-
-  const hasUnsavedChanges = Object.keys(dirtyMap).length > 0
-
-  const parseOptionalPositiveInt = (label: string, value: string) => {
-    const trimmed = value.trim()
-    if (!trimmed) return null
-    const parsed = Number(trimmed)
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new Error(`${label} must be a positive integer`)
-    }
-    return parsed
-  }
-
-  const saveConfigs = async () => {
-    if (!hasUnsavedChanges) return
-
-    setConfigsSaving(true)
-    try {
-      const updates = configs
-        .filter(row => dirtyMap[row.skuId])
-        .map(row => ({
-          skuId: row.skuId,
-          storageCartonsPerPallet: parseOptionalPositiveInt(
-            'Storage cartons / pallet',
-            row.storageCartonsPerPallet
-          ),
-          shippingCartonsPerPallet: parseOptionalPositiveInt(
-            'Shipping cartons / pallet',
-            row.shippingCartonsPerPallet
-          ),
-        }))
-
-      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/storage-config`, {
-        method: 'PATCH',
-        body: JSON.stringify({ updates }),
-      })
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        throw new Error(payload?.error ?? 'Failed to save storage configuration')
-      }
-
-      toast.success('Storage configuration saved')
-      await loadConfigs()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save storage configuration')
-    } finally {
-      setConfigsSaving(false)
-    }
-  }
-
+function StorageTab({ templates, renderRateRow, warehouseName }: StorageTabProps) {
   return (
     <div className="space-y-6">
       <div>
@@ -705,127 +652,18 @@ function StorageTab({ templates, renderRateRow, warehouseId, warehouseName }: St
               <th className="px-3 py-2 text-left font-semibold w-[15%]">Unit</th>
             </tr>
           </thead>
-          <tbody>
-            {templates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{templates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
 
-      <div className="rounded-lg border border-border bg-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-foreground">Storage Configuration</h3>
-            <p className="text-xs text-muted-foreground">
-              Used to calculate pallets for receiving and shipping at {warehouseName}.
-            </p>
-          </div>
-
-	          <div className="flex flex-wrap items-center gap-2">
-	            <Badge className="bg-muted/50 text-foreground border-border">
-	              {configs.length} SKUs
-	            </Badge>
-	            <button
-	              type="button"
-	              onClick={() => void saveConfigs()}
-	              disabled={!hasUnsavedChanges || configsLoading || configsSaving}
-	              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <Save className={configsSaving ? 'h-3.5 w-3.5 animate-pulse' : 'h-3.5 w-3.5'} />
-              Save changes
-            </button>
-          </div>
-        </div>
-
-        <div className="px-4 py-3">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={searchTerm}
-              onChange={event => setSearchTerm(event.target.value)}
-              placeholder="Search SKUs…"
-              className="w-full rounded-md border border-border bg-background pl-10 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-sm">
-            <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 text-left font-semibold w-[18%]">SKU</th>
-                <th className="px-4 py-2 text-left font-semibold w-[34%]">Description</th>
-                <th className="px-4 py-2 text-right font-semibold w-[16%]">
-                  Storage cartons/pallet
-                </th>
-                <th className="px-4 py-2 text-right font-semibold w-[18%]">
-                  Shipping cartons/pallet
-                </th>
-                <th className="px-4 py-2 text-left font-semibold w-[14%]">Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {configsLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    Loading storage configuration…
-                  </td>
-                </tr>
-              ) : filteredConfigs.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                    No SKUs found.
-                  </td>
-                </tr>
-              ) : (
-                filteredConfigs.map(row => (
-                  <tr
-                    key={row.skuId}
-                    className="odd:bg-muted/10 hover:bg-primary/5 transition-colors"
-                  >
-                    <td className="px-4 py-2 font-medium text-foreground truncate">
-                      {row.skuCode}
-                    </td>
-                    <td className="px-4 py-2 text-foreground truncate">{row.description}</td>
-                    <td className="px-4 py-2">
-                      <input
-                        inputMode="numeric"
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={row.storageCartonsPerPallet}
-                        onChange={event =>
-                          updateConfigValue(row.skuId, 'storageCartonsPerPallet', event.target.value)
-                        }
-                        className="w-full max-w-[140px] ml-auto block rounded-md border border-border bg-background px-2 py-1.5 text-right text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        placeholder="—"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        inputMode="numeric"
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={row.shippingCartonsPerPallet}
-                        onChange={event =>
-                          updateConfigValue(
-                            row.skuId,
-                            'shippingCartonsPerPallet',
-                            event.target.value
-                          )
-                        }
-                        className="w-full max-w-[160px] ml-auto block rounded-md border border-border bg-background px-2 py-1.5 text-right text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                        placeholder="—"
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">
-                      {row.updatedAt ? row.updatedAt.slice(0, 10) : '—'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <div className="rounded-lg border border-border bg-muted/10 px-4 py-3">
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-foreground">Pallet conversions</h3>
+          <p className="text-xs text-muted-foreground">
+            Storage/shipping cartons per pallet are configured per batch during the purchase order
+            workflow (and can be edited in Config → Products → Batches).
+            {warehouseName ? ` ${warehouseName} rates are still managed here.` : null}
+          </p>
         </div>
       </div>
     </div>
@@ -835,15 +673,17 @@ function StorageTab({ templates, renderRateRow, warehouseId, warehouseName }: St
 function OutboundTab({ templates, renderRateRow }: TabProps) {
   // Filter by costName since all are now 'Outbound' category
   const truckingRates = templates.filter(t => t.costName.includes('FBA Trucking'))
-  const replenishmentRates = templates.filter(t =>
-    t.costName === 'Replenishment Handling' || t.costName === 'Replenishment Minimum'
+  const replenishmentRates = templates.filter(
+    t => t.costName === 'Replenishment Handling' || t.costName === 'Replenishment Minimum'
   )
 
   return (
     <div className="space-y-6">
       {/* FBA Trucking */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">Trucking and Delivery to Amazon FBA</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-3">
+          Trucking and Delivery to Amazon FBA
+        </h3>
         <p className="text-xs text-muted-foreground mb-4">
           Tactical Logistics will schedule appointments and handle delivery to Amazon.
         </p>
@@ -856,19 +696,17 @@ function OutboundTab({ templates, renderRateRow }: TabProps) {
               <th className="px-3 py-2 text-left font-semibold w-[15%]">Unit</th>
             </tr>
           </thead>
-          <tbody>
-            {truckingRates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{truckingRates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
 
       {/* Replenishment */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">Additional Replenishment Shipments to Amazon FBA</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-3">
+          Additional Replenishment Shipments to Amazon FBA
+        </h3>
         <table className="w-full table-fixed text-sm">
-          <tbody>
-            {replenishmentRates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{replenishmentRates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
     </div>
@@ -882,13 +720,16 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">Ocean Freight</h3>
         <p className="text-sm text-muted-foreground">
-          Ask for current rates. Tactical will handle freight forwarding from point of manufacture to point of sale.
+          Ask for current rates. Tactical will handle freight forwarding from point of manufacture
+          to point of sale.
         </p>
       </div>
 
       {/* Drayage */}
       <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">Port Pickup and Deliver to Tactical Warehouse (Drayage)</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-3">
+          Port Pickup and Deliver to Tactical Warehouse (Drayage)
+        </h3>
         <p className="text-xs text-muted-foreground mb-4">
           Covers drayage to Tactical warehouse and includes all chassis fees.
         </p>
@@ -901,9 +742,7 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
               <th className="px-3 py-2 text-left font-semibold w-[15%]">Unit</th>
             </tr>
           </thead>
-          <tbody>
-            {templates.map(t => renderRateRow(t))}
-          </tbody>
+          <tbody>{templates.map(t => renderRateRow(t))}</tbody>
         </table>
       </div>
     </div>
