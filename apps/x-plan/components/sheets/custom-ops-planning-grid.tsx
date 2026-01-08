@@ -1712,9 +1712,7 @@ export function CustomOpsPlanningGrid({
     (e: ClipboardEvent<HTMLElement>) => {
       if (e.target !== e.currentTarget) return;
       const clipboard = clipboardRef.current;
-      const shouldRefocus = Boolean(clipboard && e.currentTarget === clipboard);
       const refocusClipboard = () => {
-        if (!shouldRefocus) return;
         if (clipboard) clipboard.value = '';
         requestAnimationFrame(() => tableScrollRef.current?.focus());
       };

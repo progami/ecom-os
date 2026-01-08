@@ -1074,9 +1074,7 @@ export function CustomPurchasePaymentsGrid({
     (event: ClipboardEvent<HTMLElement>) => {
       if (event.target !== event.currentTarget) return;
       const clipboard = clipboardRef.current;
-      const shouldRefocus = Boolean(clipboard && event.currentTarget === clipboard);
       const refocus = () => {
-        if (!shouldRefocus) return;
         if (clipboard) clipboard.value = '';
         requestAnimationFrame(() => tableScrollRef.current?.focus());
       };
