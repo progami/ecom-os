@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { NativeSelect } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes } from '@/lib/review-period'
 import { CreatePerformanceReviewSchema } from '@/lib/validations'
@@ -34,38 +35,55 @@ const STATUS_OPTIONS = [
   { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
 ]
 
+const RATING_FIELDS = [
+  { key: 'overallRating', label: 'Overall Rating', description: 'General performance assessment' },
+  { key: 'qualityOfWork', label: 'Quality of Work', description: 'Accuracy and thoroughness' },
+  { key: 'productivity', label: 'Productivity', description: 'Output and efficiency' },
+  { key: 'communication', label: 'Communication', description: 'Written and verbal skills' },
+  { key: 'teamwork', label: 'Teamwork', description: 'Collaboration with others' },
+  { key: 'initiative', label: 'Initiative', description: 'Self-motivation and proactivity' },
+  { key: 'attendance', label: 'Attendance', description: 'Punctuality and reliability' },
+] as const
+
 function RatingInput({
   label,
+  description,
   value,
   onChange,
   error,
 }: {
   label: string
+  description?: string
   value: number
   onChange: (v: number) => void
   error?: string
 }) {
   return (
-    <div>
-      <Label>{label}</Label>
-      <div className="flex items-center gap-1 mt-1.5">
+    <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
+      <div className="flex-1">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {description && (
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        )}
+        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      </div>
+      <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
             type="button"
             onClick={() => onChange(star)}
-            className="p-1 hover:scale-110 transition-transform"
+            className="p-0.5 hover:scale-110 transition-transform"
           >
             {star <= value ? (
-              <StarFilledIcon className="h-6 w-6 text-warning-400" />
+              <StarFilledIcon className="h-5 w-5 text-warning-400" />
             ) : (
-              <StarIcon className="h-6 w-6 text-muted-foreground/50 hover:text-warning-300" />
+              <StarIcon className="h-5 w-5 text-muted-foreground/40 hover:text-warning-300" />
             )}
           </button>
         ))}
-        <span className="ml-2 text-sm text-muted-foreground">{value}/5</span>
+        <span className="ml-2 text-sm font-medium text-muted-foreground w-8">{value}/5</span>
       </div>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   )
 }
@@ -79,6 +97,7 @@ function AddReviewContent() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('details')
 
   const {
     register,
@@ -111,13 +130,15 @@ function AddReviewContent() {
   const reviewType = watch('reviewType')
   const periodType = watch('periodType')
   const selectedEmployeeId = watch('employeeId')
-  const overallRating = watch('overallRating') ?? 3
-  const qualityOfWork = watch('qualityOfWork') ?? 3
-  const productivity = watch('productivity') ?? 3
-  const communication = watch('communication') ?? 3
-  const teamwork = watch('teamwork') ?? 3
-  const initiative = watch('initiative') ?? 3
-  const attendance = watch('attendance') ?? 3
+  const ratings = {
+    overallRating: watch('overallRating') ?? 3,
+    qualityOfWork: watch('qualityOfWork') ?? 3,
+    productivity: watch('productivity') ?? 3,
+    communication: watch('communication') ?? 3,
+    teamwork: watch('teamwork') ?? 3,
+    initiative: watch('initiative') ?? 3,
+    attendance: watch('attendance') ?? 3,
+  }
 
   const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx)
 
@@ -176,6 +197,17 @@ function AddReviewContent() {
 
   const canCreate = Boolean(me?.isHR || me?.isSuperAdmin || employees.length > 0)
 
+  // Check for errors in each tab to show indicators
+  const detailsHasErrors = Boolean(
+    errors.employeeId || errors.reviewType || errors.periodType ||
+    errors.periodYear || errors.reviewDate || errors.assignedReviewerId ||
+    errors.roleTitle || errors.status
+  )
+  const ratingsHasErrors = Boolean(
+    errors.overallRating || errors.qualityOfWork || errors.productivity ||
+    errors.communication || errors.teamwork || errors.initiative || errors.attendance
+  )
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto">
@@ -230,202 +262,180 @@ function AddReviewContent() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="py-6 space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="pt-6">
           {errors.root && (
-            <Alert variant="error" onDismiss={() => setError('root', { message: '' })}>
+            <Alert variant="error" className="mb-6" onDismiss={() => setError('root', { message: '' })}>
               {errors.root.message}
             </Alert>
           )}
 
-          {/* Employee Selection */}
-          <div>
-            <Label htmlFor="employeeId">Employee</Label>
-            <NativeSelect
-              {...register('employeeId')}
-              className={cn('mt-1.5', errors.employeeId && 'border-destructive')}
-            >
-              <option value="">Select employee...</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName} ({emp.employeeId})
-                </option>
-              ))}
-            </NativeSelect>
-            {errors.employeeId && (
-              <p className="text-xs text-destructive mt-1">{errors.employeeId.message}</p>
-            )}
-          </div>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full grid grid-cols-3 mb-6">
+              <TabsTrigger value="details" className="relative">
+                Details
+                {detailsHasErrors && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="ratings" className="relative">
+                Ratings
+                {ratingsHasErrors && (
+                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-destructive" />
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="feedback">
+                Feedback
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Role & Review Type */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="roleTitle">Role</Label>
-              <Input
-                {...register('roleTitle')}
-                placeholder="Employee's role"
-                className={cn('mt-1.5', errors.roleTitle && 'border-destructive')}
-              />
-              {errors.roleTitle && (
-                <p className="text-xs text-destructive mt-1">{errors.roleTitle.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="reviewType">Review Type</Label>
-              <NativeSelect
-                {...register('reviewType')}
-                className={cn('mt-1.5', errors.reviewType && 'border-destructive')}
-              >
-                {REVIEW_TYPES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </NativeSelect>
-              {errors.reviewType && (
-                <p className="text-xs text-destructive mt-1">{errors.reviewType.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Period & Year */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="periodType">Review Period</Label>
-              <NativeSelect
-                {...register('periodType')}
-                className={cn('mt-1.5', errors.periodType && 'border-destructive')}
-              >
-                {periodTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </NativeSelect>
-              {errors.periodType && (
-                <p className="text-xs text-destructive mt-1">{errors.periodType.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="periodYear">Year</Label>
-              <NativeSelect
-                {...register('periodYear')}
-                className={cn('mt-1.5', errors.periodYear && 'border-destructive')}
-              >
-                {periodYearOptions.map((year) => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </NativeSelect>
-              {errors.periodYear && (
-                <p className="text-xs text-destructive mt-1">{errors.periodYear.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Review Date & Manager */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="reviewDate">Review Date</Label>
-              <Input
-                {...register('reviewDate')}
-                type="date"
-                className={cn('mt-1.5', errors.reviewDate && 'border-destructive')}
-              />
-              {errors.reviewDate && (
-                <p className="text-xs text-destructive mt-1">{errors.reviewDate.message}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="assignedReviewerId">Manager</Label>
-              <NativeSelect
-                {...register('assignedReviewerId')}
-                className={cn('mt-1.5', errors.assignedReviewerId && 'border-destructive')}
-              >
-                <option value="">Select manager...</option>
-                {me && <option value={me.id}>Me ({me.employeeId})</option>}
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.firstName} {emp.lastName} ({emp.employeeId})
-                  </option>
-                ))}
-              </NativeSelect>
-              {errors.assignedReviewerId && (
-                <p className="text-xs text-destructive mt-1">{errors.assignedReviewerId.message}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Status */}
-          <div>
-            <Label htmlFor="status">Status</Label>
-            <NativeSelect
-              {...register('status')}
-              className={cn('mt-1.5', errors.status && 'border-destructive')}
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </NativeSelect>
-            {errors.status && (
-              <p className="text-xs text-destructive mt-1">{errors.status.message}</p>
-            )}
-          </div>
-
-          {/* Ratings Section */}
-          <div className="pt-6 border-t border-border">
-            <h2 className="text-sm font-medium text-foreground mb-4">Performance Ratings</h2>
-            <p className="text-xs text-muted-foreground mb-4">Rate the employee on a scale of 1-5</p>
-
-            <div className="space-y-4">
-              <RatingInput
-                label="Overall Rating"
-                value={overallRating}
-                onChange={(v) => setValue('overallRating', v)}
-                error={errors.overallRating?.message}
-              />
+            {/* Details Tab */}
+            <TabsContent value="details" className="space-y-6">
+              <div>
+                <Label htmlFor="employeeId">Employee</Label>
+                <NativeSelect
+                  {...register('employeeId')}
+                  className={cn('mt-1.5', errors.employeeId && 'border-destructive')}
+                >
+                  <option value="">Select employee...</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.firstName} {emp.lastName} ({emp.employeeId})
+                    </option>
+                  ))}
+                </NativeSelect>
+                {errors.employeeId && (
+                  <p className="text-xs text-destructive mt-1">{errors.employeeId.message}</p>
+                )}
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <RatingInput
-                  label="Quality of Work"
-                  value={qualityOfWork}
-                  onChange={(v) => setValue('qualityOfWork', v)}
-                  error={errors.qualityOfWork?.message}
-                />
-                <RatingInput
-                  label="Productivity"
-                  value={productivity}
-                  onChange={(v) => setValue('productivity', v)}
-                  error={errors.productivity?.message}
-                />
-                <RatingInput
-                  label="Communication"
-                  value={communication}
-                  onChange={(v) => setValue('communication', v)}
-                  error={errors.communication?.message}
-                />
-                <RatingInput
-                  label="Teamwork"
-                  value={teamwork}
-                  onChange={(v) => setValue('teamwork', v)}
-                  error={errors.teamwork?.message}
-                />
-                <RatingInput
-                  label="Initiative"
-                  value={initiative}
-                  onChange={(v) => setValue('initiative', v)}
-                  error={errors.initiative?.message}
-                />
-                <RatingInput
-                  label="Attendance"
-                  value={attendance}
-                  onChange={(v) => setValue('attendance', v)}
-                  error={errors.attendance?.message}
-                />
+                <div>
+                  <Label htmlFor="reviewType">Review Type</Label>
+                  <NativeSelect
+                    {...register('reviewType')}
+                    className={cn('mt-1.5', errors.reviewType && 'border-destructive')}
+                  >
+                    {REVIEW_TYPES.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.reviewType && (
+                    <p className="text-xs text-destructive mt-1">{errors.reviewType.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <NativeSelect
+                    {...register('status')}
+                    className={cn('mt-1.5', errors.status && 'border-destructive')}
+                  >
+                    {STATUS_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.status && (
+                    <p className="text-xs text-destructive mt-1">{errors.status.message}</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Feedback Section */}
-          <div className="pt-6 border-t border-border">
-            <h2 className="text-sm font-medium text-foreground mb-4">Feedback</h2>
-            <p className="text-xs text-muted-foreground mb-4">Detailed comments and goals</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="periodType">Review Period</Label>
+                  <NativeSelect
+                    {...register('periodType')}
+                    className={cn('mt-1.5', errors.periodType && 'border-destructive')}
+                  >
+                    {periodTypeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.periodType && (
+                    <p className="text-xs text-destructive mt-1">{errors.periodType.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="periodYear">Year</Label>
+                  <NativeSelect
+                    {...register('periodYear')}
+                    className={cn('mt-1.5', errors.periodYear && 'border-destructive')}
+                  >
+                    {periodYearOptions.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </NativeSelect>
+                  {errors.periodYear && (
+                    <p className="text-xs text-destructive mt-1">{errors.periodYear.message}</p>
+                  )}
+                </div>
+              </div>
 
-            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="reviewDate">Review Date</Label>
+                  <Input
+                    {...register('reviewDate')}
+                    type="date"
+                    className={cn('mt-1.5', errors.reviewDate && 'border-destructive')}
+                  />
+                  {errors.reviewDate && (
+                    <p className="text-xs text-destructive mt-1">{errors.reviewDate.message}</p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="roleTitle">Role</Label>
+                  <Input
+                    {...register('roleTitle')}
+                    placeholder="Employee's role"
+                    className={cn('mt-1.5', errors.roleTitle && 'border-destructive')}
+                  />
+                  {errors.roleTitle && (
+                    <p className="text-xs text-destructive mt-1">{errors.roleTitle.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="assignedReviewerId">Manager / Reviewer</Label>
+                <NativeSelect
+                  {...register('assignedReviewerId')}
+                  className={cn('mt-1.5', errors.assignedReviewerId && 'border-destructive')}
+                >
+                  <option value="">Select manager...</option>
+                  {me && <option value={me.id}>Me ({me.employeeId})</option>}
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.firstName} {emp.lastName} ({emp.employeeId})
+                    </option>
+                  ))}
+                </NativeSelect>
+                {errors.assignedReviewerId && (
+                  <p className="text-xs text-destructive mt-1">{errors.assignedReviewerId.message}</p>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Ratings Tab */}
+            <TabsContent value="ratings">
+              <div className="rounded-lg border border-border">
+                {RATING_FIELDS.map((field) => (
+                  <RatingInput
+                    key={field.key}
+                    label={field.label}
+                    description={field.description}
+                    value={ratings[field.key]}
+                    onChange={(v) => setValue(field.key, v)}
+                    error={errors[field.key]?.message}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Click stars to rate from 1 (lowest) to 5 (highest)
+              </p>
+            </TabsContent>
+
+            {/* Feedback Tab */}
+            <TabsContent value="feedback" className="space-y-4">
               <div>
                 <Label htmlFor="strengths">Strengths</Label>
                 <Textarea
@@ -462,11 +472,11 @@ function AddReviewContent() {
                   className="mt-1.5 resize-none"
                 />
               </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
 
-          {/* Actions */}
-          <div className="pt-6 border-t border-border flex justify-end gap-3">
+          {/* Actions - always visible */}
+          <div className="pt-6 mt-6 border-t border-border flex justify-end gap-3">
             <Button type="button" variant="secondary" href="/performance/reviews">
               Cancel
             </Button>

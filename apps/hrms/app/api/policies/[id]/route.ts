@@ -99,6 +99,15 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
       return NextResponse.json({ error: 'Only HR or super admin can update policies' }, { status: 403 })
     }
 
+    const currentPolicy = await prisma.policy.findUnique({
+      where: { id },
+      select: { id: true, category: true, region: true, version: true },
+    })
+
+    if (!currentPolicy) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const body = await req.json()
 
     // Validate input with whitelist schema
@@ -114,30 +123,35 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
 
     if (data.title !== undefined) updates.title = data.title
     if (data.category !== undefined) updates.category = data.category
-    if (data.region !== undefined) updates.region = data.region
     if (data.summary !== undefined) updates.summary = data.summary
     if (data.content !== undefined) updates.content = data.content
     if (data.fileUrl !== undefined) updates.fileUrl = data.fileUrl
+
+    const nextCategory = (data.category ?? currentPolicy.category) as string
+    if (nextCategory === 'CONDUCT') {
+      updates.region = 'ALL'
+    } else if (data.region !== undefined) {
+      updates.region = data.region
+    }
 
     // Handle version: explicit version takes precedence, then bumpVersion
     if (data.version !== undefined) {
       updates.version = data.version
     } else if (data.bumpVersion) {
-      const existing = await prisma.policy.findUnique({ where: { id }, select: { version: true } })
-      updates.version = bumpVersion(existing?.version || '1.0', data.bumpVersion)
+      updates.version = bumpVersion(currentPolicy.version || '1.0', data.bumpVersion)
     }
 
     if (data.effectiveDate !== undefined) {
       if (data.effectiveDate) {
         const newDate = new Date(data.effectiveDate)
         // Check if another policy has this effective date
-        const existing = await prisma.policy.findFirst({
+        const existingWithDate = await prisma.policy.findFirst({
           where: {
             effectiveDate: newDate,
             id: { not: id },
           },
         })
-        if (existing) {
+        if (existingWithDate) {
           return NextResponse.json(
             { error: `Another policy already has effective date ${data.effectiveDate}` },
             { status: 400 }

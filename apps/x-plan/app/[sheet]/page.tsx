@@ -1892,10 +1892,7 @@ function getCashFlowView(
   };
 }
 
-function getPOProfitabilityView(
-  financialData: FinancialData,
-  activeSegment: YearSegment | null,
-): { data: POProfitabilityData[] } {
+function getPOProfitabilityView(financialData: FinancialData): { data: POProfitabilityData[] } {
   const { derivedOrders, operations } = financialData;
   const { productNameById } = operations;
 
@@ -1903,13 +1900,6 @@ function getPOProfitabilityView(
   const data: POProfitabilityData[] = [];
 
   for (const { derived, input } of derivedOrders) {
-    if (
-      activeSegment &&
-      derived.availableWeekNumber != null &&
-      !isWeekInSegment(derived.availableWeekNumber, activeSegment)
-    ) {
-      continue;
-    }
     // Map status
     const statusMap: Record<string, POStatus> = {
       PLANNED: 'PLANNED',
@@ -1922,7 +1912,7 @@ function getPOProfitabilityView(
     const status: POStatus = statusMap[input.status ?? ''] ?? 'PLANNED';
 
     // Process each batch as a separate row
-    for (const batch of derived.batches) {
+    for (const [batchIndex, batch] of derived.batches.entries()) {
       const quantity = batch.quantity;
       const sellingPrice = batch.sellingPrice;
       const grossRevenue = sellingPrice * quantity;
@@ -1956,7 +1946,7 @@ function getPOProfitabilityView(
       const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0;
 
       data.push({
-        id: `${derived.id}-${batch.productId}`,
+        id: `${derived.id}:${batch.batchCode ?? 'batch'}:${batch.productId}:${batchIndex}`,
         orderCode: derived.orderCode,
         batchCode: batch.batchCode ?? null,
         productId: batch.productId,
@@ -2487,18 +2477,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     }
     case '7-po-profitability': {
       const activeStrategyId = requireStrategyId();
-      if (activeSegment && activeSegment.weekCount === 0) {
-        tabularContent = (
-          <VisualPlaceholder
-            title="No planning weeks for this year"
-            description={`No planning calendar coverage found for ${activeYear ?? 'this year'}. Select another year to continue.`}
-          />
-        );
-        visualContent = null;
-        break;
-      }
       const data = await getFinancialData();
-      const view = getPOProfitabilityView(data, activeSegment);
+      const view = getPOProfitabilityView(data);
       const productOptions = data.operations.productInputs
         .map((product) => ({ id: product.id, name: productLabel(product) }))
         .sort((a, b) => a.name.localeCompare(b.name));

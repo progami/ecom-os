@@ -248,6 +248,20 @@ export const PoliciesApi = {
   },
 }
 
+export const PoliciesAdminApi = {
+  consolidateConductCompanyWide() {
+    return request<{
+      canonicalPolicyId: string | null
+      archivedPolicyIds: string[]
+      acknowledgementsCopied: number
+      updatedCanonical: boolean
+      reason?: string
+    }>(`/api/admin/policies/conduct/company-wide`, {
+      method: 'POST',
+    })
+  },
+}
+
 // Dashboard
 export type DashboardUser = {
   id: string
