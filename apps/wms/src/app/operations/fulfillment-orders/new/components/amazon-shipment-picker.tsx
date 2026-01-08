@@ -182,9 +182,6 @@ export function AmazonShipmentPicker({
       }))
 
       const destinationAddress = shipToAddress ? formatAmazonAddress(shipToAddress) : ''
-      const destinationCountry = shipToAddress
-        ? getAddressField(shipToAddress, ['CountryCode', 'countryCode', 'country'])
-        : ''
 
       // Try to auto-select warehouse based on FC code
       const matchedWarehouse = findWarehouseForFC(destinationFC)
@@ -195,7 +192,6 @@ export function AmazonShipmentPicker({
         warehouseCode: matchedWarehouse?.code ?? prev.warehouseCode,
         destinationName: destinationFC || prev.destinationName,
         destinationAddress: destinationAddress || prev.destinationAddress,
-        destinationCountry: destinationCountry || prev.destinationCountry,
         externalReference: resolvedShipmentId || prev.externalReference,
       }))
 

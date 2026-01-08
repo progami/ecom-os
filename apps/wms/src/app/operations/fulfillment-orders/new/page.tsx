@@ -421,15 +421,6 @@ export default function NewFulfillmentOrderPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1.5">Destination Country</label>
-                    <Input
-                      value={formData.destinationCountry}
-                      onChange={e => setFormData(prev => ({ ...prev, destinationCountry: e.target.value }))}
-                      placeholder="US, UK, ..."
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium mb-1.5">Shipping Carrier</label>
                     <Input
                       value={formData.shippingCarrier}
