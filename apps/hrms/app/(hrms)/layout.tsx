@@ -112,9 +112,9 @@ function Sidebar({
       <div className="flex h-16 shrink-0 items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-md">
-            <span className="text-sm font-bold text-primary-foreground">HR</span>
+            <span className="text-sm font-bold text-primary-foreground">AT</span>
           </div>
-          <span className="text-lg font-semibold text-foreground">HRMS</span>
+          <span className="text-lg font-semibold text-foreground">Atlas</span>
         </Link>
         <div className="flex items-center gap-2">
           <div className="hidden md:block">
@@ -298,7 +298,7 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
         <footer className="border-t border-border bg-card mt-auto">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
             <p className="text-xs text-muted-foreground text-center">
-              HRMS{' '}
+              Atlas{' '}
               <a
                 href={versionHref}
                 target="_blank"

@@ -91,7 +91,7 @@ export async function POST(req: Request) {
           data: {
             type: 'SYSTEM',
             title: 'New document added to your profile',
-            message: 'A new document is available in your HRMS profile.',
+            message: 'A new document is available in your Atlas profile.',
             link: `/employees/${data.target.id}?tab=documents`,
             employeeId: data.target.id,
             relatedId: created.id,

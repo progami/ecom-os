@@ -1,6 +1,6 @@
 # Ecom OS
 
-Ecom OS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, WMS, X‑Plan, HRMS, Website) with shared authentication and shared libraries.
+Ecom OS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, WMS, X‑Plan, Atlas, Website) with shared authentication and shared libraries.
 
 This repo is currently hosted from a macOS laptop for development and “live” environments (main + dev). The hosting setup is documented here so it’s reproducible and debuggable.
 
@@ -57,7 +57,7 @@ apps/
   ecomos/       # Portal (auth + navigation hub)
   wms/          # Warehouse Management (custom server.js)
   x-plan/       # X‑Plan (Next.js app)
-  hrms/         # HRMS (Next.js app)
+  hrms/         # Atlas (Next.js app)
   website/      # Marketing site
   archived/     # Historical apps (excluded from pnpm workspace)
 packages/
@@ -79,7 +79,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 | Portal | `@ecom-os/ecomos` | `/` | Central auth (NextAuth v5) + app navigation |
 | WMS | `@ecom-os/wms` | `/wms` | Uses `apps/wms/server.js`, Redis, and S3 presigned uploads |
 | X‑Plan | `@ecom-os/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
-| HRMS | `@ecom-os/hrms` | `/hrms` | Prisma schema `hrms`; Playwright tests |
+| Atlas | `@ecom-os/hrms` | `/hrms` | Prisma schema `hrms`; Playwright tests |
 | Website | `@ecom-os/website` | `/` | Separate hostname (`targonglobal.com`) |
 
 ## Authentication model (Portal as the source of truth)

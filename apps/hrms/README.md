@@ -1,6 +1,6 @@
-# HRMS App
+# Atlas App
 
-Human Resources Management System built with Next.js 16, Prisma, and PostgreSQL.
+Atlas is the company HR platform built with Next.js 16, Prisma, and PostgreSQL.
 
 ## Features
 
@@ -47,12 +47,12 @@ Key variables:
 - `NEXTAUTH_SECRET` - Auth secret (must match portal)
 - `PORTAL_AUTH_URL` - Portal auth endpoint
 - `PORTAL_AUTH_SECRET` - Shared auth secret
-- `S3_BUCKET_NAME` - S3 bucket for HRMS uploads (Document Vault)
+- `S3_BUCKET_NAME` - S3 bucket for Atlas uploads (Document Vault)
 - `AWS_REGION` - S3 region (defaults to `us-east-1`)
 
 ### Prisma
 
-HRMS uses `@ecom-os/prisma-hrms` workspace package for the Prisma client.
+Atlas uses `@ecom-os/prisma-hrms` workspace package for the Prisma client.
 
 ```bash
 # Generate client

@@ -49,13 +49,13 @@ export default function NoAccessPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-muted/50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center px-4">
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-sm">
         <div className="px-6 py-5 border-b border-border">
-          <div className="text-sm font-semibold text-foreground">HRMS</div>
+          <div className="text-sm font-semibold text-foreground">Atlas</div>
           <h1 className="mt-1 text-xl font-semibold text-foreground">Access required</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            HRMS can’t be opened for your account yet. This usually means access hasn’t been granted, or your employee
+            Atlas can’t be opened for your account yet. This usually means access hasn’t been granted, or your employee
             profile is still provisioning. Request access and HR will review it.
           </p>
         </div>
@@ -69,7 +69,7 @@ export default function NoAccessPage() {
 
           {requested ? (
             <div className="rounded-xl bg-success-50 border border-success-200 px-4 py-3 text-sm text-success-800">
-              Request sent. Check your email for updates and revisit HRMS once access is granted.
+              Request sent. Check your email for updates and revisit Atlas once access is granted.
             </div>
           ) : (
             <Button onClick={requestAccess} disabled={requesting} className="w-full">

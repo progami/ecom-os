@@ -91,7 +91,7 @@ const BASE_APPS: AppBase[] = [
   },
   {
     id: 'hrms',
-    name: 'HRMS',
+    name: 'Atlas',
     description: 'HR, payroll and people operations.',
     url: joinBaseUrl(PORTAL_BASE_URL, '/hrms'),
     devPath: '/hrms',

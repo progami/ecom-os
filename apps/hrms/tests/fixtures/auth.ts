@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 function requireEnv(name: string): string {
   const value = process.env[name]
   if (!value) {
-    throw new Error(`${name} must be defined for HRMS e2e tests.`)
+    throw new Error(`${name} must be defined for Atlas e2e tests.`)
   }
   return value
 }
