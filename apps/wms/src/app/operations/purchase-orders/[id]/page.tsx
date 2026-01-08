@@ -966,6 +966,18 @@ export default function PurchaseOrderDetailPage() {
     )
   }, [documents, nextStage, order])
 
+  useEffect(() => {
+    if (!advanceModalOpen || !order || !nextStage) return
+    if (nextStage.value !== 'MANUFACTURING') return
+
+    setStageFormData(prev => {
+      if (prev.totalCartons?.trim()) return prev
+      const cartons = order.lines.reduce((sum, line) => sum + line.quantity, 0)
+      if (cartons <= 0) return prev
+      return { ...prev, totalCartons: String(cartons) }
+    })
+  }, [advanceModalOpen, nextStage, order])
+
   const handleTransition = async (targetStatus: POStageStatus) => {
     if (!order || transitioning) return
 
@@ -1271,7 +1283,7 @@ export default function PurchaseOrderDetailPage() {
     const fields: Array<{
       key: string
       label: string
-      type: 'text' | 'date' | 'select'
+      type: 'text' | 'date' | 'select' | 'number'
       placeholder?: string
       options?: Array<{ value: string; label: string }>
       disabled?: boolean
@@ -1281,7 +1293,14 @@ export default function PurchaseOrderDetailPage() {
       case 'MANUFACTURING':
         fields.push(
           { key: 'proformaInvoiceNumber', label: 'Proforma Invoice Number', type: 'text' },
-          { key: 'manufacturingStartDate', label: 'Manufacturing Start Date', type: 'date' }
+          { key: 'proformaInvoiceDate', label: 'Proforma Invoice Date', type: 'date' },
+          { key: 'manufacturingStartDate', label: 'Manufacturing Start Date', type: 'date' },
+          { key: 'expectedCompletionDate', label: 'Expected Completion Date', type: 'date' },
+          { key: 'totalCartons', label: 'Total Cartons', type: 'number' },
+          { key: 'totalPallets', label: 'Total Pallets', type: 'number' },
+          { key: 'totalWeightKg', label: 'Total Weight (kg)', type: 'number' },
+          { key: 'totalVolumeCbm', label: 'Total Volume (CBM)', type: 'number' },
+          { key: 'packagingNotes', label: 'Packaging Notes', type: 'text' }
         )
         break
       case 'OCEAN':
@@ -2225,7 +2244,7 @@ export default function PurchaseOrderDetailPage() {
             {activeBottomTab === 'cargo' && (
               <div className="ml-auto flex items-center gap-3 pr-6">
                 <span className="text-sm text-muted-foreground">
-                  Total: {totalQuantity.toLocaleString()} units
+                  Total: {totalQuantity.toLocaleString()} cartons
                 </span>
                 {canEdit && (
                   <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
@@ -2421,51 +2440,90 @@ export default function PurchaseOrderDetailPage() {
 
           {/* Tab Content */}
           {activeBottomTab === 'cargo' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-auto text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-semibold">SKU</th>
-                    <th className="px-4 py-2 text-left font-semibold">Description</th>
-                    <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
-                    <th className="px-4 py-2 text-right font-semibold">Ordered</th>
-                    <th className="px-4 py-2 text-right font-semibold">Received</th>
-                    <th className="px-4 py-2 text-left font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {order.lines.length === 0 ? (
+            <div>
+              <div className="border-b bg-slate-50/50 px-4 py-3">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Total Cartons
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {totalQuantity.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Total Pallets
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {order.stageData.manufacturing?.totalPallets?.toLocaleString() ?? '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Total Weight (kg)
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {order.stageData.manufacturing?.totalWeightKg?.toLocaleString() ?? '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Total Volume (CBM)
+                    </p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {order.stageData.manufacturing?.totalVolumeCbm?.toLocaleString() ?? '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
-                      <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                        No lines added to this order yet.
-                      </td>
+                      <th className="px-4 py-2 text-left font-semibold">SKU</th>
+                      <th className="px-4 py-2 text-left font-semibold">Description</th>
+                      <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
+                      <th className="px-4 py-2 text-right font-semibold">Cartons Ordered</th>
+                      <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
+                      <th className="px-4 py-2 text-left font-semibold">Status</th>
                     </tr>
-                  ) : (
-                    order.lines.map(line => (
-                      <tr key={line.id} className="border-t hover:bg-muted/10">
-                        <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                          {line.skuCode}
-                        </td>
-                        <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
-                          {line.skuDescription || '—'}
-                        </td>
-                        <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                          {line.batchLot || '—'}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
-                          {line.quantity.toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-                          {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
-                        </td>
-                        <td className="px-4 py-2.5 whitespace-nowrap">
-                          <Badge variant="outline">{line.status}</Badge>
+                  </thead>
+                  <tbody>
+                    {order.lines.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                          No lines added to this order yet.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      order.lines.map(line => (
+                        <tr key={line.id} className="border-t hover:bg-muted/10">
+                          <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                            {line.skuCode}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
+                            {line.skuDescription || '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {line.batchLot || '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                            {line.quantity.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                            {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <Badge variant="outline">{line.status}</Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
