@@ -197,8 +197,11 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const canViewLeave = canViewSensitive
   const permissionsReady = Boolean(employee && me && permissions)
 
+  // Sync tab from URL only when it differs (e.g., browser back/forward navigation)
   useEffect(() => {
-    setActiveTab(initialTab)
+    if (initialTab !== activeTab) {
+      setActiveTab(initialTab)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabParam])
 
