@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, FileEdit, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
 interface Supplier {
   id: string
@@ -31,6 +32,12 @@ interface Sku {
 interface BatchOption {
   batchCode: string
   unitsPerCarton: number | null
+  cartonDimensionsCm: string | null
+  cartonLengthCm: number | null
+  cartonWidthCm: number | null
+  cartonHeightCm: number | null
+  cartonWeightKg: number | null
+  packagingType: string | null
 }
 
 interface LineItem {
@@ -205,6 +212,21 @@ export default function NewPurchaseOrderPage() {
         }
         return null
       }
+      const coercePositiveNumber = (value: unknown): number | null => {
+        if (typeof value === 'number') {
+          return Number.isFinite(value) && value > 0 ? value : null
+        }
+        if (typeof value === 'string' && value.trim()) {
+          const parsed = Number(value.trim())
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+        }
+        return null
+      }
+      const coerceString = (value: unknown): string | null => {
+        if (typeof value !== 'string') return null
+        const trimmed = value.trim()
+        return trimmed ? trimmed : null
+      }
 
       const parsedBatches: BatchOption[] = batches
         .map((batch: Record<string, unknown>): BatchOption | null => {
@@ -216,6 +238,15 @@ export default function NewPurchaseOrderPage() {
           return {
             batchCode,
             unitsPerCarton: coercePositiveInt(batch?.unitsPerCarton),
+            cartonDimensionsCm: coerceString(batch?.cartonDimensionsCm),
+            cartonLengthCm: coercePositiveNumber(batch?.cartonLengthCm),
+            cartonWidthCm: coercePositiveNumber(batch?.cartonWidthCm),
+            cartonHeightCm: coercePositiveNumber(batch?.cartonHeightCm),
+            cartonWeightKg: coercePositiveNumber(batch?.cartonWeightKg),
+            packagingType: (() => {
+              const raw = coerceString(batch?.packagingType)
+              return raw ? raw.toUpperCase() : null
+            })(),
           }
         })
         .filter((batch): batch is BatchOption => Boolean(batch))
@@ -341,6 +372,57 @@ export default function NewPurchaseOrderPage() {
     const parsed = Number(trimmed)
     if (!Number.isFinite(parsed) || parsed < 0) return null
     return parsed
+  }
+
+  const getLinePackagingMeta = (
+    item: LineItem
+  ): { text: string; tone: 'muted' | 'warning' } | null => {
+    if (!item.skuId || !item.batchLot) return null
+    const batchCode = item.batchLot.trim().toUpperCase()
+    if (!batchCode) return null
+
+    const batch = (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === batchCode) ?? null
+    if (!batch) return null
+
+    const cartonTriplet = resolveDimensionTripletCm({
+      lengthCm: batch.cartonLengthCm,
+      widthCm: batch.cartonWidthCm,
+      heightCm: batch.cartonHeightCm,
+      legacy: batch.cartonDimensionsCm,
+    })
+
+    const cartons =
+      item.unitsPerCarton && item.unitsOrdered > 0
+        ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
+        : null
+
+    if (!cartonTriplet && !batch.cartonWeightKg && !batch.packagingType) {
+      return { tone: 'warning', text: 'Carton details not set for this batch' }
+    }
+
+    const parts: string[] = []
+    if (cartonTriplet) {
+      parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
+      const cbmPerCarton =
+        (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+      parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
+      if (cartons) {
+        parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
+      }
+    }
+
+    if (batch.cartonWeightKg) {
+      parts.push(`KG/ctn: ${batch.cartonWeightKg.toFixed(2)}`)
+      if (cartons) {
+        parts.push(`KG: ${(batch.cartonWeightKg * cartons).toFixed(2)}`)
+      }
+    }
+
+    if (batch.packagingType) {
+      parts.push(`Pkg: ${batch.packagingType}`)
+    }
+
+    return { tone: 'muted', text: parts.join(' • ') }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -676,11 +758,13 @@ export default function NewPurchaseOrderPage() {
 
                       {/* Line Items */}
                       <div className="divide-y">
-                        {lineItems.map(item => (
-                          <div
-                            key={item.id}
-                            className="grid grid-cols-14 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
-                          >
+                        {lineItems.map(item => {
+                          const meta = getLinePackagingMeta(item)
+                          return (
+                            <div
+                              key={item.id}
+                              className="grid grid-cols-14 gap-2 items-start px-4 py-3 hover:bg-slate-50/50 transition-colors"
+                            >
                             <div className="col-span-2">
                               <select
                                 value={item.skuCode}
@@ -818,8 +902,20 @@ export default function NewPurchaseOrderPage() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
+                            {meta ? (
+                              <p
+                                className={`col-span-14 text-[10px] ${
+                                  meta.tone === 'warning'
+                                    ? 'text-amber-600'
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {meta.text}
+                              </p>
+                            ) : null}
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
