@@ -2,7 +2,6 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import {
  getPurchaseOrderById,
  updatePurchaseOrderDetails,
-  getPurchaseOrderVoidMetadata,
 } from '@/lib/services/purchase-order-service'
 import {
   serializePurchaseOrder as serializeWithStageData,
@@ -20,16 +19,10 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
  return ApiResponses.notFound('Purchase order not found')
  }
 
- const voidMeta = await getPurchaseOrderVoidMetadata(order.id)
-
  // Use the new serializer that includes stageData and approvalHistory
  const serialized = serializeWithStageData(order)
 
- return ApiResponses.success({
-   ...serialized,
-   voidedFromStatus: voidMeta?.voidedFromStatus ?? null,
-   voidedAt: voidMeta?.voidedAt ?? null,
- })
+ return ApiResponses.success(serialized)
 })
 
 const UpdateDetailsSchema = z.object({
