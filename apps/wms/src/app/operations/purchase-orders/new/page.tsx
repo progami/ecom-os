@@ -60,6 +60,8 @@ const INCOTERMS_OPTIONS = [
   'DDP',
 ] as const
 
+const CURRENCY_OPTIONS = ['USD', 'GBP', 'EUR', 'CNY'] as const
+
 function generateTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
@@ -69,7 +71,6 @@ export default function NewPurchaseOrderPage() {
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [tenantDestination, setTenantDestination] = useState<string>('United States (US)')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [skus, setSkus] = useState<Sku[]>([])
@@ -77,6 +78,7 @@ export default function NewPurchaseOrderPage() {
   const [batchesLoadingBySkuId, setBatchesLoadingBySkuId] = useState<Record<string, boolean>>({})
   const [formData, setFormData] = useState({
     supplierId: '',
+    currency: 'USD',
     expectedDate: '',
     incoterms: '',
     paymentTerms: '',
@@ -93,7 +95,7 @@ export default function NewPurchaseOrderPage() {
       unitsOrdered: 1,
       unitsPerCarton: null,
       totalCost: '',
-      currency: 'USD',
+      currency: formData.currency,
       notes: '',
     },
   ])
@@ -119,18 +121,8 @@ export default function NewPurchaseOrderPage() {
 
         if (tenantRes.ok) {
           const tenantData = await tenantRes.json().catch(() => null)
-          const currency = tenantData?.current?.currency
           const tenantName = tenantData?.current?.name
           const tenantCode = tenantData?.current?.displayName ?? tenantData?.current?.code
-          if (typeof currency === 'string' && currency.trim()) {
-            const normalized = currency.trim().toUpperCase()
-            setTenantCurrency(normalized)
-            setLineItems(prev =>
-              prev.every(item => item.currency === 'USD')
-                ? prev.map(item => ({ ...item, currency: normalized }))
-                : prev
-            )
-          }
           if (typeof tenantName === 'string' && tenantName.trim()) {
             const label =
               typeof tenantCode === 'string' && tenantCode.trim()
@@ -160,6 +152,14 @@ export default function NewPurchaseOrderPage() {
     loadData()
   }, [router, session, status])
 
+  const handleCurrencyChange = (nextCurrency: string) => {
+    const normalized = nextCurrency.trim().toUpperCase()
+    if (!normalized) return
+
+    setFormData(prev => ({ ...prev, currency: normalized }))
+    setLineItems(prev => prev.map(item => ({ ...item, currency: normalized })))
+  }
+
   const addLineItem = () => {
     setLineItems(prev => [
       ...prev,
@@ -172,7 +172,7 @@ export default function NewPurchaseOrderPage() {
         unitsOrdered: 1,
         unitsPerCarton: null,
         totalCost: '',
-        currency: tenantCurrency,
+        currency: formData.currency,
         notes: '',
       },
     ])
@@ -519,6 +519,24 @@ export default function NewPurchaseOrderPage() {
                       readOnly
                       className="h-9 text-sm bg-slate-50"
                     />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600">
+                      Currency <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.currency}
+                      onChange={e => handleCurrencyChange(e.target.value)}
+                      className="w-full h-9 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm"
+                      required
+                    >
+                      {CURRENCY_OPTIONS.map(currency => (
+                        <option key={currency} value={currency}>
+                          {currency}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="space-y-1.5">
