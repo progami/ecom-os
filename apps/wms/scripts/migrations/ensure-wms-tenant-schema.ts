@@ -230,6 +230,51 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
     `ALTER TYPE "PurchaseOrderStatus" ADD VALUE IF NOT EXISTS 'REJECTED'`,
     `ALTER TABLE "purchase_orders" ADD COLUMN IF NOT EXISTS "incoterms" text`,
     `ALTER TABLE "purchase_orders" ADD COLUMN IF NOT EXISTS "payment_terms" text`,
+    `ALTER TABLE "purchase_orders" ADD COLUMN IF NOT EXISTS "counterparty_address" text`,
+
+    // Purchase order line snapshots (avoid dynamic SKU/batch enrichment after creation)
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_dimensions_cm" text`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_length_cm" numeric(8, 2)`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_width_cm" numeric(8, 2)`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_height_cm" numeric(8, 2)`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_weight_kg" numeric(8, 3)`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "packaging_type" text`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "storage_cartons_per_pallet" integer`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "shipping_cartons_per_pallet" integer`,
+    `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint c
+          JOIN pg_class t ON t.oid = c.conrelid
+          JOIN pg_namespace n ON n.oid = t.relnamespace
+          WHERE c.conname = 'purchase_order_lines_storage_cartons_per_pallet_check'
+            AND n.nspname = current_schema()
+        ) THEN
+          ALTER TABLE "purchase_order_lines"
+            ADD CONSTRAINT "purchase_order_lines_storage_cartons_per_pallet_check"
+            CHECK (storage_cartons_per_pallet IS NULL OR storage_cartons_per_pallet > 0);
+        END IF;
+      END $$;
+    `,
+    `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint c
+          JOIN pg_class t ON t.oid = c.conrelid
+          JOIN pg_namespace n ON n.oid = t.relnamespace
+          WHERE c.conname = 'purchase_order_lines_shipping_cartons_per_pallet_check'
+            AND n.nspname = current_schema()
+        ) THEN
+          ALTER TABLE "purchase_order_lines"
+            ADD CONSTRAINT "purchase_order_lines_shipping_cartons_per_pallet_check"
+            CHECK (shipping_cartons_per_pallet IS NULL OR shipping_cartons_per_pallet > 0);
+        END IF;
+      END $$;
+    `,
   ]
 
   for (const statement of ddlStatements) {

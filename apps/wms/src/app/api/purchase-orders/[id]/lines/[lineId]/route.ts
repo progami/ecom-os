@@ -37,6 +37,29 @@ function computeCartonsOrdered(input: {
   return Math.ceil(unitsOrdered / unitsPerCarton)
 }
 
+function toNumberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === 'object') {
+    const maybe = value as { toNumber?: () => number; toString?: () => string }
+    if (typeof maybe.toNumber === 'function') {
+      const parsed = maybe.toNumber()
+      return Number.isFinite(parsed) ? parsed : null
+    }
+    if (typeof maybe.toString === 'function') {
+      const parsed = Number(maybe.toString())
+      return Number.isFinite(parsed) ? parsed : null
+    }
+  }
+  return null
+}
+
 /**
  * GET /api/purchase-orders/[id]/lines/[lineId]
  * Get a specific line item
@@ -63,6 +86,14 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
     skuCode: line.skuCode,
     skuDescription: line.skuDescription,
     batchLot: line.batchLot,
+    cartonDimensionsCm: line.cartonDimensionsCm ?? null,
+    cartonLengthCm: toNumberOrNull(line.cartonLengthCm),
+    cartonWidthCm: toNumberOrNull(line.cartonWidthCm),
+    cartonHeightCm: toNumberOrNull(line.cartonHeightCm),
+    cartonWeightKg: toNumberOrNull(line.cartonWeightKg),
+    packagingType: line.packagingType ? line.packagingType.trim().toUpperCase() : null,
+    storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
+    shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
     unitsOrdered: line.unitsOrdered,
     unitsPerCarton: line.unitsPerCarton,
     quantity: line.quantity,
@@ -197,56 +228,49 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
       result.data.skuCode !== undefined &&
       result.data.skuCode.trim().toLowerCase() !== line.skuCode.trim().toLowerCase()
 
-    const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
+    const currentBatchLot = line.batchLot?.trim().toUpperCase() ?? null
     const requestedBatchLot = result.data.batchLot?.trim()
+    const normalizedRequestedBatchLot =
+      requestedBatchLot && requestedBatchLot.length > 0 ? requestedBatchLot.toUpperCase() : null
 
-    if (skuCodeChanged && !requestedBatchLot) {
+    if (skuCodeChanged && !normalizedRequestedBatchLot) {
       return ApiResponses.badRequest('Batch / lot is required when changing SKU')
     }
 
-    const nextBatchLot = requestedBatchLot
-      ? requestedBatchLot.trim().toUpperCase()
-      : (line.batchLot?.trim().toUpperCase() ?? '')
-
-    if (requestedBatchLot) {
-      if (nextBatchLot === 'DEFAULT') {
-        return ApiResponses.badRequest('Batch / lot is required')
-      }
-
-      if (!line.batchLot || line.batchLot.trim().toUpperCase() !== nextBatchLot) {
-        updateData.batchLot = nextBatchLot
-      }
+    if (normalizedRequestedBatchLot === 'DEFAULT') {
+      return ApiResponses.badRequest('Batch / lot is required')
     }
 
-    const sku = await prisma.sku.findFirst({
-      where: { skuCode: nextSkuCode },
-      select: {
-        id: true,
-        skuCode: true,
-        packSize: true,
-        unitsPerCarton: true,
-        material: true,
-        unitDimensionsCm: true,
-        unitLengthCm: true,
-        unitWidthCm: true,
-        unitHeightCm: true,
-        unitWeightKg: true,
-        cartonDimensionsCm: true,
-        cartonLengthCm: true,
-        cartonWidthCm: true,
-        cartonHeightCm: true,
-        cartonWeightKg: true,
-        packagingType: true,
-      },
-    })
+    const batchLotChanged =
+      normalizedRequestedBatchLot !== null && normalizedRequestedBatchLot !== currentBatchLot
 
-    if (!sku) {
-      return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
-    }
+    const needsSkuBatchSnapshot = skuCodeChanged || batchLotChanged
 
-    if (skuCodeChanged || requestedBatchLot) {
+    if (needsSkuBatchSnapshot) {
+      const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
+      const nextBatchLot = (normalizedRequestedBatchLot ?? currentBatchLot ?? '').trim().toUpperCase()
+
       if (!nextBatchLot || nextBatchLot === 'DEFAULT') {
         return ApiResponses.badRequest('Batch / lot is required')
+      }
+
+      const sku = await prisma.sku.findFirst({
+        where: { skuCode: nextSkuCode },
+        select: {
+          id: true,
+          skuCode: true,
+          description: true,
+          cartonDimensionsCm: true,
+          cartonLengthCm: true,
+          cartonWidthCm: true,
+          cartonHeightCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+        },
+      })
+
+      if (!sku) {
+        return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
       }
 
       const existingBatch = await prisma.skuBatch.findFirst({
@@ -254,7 +278,18 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
           skuId: sku.id,
           batchCode: { equals: nextBatchLot, mode: 'insensitive' },
         },
-        select: { id: true, batchCode: true },
+        select: {
+          id: true,
+          batchCode: true,
+          cartonDimensionsCm: true,
+          cartonLengthCm: true,
+          cartonWidthCm: true,
+          cartonHeightCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
+        },
       })
 
       if (!existingBatch) {
@@ -263,8 +298,18 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
         )
       }
 
-      if (requestedBatchLot) {
-        updateData.batchLot = existingBatch.batchCode
+      updateData.batchLot = existingBatch.batchCode
+      updateData.cartonDimensionsCm = existingBatch.cartonDimensionsCm ?? sku.cartonDimensionsCm ?? null
+      updateData.cartonLengthCm = existingBatch.cartonLengthCm ?? sku.cartonLengthCm ?? null
+      updateData.cartonWidthCm = existingBatch.cartonWidthCm ?? sku.cartonWidthCm ?? null
+      updateData.cartonHeightCm = existingBatch.cartonHeightCm ?? sku.cartonHeightCm ?? null
+      updateData.cartonWeightKg = existingBatch.cartonWeightKg ?? sku.cartonWeightKg ?? null
+      updateData.packagingType = existingBatch.packagingType ?? sku.packagingType ?? null
+      updateData.storageCartonsPerPallet = existingBatch.storageCartonsPerPallet ?? null
+      updateData.shippingCartonsPerPallet = existingBatch.shippingCartonsPerPallet ?? null
+
+      if (skuCodeChanged && result.data.skuDescription === undefined) {
+        updateData.skuDescription = sku.description
       }
     }
   }
@@ -291,6 +336,14 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuCode: line.skuCode,
     skuDescription: line.skuDescription ?? null,
     batchLot: line.batchLot ?? null,
+    cartonDimensionsCm: line.cartonDimensionsCm ?? null,
+    cartonLengthCm: toNumberOrNull(line.cartonLengthCm),
+    cartonWidthCm: toNumberOrNull(line.cartonWidthCm),
+    cartonHeightCm: toNumberOrNull(line.cartonHeightCm),
+    cartonWeightKg: toNumberOrNull(line.cartonWeightKg),
+    packagingType: line.packagingType ?? null,
+    storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
+    shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
     unitsOrdered: line.unitsOrdered,
     unitsPerCarton: line.unitsPerCarton,
     quantity: line.quantity,
@@ -305,6 +358,14 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuCode: updated.skuCode,
     skuDescription: updated.skuDescription ?? null,
     batchLot: updated.batchLot ?? null,
+    cartonDimensionsCm: updated.cartonDimensionsCm ?? null,
+    cartonLengthCm: toNumberOrNull(updated.cartonLengthCm),
+    cartonWidthCm: toNumberOrNull(updated.cartonWidthCm),
+    cartonHeightCm: toNumberOrNull(updated.cartonHeightCm),
+    cartonWeightKg: toNumberOrNull(updated.cartonWeightKg),
+    packagingType: updated.packagingType ?? null,
+    storageCartonsPerPallet: updated.storageCartonsPerPallet ?? null,
+    shippingCartonsPerPallet: updated.shippingCartonsPerPallet ?? null,
     unitsOrdered: updated.unitsOrdered,
     unitsPerCarton: updated.unitsPerCarton,
     quantity: updated.quantity,
@@ -341,6 +402,14 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuCode: updated.skuCode,
     skuDescription: updated.skuDescription,
     batchLot: updated.batchLot,
+    cartonDimensionsCm: updated.cartonDimensionsCm ?? null,
+    cartonLengthCm: toNumberOrNull(updated.cartonLengthCm),
+    cartonWidthCm: toNumberOrNull(updated.cartonWidthCm),
+    cartonHeightCm: toNumberOrNull(updated.cartonHeightCm),
+    cartonWeightKg: toNumberOrNull(updated.cartonWeightKg),
+    packagingType: updated.packagingType ? updated.packagingType.trim().toUpperCase() : null,
+    storageCartonsPerPallet: updated.storageCartonsPerPallet ?? null,
+    shippingCartonsPerPallet: updated.shippingCartonsPerPallet ?? null,
     unitsOrdered: updated.unitsOrdered,
     unitsPerCarton: updated.unitsPerCarton,
     quantity: updated.quantity,
@@ -406,6 +475,14 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
       skuCode: line.skuCode,
       skuDescription: line.skuDescription ?? null,
       batchLot: line.batchLot ?? null,
+      cartonDimensionsCm: line.cartonDimensionsCm ?? null,
+      cartonLengthCm: toNumberOrNull(line.cartonLengthCm),
+      cartonWidthCm: toNumberOrNull(line.cartonWidthCm),
+      cartonHeightCm: toNumberOrNull(line.cartonHeightCm),
+      cartonWeightKg: toNumberOrNull(line.cartonWeightKg),
+      packagingType: line.packagingType ?? null,
+      storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
+      shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
       unitsOrdered: line.unitsOrdered,
       unitsPerCarton: line.unitsPerCarton,
       quantity: line.quantity,

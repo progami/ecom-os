@@ -280,6 +280,7 @@ model PurchaseOrder {
   type             PurchaseOrderType
   status           PurchaseOrderStatus @default(DRAFT)
   counterpartyName String?             @map("counterparty_name")
+  counterpartyAddress String?          @map("counterparty_address")
   notes            String?
   createdById      String?             @map("created_by")
   createdByName    String?             @map("created_by_name")
@@ -551,6 +552,14 @@ model PurchaseOrderLine {
   skuCode           String                  @map("sku_code")
   skuDescription    String?                 @map("sku_description")
   batchLot          String?                 @map("batch_lot")
+  cartonDimensionsCm String?                @map("carton_dimensions_cm")
+  cartonLengthCm     Decimal?               @map("carton_length_cm") @db.Decimal(8, 2)
+  cartonWidthCm      Decimal?               @map("carton_width_cm") @db.Decimal(8, 2)
+  cartonHeightCm     Decimal?               @map("carton_height_cm") @db.Decimal(8, 2)
+  cartonWeightKg     Decimal?               @map("carton_weight_kg") @db.Decimal(8, 3)
+  packagingType      String?                @map("packaging_type")
+  storageCartonsPerPallet  Int?             @map("storage_cartons_per_pallet")
+  shippingCartonsPerPallet Int?             @map("shipping_cartons_per_pallet")
   unitsOrdered      Int                     @map("units_ordered")
   unitsPerCarton    Int                     @map("units_per_carton")
   quantity          Int

@@ -429,9 +429,9 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     return ApiResponses.notFound('Purchase order not found')
   }
 
-  // Fetch supplier address if counterpartyName exists
-  let supplierAddress: string | null = null
-  if (order.counterpartyName) {
+  // Prefer snapshot supplier address stored on the PO. Fall back to live supplier for older POs.
+  let supplierAddress: string | null = order.counterpartyAddress ?? null
+  if (!supplierAddress && order.counterpartyName) {
     const prisma = await getTenantPrisma()
     const supplier = await prisma.supplier.findUnique({
       where: { name: order.counterpartyName },
