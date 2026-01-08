@@ -89,7 +89,7 @@ export async function middleware(request: NextRequest) {
 
   if (!hasAccess) {
     if (normalizedPath.startsWith('/api/')) {
-      const errorMsg = hasSession ? 'No access to WMS' : 'Authentication required'
+      const errorMsg = hasSession ? 'No access to Talos WMS' : 'Authentication required'
       return NextResponse.json({ error: errorMsg }, { status: hasSession ? 403 : 401 })
     }
 
