@@ -29,6 +29,7 @@ import {
   parseNumericInput,
   sanitizeNumeric,
 } from '@/components/sheets/validators';
+import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { withAppBasePath } from '@/lib/base-path';
@@ -277,6 +278,21 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
   const columnKeys = useMemo(() => columnConfig.map((c) => c.key), []);
 
+  const columnLayout = useMemo(() => {
+    const widths = columnConfig.map((config) => config.width);
+    const offsets: number[] = [];
+    let runningTotal = 0;
+    for (const width of widths) {
+      offsets.push(runningTotal);
+      runningTotal += width;
+    }
+    const pinnedCount = columnConfig.filter((config) => config.sticky).length;
+    const pinnedWidth = columnConfig
+      .filter((config) => config.sticky)
+      .reduce((sum, config) => sum + config.width, 0);
+    return { widths, offsets, pinnedCount, pinnedWidth };
+  }, []);
+
   const tableWidth = useMemo(() => columnConfig.reduce((sum, c) => sum + c.width, 0), []);
 
   const table = useReactTable({
@@ -327,6 +343,53 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     };
   }, [flushNow]);
 
+  const applyUndoRedoEdits = useCallback(
+    (edits: CellEdit<string>[]) => {
+      if (edits.length === 0) return;
+
+      setData((prev) => {
+        const next = prev.slice();
+
+        for (const edit of edits) {
+          const rowIndex = Number(edit.rowKey);
+          if (!Number.isFinite(rowIndex)) continue;
+          if (rowIndex < 0 || rowIndex >= next.length) continue;
+
+          const key = edit.field as keyof WeeklyRow;
+          if (!editableFields.has(key)) continue;
+
+          const row = next[rowIndex];
+          if (!row) continue;
+          if ((row[key] ?? '') === edit.newValue) continue;
+
+          next[rowIndex] = { ...row, [key]: edit.newValue };
+
+          const weekNumber = Number(row.weekNumber);
+          if (Number.isFinite(weekNumber)) {
+            if (!pendingRef.current.has(weekNumber)) {
+              pendingRef.current.set(weekNumber, { weekNumber, values: {} });
+            }
+            const entry = pendingRef.current.get(weekNumber);
+            if (entry) {
+              entry.values[key] = edit.newValue;
+            }
+          }
+        }
+
+        return next;
+      });
+
+      scheduleFlush();
+      requestAnimationFrame(() => scrollRef.current?.focus());
+    },
+    [pendingRef, scheduleFlush],
+  );
+
+  const { recordEdits, undo, redo } = useGridUndoRedo<string>({
+    maxHistory: 50,
+    onApplyEdits: applyUndoRedoEdits,
+  });
+
   const commitEditing = useCallback(() => {
     if (!editingCell) return;
     const { coords, key, value } = editingCell;
@@ -339,7 +402,20 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     }
 
     const formatted = formatNumericInput(value, 2);
+    const currentValue = row[key] ?? '';
+    if (formatted === currentValue) {
+      setEditingCell(null);
+      requestAnimationFrame(() => scrollRef.current?.focus());
+      return;
+    }
     const weekNumber = Number(row.weekNumber);
+
+    recordEdits({
+      rowKey: String(rowIndex),
+      field: key,
+      oldValue: currentValue,
+      newValue: formatted,
+    });
 
     setData((prev) => {
       const next = [...prev];
@@ -357,36 +433,87 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     scheduleFlush();
     setEditingCell(null);
     requestAnimationFrame(() => scrollRef.current?.focus());
-  }, [data, editingCell, pendingRef, scheduleFlush]);
+  }, [data, editingCell, pendingRef, recordEdits, scheduleFlush]);
 
   const cancelEditing = useCallback(() => {
     setEditingCell(null);
     requestAnimationFrame(() => scrollRef.current?.focus());
   }, []);
 
-  const moveActiveCell = useCallback(
-    (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
-      setActiveCell((prev) => {
-        if (!prev) return prev;
-        const newRow = Math.max(0, Math.min(data.length - 1, prev.row + deltaRow));
-        const newCol = Math.max(0, Math.min(columnKeys.length - 1, prev.col + deltaCol));
-        const nextCoords = { row: newRow, col: newCol };
+  const ensureCellVisible = useCallback(
+    (coords: CellCoords) => {
+      const holder = scrollRef.current;
+      if (!holder) return;
 
-        if (options.extendSelection) {
-          const anchor = selectionAnchorRef.current ?? prev;
-          if (!selectionAnchorRef.current) {
-            selectionAnchorRef.current = anchor;
-          }
-          setSelection({ from: anchor, to: nextCoords });
-        } else {
-          selectionAnchorRef.current = nextCoords;
-          setSelection(null);
+      const headerHeight = holder.querySelector('thead')?.getBoundingClientRect().height ?? 72;
+      const rowHeight = holder.querySelector('tbody tr')?.getBoundingClientRect().height ?? 32;
+
+      const cellTop = headerHeight + coords.row * rowHeight;
+      const cellBottom = cellTop + rowHeight;
+
+      const viewTop = holder.scrollTop + headerHeight;
+      const viewBottom = holder.scrollTop + holder.clientHeight;
+
+      let nextScrollTop = holder.scrollTop;
+      if (cellTop < viewTop) {
+        nextScrollTop = Math.max(0, cellTop - headerHeight);
+      } else if (cellBottom > viewBottom) {
+        nextScrollTop = Math.max(0, cellBottom - holder.clientHeight);
+      }
+      const maxScrollTop = Math.max(0, holder.scrollHeight - holder.clientHeight);
+      nextScrollTop = Math.min(nextScrollTop, maxScrollTop);
+
+      let nextScrollLeft = holder.scrollLeft;
+      if (coords.col >= columnLayout.pinnedCount) {
+        const cellLeft = columnLayout.offsets[coords.col] ?? 0;
+        const cellRight = cellLeft + (columnLayout.widths[coords.col] ?? 0);
+
+        const viewLeft = holder.scrollLeft + columnLayout.pinnedWidth;
+        const viewRight = holder.scrollLeft + holder.clientWidth;
+
+        if (cellLeft < viewLeft) {
+          nextScrollLeft = Math.max(0, cellLeft - columnLayout.pinnedWidth);
+        } else if (cellRight > viewRight) {
+          nextScrollLeft = Math.max(0, cellRight - holder.clientWidth);
         }
 
-        return nextCoords;
-      });
+        const maxScrollLeft = Math.max(0, holder.scrollWidth - holder.clientWidth);
+        nextScrollLeft = Math.min(nextScrollLeft, maxScrollLeft);
+      }
+
+      if (nextScrollTop !== holder.scrollTop || nextScrollLeft !== holder.scrollLeft) {
+        holder.scrollTo({ top: nextScrollTop, left: nextScrollLeft, behavior: 'auto' });
+      }
     },
-    [data.length, columnKeys.length],
+    [columnLayout],
+  );
+
+  const updateActiveSelection = useCallback(
+    (nextCoords: CellCoords, { extendSelection }: { extendSelection: boolean }) => {
+      setActiveCell(nextCoords);
+
+      if (extendSelection && selectionAnchorRef.current) {
+        setSelection({ from: selectionAnchorRef.current, to: nextCoords });
+      } else {
+        selectionAnchorRef.current = nextCoords;
+        setSelection({ from: nextCoords, to: nextCoords });
+      }
+
+      requestAnimationFrame(() => ensureCellVisible(nextCoords));
+    },
+    [ensureCellVisible],
+  );
+
+  const moveActiveCell = useCallback(
+    (deltaRow: number, deltaCol: number, options: { extendSelection?: boolean } = {}) => {
+      if (!activeCell) return;
+      if (data.length === 0 || columnKeys.length === 0) return;
+      const newRow = Math.max(0, Math.min(data.length - 1, activeCell.row + deltaRow));
+      const newCol = Math.max(0, Math.min(columnKeys.length - 1, activeCell.col + deltaCol));
+      const nextCoords = { row: newRow, col: newCol };
+      updateActiveSelection(nextCoords, { extendSelection: Boolean(options.extendSelection) });
+    },
+    [activeCell, columnKeys.length, data.length, updateActiveSelection],
   );
 
   const buildClipboardText = useCallback(
@@ -450,42 +577,55 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       if (rows.length === 0) return;
 
       const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = [];
+      const undoEdits: CellEdit<string>[] = [];
 
       for (let r = 0; r < rows.length; r += 1) {
         for (let c = 0; c < rows[r]!.length; c += 1) {
           const targetRow = start.row + r;
           const targetCol = start.col + c;
+          if (targetRow >= data.length) continue;
           if (targetCol >= columnConfig.length) continue;
 
           const config = columnConfig[targetCol];
           if (!config?.editable) continue;
 
-          updates.push({
-            rowIndex: targetRow,
-            key: config.key,
-            value: rows[r]![c] ?? '',
+          const row = data[targetRow];
+          if (!row) continue;
+          const currentValue = row[config.key] ?? '';
+
+          const formatted = formatNumericInput(rows[r]![c] ?? '', 2);
+          if (formatted === currentValue) continue;
+
+          updates.push({ rowIndex: targetRow, key: config.key, value: formatted });
+          undoEdits.push({
+            rowKey: String(targetRow),
+            field: config.key,
+            oldValue: currentValue,
+            newValue: formatted,
           });
         }
       }
 
       if (updates.length === 0) return;
 
-      setData((prev) => {
-        const next = [...prev];
-        for (const update of updates) {
-          if (update.rowIndex >= next.length) continue;
-          const formatted = formatNumericInput(update.value, 2);
-          next[update.rowIndex] = { ...next[update.rowIndex], [update.key]: formatted };
+      recordEdits(undoEdits);
 
+      setData((prev) => {
+        const next = prev.slice();
+        for (const update of updates) {
           const row = next[update.rowIndex];
-          const weekNumber = Number(row?.weekNumber);
+          if (!row) continue;
+
+          next[update.rowIndex] = { ...row, [update.key]: update.value };
+
+          const weekNumber = Number(row.weekNumber);
           if (Number.isFinite(weekNumber)) {
             if (!pendingRef.current.has(weekNumber)) {
               pendingRef.current.set(weekNumber, { weekNumber, values: {} });
             }
             const entry = pendingRef.current.get(weekNumber);
             if (entry) {
-              entry.values[update.key] = formatted;
+              entry.values[update.key] = update.value;
             }
           }
         }
@@ -495,13 +635,30 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       scheduleFlush();
       requestAnimationFrame(() => scrollRef.current?.focus());
     },
-    [pendingRef, scheduleFlush],
+    [data, pendingRef, recordEdits, scheduleFlush],
   );
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (e.target !== e.currentTarget) return;
       if (editingCell) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
       if (!activeCell) return;
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'c') {
@@ -527,10 +684,10 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         return;
       }
 
-      if (e.key === 'Enter' || e.key === 'F2') {
-        e.preventDefault();
+      if (e.key === 'F2') {
         const config = columnConfig[activeCell.col];
         if (config?.editable) {
+          e.preventDefault();
           const row = data[activeCell.row];
           if (row) {
             setEditingCell({
@@ -543,28 +700,63 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         return;
       }
 
+      if (e.key === 'Enter') {
+        const config = columnConfig[activeCell.col];
+        if (config?.editable) {
+          e.preventDefault();
+          const row = data[activeCell.row];
+          if (row) {
+            setEditingCell({
+              coords: activeCell,
+              key: config.key,
+              value: row[config.key],
+            });
+          }
+          return;
+        }
+
+        e.preventDefault();
+        moveActiveCell(1, 0);
+        return;
+      }
+
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
         const range = selection ?? { from: activeCell, to: activeCell };
         const { top, bottom, left, right } = normalizeRange(range);
-        const updates: Array<{ rowIndex: number; key: keyof WeeklyRow }> = [];
+        const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; oldValue: string }> = [];
 
         for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+          const row = data[rowIndex];
+          if (!row) continue;
+
           for (let colIndex = left; colIndex <= right; colIndex += 1) {
             const config = columnConfig[colIndex];
             if (!config?.editable) continue;
-            updates.push({ rowIndex, key: config.key });
+
+            const currentValue = row[config.key] ?? '';
+            if (!currentValue) continue;
+
+            updates.push({ rowIndex, key: config.key, oldValue: currentValue });
           }
         }
 
         if (updates.length === 0) return;
 
+        recordEdits(
+          updates.map((update) => ({
+            rowKey: String(update.rowIndex),
+            field: update.key,
+            oldValue: update.oldValue,
+            newValue: '',
+          })),
+        );
+
         setData((prev) => {
-          const next = [...prev];
+          const next = prev.slice();
           for (const update of updates) {
             const row = next[update.rowIndex];
             if (!row) continue;
-            if ((row[update.key] ?? '') === '') continue;
 
             next[update.rowIndex] = { ...row, [update.key]: '' };
 
@@ -583,6 +775,14 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         });
 
         scheduleFlush();
+        return;
+      }
+
+      if (/^[0-9.,-]$/.test(e.key)) {
+        const config = columnConfig[activeCell.col];
+        if (!config?.editable) return;
+        e.preventDefault();
+        setEditingCell({ coords: activeCell, key: config.key, value: e.key });
         return;
       }
 
@@ -614,6 +814,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         return;
       }
       if (e.key === 'Escape') {
+        selectionAnchorRef.current = null;
         setSelection(null);
         setActiveCell(null);
       }
@@ -626,8 +827,11 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
       editingCell,
       moveActiveCell,
       pendingRef,
+      recordEdits,
+      redo,
       scheduleFlush,
       selection,
+      undo,
     ],
   );
 
@@ -675,26 +879,22 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
       if (editingCell) return;
       scrollRef.current?.focus();
-      e.currentTarget.setPointerCapture(e.pointerId);
       const coords = { row: rowIndex, col: colIndex };
-      selectionAnchorRef.current = coords;
-      setActiveCell(coords);
-      setSelection({ from: coords, to: coords });
+      updateActiveSelection(coords, { extendSelection: e.shiftKey });
     },
-    [editingCell],
+    [editingCell, updateActiveSelection],
   );
 
   const handlePointerMove = useCallback(
     (e: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (!e.buttons) return;
       if (!selectionAnchorRef.current) return;
       setSelection({ from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } });
     },
     [],
   );
 
-  const handlePointerUp = useCallback(() => {
-    selectionAnchorRef.current = null;
-  }, []);
+  const handlePointerUp = useCallback(() => {}, []);
 
   const handleDoubleClick = useCallback(
     (rowIndex: number, colIndex: number) => {
