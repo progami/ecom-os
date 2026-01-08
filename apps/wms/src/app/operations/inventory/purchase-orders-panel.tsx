@@ -63,6 +63,7 @@ export interface PurchaseOrderSummary {
   postedAt: string | null
   createdAt: string
   updatedAt: string
+  createdByName?: string | null
   lines: PurchaseOrderLineSummary[]
 }
 
@@ -227,6 +228,12 @@ export function PurchaseOrdersPanel({
         header: 'Supplier',
         tdClassName: 'px-3 py-2 whitespace-nowrap text-muted-foreground',
         render: order => order.counterpartyName || '—',
+      },
+      {
+        key: 'created-by',
+        header: 'Created by',
+        tdClassName: 'px-3 py-2 whitespace-nowrap text-muted-foreground',
+        render: order => order.createdByName || '—',
       },
       {
         key: 'lines',
