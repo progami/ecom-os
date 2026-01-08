@@ -26,7 +26,7 @@ const badgeVariants = cva(
   }
 )
 
-export interface BadgeProps
+interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
     VariantProps<typeof badgeVariants> {}
 
@@ -67,4 +67,4 @@ function StatusBadge({ status, className = "" }: StatusBadgeProps) {
   )
 }
 
-export { Badge, badgeVariants, getStatusVariant, StatusBadge }
+export { Badge, StatusBadge }
