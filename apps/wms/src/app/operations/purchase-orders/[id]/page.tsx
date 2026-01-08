@@ -18,6 +18,7 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   ArrowLeft,
@@ -385,6 +386,19 @@ const STAGES = [
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
 ] as const
 
+const INCOTERMS_OPTIONS = [
+  'EXW',
+  'FOB',
+  'FCA',
+  'CFR',
+  'CIF',
+  'CPT',
+  'CIP',
+  'DAP',
+  'DPU',
+  'DDP',
+] as const
+
 function formatStatusLabel(status: POStageStatus) {
   return PO_STATUS_LABELS[status] ?? status
 }
@@ -644,6 +658,15 @@ export default function PurchaseOrderDetailPage() {
   const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [transitioning, setTransitioning] = useState(false)
   const [pdfDownloading, setPdfDownloading] = useState(false)
+  const [orderInfoEditing, setOrderInfoEditing] = useState(false)
+  const [orderInfoSaving, setOrderInfoSaving] = useState(false)
+  const [orderInfoDraft, setOrderInfoDraft] = useState({
+    counterpartyName: '',
+    expectedDate: '',
+    incoterms: '',
+    paymentTerms: '',
+    notes: '',
+  })
 
   // Stage transition form data
   const [stageFormData, setStageFormData] = useState<Record<string, string>>({})
@@ -669,14 +692,25 @@ export default function PurchaseOrderDetailPage() {
     totalCost: '',
     notes: '',
   })
+  const [editLineOpen, setEditLineOpen] = useState(false)
+  const [editLineSubmitting, setEditLineSubmitting] = useState(false)
+  const [editingLine, setEditingLine] = useState<PurchaseOrderLineSummary | null>(null)
+  const [editLineDraft, setEditLineDraft] = useState({
+    batchLot: '',
+    unitsOrdered: 1,
+    unitsPerCarton: null as number | null,
+    totalCost: '',
+    notes: '',
+  })
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean
-    type: 'cancel' | 'reject' | null
+    type: 'cancel' | 'reject' | 'delete-line' | null
     title: string
     message: string
-  }>({ open: false, type: null, title: '', message: '' })
+    lineId?: string | null
+  }>({ open: false, type: null, title: '', message: '', lineId: null })
 
   // Stage-based navigation - which stage view is currently selected
   const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
@@ -789,6 +823,19 @@ export default function PurchaseOrderDetailPage() {
     loadTenant()
     loadOrder()
   }, [params.id, router, session, status])
+
+  useEffect(() => {
+    if (!order) return
+    if (orderInfoEditing) return
+
+    setOrderInfoDraft({
+      counterpartyName: order.counterpartyName ?? '',
+      expectedDate: formatDateOnly(order.expectedDate),
+      incoterms: order.incoterms ?? '',
+      paymentTerms: order.paymentTerms ?? '',
+      notes: order.notes ?? '',
+    })
+  }, [order, orderInfoEditing])
 
   const refreshDocuments = useCallback(async () => {
     const orderId = order?.id
@@ -992,6 +1039,21 @@ export default function PurchaseOrderDetailPage() {
   )
 
   useEffect(() => {
+    if (!editLineOpen || !editingLine) return
+
+    const skuRecord = skus.find(
+      sku => sku.skuCode.trim().toUpperCase() === editingLine.skuCode.trim().toUpperCase()
+    ) ?? null
+
+    if (!skuRecord) {
+      void ensureSkusLoaded()
+      return
+    }
+
+    void ensureSkuBatchesLoaded(skuRecord.id)
+  }, [editLineOpen, editingLine, ensureSkuBatchesLoaded, ensureSkusLoaded, skus])
+
+  useEffect(() => {
     if (!newLineDraft.skuId) return
     const options = batchesBySkuId[newLineDraft.skuId]
     if (!options || options.length === 0) return
@@ -1143,11 +1205,14 @@ export default function PurchaseOrderDetailPage() {
     if (confirmDialog.type === 'reject') {
       await executeTransition('REJECTED')
     }
-    setConfirmDialog({ open: false, type: null, title: '', message: '' })
+    if (confirmDialog.type === 'delete-line' && confirmDialog.lineId) {
+      await handleDeleteLine(confirmDialog.lineId)
+    }
+    setConfirmDialog({ open: false, type: null, title: '', message: '', lineId: null })
   }
 
   const handleConfirmDialogClose = () => {
-    setConfirmDialog({ open: false, type: null, title: '', message: '' })
+    setConfirmDialog({ open: false, type: null, title: '', message: '', lineId: null })
   }
 
   if (status === 'loading' || loading) {
@@ -1192,6 +1257,157 @@ export default function PurchaseOrderDetailPage() {
   const previewIsImage = Boolean(
     previewDocument && previewDocument.contentType.startsWith('image/')
   )
+
+  const handleSaveOrderInfo = async () => {
+    if (!order) return
+    if (!orderInfoDraft.counterpartyName.trim()) {
+      toast.error('Supplier is required')
+      return
+    }
+
+    try {
+      setOrderInfoSaving(true)
+      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counterpartyName: orderInfoDraft.counterpartyName.trim(),
+          expectedDate: orderInfoDraft.expectedDate.trim() ? orderInfoDraft.expectedDate.trim() : null,
+          incoterms: orderInfoDraft.incoterms.trim() ? orderInfoDraft.incoterms.trim() : null,
+          paymentTerms: orderInfoDraft.paymentTerms.trim()
+            ? orderInfoDraft.paymentTerms.trim()
+            : null,
+          notes: orderInfoDraft.notes.trim() ? orderInfoDraft.notes.trim() : null,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to save order details')
+      }
+
+      const updated = await response.json()
+      setOrder(updated)
+      setOrderInfoEditing(false)
+      void refreshAuditLogs()
+      toast.success('Order details updated')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save order details')
+    } finally {
+      setOrderInfoSaving(false)
+    }
+  }
+
+  const openLineEditor = (line: PurchaseOrderLineSummary) => {
+    setEditingLine(line)
+    setEditLineDraft({
+      batchLot: line.batchLot ?? '',
+      unitsOrdered: line.unitsOrdered,
+      unitsPerCarton: line.unitsPerCarton,
+      totalCost: line.totalCost !== null ? String(line.totalCost) : '',
+      notes: line.lineNotes ?? '',
+    })
+    setEditLineOpen(true)
+  }
+
+  const handleSaveLineEdit = async () => {
+    if (!order || !editingLine) return
+
+    const batchLot = editLineDraft.batchLot.trim().toUpperCase()
+    if (!batchLot || batchLot === 'DEFAULT') {
+      toast.error('Batch / lot is required')
+      return
+    }
+
+    const unitsOrdered = Number(editLineDraft.unitsOrdered)
+    if (!Number.isInteger(unitsOrdered) || unitsOrdered <= 0) {
+      toast.error('Please enter a valid units ordered value')
+      return
+    }
+
+    const unitsPerCarton = editLineDraft.unitsPerCarton
+    if (!unitsPerCarton || !Number.isInteger(unitsPerCarton) || unitsPerCarton <= 0) {
+      toast.error('Please enter a valid units per carton value')
+      return
+    }
+
+    const totalCostInput = editLineDraft.totalCost.trim()
+    const totalCost =
+      totalCostInput.length === 0
+        ? null
+        : (() => {
+            const parsed = Number(totalCostInput)
+            return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+          })()
+
+    if (totalCostInput.length > 0 && totalCost === null) {
+      toast.error('Please enter a valid total cost')
+      return
+    }
+
+    setEditLineSubmitting(true)
+    try {
+      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}/lines/${editingLine.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batchLot,
+          unitsOrdered,
+          unitsPerCarton,
+          totalCost,
+          notes: editLineDraft.notes.trim().length ? editLineDraft.notes.trim() : null,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to update line item')
+      }
+
+      const updatedLine = await response.json()
+      setOrder(prev =>
+        prev
+          ? {
+              ...prev,
+              lines: prev.lines.map(line => (line.id === updatedLine.id ? updatedLine : line)),
+            }
+          : prev
+      )
+      setEditLineOpen(false)
+      setEditingLine(null)
+      void refreshAuditLogs()
+      toast.success('Line item updated')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update line item')
+    } finally {
+      setEditLineSubmitting(false)
+    }
+  }
+
+  const handleDeleteLine = async (lineId: string) => {
+    if (!order) return
+
+    try {
+      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}/lines/${lineId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to remove line item')
+      }
+
+      setOrder(prev => (prev ? { ...prev, lines: prev.lines.filter(line => line.id !== lineId) } : prev))
+      if (editingLine?.id === lineId) {
+        setEditLineOpen(false)
+        setEditingLine(null)
+      }
+      void refreshAuditLogs()
+      toast.success('Line item removed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove line item')
+    }
+  }
 
   const handleAddLineItem = async () => {
     if (!order) return
@@ -2142,12 +2358,13 @@ export default function PurchaseOrderDetailPage() {
                       <th className="px-4 py-2 text-left font-semibold">Notes</th>
                       <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
                       <th className="px-4 py-2 text-left font-semibold">Status</th>
+                      {canEdit && <th className="px-4 py-2 text-right font-semibold">Actions</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {order.lines.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                        <td colSpan={canEdit ? 11 : 10} className="px-4 py-6 text-center text-muted-foreground">
                           No lines added to this order yet.
                         </td>
                       </tr>
@@ -2203,10 +2420,44 @@ export default function PurchaseOrderDetailPage() {
                               <td className="px-4 py-2.5 whitespace-nowrap">
                                 <Badge variant="outline">{line.status}</Badge>
                               </td>
+                              {canEdit && (
+                                <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                      onClick={() => openLineEditor(line)}
+                                      title="Edit line"
+                                    >
+                                      <FileEdit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0 text-rose-700 hover:text-rose-800"
+                                      onClick={() =>
+                                        setConfirmDialog({
+                                          open: true,
+                                          type: 'delete-line',
+                                          title: 'Remove line item',
+                                          message: `Remove SKU ${line.skuCode} (${line.batchLot || '—'}) from this draft PO?`,
+                                          lineId: line.id,
+                                        })
+                                      }
+                                      title="Remove line"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                             {pkg ? (
                               <tr className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
-                                <td colSpan={10} className="px-4 pb-2 pt-1">
+                                <td colSpan={canEdit ? 11 : 10} className="px-4 pb-2 pt-1">
                                   <div
                                     className={`grid grid-cols-6 gap-3 text-xs border-l-2 ${
                                       pkg.hasWarning ? 'border-amber-400 bg-amber-50/30' : 'border-cyan-400 bg-transparent'
@@ -2255,7 +2506,7 @@ export default function PurchaseOrderDetailPage() {
                               </tr>
                             ) : !isLast ? (
                               <tr className="border-b-2 border-slate-200">
-                                <td colSpan={10} className="h-0"></td>
+                                <td colSpan={canEdit ? 11 : 10} className="h-0"></td>
                               </tr>
                             ) : null}
                           </Fragment>
@@ -2457,6 +2708,42 @@ export default function PurchaseOrderDetailPage() {
                       <div
                         className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
                       >
+                        {canEdit && (
+                          <div className="mb-4 flex items-center justify-end gap-2">
+                            {orderInfoEditing ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setOrderInfoEditing(false)}
+                                  disabled={orderInfoSaving}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => void handleSaveOrderInfo()}
+                                  disabled={orderInfoSaving || !orderInfoDraft.counterpartyName.trim()}
+                                  className="gap-2"
+                                >
+                                  {orderInfoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                                  Save
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setOrderInfoEditing(true)}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -2470,9 +2757,18 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Supplier
                             </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {order.counterpartyName || '—'}
-                            </p>
+                            {canEdit && orderInfoEditing ? (
+                              <Input
+                                value={orderInfoDraft.counterpartyName}
+                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, counterpartyName: e.target.value }))}
+                                placeholder="Supplier"
+                                disabled={orderInfoSaving}
+                              />
+                            ) : (
+                              <p className="text-sm font-medium text-slate-900">
+                                {order.counterpartyName || '—'}
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -2486,25 +2782,59 @@ export default function PurchaseOrderDetailPage() {
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Cargo Ready Date
                             </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
-                            </p>
+                            {canEdit && orderInfoEditing ? (
+                              <Input
+                                type="date"
+                                value={orderInfoDraft.expectedDate}
+                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, expectedDate: e.target.value }))}
+                                disabled={orderInfoSaving}
+                              />
+                            ) : (
+                              <p className="text-sm font-medium text-slate-900">
+                                {order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Incoterms
                             </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {order.incoterms || '—'}
-                            </p>
+                            {canEdit && orderInfoEditing ? (
+                              <select
+                                value={orderInfoDraft.incoterms}
+                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, incoterms: e.target.value }))}
+                                disabled={orderInfoSaving}
+                                className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                              >
+                                <option value="">Select incoterms</option>
+                                {INCOTERMS_OPTIONS.map(option => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <p className="text-sm font-medium text-slate-900">
+                                {order.incoterms || '—'}
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Payment Terms
                             </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {order.paymentTerms || '—'}
-                            </p>
+                            {canEdit && orderInfoEditing ? (
+                              <Input
+                                value={orderInfoDraft.paymentTerms}
+                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                                placeholder="Payment terms"
+                                disabled={orderInfoSaving}
+                              />
+                            ) : (
+                              <p className="text-sm font-medium text-slate-900">
+                                {order.paymentTerms || '—'}
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -2516,12 +2846,22 @@ export default function PurchaseOrderDetailPage() {
                             </p>
                           </div>
                         </div>
-                        {order.notes && (
+                        {(order.notes || (canEdit && orderInfoEditing)) && (
                           <div className="mt-4 pt-3 border-t">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                               Notes
                             </p>
-                            <p className="text-sm text-slate-700">{order.notes}</p>
+                            {canEdit && orderInfoEditing ? (
+                              <Textarea
+                                value={orderInfoDraft.notes}
+                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, notes: e.target.value }))}
+                                placeholder="Optional internal notes..."
+                                disabled={orderInfoSaving}
+                                className="min-h-[88px]"
+                              />
+                            ) : (
+                              <p className="text-sm text-slate-700">{order.notes}</p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -3039,6 +3379,233 @@ export default function PurchaseOrderDetailPage() {
         </div>
       </div>
 
+      {editLineOpen && editingLine && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => {
+              if (editLineSubmitting) return
+              setEditLineOpen(false)
+              setEditingLine(null)
+            }}
+          />
+          <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Edit line item</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {editingLine.skuCode} • {editingLine.batchLot || '—'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (editLineSubmitting) return
+                  setEditLineOpen(false)
+                  setEditingLine(null)
+                }}
+                className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                disabled={editLineSubmitting}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              {(() => {
+                const skuRecord =
+                  skus.find(
+                    sku =>
+                      sku.skuCode.trim().toUpperCase() === editingLine.skuCode.trim().toUpperCase()
+                  ) ?? null
+                const skuId = skuRecord?.id ?? null
+                const batchOptions = skuId ? batchesBySkuId[skuId] ?? [] : []
+                const batchesLoading = skuId ? Boolean(batchesLoadingBySkuId[skuId]) : false
+                const batch =
+                  batchOptions.find(option => option.batchCode === editLineDraft.batchLot) ?? null
+
+                return (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Batch / Lot
+                      </label>
+                      <select
+                        value={editLineDraft.batchLot}
+                        onChange={e => {
+                          const nextBatch = e.target.value
+                          setEditLineDraft(prev => ({
+                            ...prev,
+                            batchLot: nextBatch,
+                            unitsPerCarton:
+                              batchOptions.find(option => option.batchCode === nextBatch)?.unitsPerCarton ??
+                              prev.unitsPerCarton,
+                          }))
+                        }}
+                        disabled={editLineSubmitting || batchesLoading || !skuId}
+                        className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      >
+                        <option value="">{!skuId ? 'Select SKU first' : 'Select batch'}</option>
+                        {batchOptions.map(option => (
+                          <option key={option.batchCode} value={option.batchCode}>
+                            {option.batchCode}
+                          </option>
+                        ))}
+                      </select>
+                      {batch && (
+                        <p className="text-[11px] text-muted-foreground">
+                          {buildBatchPackagingMeta({
+                            batch,
+                            unitsOrdered: editLineDraft.unitsOrdered,
+                            unitsPerCarton: editLineDraft.unitsPerCarton ?? batch.unitsPerCarton ?? null,
+                          })?.text ?? ''}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Units
+                        </label>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          step="1"
+                          value={editLineDraft.unitsOrdered}
+                          onChange={e =>
+                            setEditLineDraft(prev => ({
+                              ...prev,
+                              unitsOrdered: (() => {
+                                const parsed = Number.parseInt(e.target.value, 10)
+                                return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
+                              })(),
+                            }))
+                          }
+                          disabled={editLineSubmitting}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Units/Ctn
+                        </label>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          step="1"
+                          value={editLineDraft.unitsPerCarton ?? ''}
+                          onChange={e =>
+                            setEditLineDraft(prev => ({
+                              ...prev,
+                              unitsPerCarton: (() => {
+                                const parsed = Number.parseInt(e.target.value, 10)
+                                return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                              })(),
+                            }))
+                          }
+                          disabled={editLineSubmitting}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          Cartons
+                        </label>
+                        <Input
+                          value={(() => {
+                            const units = Number(editLineDraft.unitsOrdered)
+                            const per = editLineDraft.unitsPerCarton
+                            if (!per || units <= 0) return '—'
+                            return String(Math.ceil(units / per))
+                          })()}
+                          readOnly
+                          disabled
+                          className="bg-muted/30 text-muted-foreground"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Total Cost
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={editLineDraft.totalCost}
+                          onChange={e => setEditLineDraft(prev => ({ ...prev, totalCost: e.target.value }))}
+                          placeholder="0.00"
+                          className="pr-12"
+                          disabled={editLineSubmitting}
+                        />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
+                          {tenantCurrency}
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Unit:{' '}
+                        {(() => {
+                          const trimmed = editLineDraft.totalCost.trim()
+                          if (!trimmed) return '—'
+                          const parsed = Number(trimmed)
+                          if (!Number.isFinite(parsed) || parsed < 0) return '—'
+                          const units = Number(editLineDraft.unitsOrdered)
+                          if (!Number.isInteger(units) || units <= 0) return '—'
+                          return (parsed / units).toFixed(4)
+                        })()}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Notes
+                      </label>
+                      <Input
+                        value={editLineDraft.notes}
+                        onChange={e => setEditLineDraft(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Optional"
+                        disabled={editLineSubmitting}
+                      />
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (editLineSubmitting) return
+                  setEditLineOpen(false)
+                  setEditingLine(null)
+                }}
+                disabled={editLineSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => void handleSaveLineEdit()}
+                disabled={
+                  editLineSubmitting ||
+                  !editLineDraft.batchLot.trim() ||
+                  editLineDraft.batchLot.trim().toUpperCase() === 'DEFAULT' ||
+                  !editLineDraft.unitsPerCarton ||
+                  editLineDraft.unitsOrdered <= 0
+                }
+                className="gap-2"
+              >
+                {editLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Advance Stage Modal */}
       {advanceModalOpen && nextStage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -3140,6 +3707,8 @@ export default function PurchaseOrderDetailPage() {
             ? 'Cancel Order'
             : confirmDialog.type === 'reject'
               ? 'Mark Rejected'
+              : confirmDialog.type === 'delete-line'
+                ? 'Remove Line'
               : 'Confirm'
         }
         cancelText="Go Back"
