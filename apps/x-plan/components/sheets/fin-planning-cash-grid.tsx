@@ -554,14 +554,16 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
         return;
       }
 
+      const jump = e.ctrlKey || e.metaKey;
+
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        moveActiveCell(1, 0, { extendSelection: e.shiftKey });
+        moveActiveCell(jump ? data.length : 1, 0, { extendSelection: e.shiftKey });
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        moveActiveCell(-1, 0, { extendSelection: e.shiftKey });
+        moveActiveCell(jump ? -data.length : -1, 0, { extendSelection: e.shiftKey });
         return;
       }
       if (e.key === 'Tab') {
@@ -571,12 +573,12 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault();
-        moveActiveCell(0, 1, { extendSelection: e.shiftKey });
+        moveActiveCell(0, jump ? columnKeys.length : 1, { extendSelection: e.shiftKey });
         return;
       }
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        moveActiveCell(0, -1, { extendSelection: e.shiftKey });
+        moveActiveCell(0, jump ? -columnKeys.length : -1, { extendSelection: e.shiftKey });
         return;
       }
       if (e.key === 'Escape') {
@@ -586,6 +588,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
     },
     [
       activeCell,
+      columnKeys.length,
       copySelectionToClipboard,
       data,
       editingCell,
