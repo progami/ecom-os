@@ -111,10 +111,12 @@ jobs:
 
   build-metadata:
     needs: detect-changes
-    if: github.event_name == 'push' && needs.detect-changes.outputs.any_app == 'true'
+    if: (github.event_name == 'push' && needs.detect-changes.outputs.any_app == 'true') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      TARGET_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.ref_name }}
     outputs:
       version: ${{ steps.meta.outputs.version }}
       version_url: ${{ steps.meta.outputs.version_url }}
@@ -126,6 +128,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.ref_name }}
 
       - name: Compute build metadata
         id: meta
@@ -161,7 +164,12 @@ jobs:
             ' | tr -d '\r'
           )"
 
-          if [[ "${GITHUB_REF_NAME}" == "main" ]] && [[ -z "${remote_semver_tags//[[:space:]]/}" ]]; then
+          is_release_run="false"
+          if [[ "$TARGET_ENV" == "main" && "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            is_release_run="true"
+          fi
+
+          if [[ "$is_release_run" == "true" ]] && [[ -z "${remote_semver_tags//[[:space:]]/}" ]]; then
             echo "::error::No remote semver tags discovered; refusing to create a v0.0.x release."
             exit 1
           fi
@@ -179,7 +187,7 @@ jobs:
           if [[ -n "$exact_tag" ]]; then
             version="${exact_tag#v}"
             tag="$exact_tag"
-          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+          else
             if [[ -n "$base_tag" ]]; then
               base_version="${base_tag#v}"
               if [[ -z "$base_sha" ]]; then
@@ -247,22 +255,20 @@ jobs:
               tag="v${version}"
             done
 
-            create_release="true"
-          else
-            if [[ -n "$base_tag" ]]; then
-              base_version="${base_tag#v}"
-            else
-              base_version="0.0.0"
+            if [[ "$is_release_run" == "true" ]]; then
+              create_release="true"
             fi
-
-            version="${base_version}"
-            tag="v${base_version}"
           fi
 
-          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+          use_release_url="false"
+          if [[ "$TARGET_ENV" == "main" ]] && [[ -n "$exact_tag" || "$create_release" == "true" ]]; then
+            use_release_url="true"
+          fi
+
+          if [[ "$use_release_url" == "true" ]]; then
             version_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
           else
-            version_url="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+            version_url="https://github.com/${GITHUB_REPOSITORY}/commit/${head_sha}"
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -273,7 +279,7 @@ jobs:
           echo "create_release=$create_release" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release (main only)
-        if: github.ref_name == 'main' && steps.meta.outputs.create_release == 'true'
+        if: github.event_name == 'push' && github.ref_name == 'main' && steps.meta.outputs.create_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
@@ -313,7 +319,9 @@ jobs:
           TARGET_ENV="${{ github.ref_name }}"
 
           declare -a apps=()
-          if [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+          if [[ "$TARGET_ENV" == "main" ]]; then
+            apps=(ecomos wms website xplan hrms)
+          elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
             apps=(ecomos wms website xplan hrms)
           else
             [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
@@ -349,7 +357,7 @@ jobs:
   # MANUAL DEPLOY - For workflow_dispatch
   # ===========================================
   manual-deploy:
-    needs: detect-changes
+    needs: [detect-changes, build-metadata]
     if: github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
     steps:
@@ -360,6 +368,11 @@ jobs:
 
       - name: Deploy selected app(s)
         shell: bash
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: |
           set -euo pipefail
           if command -v caffeinate >/dev/null 2>&1; then
@@ -372,7 +385,9 @@ jobs:
           target_env="${{ inputs.environment }}"
 
           declare -a apps=()
-          if [[ -n "$requested_app" ]]; then
+          if [[ "$target_env" == "main" ]]; then
+            apps=(ecomos wms website xplan hrms)
+          elif [[ -n "$requested_app" ]]; then
             apps=("$requested_app")
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
             apps=(ecomos wms website xplan hrms)
