@@ -1,6 +1,6 @@
 # @ecom-os/wms
 
-Warehouse Management System powering inventory, billing, and operations for Ecom OS.
+Talos WMS (Warehouse Management System) powering inventory, billing, and operations for Ecom OS.
 
 ## Local Development
 - Install dependencies from the monorepo root with `pnpm install`.
