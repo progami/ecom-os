@@ -9,6 +9,7 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
   type KeyboardEvent,
+  type PointerEvent,
 } from 'react';
 import { toast } from 'sonner';
 import Flatpickr from 'react-flatpickr';
@@ -366,27 +367,41 @@ export function CustomPurchasePaymentsGrid({
     [],
   );
 
-  const selectCell = useCallback(
-    (row: PurchasePaymentRow, column: ColumnDef) => {
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (editingCell) return;
+      tableScrollRef.current?.focus();
+
+      const row = data[rowIndex];
+      const column = COLUMNS[colIndex];
+      if (!row || !column) return;
+
       onSelectOrder?.(row.purchaseOrderId);
       setSelectedPaymentId(row.id);
-      tableScrollRef.current?.focus();
       setActiveCell({ rowId: row.id, colKey: column.key });
 
-      const rowIndex = data.findIndex((item) => item.id === row.id);
-      const colIndex = COLUMNS.findIndex((item) => item.key === column.key);
-      if (rowIndex < 0 || colIndex < 0) {
-        selectionAnchorRef.current = null;
-        setSelection(null);
+      const coords = { row: rowIndex, col: colIndex };
+      if (event.shiftKey && selectionAnchorRef.current) {
+        setSelection({ from: selectionAnchorRef.current, to: coords });
         return;
       }
 
-      const coords = { row: rowIndex, col: colIndex };
       selectionAnchorRef.current = coords;
       setSelection({ from: coords, to: coords });
     },
-    [data, onSelectOrder],
+    [data, editingCell, onSelectOrder],
   );
+
+  const handlePointerMove = useCallback(
+    (event: PointerEvent<HTMLTableCellElement>, rowIndex: number, colIndex: number) => {
+      if (!event.buttons) return;
+      if (!selectionAnchorRef.current) return;
+      setSelection({ from: selectionAnchorRef.current, to: { row: rowIndex, col: colIndex } });
+    },
+    [],
+  );
+
+  const handlePointerUp = useCallback(() => {}, []);
 
   const cancelEditing = () => {
     setIsDatePickerOpen(false);
@@ -601,10 +616,6 @@ export function CustomPurchasePaymentsGrid({
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setEditValue(e.target.value);
-  };
-
-  const handleCellClick = (row: PurchasePaymentRow, column: ColumnDef) => {
-    selectCell(row, column);
   };
 
   const handleCellBlur = () => {
@@ -1216,24 +1227,19 @@ export function CustomPurchasePaymentsGrid({
         return;
       }
 
-      if (event.key === 'ArrowDown') {
+      const isArrowKey = ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(event.key);
+      if (isArrowKey) {
         event.preventDefault();
-        moveSelection(1, 0, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        moveSelection(-1, 0, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        moveSelection(0, 1, { extendSelection: event.shiftKey });
-        return;
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault();
-        moveSelection(0, -1, { extendSelection: event.shiftKey });
+        const jump = event.ctrlKey || event.metaKey;
+        if (event.key === 'ArrowDown') {
+          moveSelection(jump ? data.length : 1, 0, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowUp') {
+          moveSelection(jump ? -data.length : -1, 0, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowRight') {
+          moveSelection(0, jump ? COLUMNS.length : 1, { extendSelection: event.shiftKey });
+        } else if (event.key === 'ArrowLeft') {
+          moveSelection(0, jump ? -COLUMNS.length : -1, { extendSelection: event.shiftKey });
+        }
         return;
       }
     },
@@ -1252,7 +1258,6 @@ export function CustomPurchasePaymentsGrid({
 
   const handleTableKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.target !== event.currentTarget) return;
       handleGridKeyDown(event);
     },
     [handleGridKeyDown],
@@ -1397,10 +1402,9 @@ export function CustomPurchasePaymentsGrid({
         className={cellClassName}
         style={{ width: column.width, minWidth: column.width, boxShadow }}
         title={showPlaceholder ? undefined : displayValue || undefined}
-        onClick={(event) => {
-          event.stopPropagation();
-          handleCellClick(row, column);
-        }}
+        onPointerDown={(event) => handlePointerDown(event, rowIndex, colIndex)}
+        onPointerMove={(event) => handlePointerMove(event, rowIndex, colIndex)}
+        onPointerUp={handlePointerUp}
         onDoubleClick={(event) => {
           event.stopPropagation();
           if (!column.editable) return;
