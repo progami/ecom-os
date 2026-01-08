@@ -14,7 +14,6 @@ import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/re
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -1048,7 +1047,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                     const displayValue = formatDisplayValue(rawValue, config.format);
 
                     const cellContent = isEditing ? (
-                      <Input
+                      <input
                         autoFocus
                         value={editingCell.value}
                         onChange={(e) =>
@@ -1071,7 +1070,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                             cancelEditing();
                           }
                         }}
-                        className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent p-0 text-right text-sm font-medium shadow-none focus:bg-background focus:outline-none"
                       />
                     ) : (
                       <span
