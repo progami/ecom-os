@@ -1033,7 +1033,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                                 : 'bg-card',
                             isPinned && 'sticky z-10',
                             colIndex === 1 && 'border-r-2',
-                            config.editable && 'cursor-text font-medium bg-accent/50',
+                            config.editable &&
+                              'cursor-text font-medium bg-cyan-50/80 dark:bg-cyan-950/40',
                             hasInbound &&
                               !isPinned &&
                               'bg-success-100/90 dark:bg-success-500/15 dark:ring-1 dark:ring-inset dark:ring-success-400/25',
