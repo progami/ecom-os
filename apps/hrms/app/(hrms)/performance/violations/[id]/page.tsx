@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import {
   ApiError,
   DisciplinaryActionsApi,
@@ -12,21 +16,70 @@ import {
 } from '@/lib/api-client'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
-import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { Alert } from '@/components/ui/alert'
-import { Card } from '@/components/ui/card'
+import { Card, CardDivider } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Alert } from '@/components/ui/alert'
+import { Badge, StatusBadge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { NativeSelect } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { NativeSelect } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { WorkflowTimeline } from '@/components/workflow/WorkflowTimeline'
+import {
+  ArrowLeftIcon,
+  ExclamationTriangleIcon,
+  PencilIcon,
+  UserIcon,
+  XIcon,
+} from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
 import {
   DISCIPLINARY_ACTION_TYPE_LABELS,
+  DISCIPLINARY_ACTION_TYPE_OPTIONS,
+  DISCIPLINARY_STATUS_OPTIONS,
   VALUE_BREACH_LABELS,
+  VALUE_BREACH_OPTIONS,
+  VIOLATION_REASON_GROUPS,
   VIOLATION_REASON_LABELS,
   VIOLATION_TYPE_LABELS,
+  VIOLATION_TYPE_OPTIONS,
 } from '@/lib/domain/disciplinary/constants'
+
+const severityOptions = [
+  { value: 'MINOR', label: 'Minor' },
+  { value: 'MODERATE', label: 'Moderate' },
+  { value: 'MAJOR', label: 'Major' },
+  { value: 'CRITICAL', label: 'Critical' },
+]
+
+const EditDisciplinarySchema = z.object({
+  violationType: z.string().min(1, 'Violation type is required'),
+  violationReason: z.string().min(1, 'Violation reason is required'),
+  valuesBreached: z.array(z.string()).default([]),
+  severity: z.string().min(1, 'Severity is required'),
+  incidentDate: z.string().min(1, 'Incident date is required'),
+  description: z.string().min(1, 'Description is required'),
+  witnesses: z.string().optional().nullable(),
+  evidence: z.string().optional().nullable(),
+  actionTaken: z.string().min(1, 'Action taken is required'),
+  actionDate: z.string().optional().nullable(),
+  actionDetails: z.string().optional().nullable(),
+  followUpDate: z.string().optional().nullable(),
+  followUpNotes: z.string().optional().nullable(),
+  status: z.string().min(1, 'Status is required'),
+  resolution: z.string().optional().nullable(),
+})
+
+type FormData = z.infer<typeof EditDisciplinarySchema>
 
 type NotesDialogState = {
   actionId:
@@ -125,8 +178,11 @@ export default function ViolationWorkflowPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<string[] | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
   const [submitting, setSubmitting] = useState(false)
+  const [selectedValues, setSelectedValues] = useState<string[]>([])
 
   const [notesDialog, setNotesDialog] = useState<NotesDialogState | null>(null)
   const [notesDraft, setNotesDraft] = useState('')
@@ -140,6 +196,16 @@ export default function ViolationWorkflowPage() {
   const [appealDecision, setAppealDecision] = useState<AppealDecision>('UPHELD')
   const [appealDecisionDraft, setAppealDecisionDraft] = useState('')
   const [appealDecisionError, setAppealDecisionError] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors, isSubmitting: isSaving },
+  } = useForm<FormData>({
+    resolver: zodResolver(EditDisciplinarySchema),
+  })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -156,6 +222,26 @@ export default function ViolationWorkflowPage() {
       setDto(workflow)
       setRecord(raw)
       setMe(meData)
+      setSelectedValues(raw.valuesBreached ?? [])
+
+      // Initialize form
+      reset({
+        violationType: raw.violationType,
+        violationReason: raw.violationReason,
+        valuesBreached: raw.valuesBreached ?? [],
+        severity: raw.severity,
+        incidentDate: raw.incidentDate?.split('T')[0] ?? '',
+        description: raw.description,
+        witnesses: raw.witnesses,
+        evidence: raw.evidence,
+        actionTaken: raw.actionTaken,
+        actionDate: raw.actionDate?.split('T')[0] ?? '',
+        actionDetails: raw.actionDetails,
+        followUpDate: raw.followUpDate?.split('T')[0] ?? '',
+        followUpNotes: raw.followUpNotes,
+        status: raw.status,
+        resolution: raw.resolution,
+      })
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load violation'
       setError(message)
@@ -166,7 +252,7 @@ export default function ViolationWorkflowPage() {
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, reset])
 
   useEffect(() => {
     void load()
@@ -176,6 +262,63 @@ export default function ViolationWorkflowPage() {
     if (!me || !record) return false
     return Boolean(me.isHR || me.isSuperAdmin || (record.createdById && record.createdById === me.id))
   }, [me, record])
+
+  const toggleValue = (value: string) => {
+    const newValues = selectedValues.includes(value)
+      ? selectedValues.filter((v) => v !== value)
+      : [...selectedValues, value]
+    setSelectedValues(newValues)
+    setValue('valuesBreached', newValues)
+  }
+
+  const onSave = async (data: FormData) => {
+    if (!record || !canEdit) return
+
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const updated = await DisciplinaryActionsApi.update(id, {
+        ...data,
+        witnesses: data.witnesses ?? null,
+        evidence: data.evidence ?? null,
+        actionDate: data.actionDate ?? null,
+        actionDetails: data.actionDetails ?? null,
+        followUpDate: data.followUpDate ?? null,
+        followUpNotes: data.followUpNotes ?? null,
+        resolution: data.resolution ?? null,
+      })
+      setRecord(updated)
+      setIsEditing(false)
+      setSuccessMessage('Violation record updated')
+    } catch (e: any) {
+      setError(e.message || 'Failed to save violation')
+    }
+  }
+
+  const cancelEdit = () => {
+    if (!record) return
+    setSelectedValues(record.valuesBreached ?? [])
+    reset({
+      violationType: record.violationType,
+      violationReason: record.violationReason,
+      valuesBreached: record.valuesBreached ?? [],
+      severity: record.severity,
+      incidentDate: record.incidentDate?.split('T')[0] ?? '',
+      description: record.description,
+      witnesses: record.witnesses,
+      evidence: record.evidence,
+      actionTaken: record.actionTaken,
+      actionDate: record.actionDate?.split('T')[0] ?? '',
+      actionDetails: record.actionDetails,
+      followUpDate: record.followUpDate?.split('T')[0] ?? '',
+      followUpNotes: record.followUpNotes,
+      status: record.status,
+      resolution: record.resolution,
+    })
+    setIsEditing(false)
+    setError(null)
+  }
 
   const onAction = useCallback(
     async (actionId: ActionId) => {
@@ -188,7 +331,7 @@ export default function ViolationWorkflowPage() {
         if (e instanceof ApiError && Array.isArray(e.body?.details)) {
           setError(e.body?.error || 'Validation failed')
           setErrorDetails(
-            e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim()),
+            e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim())
           )
           return
         }
@@ -255,7 +398,7 @@ export default function ViolationWorkflowPage() {
         setSubmitting(false)
       }
     },
-    [id, load, record],
+    [id, load, record]
   )
 
   const submitNotes = useCallback(async () => {
@@ -274,17 +417,15 @@ export default function ViolationWorkflowPage() {
 
     try {
       const endpoint =
-        notesDialog.actionId === 'disciplinary.hrApprove' || notesDialog.actionId === 'disciplinary.hrReject'
+        notesDialog.actionId === 'disciplinary.hrApprove' ||
+        notesDialog.actionId === 'disciplinary.hrReject'
           ? 'hr-review'
           : 'super-admin-review'
 
-      await postJson(
-        `/api/disciplinary-actions/${encodeURIComponent(id)}/${endpoint}`,
-        {
-          approved: notesDialog.approved,
-          notes: notes ? notes : null,
-        },
-      )
+      await postJson(`/api/disciplinary-actions/${encodeURIComponent(id)}/${endpoint}`, {
+        approved: notesDialog.approved,
+        notes: notes ? notes : null,
+      })
 
       setNotesDialog(null)
       setNotesDraft('')
@@ -293,7 +434,7 @@ export default function ViolationWorkflowPage() {
       if (e instanceof ApiError && Array.isArray(e.body?.details)) {
         setError(e.body?.error || 'Validation failed')
         setErrorDetails(
-          e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim()),
+          e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim())
         )
         return
       }
@@ -373,7 +514,11 @@ export default function ViolationWorkflowPage() {
     if (!record) return null
 
     const hrStatus =
-      record.hrApproved === true ? 'Approved' : record.hrApproved === false ? 'Changes requested' : 'Pending'
+      record.hrApproved === true
+        ? 'Approved'
+        : record.hrApproved === false
+          ? 'Changes requested'
+          : 'Pending'
 
     const adminStatus =
       record.superAdminApproved === true
@@ -382,13 +527,14 @@ export default function ViolationWorkflowPage() {
           ? 'Changes requested'
           : 'Pending'
 
-    const ackStatus = record.employeeAcknowledged && record.managerAcknowledged
-      ? 'Complete'
-      : record.employeeAcknowledged
-        ? 'Waiting for manager'
-        : record.managerAcknowledged
-          ? 'Waiting for employee'
-          : 'Waiting for acknowledgements'
+    const ackStatus =
+      record.employeeAcknowledged && record.managerAcknowledged
+        ? 'Complete'
+        : record.employeeAcknowledged
+          ? 'Waiting for manager'
+          : record.managerAcknowledged
+            ? 'Waiting for employee'
+            : 'Waiting for acknowledgements'
 
     const appealStatus = record.appealedAt
       ? record.appealResolvedAt
@@ -420,244 +566,593 @@ export default function ViolationWorkflowPage() {
     }
   }, [record])
 
+  // Workflow data
+  const stages = dto?.workflow?.stages ?? []
+  const timeline = dto?.timeline ?? []
+  const actions = dto?.actions ?? { primary: null, secondary: [], more: [] }
+
   if (loading) {
     return (
-      <Card padding="lg">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-muted rounded w-1/3" />
-          <div className="h-4 bg-muted rounded w-2/3" />
-          <div className="h-40 bg-muted rounded" />
-        </div>
-      </Card>
+      <div className="space-y-6">
+        <Link
+          href="/performance/violations"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back to Violations
+        </Link>
+        <Card padding="lg">
+          <div className="animate-pulse space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-full bg-muted" />
+              <div className="space-y-2 flex-1">
+                <div className="h-5 bg-muted rounded w-1/3" />
+                <div className="h-4 bg-muted rounded w-1/2" />
+              </div>
+            </div>
+            <div className="h-40 bg-muted rounded" />
+          </div>
+        </Card>
+      </div>
     )
   }
 
   if (!dto || !record) {
     return (
-      <Card padding="lg">
-        <p className="text-sm font-medium text-foreground">Violation</p>
-        <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
-        <div className="mt-4">
-          <Button variant="secondary" href="/performance/violations">
-            Back to Violations
-          </Button>
-        </div>
-      </Card>
+      <div className="space-y-6">
+        <Link
+          href="/performance/violations"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back to Violations
+        </Link>
+        <Card padding="lg">
+          <p className="text-sm font-medium text-foreground">Violation</p>
+          <p className="text-sm text-muted-foreground mt-1">{error ?? 'Not found'}</p>
+        </Card>
+      </div>
     )
   }
 
   return (
     <>
-      {error ? (
-        <Alert
-          variant="error"
-          className="mb-6"
-          title={errorDetails?.length ? error : undefined}
-          onDismiss={() => {
-            setError(null)
-            setErrorDetails(null)
-          }}
+      <div className="space-y-6">
+        {/* Back link */}
+        <Link
+          href="/performance/violations"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          {errorDetails?.length ? (
-            <div className="space-y-3">
+          <ArrowLeftIcon className="h-4 w-4" />
+          Back to Violations
+        </Link>
+
+        {/* Alerts */}
+        {error && (
+          <Alert
+            variant="error"
+            title={errorDetails?.length ? error : undefined}
+            onDismiss={() => {
+              setError(null)
+              setErrorDetails(null)
+            }}
+          >
+            {errorDetails?.length ? (
               <ul className="list-disc pl-5 space-y-1">
                 {errorDetails.map((d, idx) => (
                   <li key={`${idx}:${d}`}>{d}</li>
                 ))}
               </ul>
-              {canEdit ? (
-                <div>
-                  <Button variant="secondary" href={`/performance/violations/${id}/edit`}>
-                    Edit record
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            error
-          )}
-        </Alert>
-      ) : null}
+            ) : (
+              error
+            )}
+          </Alert>
+        )}
 
-      <WorkflowRecordLayout
-        data={dto}
-        backHref="/performance/violations"
-        onAction={onAction}
-        headerActions={
-          canEdit ? (
-            <Button variant="secondary" href={`/performance/violations/${id}/edit`}>
-              Edit
-            </Button>
-          ) : null
-        }
-      >
-        <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-          <Card padding="lg" className="relative overflow-hidden border-danger-200/60">
-            <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(239,68,68,0.10)_0%,transparent_55%)]" />
-            <div className="relative">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold tracking-[0.2em] text-danger-700 uppercase">
-                    Violation file
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                      {record.employee?.firstName} {record.employee?.lastName}
-                    </span>{' '}
-                    • {record.employee?.position} • {record.employee?.department}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[11px] text-muted-foreground">Record ID</p>
-                  <p className="mt-1 font-mono text-xs text-foreground">{record.id}</p>
-                </div>
-              </div>
+        {successMessage && (
+          <Alert variant="success" onDismiss={() => setSuccessMessage(null)}>
+            {successMessage}
+          </Alert>
+        )}
 
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Type</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {toLabel(VIOLATION_TYPE_LABELS as Record<string, string>, record.violationType)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Reason</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {toLabel(VIOLATION_REASON_LABELS as Record<string, string>, record.violationReason)}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Severity</p>
-                  <p className="mt-1 text-sm font-semibold text-foreground">
-                    {record.severity.replaceAll('_', ' ')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card padding="lg" className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(15,23,42,0.08)_0%,transparent_55%)]" />
-            <div className="relative space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm font-semibold text-foreground">Narrative</p>
-                <p className="text-xs text-muted-foreground">
-                  Incident: <span className="text-foreground">{formatDate(record.incidentDate)}</span>
-                </p>
-              </div>
-              <p className="text-sm text-foreground whitespace-pre-line">{record.description}</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Reported by</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {record.createdBy ? `${record.createdBy.firstName} ${record.createdBy.lastName}` : record.reportedBy}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">Reported: {formatDate(record.reportedDate)}</p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Action taken</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">
-                    {toLabel(DISCIPLINARY_ACTION_TYPE_LABELS as Record<string, string>, record.actionTaken)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Action date: {record.actionDate ? formatDate(record.actionDate) : '—'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {record.valuesBreached?.length ? (
-            <Card padding="lg">
-              <p className="text-sm font-semibold text-foreground">Values breached</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Used for escalation rules and coaching focus.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {record.valuesBreached.map((value) => (
-                  <span
-                    key={value}
-                    className="inline-flex items-center rounded-full border border-danger-200 bg-danger-50 px-2.5 py-1 text-xs font-semibold text-danger-800"
-                  >
-                    {toLabel(VALUE_BREACH_LABELS as Record<string, string>, value)}
-                  </span>
-                ))}
-              </div>
-            </Card>
-          ) : null}
-
-          {(record.witnesses || record.evidence) ? (
-            <Card padding="lg">
-              <p className="text-sm font-semibold text-foreground">Evidence & witnesses</p>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Witnesses</p>
-                  <p className="mt-2 text-sm text-foreground whitespace-pre-line">
-                    {record.witnesses || '—'}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/60 bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground">Evidence</p>
-                  <p className="mt-2 text-sm text-foreground whitespace-pre-line">
-                    {record.evidence || '—'}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          ) : null}
-
-          <Card padding="lg">
-            <p className="text-sm font-semibold text-foreground">Approvals & appeal</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              This record loops until it gets approved (or appeal overturns it).
-            </p>
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              {approvalBlocks ? (
-                <>
-                  <NoteSection
-                    title="HR review"
-                    status={approvalBlocks.hr.status}
-                    when={approvalBlocks.hr.when}
-                    note={approvalBlocks.hr.note}
-                  />
-                  <NoteSection
-                    title="Final approval"
-                    status={approvalBlocks.admin.status}
-                    when={approvalBlocks.admin.when}
-                    note={approvalBlocks.admin.note}
-                  />
-                  <NoteSection
-                    title="Acknowledgements"
-                    status={approvalBlocks.ack.status}
-                    when={approvalBlocks.ack.when}
-                  />
-                  <NoteSection
-                    title="Appeal"
-                    status={approvalBlocks.appeal.status}
-                    when={approvalBlocks.appeal.when}
-                    note={approvalBlocks.appeal.note}
-                  />
-                  {record.appealResolvedAt || record.appealResolution ? (
-                    <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
-                      <p className="text-sm font-semibold text-foreground">Appeal decision</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {record.appealResolvedAt ? formatWhen(record.appealResolvedAt) : '—'} •{' '}
-                        {record.appealStatus ?? '—'}
-                      </p>
-                      {record.appealResolution ? (
-                        <p className="mt-3 text-sm text-foreground whitespace-pre-line">
-                          {record.appealResolution}
+        {/* Main layout */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Main content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Header card */}
+            <Card padding="lg" className="relative overflow-hidden border-destructive/20">
+              <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 to-transparent" />
+              <div className="relative">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-destructive/20 to-destructive/5 ring-2 ring-destructive/20">
+                    <ExclamationTriangleIcon className="h-7 w-7 text-destructive" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold tracking-wider text-destructive uppercase">
+                          Violation File
                         </p>
-                      ) : null}
+                        <h1 className="text-lg font-semibold text-foreground mt-1">
+                          {record.employee?.firstName} {record.employee?.lastName}
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                          {record.employee?.position}
+                          {record.employee?.department && ` • ${record.employee.department}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={record.status.replaceAll('_', ' ')} />
+                        {canEdit && !isEditing && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setIsEditing(true)}
+                            icon={<PencilIcon className="h-4 w-4" />}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          </Card>
-        </div>
-      </WorkflowRecordLayout>
 
+                    {/* Workflow stages */}
+                    {stages.length > 0 && (
+                      <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+                        {stages.map((stage, idx) => (
+                          <div key={stage.id ?? idx} className="flex items-center gap-2">
+                            <div
+                              className={cn(
+                                'h-2 w-2 rounded-full shrink-0',
+                                stage.status === 'completed' && 'bg-success',
+                                stage.status === 'current' && 'bg-accent',
+                                stage.status === 'upcoming' && 'bg-border'
+                              )}
+                            />
+                            <span
+                              className={cn(
+                                'text-xs whitespace-nowrap',
+                                stage.status === 'upcoming' ? 'text-muted-foreground' : 'text-foreground'
+                              )}
+                            >
+                              {stage.label}
+                            </span>
+                            {idx < stages.length - 1 && <div className="w-6 h-px bg-border" />}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Edit Mode or View Mode */}
+            {isEditing ? (
+              /* Edit Mode */
+              <form onSubmit={handleSubmit(onSave)}>
+                <Card padding="lg">
+                  <div className="flex items-center justify-between pb-6 border-b border-border">
+                    <h3 className="text-sm font-semibold text-foreground">Edit Violation Record</h3>
+                    <Button type="button" variant="ghost" size="icon" onClick={cancelEdit}>
+                      <XIcon className="h-5 w-5" />
+                    </Button>
+                  </div>
+
+                  <div className="pt-6 space-y-6">
+                    {/* Incident Details */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Incident Details
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Violation Type <span className="text-destructive">*</span></Label>
+                          <NativeSelect
+                            {...register('violationType')}
+                            className={cn(errors.violationType && 'border-destructive')}
+                          >
+                            <option value="">Select type...</option>
+                            {VIOLATION_TYPE_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </NativeSelect>
+                          {errors.violationType && (
+                            <p className="text-xs text-destructive">{errors.violationType.message}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Severity <span className="text-destructive">*</span></Label>
+                          <NativeSelect
+                            {...register('severity')}
+                            className={cn(errors.severity && 'border-destructive')}
+                          >
+                            {severityOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </NativeSelect>
+                          {errors.severity && (
+                            <p className="text-xs text-destructive">{errors.severity.message}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Incident Date <span className="text-destructive">*</span></Label>
+                          <Input
+                            {...register('incidentDate')}
+                            type="date"
+                            className={cn(errors.incidentDate && 'border-destructive')}
+                          />
+                          {errors.incidentDate && (
+                            <p className="text-xs text-destructive">{errors.incidentDate.message}</p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Status <span className="text-destructive">*</span></Label>
+                          <NativeSelect
+                            {...register('status')}
+                            className={cn(errors.status && 'border-destructive')}
+                          >
+                            <option value="">Select status...</option>
+                            {DISCIPLINARY_STATUS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </NativeSelect>
+                          {errors.status && (
+                            <p className="text-xs text-destructive">{errors.status.message}</p>
+                          )}
+                        </div>
+
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label>Violation Reason <span className="text-destructive">*</span></Label>
+                          <NativeSelect
+                            {...register('violationReason')}
+                            className={cn(errors.violationReason && 'border-destructive')}
+                          >
+                            <option value="">Select reason...</option>
+                            {VIOLATION_REASON_GROUPS.map((group) => (
+                              <optgroup key={group.label} label={group.label}>
+                                {group.options.map((r) => (
+                                  <option key={r.value} value={r.value}>{r.label}</option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </NativeSelect>
+                          {errors.violationReason && (
+                            <p className="text-xs text-destructive">{errors.violationReason.message}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardDivider />
+
+                    {/* Description */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Description
+                      </h4>
+                      <div className="space-y-2">
+                        <Textarea
+                          {...register('description')}
+                          rows={4}
+                          placeholder="Full description of the incident..."
+                          className={cn('resize-none', errors.description && 'border-destructive')}
+                        />
+                        {errors.description && (
+                          <p className="text-xs text-destructive">{errors.description.message}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <CardDivider />
+
+                    {/* Values Breached */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Values Breached
+                      </h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {VALUE_BREACH_OPTIONS.map((opt) => (
+                          <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox
+                              checked={selectedValues.includes(opt.value)}
+                              onCheckedChange={() => toggleValue(opt.value)}
+                            />
+                            <span className="text-sm text-foreground">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <CardDivider />
+
+                    {/* Evidence & Witnesses */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Evidence & Witnesses
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Witnesses</Label>
+                          <Input {...register('witnesses')} placeholder="Names of witnesses..." />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Evidence</Label>
+                          <Input {...register('evidence')} placeholder="Evidence details..." />
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardDivider />
+
+                    {/* Action Taken */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Action Taken
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Action <span className="text-destructive">*</span></Label>
+                          <NativeSelect
+                            {...register('actionTaken')}
+                            className={cn(errors.actionTaken && 'border-destructive')}
+                          >
+                            <option value="">Select action...</option>
+                            {DISCIPLINARY_ACTION_TYPE_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </NativeSelect>
+                          {errors.actionTaken && (
+                            <p className="text-xs text-destructive">{errors.actionTaken.message}</p>
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Action Date</Label>
+                          <Input {...register('actionDate')} type="date" />
+                        </div>
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label>Action Details</Label>
+                          <Textarea {...register('actionDetails')} rows={3} className="resize-none" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardDivider />
+
+                    {/* Follow-up & Resolution */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Follow-up & Resolution
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Follow-up Date</Label>
+                          <Input {...register('followUpDate')} type="date" />
+                        </div>
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label>Follow-up Notes</Label>
+                          <Textarea {...register('followUpNotes')} rows={3} className="resize-none" />
+                        </div>
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label>Resolution</Label>
+                          <Textarea {...register('resolution')} rows={3} className="resize-none" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-6 border-t border-border flex items-center justify-end gap-3">
+                      <Button type="button" variant="secondary" onClick={cancelEdit}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" loading={isSaving}>
+                        Save Changes
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              </form>
+            ) : (
+              /* View Mode */
+              <div className="space-y-6">
+                {/* Summary Card */}
+                <Card padding="lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <p className="text-xs font-medium text-muted-foreground">Type</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {toLabel(VIOLATION_TYPE_LABELS as Record<string, string>, record.violationType)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <p className="text-xs font-medium text-muted-foreground">Reason</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {toLabel(VIOLATION_REASON_LABELS as Record<string, string>, record.violationReason)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <p className="text-xs font-medium text-muted-foreground">Severity</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {record.severity.replaceAll('_', ' ')}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Narrative Card */}
+                <Card padding="lg">
+                  <div className="flex items-center justify-between gap-4 mb-4">
+                    <h3 className="text-sm font-semibold text-foreground">Narrative</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Incident: <span className="text-foreground">{formatDate(record.incidentDate)}</span>
+                    </p>
+                  </div>
+                  <p className="text-sm text-foreground whitespace-pre-line">{record.description}</p>
+
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <p className="text-xs font-medium text-muted-foreground">Reported by</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">
+                        {record.createdBy
+                          ? `${record.createdBy.firstName} ${record.createdBy.lastName}`
+                          : record.reportedBy}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Reported: {formatDate(record.reportedDate)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                      <p className="text-xs font-medium text-muted-foreground">Action taken</p>
+                      <p className="mt-1 text-sm font-medium text-foreground">
+                        {toLabel(DISCIPLINARY_ACTION_TYPE_LABELS as Record<string, string>, record.actionTaken)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Action date: {record.actionDate ? formatDate(record.actionDate) : '—'}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Values Breached */}
+                {record.valuesBreached?.length ? (
+                  <Card padding="lg">
+                    <h3 className="text-sm font-semibold text-foreground">Values Breached</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Used for escalation rules and coaching focus.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {record.valuesBreached.map((value) => (
+                        <span
+                          key={value}
+                          className="inline-flex items-center rounded-full border border-destructive/30 bg-destructive/5 px-2.5 py-1 text-xs font-semibold text-destructive"
+                        >
+                          {toLabel(VALUE_BREACH_LABELS as Record<string, string>, value)}
+                        </span>
+                      ))}
+                    </div>
+                  </Card>
+                ) : null}
+
+                {/* Evidence & Witnesses */}
+                {(record.witnesses || record.evidence) ? (
+                  <Card padding="lg">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Evidence & Witnesses</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                        <p className="text-xs font-medium text-muted-foreground">Witnesses</p>
+                        <p className="mt-2 text-sm text-foreground whitespace-pre-line">
+                          {record.witnesses || '—'}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
+                        <p className="text-xs font-medium text-muted-foreground">Evidence</p>
+                        <p className="mt-2 text-sm text-foreground whitespace-pre-line">
+                          {record.evidence || '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ) : null}
+
+                {/* Approvals & Appeal */}
+                <Card padding="lg">
+                  <h3 className="text-sm font-semibold text-foreground">Approvals & Appeal</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This record loops until it gets approved (or appeal overturns it).
+                  </p>
+                  <div className="mt-4 grid grid-cols-1 gap-4">
+                    {approvalBlocks ? (
+                      <>
+                        <NoteSection
+                          title="HR Review"
+                          status={approvalBlocks.hr.status}
+                          when={approvalBlocks.hr.when}
+                          note={approvalBlocks.hr.note}
+                        />
+                        <NoteSection
+                          title="Final Approval"
+                          status={approvalBlocks.admin.status}
+                          when={approvalBlocks.admin.when}
+                          note={approvalBlocks.admin.note}
+                        />
+                        <NoteSection
+                          title="Acknowledgements"
+                          status={approvalBlocks.ack.status}
+                          when={approvalBlocks.ack.when}
+                        />
+                        <NoteSection
+                          title="Appeal"
+                          status={approvalBlocks.appeal.status}
+                          when={approvalBlocks.appeal.when}
+                          note={approvalBlocks.appeal.note}
+                        />
+                        {record.appealResolvedAt || record.appealResolution ? (
+                          <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
+                            <p className="text-sm font-semibold text-foreground">Appeal Decision</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {record.appealResolvedAt ? formatWhen(record.appealResolvedAt) : '—'} •{' '}
+                              {record.appealStatus ?? '—'}
+                            </p>
+                            {record.appealResolution ? (
+                              <p className="mt-3 text-sm text-foreground whitespace-pre-line">
+                                {record.appealResolution}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                </Card>
+
+                {/* Workflow actions */}
+                {(actions.primary || actions.secondary.length > 0) && (
+                  <Card padding="md">
+                    <div className="flex items-center justify-end gap-3">
+                      {actions.secondary.map((action) => (
+                        <Button
+                          key={action.id}
+                          variant={action.variant === 'danger' ? 'danger' : 'secondary'}
+                          disabled={action.disabled}
+                          onClick={() => onAction(action.id)}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
+                      {actions.primary && (
+                        <Button
+                          variant={actions.primary.variant === 'danger' ? 'danger' : 'primary'}
+                          disabled={actions.primary.disabled}
+                          onClick={() => onAction(actions.primary!.id)}
+                        >
+                          {actions.primary.label}
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar - Timeline */}
+          <div className="space-y-6">
+            <Card padding="md">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Activity</h3>
+              {timeline.length > 0 ? (
+                <WorkflowTimeline items={timeline} />
+              ) : (
+                <p className="text-sm text-muted-foreground">No activity yet</p>
+              )}
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Notes Dialog */}
       <Dialog
         open={Boolean(notesDialog)}
         onOpenChange={(open) => {
@@ -676,7 +1171,9 @@ export default function ViolationWorkflowPage() {
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes {notesDialog?.required ? <span className="text-destructive">*</span> : null}</Label>
+            <Label htmlFor="notes">
+              Notes {notesDialog?.required ? <span className="text-destructive">*</span> : null}
+            </Label>
             <Textarea
               id="notes"
               value={notesDraft}
@@ -684,7 +1181,7 @@ export default function ViolationWorkflowPage() {
                 setNotesDraft(e.target.value)
                 setNotesError(null)
               }}
-              placeholder={notesDialog?.approved ? 'Optional…' : 'Be specific: what needs updating?'}
+              placeholder={notesDialog?.approved ? 'Optional...' : 'Be specific: what needs updating?'}
               className={cn(notesError && 'border-destructive')}
               rows={5}
             />
@@ -716,6 +1213,7 @@ export default function ViolationWorkflowPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Appeal Dialog */}
       <Dialog
         open={appealOpen}
         onOpenChange={(open) => {
@@ -729,9 +1227,11 @@ export default function ViolationWorkflowPage() {
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>{record?.status === 'APPEAL_PENDING_HR' ? 'Update appeal' : 'Submit appeal'}</DialogTitle>
+            <DialogTitle>
+              {record?.status === 'APPEAL_PENDING_HR' ? 'Update Appeal' : 'Submit Appeal'}
+            </DialogTitle>
             <DialogDescription>
-              Keep it factual. Include context, dates, and what outcome you’re requesting.
+              Keep it factual. Include context, dates, and what outcome you're requesting.
             </DialogDescription>
           </DialogHeader>
 
@@ -746,7 +1246,7 @@ export default function ViolationWorkflowPage() {
                 setAppealDraft(e.target.value)
                 setAppealError(null)
               }}
-              placeholder="Write your appeal…"
+              placeholder="Write your appeal..."
               className={cn(appealError && 'border-destructive')}
               rows={7}
             />
@@ -764,6 +1264,7 @@ export default function ViolationWorkflowPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Appeal Decision Dialog */}
       <Dialog
         open={appealDecisionOpen}
         onOpenChange={(open) => {
@@ -778,7 +1279,7 @@ export default function ViolationWorkflowPage() {
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Decide appeal (HR)</DialogTitle>
+            <DialogTitle>Decide Appeal (HR)</DialogTitle>
             <DialogDescription>
               If you uphold or modify the decision, the record returns to acknowledgement.
             </DialogDescription>
@@ -809,7 +1310,7 @@ export default function ViolationWorkflowPage() {
                   setAppealDecisionDraft(e.target.value)
                   setAppealDecisionError(null)
                 }}
-                placeholder="Explain the decision…"
+                placeholder="Explain the decision..."
                 className={cn(appealDecisionError && 'border-destructive')}
                 rows={6}
               />
@@ -824,20 +1325,20 @@ export default function ViolationWorkflowPage() {
               Cancel
             </Button>
             <Button disabled={submitting} onClick={() => void decideAppeal()}>
-              Confirm decision
+              Confirm Decision
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Working indicator */}
       {submitting ? (
         <div className="fixed inset-x-0 bottom-4 flex justify-center pointer-events-none">
           <div className="rounded-full border border-border bg-card px-4 py-2 text-xs text-muted-foreground shadow">
-            Working…
+            Working...
           </div>
         </div>
       ) : null}
     </>
   )
 }
-
