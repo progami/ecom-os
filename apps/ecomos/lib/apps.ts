@@ -84,7 +84,7 @@ const PORTAL_BASE_URL = resolvePortalBaseUrl()
 const BASE_APPS: AppBase[] = [
   {
     id: 'wms',
-    name: 'Talos WMS',
+    name: 'WMS',
     description: 'Inbound, outbound, inventory and reporting.',
     url: joinBaseUrl(PORTAL_BASE_URL, '/wms'),
     category: 'Ops',
@@ -102,6 +102,13 @@ const BASE_APPS: AppBase[] = [
     name: 'Website',
     description: 'Marketing website and CMS.',
     url: joinBaseUrl(PORTAL_BASE_URL, '/'),
+    category: 'Product',
+  },
+  {
+    id: 'chronos',
+    name: 'Chronos',
+    description: 'Scheduling and planning workspace.',
+    url: joinBaseUrl(PORTAL_BASE_URL, '/chronos'),
     category: 'Product',
   },
   {
