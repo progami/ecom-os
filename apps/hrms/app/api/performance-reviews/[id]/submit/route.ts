@@ -69,18 +69,30 @@ export async function POST(req: Request, context: RouteContext) {
     // Validate required fields are filled
     const validationErrors: string[] = []
 
-    if (!review.overallRating || review.overallRating < 1 || review.overallRating > 5) {
-      validationErrors.push('Overall rating must be between 1 and 5')
+    if (!review.overallRating || review.overallRating < 1 || review.overallRating > 10) {
+      validationErrors.push('Overall rating must be between 1 and 10')
     }
 
     // For quarterly reviews, require category ratings
     if (review.reviewType === 'QUARTERLY') {
-      if (!review.qualityOfWork) validationErrors.push('Quality of Work rating is required')
-      if (!review.productivity) validationErrors.push('Productivity rating is required')
-      if (!review.communication) validationErrors.push('Communication rating is required')
-      if (!review.teamwork) validationErrors.push('Teamwork rating is required')
-      if (!review.initiative) validationErrors.push('Initiative rating is required')
-      if (!review.attendance) validationErrors.push('Attendance rating is required')
+      if (!review.qualityOfWork || review.qualityOfWork < 1 || review.qualityOfWork > 10) {
+        validationErrors.push('Quality of Work rating must be between 1 and 10')
+      }
+      if (!review.productivity || review.productivity < 1 || review.productivity > 10) {
+        validationErrors.push('Productivity rating must be between 1 and 10')
+      }
+      if (!review.communication || review.communication < 1 || review.communication > 10) {
+        validationErrors.push('Communication rating must be between 1 and 10')
+      }
+      if (!review.teamwork || review.teamwork < 1 || review.teamwork > 10) {
+        validationErrors.push('Teamwork rating must be between 1 and 10')
+      }
+      if (!review.initiative || review.initiative < 1 || review.initiative > 10) {
+        validationErrors.push('Initiative rating must be between 1 and 10')
+      }
+      if (!review.attendance || review.attendance < 1 || review.attendance > 10) {
+        validationErrors.push('Attendance rating must be between 1 and 10')
+      }
     }
 
     if (validationErrors.length > 0) {

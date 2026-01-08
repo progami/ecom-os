@@ -791,16 +791,16 @@ model PerformanceReview {
   reviewerName    String
   roleTitle       String              // Employee role/job title at time of review
 
-  // Legacy ratings (1-5 scale) - kept for backwards compatibility
-  overallRating   Int                 // 1-5
-  qualityOfWork   Int?                // 1-5
-  productivity    Int?                // 1-5
-  communication   Int?                // 1-5
-  teamwork        Int?                // 1-5
-  initiative      Int?                // 1-5
-  attendance      Int?                // 1-5
+  // Ratings (1-10 scale)
+  overallRating   Int                 // 1-10
+  qualityOfWork   Int?                // 1-10
+  productivity    Int?                // 1-10
+  communication   Int?                // 1-10
+  teamwork        Int?                // 1-10
+  initiative      Int?                // 1-10
+  attendance      Int?                // 1-10
 
-  // Values-based ratings (1-5 scale) - Core Values System
+  // Values-based ratings (1-10 scale) - Core Values System
   ratingPrecision     Int?            // Attention to Detail (40% weight)
   ratingTransparency  Int?            // Honesty - Communication & Transparency (20% weight)
   ratingReliability   Int?            // Integrity - Reliability & Ethics (20% weight)
@@ -814,13 +814,13 @@ model PerformanceReview {
 
   // Computed values score (weighted average, may be capped by Values Veto)
   valuesScore         Float?
-  // Whether the Values Veto was applied (Honesty/Integrity < 3)
+  // Whether the Values Veto was applied (Honesty/Integrity < 6)
   valuesVetoApplied   Boolean         @default(false)
   valuesVetoReason    String?         // Explanation if veto applied
 
   // Required justification for low core values scores
-  lowHonestyJustification    String?  // Required if ratingTransparency < 3
-  lowIntegrityJustification  String?  // Required if ratingReliability < 3
+  lowHonestyJustification    String?  // Required if ratingTransparency < 6
+  lowIntegrityJustification  String?  // Required if ratingReliability < 6
 
   strengths       String?
   areasToImprove  String?
