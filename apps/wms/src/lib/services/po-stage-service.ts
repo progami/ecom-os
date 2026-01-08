@@ -767,7 +767,11 @@ export async function createPurchaseOrder(
   const prisma = await getTenantPrisma()
   let skuRecordsForLines: Array<{ id: string; skuCode: string }> = []
 
-  const computeCartonsOrdered = (line: { skuCode: string; unitsOrdered: number; unitsPerCarton: number }) => {
+  const computeCartonsOrdered = (line: {
+    skuCode: string
+    unitsOrdered: number
+    unitsPerCarton: number
+  }) => {
     const unitsOrdered = Number(line.unitsOrdered)
     const unitsPerCarton = Number(line.unitsPerCarton)
 
@@ -779,13 +783,7 @@ export async function createPurchaseOrder(
       throw new ValidationError(`Units per carton must be a positive integer for SKU ${line.skuCode}`)
     }
 
-    if (unitsOrdered % unitsPerCarton !== 0) {
-      throw new ValidationError(
-        `Units ordered must be a multiple of units per carton for SKU ${line.skuCode} (${unitsOrdered} ÷ ${unitsPerCarton})`
-      )
-    }
-
-    return unitsOrdered / unitsPerCarton
+    return Math.ceil(unitsOrdered / unitsPerCarton)
   }
 
   if (input.lines && input.lines.length > 0) {

@@ -50,6 +50,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { withBasePath } from '@/lib/utils/base-path'
+import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
 // 5-Stage State Machine Types
 type POStageStatus =
@@ -90,6 +91,69 @@ interface SkuSummary {
 interface BatchOption {
   batchCode: string
   unitsPerCarton: number | null
+  cartonDimensionsCm: string | null
+  cartonLengthCm: number | null
+  cartonWidthCm: number | null
+  cartonHeightCm: number | null
+  cartonWeightKg: number | null
+  packagingType: string | null
+}
+
+function buildBatchPackagingMeta(options: {
+  batch: BatchOption
+  unitsOrdered: number
+  unitsPerCarton: number | null
+}): { text: string; tone: 'muted' | 'warning' } | null {
+  const unitsOrdered = Number(options.unitsOrdered)
+  const unitsPerCarton = options.unitsPerCarton && options.unitsPerCarton > 0 ? options.unitsPerCarton : null
+  const cartons = unitsPerCarton && unitsOrdered > 0 ? Math.ceil(unitsOrdered / unitsPerCarton) : null
+
+  const cartonTriplet = resolveDimensionTripletCm({
+    lengthCm: options.batch.cartonLengthCm,
+    widthCm: options.batch.cartonWidthCm,
+    heightCm: options.batch.cartonHeightCm,
+    legacy: options.batch.cartonDimensionsCm,
+  })
+
+  const parts: string[] = []
+
+  if (!cartonTriplet) {
+    parts.push('Carton dims not set')
+
+    if (options.batch.cartonWeightKg) {
+      parts.push(`KG/ctn: ${options.batch.cartonWeightKg.toFixed(2)}`)
+      if (cartons) {
+        parts.push(`KG: ${(options.batch.cartonWeightKg * cartons).toFixed(2)}`)
+      }
+    }
+
+    if (options.batch.packagingType) {
+      parts.push(`Pkg: ${options.batch.packagingType}`)
+    }
+
+    return { tone: 'warning', text: parts.join(' • ') }
+  }
+
+  parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
+  const cbmPerCarton =
+    (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+  parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
+  if (cartons) {
+    parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
+  }
+
+  if (options.batch.cartonWeightKg) {
+    parts.push(`KG/ctn: ${options.batch.cartonWeightKg.toFixed(2)}`)
+    if (cartons) {
+      parts.push(`KG: ${(options.batch.cartonWeightKg * cartons).toFixed(2)}`)
+    }
+  }
+
+  if (options.batch.packagingType) {
+    parts.push(`Pkg: ${options.batch.packagingType}`)
+  }
+
+  return { tone: 'muted', text: parts.join(' • ') }
 }
 
 interface StageApproval {
@@ -842,6 +906,21 @@ export default function PurchaseOrderDetailPage() {
           }
           return null
         }
+        const coercePositiveNumber = (value: unknown): number | null => {
+          if (typeof value === 'number') {
+            return Number.isFinite(value) && value > 0 ? value : null
+          }
+          if (typeof value === 'string' && value.trim()) {
+            const parsed = Number(value.trim())
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+          }
+          return null
+        }
+        const coerceString = (value: unknown): string | null => {
+          if (typeof value !== 'string') return null
+          const trimmed = value.trim()
+          return trimmed ? trimmed : null
+        }
 
         const parsedBatches: BatchOption[] = batches
           .map((batch: Record<string, unknown>): BatchOption | null => {
@@ -853,6 +932,15 @@ export default function PurchaseOrderDetailPage() {
             return {
               batchCode,
               unitsPerCarton: coercePositiveInt(batch?.unitsPerCarton),
+              cartonDimensionsCm: coerceString(batch?.cartonDimensionsCm),
+              cartonLengthCm: coercePositiveNumber(batch?.cartonLengthCm),
+              cartonWidthCm: coercePositiveNumber(batch?.cartonWidthCm),
+              cartonHeightCm: coercePositiveNumber(batch?.cartonHeightCm),
+              cartonWeightKg: coercePositiveNumber(batch?.cartonWeightKg),
+              packagingType: (() => {
+                const raw = coerceString(batch?.packagingType)
+                return raw ? raw.toUpperCase() : null
+              })(),
             }
           })
           .filter((batch): batch is BatchOption => Boolean(batch))
@@ -1095,11 +1183,6 @@ export default function PurchaseOrderDetailPage() {
     const unitsPerCarton = newLineDraft.unitsPerCarton
     if (!unitsPerCarton || !Number.isInteger(unitsPerCarton) || unitsPerCarton <= 0) {
       toast.error('Please enter a valid units per carton value')
-      return
-    }
-
-    if (unitsOrdered % unitsPerCarton !== 0) {
-      toast.error('Units ordered must be divisible by units per carton')
       return
     }
 
@@ -1844,8 +1927,9 @@ export default function PurchaseOrderDetailPage() {
                             value={(() => {
                               if (!newLineDraft.unitsPerCarton) return '—'
                               if (newLineDraft.unitsOrdered <= 0) return '—'
-                              if (newLineDraft.unitsOrdered % newLineDraft.unitsPerCarton !== 0) return '—'
-                              return String(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
+                              return String(
+                                Math.ceil(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
+                              )
                             })()}
                             readOnly
                             disabled
@@ -1853,6 +1937,33 @@ export default function PurchaseOrderDetailPage() {
                           />
                         </div>
                       </div>
+                      {(() => {
+                        if (!newLineDraft.skuId || !newLineDraft.batchLot) return null
+                        const options = batchesBySkuId[newLineDraft.skuId] ?? []
+                        const batch =
+                          options.find(option => option.batchCode === newLineDraft.batchLot) ?? null
+                        if (!batch) return null
+
+                        const meta = buildBatchPackagingMeta({
+                          batch,
+                          unitsOrdered: newLineDraft.unitsOrdered,
+                          unitsPerCarton: newLineDraft.unitsPerCarton,
+                        })
+
+                        if (!meta) return null
+
+                        return (
+                          <p
+                            className={`mt-1 text-[11px] ${
+                              meta.tone === 'warning'
+                                ? 'text-amber-600'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {meta.text}
+                          </p>
+                        )
+                      })()}
 
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
