@@ -256,19 +256,45 @@ async function applyForSchema(
     `
       UPDATE purchase_order_lines pol
       SET
-        carton_dimensions_cm = COALESCE(pol.carton_dimensions_cm, b.carton_dimensions_cm, s.carton_dimensions_cm),
-        carton_length_cm = COALESCE(pol.carton_length_cm, b.carton_length_cm, s.carton_length_cm),
-        carton_width_cm = COALESCE(pol.carton_width_cm, b.carton_width_cm, s.carton_width_cm),
-        carton_height_cm = COALESCE(pol.carton_height_cm, b.carton_height_cm, s.carton_height_cm),
-        carton_weight_kg = COALESCE(pol.carton_weight_kg, b.carton_weight_kg, s.carton_weight_kg),
-        packaging_type = COALESCE(pol.packaging_type, b.packaging_type, s.packaging_type),
-        storage_cartons_per_pallet = COALESCE(pol.storage_cartons_per_pallet, b.storage_cartons_per_pallet),
-        shipping_cartons_per_pallet = COALESCE(pol.shipping_cartons_per_pallet, b.shipping_cartons_per_pallet)
-      FROM skus s
-      LEFT JOIN sku_batches b
-        ON b.sku_id = s.id
-       AND upper(b.batch_code) = upper(regexp_replace(pol.batch_lot, '^.* - ', ''))
-      WHERE upper(s.sku_code) = upper(pol.sku_code)
+        carton_dimensions_cm = COALESCE(
+          pol.carton_dimensions_cm,
+          src.batch_carton_dimensions_cm,
+          src.sku_carton_dimensions_cm
+        ),
+        carton_length_cm = COALESCE(pol.carton_length_cm, src.batch_carton_length_cm, src.sku_carton_length_cm),
+        carton_width_cm = COALESCE(pol.carton_width_cm, src.batch_carton_width_cm, src.sku_carton_width_cm),
+        carton_height_cm = COALESCE(pol.carton_height_cm, src.batch_carton_height_cm, src.sku_carton_height_cm),
+        carton_weight_kg = COALESCE(pol.carton_weight_kg, src.batch_carton_weight_kg, src.sku_carton_weight_kg),
+        packaging_type = COALESCE(pol.packaging_type, src.batch_packaging_type, src.sku_packaging_type),
+        storage_cartons_per_pallet = COALESCE(pol.storage_cartons_per_pallet, src.batch_storage_cartons_per_pallet),
+        shipping_cartons_per_pallet = COALESCE(pol.shipping_cartons_per_pallet, src.batch_shipping_cartons_per_pallet)
+      FROM (
+        SELECT
+          pol2.id AS pol_id,
+          s.carton_dimensions_cm AS sku_carton_dimensions_cm,
+          s.carton_length_cm AS sku_carton_length_cm,
+          s.carton_width_cm AS sku_carton_width_cm,
+          s.carton_height_cm AS sku_carton_height_cm,
+          s.carton_weight_kg AS sku_carton_weight_kg,
+          s.packaging_type AS sku_packaging_type,
+          b.carton_dimensions_cm AS batch_carton_dimensions_cm,
+          b.carton_length_cm AS batch_carton_length_cm,
+          b.carton_width_cm AS batch_carton_width_cm,
+          b.carton_height_cm AS batch_carton_height_cm,
+          b.carton_weight_kg AS batch_carton_weight_kg,
+          b.packaging_type AS batch_packaging_type,
+          b.storage_cartons_per_pallet AS batch_storage_cartons_per_pallet,
+          b.shipping_cartons_per_pallet AS batch_shipping_cartons_per_pallet
+        FROM purchase_order_lines pol2
+        JOIN skus s
+          ON upper(s.sku_code) = upper(pol2.sku_code)
+        LEFT JOIN sku_batches b
+          ON b.sku_id = s.id
+         AND upper(b.batch_code) = upper(regexp_replace(pol2.batch_lot, '^.* - ', ''))
+        WHERE pol2.batch_lot IS NOT NULL
+          AND upper(regexp_replace(pol2.batch_lot, '^.* - ', '')) <> 'DEFAULT'
+      ) src
+      WHERE pol.id = src.pol_id
         AND pol.batch_lot IS NOT NULL
         AND upper(regexp_replace(pol.batch_lot, '^.* - ', '')) <> 'DEFAULT'
         AND (
@@ -328,4 +354,3 @@ main().catch(error => {
   console.error(error)
   process.exitCode = 1
 })
-
