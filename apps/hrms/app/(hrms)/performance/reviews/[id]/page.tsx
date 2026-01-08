@@ -69,6 +69,9 @@ const RATING_FIELDS = [
   { key: 'attendance', label: 'Attendance', description: 'Punctuality and reliability' },
 ] as const
 
+const RATING_SCALE_MAX = 10
+const RATING_SCALE = Array.from({ length: RATING_SCALE_MAX }, (_, idx) => idx + 1)
+
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
   return new Date(value).toLocaleDateString('en-US', {
@@ -103,7 +106,7 @@ function RatingInput({
         {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       </div>
       <div className="flex items-center gap-1 ml-4">
-        {[1, 2, 3, 4, 5].map((star) => (
+        {RATING_SCALE.map((star) => (
           <button
             key={star}
             type="button"
@@ -117,20 +120,20 @@ function RatingInput({
             )}
           >
             {star <= value ? (
-              <StarFilledIcon className="h-5 w-5 text-warning" />
+              <StarFilledIcon className="h-4 w-4 text-warning" />
             ) : (
               <StarIcon className={cn(
-                'h-5 w-5 transition-colors',
+                'h-4 w-4 transition-colors',
                 disabled ? 'text-muted' : 'text-muted-foreground/30 group-hover:text-warning/50'
               )} />
             )}
           </button>
         ))}
         <span className={cn(
-          'ml-3 text-sm font-semibold min-w-[2.5rem] text-right tabular-nums',
-          value >= 4 ? 'text-success' : value >= 3 ? 'text-foreground' : 'text-warning'
+          'ml-3 text-sm font-semibold min-w-[3.5rem] text-right tabular-nums',
+          value >= 8 ? 'text-success' : value >= 6 ? 'text-foreground' : 'text-warning'
         )}>
-          {value}/5
+          {value}/10
         </span>
       </div>
     </div>
@@ -144,17 +147,17 @@ function RatingDisplay({ label, value }: { label: string; value: number | null |
       <span className="text-sm text-muted-foreground">{label}</span>
       {hasRating ? (
         <div className="flex items-center gap-1">
-          {[1, 2, 3, 4, 5].map((star) => (
+          {RATING_SCALE.map((star) => (
             <StarFilledIcon
               key={star}
-              className={cn('h-4 w-4', star <= (value ?? 0) ? 'text-warning' : 'text-muted')}
+              className={cn('h-3.5 w-3.5', star <= (value ?? 0) ? 'text-warning' : 'text-muted')}
             />
           ))}
           <span className={cn(
             'ml-2 text-sm font-semibold tabular-nums',
-            (value ?? 0) >= 4 ? 'text-success' : (value ?? 0) >= 3 ? 'text-foreground' : 'text-warning'
+            (value ?? 0) >= 8 ? 'text-success' : (value ?? 0) >= 6 ? 'text-foreground' : 'text-warning'
           )}>
-            {value}/5
+            {value}/10
           </span>
         </div>
       ) : (
@@ -195,26 +198,26 @@ export default function PerformanceReviewPage() {
       reviewType: 'ANNUAL',
       periodType: 'ANNUAL',
       periodYear: currentYear,
-      overallRating: 3,
-      qualityOfWork: 3,
-      productivity: 3,
-      communication: 3,
-      teamwork: 3,
-      initiative: 3,
-      attendance: 3,
+      overallRating: 6,
+      qualityOfWork: 6,
+      productivity: 6,
+      communication: 6,
+      teamwork: 6,
+      initiative: 6,
+      attendance: 6,
     },
   })
 
   const reviewType = watch('reviewType') ?? 'ANNUAL'
   const periodType = watch('periodType') ?? 'ANNUAL'
   const ratings = {
-    overallRating: watch('overallRating') ?? 3,
-    qualityOfWork: watch('qualityOfWork') ?? 3,
-    productivity: watch('productivity') ?? 3,
-    communication: watch('communication') ?? 3,
-    teamwork: watch('teamwork') ?? 3,
-    initiative: watch('initiative') ?? 3,
-    attendance: watch('attendance') ?? 3,
+    overallRating: watch('overallRating') ?? 6,
+    qualityOfWork: watch('qualityOfWork') ?? 6,
+    productivity: watch('productivity') ?? 6,
+    communication: watch('communication') ?? 6,
+    teamwork: watch('teamwork') ?? 6,
+    initiative: watch('initiative') ?? 6,
+    attendance: watch('attendance') ?? 6,
   }
 
   const load = useCallback(async () => {
@@ -243,13 +246,13 @@ export default function PerformanceReviewPage() {
         periodYear: formPeriodYear,
         reviewDate: raw.reviewDate ? new Date(raw.reviewDate).toISOString().split('T')[0] : '',
         roleTitle: raw.roleTitle || raw.employee?.position || '',
-        overallRating: raw.overallRating || 3,
-        qualityOfWork: raw.qualityOfWork || 3,
-        productivity: raw.productivity || 3,
-        communication: raw.communication || 3,
-        teamwork: raw.teamwork || 3,
-        initiative: raw.initiative || 3,
-        attendance: raw.attendance || 3,
+        overallRating: raw.overallRating || 6,
+        qualityOfWork: raw.qualityOfWork || 6,
+        productivity: raw.productivity || 6,
+        communication: raw.communication || 6,
+        teamwork: raw.teamwork || 6,
+        initiative: raw.initiative || 6,
+        attendance: raw.attendance || 6,
         strengths: raw.strengths || '',
         areasToImprove: raw.areasToImprove || '',
         goals: raw.goals || '',
@@ -700,7 +703,7 @@ export default function PerformanceReviewPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-4 text-center">
                       {canEditContent
-                        ? 'Click stars to rate from 1 (lowest) to 5 (highest)'
+                        ? 'Click stars to rate from 1 (lowest) to 10 (highest)'
                         : 'Ratings are read-only in this workflow stage'}
                     </p>
                   </TabsContent>

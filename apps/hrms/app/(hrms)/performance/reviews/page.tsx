@@ -79,14 +79,15 @@ function DeadlineBadge({ review }: { review: PerformanceReview }) {
 }
 
 function RatingStars({ rating }: { rating: number }) {
+  const safeRating = Number.isFinite(rating) ? rating : 0
+  if (safeRating <= 0) {
+    return <span className="text-xs text-muted-foreground tabular-nums">—</span>
+  }
+
   return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <StarFilledIcon
-          key={star}
-          className={`h-4 w-4 ${star <= rating ? 'text-warning-500' : 'text-muted'}`}
-        />
-      ))}
+    <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground tabular-nums">
+      <StarFilledIcon className="h-3.5 w-3.5 text-warning-500" />
+      <span>{safeRating}/10</span>
     </div>
   )
 }
