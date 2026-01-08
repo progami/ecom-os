@@ -45,6 +45,9 @@ const RATING_FIELDS = [
   { key: 'attendance', label: 'Attendance', description: 'Punctuality and reliability' },
 ] as const
 
+const RATING_SCALE_MAX = 10
+const RATING_SCALE = Array.from({ length: RATING_SCALE_MAX }, (_, idx) => idx + 1)
+
 function RatingInput({
   label,
   description,
@@ -68,7 +71,7 @@ function RatingInput({
         {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       </div>
       <div className="flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
+        {RATING_SCALE.map((star) => (
           <button
             key={star}
             type="button"
@@ -76,13 +79,15 @@ function RatingInput({
             className="p-0.5 hover:scale-110 transition-transform"
           >
             {star <= value ? (
-              <StarFilledIcon className="h-5 w-5 text-warning-400" />
+              <StarFilledIcon className="h-4 w-4 text-warning-400" />
             ) : (
-              <StarIcon className="h-5 w-5 text-muted-foreground/40 hover:text-warning-300" />
+              <StarIcon className="h-4 w-4 text-muted-foreground/40 hover:text-warning-300" />
             )}
           </button>
         ))}
-        <span className="ml-2 text-sm font-medium text-muted-foreground w-8">{value}/5</span>
+        <span className="ml-2 text-sm font-medium text-muted-foreground min-w-[3.5rem] text-right tabular-nums">
+          {value}/10
+        </span>
       </div>
     </div>
   )
@@ -116,13 +121,13 @@ function AddReviewContent() {
       reviewDate: new Date().toISOString().split('T')[0],
       roleTitle: '',
       assignedReviewerId: '',
-      overallRating: 3,
-      qualityOfWork: 3,
-      productivity: 3,
-      communication: 3,
-      teamwork: 3,
-      initiative: 3,
-      attendance: 3,
+      overallRating: 6,
+      qualityOfWork: 6,
+      productivity: 6,
+      communication: 6,
+      teamwork: 6,
+      initiative: 6,
+      attendance: 6,
       status: 'DRAFT',
     },
   })
@@ -131,13 +136,13 @@ function AddReviewContent() {
   const periodType = watch('periodType')
   const selectedEmployeeId = watch('employeeId')
   const ratings = {
-    overallRating: watch('overallRating') ?? 3,
-    qualityOfWork: watch('qualityOfWork') ?? 3,
-    productivity: watch('productivity') ?? 3,
-    communication: watch('communication') ?? 3,
-    teamwork: watch('teamwork') ?? 3,
-    initiative: watch('initiative') ?? 3,
-    attendance: watch('attendance') ?? 3,
+    overallRating: watch('overallRating') ?? 6,
+    qualityOfWork: watch('qualityOfWork') ?? 6,
+    productivity: watch('productivity') ?? 6,
+    communication: watch('communication') ?? 6,
+    teamwork: watch('teamwork') ?? 6,
+    initiative: watch('initiative') ?? 6,
+    attendance: watch('attendance') ?? 6,
   }
 
   const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx)
@@ -430,7 +435,7 @@ function AddReviewContent() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-3 text-center">
-                Click stars to rate from 1 (lowest) to 5 (highest)
+                Click stars to rate from 1 (lowest) to 10 (highest)
               </p>
             </TabsContent>
 

@@ -715,17 +715,9 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
                             <span>{formatDate(review.reviewDate)}</span>
                           </div>
                           {avgRating > 0 && (
-                            <div className="flex items-center gap-1 mt-2">
-                              {[1, 2, 3, 4, 5].map(star => (
-                                <StarFilledIcon
-                                  key={star}
-                                  className={cn(
-                                    'h-3.5 w-3.5',
-                                    star <= avgRating ? 'text-warning' : 'text-muted-foreground/20'
-                                  )}
-                                />
-                              ))}
-                              <span className="text-xs text-muted-foreground ml-1">{avgRating}/5</span>
+                            <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground tabular-nums">
+                              <StarFilledIcon className="h-3.5 w-3.5 text-warning" />
+                              <span>{avgRating}/10</span>
                             </div>
                           )}
                         </div>

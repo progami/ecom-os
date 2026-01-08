@@ -28,7 +28,7 @@ export type PerformanceViewerContext = {
 };
 
 function isValidRating(value: unknown): boolean {
-  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 5;
+  return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= 10;
 }
 
 function missingRequiredRatings(review: PerformanceWorkflowRecordInput): string[] {
