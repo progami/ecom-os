@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: refresh-dev-app.sh <app-key>" >&2
-  echo "Known apps: wms, ecomos, website, xplan, hrms" >&2
+  echo "Known apps: wms, ecomos, website, xplan, hrms, chronos" >&2
   exit 1
 fi
 
@@ -30,6 +30,11 @@ case "$app_key" in
     workspace="@ecom-os/x-plan"
     app_dir="$repo_root/apps/x-plan"
     pm2_name="dev-x-plan"
+    ;;
+  chronos)
+    workspace="@ecom-os/chronos"
+    app_dir="$repo_root/apps/chronos"
+    pm2_name="dev-chronos"
     ;;
   hrms)
     workspace="@ecom-os/hrms"
