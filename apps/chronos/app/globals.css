@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(203, 213, 225, 0.3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(8, 145, 178, 0.4);
+  border-radius: 0.5rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(8, 145, 178, 0.6);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(0, 194, 185, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 194, 185, 0.5);
+}
+
+/* Selection */
+::selection {
+  background: rgba(8, 145, 178, 0.25);
+  color: #0e7490;
+}
+
+.dark ::selection {
+  background: rgba(0, 194, 185, 0.3);
+  color: rgb(204, 251, 241);
+}
+
+/* Typography - Consistent across the app */
+h1,
+.text-h1 {
+  @apply text-2xl font-semibold text-slate-900 dark:text-white;
+}
+
+h2,
+.text-h2 {
+  @apply text-xl font-semibold text-slate-900 dark:text-white;
+}
+
+h3,
+.text-h3 {
+  @apply text-lg font-semibold text-slate-900 dark:text-white;
+}
+
+h4,
+.text-h4 {
+  @apply text-base font-semibold text-slate-900 dark:text-white;
+}
+
+/* Section headers - small caps style */
+.text-section-header {
+  @apply text-xs font-bold uppercase tracking-[0.1em] text-slate-600 dark:text-slate-400;
+}
+
+/* Body text */
+.text-body {
+  @apply text-sm text-slate-700 dark:text-slate-300;
+}
+
+.text-body-sm {
+  @apply text-xs text-slate-600 dark:text-slate-400;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 187 72% 37%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 262 83% 58%;
+    --chart-4: 24 95% 53%;
+    --chart-5: 350 89% 60%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 174 72% 56%;
+    --chart-2: 160 84% 45%;
+    --chart-3: 263 70% 70%;
+    --chart-4: 24 95% 64%;
+    --chart-5: 350 89% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    font-optical-sizing: auto;
+  }
+}
+

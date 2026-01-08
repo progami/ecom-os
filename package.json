@@ -14,6 +14,7 @@
     "refresh:wms-dev": "bash scripts/refresh-dev-app.sh wms",
     "refresh:ecomos-dev": "bash scripts/refresh-dev-app.sh ecomos",
     "refresh:website-dev": "bash scripts/refresh-dev-app.sh website",
+    "refresh:chronos-dev": "bash scripts/refresh-dev-app.sh chronos",
     "refresh:xplan-dev": "bash scripts/refresh-dev-app.sh xplan",
     "refresh:hrms-dev": "bash scripts/refresh-dev-app.sh hrms",
     "deploy:metadata": "bash scripts/update-deploy-metadata.sh"
