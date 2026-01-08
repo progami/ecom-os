@@ -190,9 +190,31 @@ export default function PerformanceReviewPage() {
     return Boolean(review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status))
   }, [review])
 
+  const isReviewer = useMemo(() => {
+    return Boolean(me && review?.assignedReviewerId && me.id === review.assignedReviewerId)
+  }, [me, review?.assignedReviewerId])
+
+  const canRespondToHrChanges = useMemo(() => {
+    if (!review || !isReviewer) return false
+    if (review.status !== 'PENDING_HR_REVIEW' || review.hrApproved !== false) return false
+
+    // Allow edits only until the manager resubmits (submittedAt moves past hrReviewedAt).
+    if (!review.hrReviewedAt || !review.submittedAt) return true
+    return new Date(review.submittedAt).getTime() <= new Date(review.hrReviewedAt).getTime()
+  }, [isReviewer, review])
+
+  const canRespondToAdminChanges = useMemo(() => {
+    if (!review || !isReviewer) return false
+    if (review.status !== 'PENDING_SUPER_ADMIN' || review.superAdminApproved !== false) return false
+
+    // Allow edits only until the manager resubmits (submittedAt moves past superAdminApprovedAt).
+    if (!review.superAdminApprovedAt || !review.submittedAt) return true
+    return new Date(review.submittedAt).getTime() <= new Date(review.superAdminApprovedAt).getTime()
+  }, [isReviewer, review])
+
   const isHrOrAdmin = Boolean(me?.isHR || me?.isSuperAdmin)
-  const canEditMeta = Boolean(review) && (isDraft || isHrOrAdmin)
-  const canEditContent = isDraft
+  const canEditContent = isDraft || canRespondToHrChanges || canRespondToAdminChanges
+  const canEditMeta = Boolean(review) && (canEditContent || isHrOrAdmin)
 
   const detailsHasErrors = Boolean(
     errors.reviewType || errors.periodType || errors.periodYear ||
@@ -315,6 +337,13 @@ export default function PerformanceReviewPage() {
   const periodTypeOptions = REVIEW_PERIOD_TYPES
     .filter((type) => allowedPeriodTypes.includes(type as any))
     .map((type) => ({ value: type, label: REVIEW_PERIOD_TYPE_LABELS[type] }))
+
+  const submitLabel = useMemo(() => {
+    if (!review) return 'Submit for Review'
+    if (review.status === 'PENDING_HR_REVIEW') return 'Resubmit to HR'
+    if (review.status === 'PENDING_SUPER_ADMIN') return 'Resubmit for Final Approval'
+    return 'Submit for Review'
+  }, [review])
 
   // Workflow stages and timeline
   const layoutDto = useMemo(() => {
@@ -561,7 +590,7 @@ export default function PerformanceReviewPage() {
                     </Button>
                     {canEditContent && (
                       <Button type="button" onClick={handleSubmitForReview} loading={submitting}>
-                        Submit for Review
+                        {submitLabel}
                       </Button>
                     )}
                   </div>

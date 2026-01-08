@@ -119,7 +119,7 @@ export function buildPerformanceReviewNextActions(
           disabled: false,
         };
         actions.secondary = [
-          { id: 'review.hrReject', label: 'Reject', variant: 'danger', disabled: false },
+          { id: 'review.hrReject', label: 'Request changes', variant: 'secondary', disabled: false },
         ];
       } else {
         actions.primary = {
@@ -141,7 +141,7 @@ export function buildPerformanceReviewNextActions(
           disabled: false,
         };
         actions.secondary = [
-          { id: 'review.superAdminReject', label: 'Reject', variant: 'danger', disabled: false },
+          { id: 'review.superAdminReject', label: 'Request changes', variant: 'secondary', disabled: false },
         ];
       } else {
         actions.primary = {
