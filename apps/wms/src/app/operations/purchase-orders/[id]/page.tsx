@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -17,7 +18,6 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   ArrowLeft,
@@ -36,7 +36,6 @@ import {
   Package2,
   PackageX,
   Plus,
-  Save,
   Send,
   Ship,
   Trash2,
@@ -68,6 +67,12 @@ interface PurchaseOrderLineSummary {
   skuCode: string
   skuDescription: string | null
   batchLot: string | null
+  cartonDimensionsCm?: string | null
+  cartonLengthCm?: number | null
+  cartonWidthCm?: number | null
+  cartonHeightCm?: number | null
+  cartonWeightKg?: number | null
+  packagingType?: string | null
   unitsOrdered: number
   unitsPerCarton: number
   quantity: number
@@ -154,6 +159,46 @@ function buildBatchPackagingMeta(options: {
   }
 
   return { tone: 'muted', text: parts.join(' • ') }
+}
+
+type LinePackagingDetails = {
+  cartonDims: string | null
+  cbmPerCarton: string | null
+  cbmTotal: string | null
+  kgPerCarton: string | null
+  kgTotal: string | null
+  packagingType: string | null
+  hasWarning: boolean
+}
+
+function buildLinePackagingDetails(line: PurchaseOrderLineSummary): LinePackagingDetails | null {
+  if (!line.batchLot?.trim()) return null
+  if (!Number.isFinite(line.quantity) || line.quantity <= 0) return null
+
+  const cartonTriplet = resolveDimensionTripletCm({
+    lengthCm: line.cartonLengthCm ?? null,
+    widthCm: line.cartonWidthCm ?? null,
+    heightCm: line.cartonHeightCm ?? null,
+    legacy: line.cartonDimensionsCm ?? null,
+  })
+
+  const hasWarning = !cartonTriplet && !line.cartonWeightKg && !line.packagingType
+
+  let cbmPerCarton: number | null = null
+  if (cartonTriplet) {
+    cbmPerCarton =
+      (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+  }
+
+  return {
+    cartonDims: cartonTriplet ? `${formatDimensionTripletCm(cartonTriplet)} cm` : null,
+    cbmPerCarton: cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : null,
+    cbmTotal: cbmPerCarton !== null ? (cbmPerCarton * line.quantity).toFixed(3) : null,
+    kgPerCarton: line.cartonWeightKg ? line.cartonWeightKg.toFixed(2) : null,
+    kgTotal: line.cartonWeightKg ? (line.cartonWeightKg * line.quantity).toFixed(2) : null,
+    packagingType: line.packagingType ?? null,
+    hasWarning,
+  }
 }
 
 interface StageApproval {
@@ -338,19 +383,6 @@ const STAGES = [
   { value: 'MANUFACTURING', label: 'Manufacturing', icon: Factory, color: 'amber' },
   { value: 'OCEAN', label: 'In Transit', icon: Ship, color: 'blue' },
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
-] as const
-
-const INCOTERMS_OPTIONS = [
-  'EXW',
-  'FOB',
-  'FCA',
-  'CFR',
-  'CIF',
-  'CPT',
-  'CIP',
-  'DAP',
-  'DPU',
-  'DDP',
 ] as const
 
 function formatStatusLabel(status: POStageStatus) {
@@ -2107,6 +2139,7 @@ export default function PurchaseOrderDetailPage() {
                       <th className="px-4 py-2 text-right font-semibold">Units/Ctn</th>
                       <th className="px-4 py-2 text-right font-semibold">Cartons</th>
                       <th className="px-4 py-2 text-right font-semibold">Total</th>
+                      <th className="px-4 py-2 text-left font-semibold">Notes</th>
                       <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
                       <th className="px-4 py-2 text-left font-semibold">Status</th>
                     </tr>
@@ -2114,55 +2147,115 @@ export default function PurchaseOrderDetailPage() {
                   <tbody>
                     {order.lines.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
+                        <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                           No lines added to this order yet.
                         </td>
                       </tr>
                     ) : (
-                      order.lines.map(line => (
-                        <tr key={line.id} className="border-t hover:bg-muted/10">
-                          <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                            {line.skuCode}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {line.batchLot || '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate">
-                            {line.skuDescription || '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
-                            {line.unitsOrdered.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-                            {line.unitsPerCarton.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
-                            {line.quantity.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                            <div className="text-right">
-                              <div className="font-semibold text-foreground">
-                                {line.totalCost !== null
-                                  ? `${line.totalCost.toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })} ${(line.currency || tenantCurrency).toUpperCase()}`
-                                  : '—'}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Unit:{' '}
-                                {line.unitCost !== null ? Number(line.unitCost).toFixed(4) : '—'}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-                            {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap">
-                            <Badge variant="outline">{line.status}</Badge>
-                          </td>
-                        </tr>
-                      ))
+                      order.lines.map(line => {
+                        const pkg = buildLinePackagingDetails(line)
+                        return (
+                          <Fragment key={line.id}>
+                            <tr className="border-t hover:bg-muted/10">
+                              <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                                {line.skuCode}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                                {line.batchLot || '—'}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate">
+                                {line.skuDescription || '—'}
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                                {line.unitsOrdered.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                {line.unitsPerCarton.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                                {line.quantity.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                                <div className="text-right">
+                                  <div className="font-semibold text-foreground">
+                                    {line.totalCost !== null
+                                      ? `${line.totalCost.toLocaleString(undefined, {
+                                          minimumFractionDigits: 2,
+                                          maximumFractionDigits: 2,
+                                        })} ${(line.currency || tenantCurrency).toUpperCase()}`
+                                      : '—'}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Unit:{' '}
+                                    {line.unitCost !== null
+                                      ? Number(line.unitCost).toFixed(4)
+                                      : '—'}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground max-w-[220px] truncate">
+                                {line.lineNotes || '—'}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
+                              </td>
+                              <td className="px-4 py-2.5 whitespace-nowrap">
+                                <Badge variant="outline">{line.status}</Badge>
+                              </td>
+                            </tr>
+                            {pkg ? (
+                              <tr className="border-t bg-transparent">
+                                <td colSpan={10} className="px-4 pb-3 pt-1">
+                                  <div
+                                    className={`grid grid-cols-6 gap-3 text-xs ${
+                                      pkg.hasWarning ? 'bg-amber-50/50' : 'bg-slate-50/30'
+                                    } rounded-lg px-3 py-2`}
+                                  >
+                                    <div>
+                                      <span className="text-muted-foreground">Carton</span>
+                                      <p
+                                        className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
+                                      >
+                                        {pkg.cartonDims ?? 'Not set'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">CBM/ctn</span>
+                                      <p className="font-medium text-slate-700">
+                                        {pkg.cbmPerCarton ?? '—'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">CBM Total</span>
+                                      <p className="font-medium text-slate-700">
+                                        {pkg.cbmTotal ?? '—'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">KG/ctn</span>
+                                      <p className="font-medium text-slate-700">
+                                        {pkg.kgPerCarton ?? '—'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">KG Total</span>
+                                      <p className="font-medium text-slate-700">
+                                        {pkg.kgTotal ?? '—'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Pkg Type</span>
+                                      <p className="font-medium text-slate-700">
+                                        {pkg.packagingType ?? '—'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : null}
+                          </Fragment>
+                        )
+                      })
                     )}
                   </tbody>
                 </table>
