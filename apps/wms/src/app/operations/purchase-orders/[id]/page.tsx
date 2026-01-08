@@ -32,13 +32,13 @@ import {
   History,
   Info,
   Loader2,
-  MoreHorizontal,
   Package2,
   PackageX,
   Plus,
   Save,
   Send,
   Ship,
+  Trash2,
   Warehouse,
   Upload,
   X,
@@ -606,9 +606,6 @@ export default function PurchaseOrderDetailPage() {
   const [collapsedDetailSections, setCollapsedDetailSections] = useState<Record<string, boolean>>(
     {}
   )
-
-  // Actions dropdown open state
-  const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false)
 
   // Advance stage modal
   const [advanceModalOpen, setAdvanceModalOpen] = useState(false)
@@ -1483,23 +1480,24 @@ export default function PurchaseOrderDetailPage() {
                 </a>
               </Button>
             )}
-            <Badge className={statusBadgeClasses(order.status)}>
-              {formatStatusLabel(order.status)}
-            </Badge>
+            {!isTerminal && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleTransition('CANCELLED')}
+                disabled={transitioning}
+                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Stage Progress Bar */}
         {!order.isLegacy && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
           <div className="rounded-xl border bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-slate-900">Order Progress</h2>
-              {order.counterpartyName && (
-                <span className="text-sm text-muted-foreground">
-                  Supplier: {order.counterpartyName}
-                </span>
-              )}
-            </div>
+            <h2 className="text-sm font-semibold text-slate-900 mb-4">Order Progress</h2>
 
             {/* Stage Progress - Clickable Navigation */}
             <div className="flex items-center justify-between relative">
@@ -1600,41 +1598,6 @@ export default function PurchaseOrderDetailPage() {
                   Mark Rejected
                 </Button>
               )}
-
-              {/* Destructive: Cancel Order dropdown */}
-              {!isTerminal && (
-                <div className="relative">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setActionsDropdownOpen(!actionsDropdownOpen)}
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                  {actionsDropdownOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setActionsDropdownOpen(false)}
-                      />
-                      <div className="absolute left-0 top-full mt-1 z-20 w-44 rounded-md border bg-white shadow-lg">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionsDropdownOpen(false)
-                            handleTransition('CANCELLED')
-                          }}
-                          disabled={transitioning}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Cancel Order
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
 
             {order.status === 'WAREHOUSE' && (
@@ -1688,20 +1651,9 @@ export default function PurchaseOrderDetailPage() {
         <div className="rounded-xl border bg-white shadow-sm">
           {/* Stage Content Header */}
           <div className="flex items-center justify-between border-b px-6 py-4">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">
-                {activeViewStage === 'DRAFT' && 'Order Details'}
-                {activeViewStage === 'ISSUED' && 'Issued'}
-                {activeViewStage === 'MANUFACTURING' && 'Manufacturing Stage'}
-                {activeViewStage === 'OCEAN' && 'In Transit Stage'}
-                {activeViewStage === 'WAREHOUSE' && 'Warehouse Stage'}
-                {activeViewStage === 'SHIPPED' && 'Shipped'}
-                {activeViewStage === 'REJECTED' && 'Rejected'}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {isViewingCurrentStage ? 'Current stage' : 'Viewing past stage (read-only)'}
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              {isViewingCurrentStage ? 'Current stage' : 'Viewing past stage (read-only)'}
+            </p>
             {/* Inline edit controls for DRAFT stage */}
             {activeViewStage === 'DRAFT' && canEdit && (
               <div className="flex items-center gap-2">
