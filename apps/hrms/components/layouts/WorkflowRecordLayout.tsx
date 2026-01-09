@@ -1,12 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WorkflowTimeline } from '@/components/workflow/WorkflowTimeline';
 import { ArrowLeftIcon } from '@/components/ui/Icons';
+import {
+  ActionInputModal,
+  actionNeedsInput,
+  type ActionInput,
+} from '@/components/workflow/ActionInputModal';
 import type { ActionId } from '@/lib/contracts/action-ids';
 import type { WorkflowRecordDTO, WorkflowTone } from '@/lib/contracts/workflow-record';
 import type { WorkflowActionVariant } from '@/lib/contracts/workflow-record';
@@ -14,7 +19,7 @@ import type { WorkflowActionVariant } from '@/lib/contracts/workflow-record';
 type WorkflowRecordLayoutProps = {
   backHref?: string;
   data: WorkflowRecordDTO;
-  onAction?: (actionId: ActionId) => void | Promise<void>;
+  onAction?: (actionId: ActionId, input?: ActionInput) => void | Promise<void>;
   headerActions?: React.ReactNode;
   children?: React.ReactNode;
 };
@@ -70,6 +75,9 @@ export function WorkflowRecordLayout({
   headerActions,
   children,
 }: WorkflowRecordLayoutProps) {
+  const [modalActionId, setModalActionId] = useState<ActionId | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
   const safeData = (data ?? {}) as Partial<WorkflowRecordDTO>;
   const identity = safeData.identity ?? { title: 'Record', recordId: '', href: backHref };
   const subject = safeData.subject ?? { displayName: '—' };
@@ -90,6 +98,33 @@ export function WorkflowRecordLayout({
     const moreHint = actions.more.find((a) => a.disabled && a.disabledReason)?.disabledReason;
     return moreHint ?? null;
   }, [actions.more, actions.primary, actions.secondary]);
+
+  // Handle action click - show modal if input needed, otherwise execute directly
+  const handleActionClick = useCallback(
+    (actionId: ActionId) => {
+      if (actionNeedsInput(actionId)) {
+        setModalActionId(actionId);
+      } else if (onAction) {
+        void onAction(actionId);
+      }
+    },
+    [onAction],
+  );
+
+  // Handle modal confirmation
+  const handleModalConfirm = useCallback(
+    async (actionId: ActionId, input: ActionInput) => {
+      if (!onAction) return;
+      setActionLoading(true);
+      try {
+        await onAction(actionId, input);
+      } finally {
+        setActionLoading(false);
+        setModalActionId(null);
+      }
+    },
+    [onAction],
+  );
 
   const headerBadges = useMemo(() => {
     const badges: Array<{ label: string; tone: WorkflowTone }> = [];
@@ -189,9 +224,7 @@ export function WorkflowRecordLayout({
                     variant={actionVariantToButtonVariant(actions.primary.variant)}
                     disabled={actions.primary.disabled}
                     title={actions.primary.disabled ? actions.primary.disabledReason : undefined}
-                    onClick={() => {
-                      if (onAction) void onAction(actions.primary!.id);
-                    }}
+                    onClick={() => handleActionClick(actions.primary!.id)}
                   >
                     {actions.primary.label}
                   </Button>
@@ -203,9 +236,7 @@ export function WorkflowRecordLayout({
                     variant={actionVariantToButtonVariant(action.variant)}
                     disabled={action.disabled}
                     title={action.disabled ? action.disabledReason : undefined}
-                    onClick={() => {
-                      if (onAction) void onAction(action.id);
-                    }}
+                    onClick={() => handleActionClick(action.id)}
                   >
                     {action.label}
                   </Button>
@@ -227,12 +258,7 @@ export function WorkflowRecordLayout({
                           title={action.disabled ? action.disabledReason : undefined}
                           onClick={() => {
                             if (action.disabled) return;
-                            if (!onAction) {
-                              // eslint-disable-next-line no-console
-                              console.warn('[WorkflowRecordLayout] onAction not provided for', action.id);
-                              return;
-                            }
-                            void onAction(action.id);
+                            handleActionClick(action.id);
                           }}
                         >
                           {action.label}
@@ -304,6 +330,14 @@ export function WorkflowRecordLayout({
           </Card>
         </div>
       </div>
+
+      <ActionInputModal
+        open={modalActionId !== null}
+        actionId={modalActionId}
+        onClose={() => setModalActionId(null)}
+        onConfirm={handleModalConfirm}
+        loading={actionLoading}
+      />
     </div>
   );
 }

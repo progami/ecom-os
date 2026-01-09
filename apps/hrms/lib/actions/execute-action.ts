@@ -7,6 +7,7 @@ import {
 } from '@/lib/api-client';
 import type { ActionId } from '@/lib/contracts/action-ids';
 import type { WorkItemEntity } from '@/lib/contracts/work-items';
+import type { ActionInput } from '@/components/workflow/ActionInputModal';
 
 function buildApiUrl(path: string): string {
   const base = getApiBase().replace(/\/$/, '');
@@ -34,7 +35,11 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
   return payload as T;
 }
 
-export async function executeAction(actionId: ActionId, entity: WorkItemEntity): Promise<void> {
+export async function executeAction(
+  actionId: ActionId,
+  entity: WorkItemEntity,
+  input?: ActionInput,
+): Promise<void> {
   switch (actionId) {
     case 'policy.acknowledge': {
       if (entity.type !== 'POLICY') throw new Error('Invalid action target');
@@ -56,40 +61,36 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'review.hrApprove': {
       if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add HR notes.', '') ?? '';
       await postJson(`/api/performance-reviews/${encodeURIComponent(entity.id)}/hr-review`, {
         approved: true,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
 
     case 'review.hrReject': {
       if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add HR notes (helpful for the manager).', '') ?? '';
       await postJson(`/api/performance-reviews/${encodeURIComponent(entity.id)}/hr-review`, {
         approved: false,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
 
     case 'review.superAdminApprove': {
       if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add final approval notes.', '') ?? '';
       await postJson(`/api/performance-reviews/${encodeURIComponent(entity.id)}/super-admin-review`, {
         approved: true,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
 
     case 'review.superAdminReject': {
       if (entity.type !== 'PERFORMANCE_REVIEW') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add rejection reason/notes.', '') ?? '';
       await postJson(`/api/performance-reviews/${encodeURIComponent(entity.id)}/super-admin-review`, {
         approved: false,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
@@ -124,27 +125,22 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'leave.reject': {
       if (entity.type !== 'LEAVE_REQUEST') throw new Error('Invalid action target');
-      const notes =
-        window.prompt(
-          'Optional: add a short reason/notes for rejection (visible to requester).',
-          '',
-        ) ?? '';
 
       const leave = await LeavesApi.get(entity.id);
-      const trimmed = notes.trim() || undefined;
+      const notes = input?.notes || undefined;
 
       if (leave.permissions?.canManagerApprove || ['PENDING', 'PENDING_MANAGER'].includes(leave.status)) {
-        await LeavesApi.managerApprove(entity.id, { approved: false, notes: trimmed });
+        await LeavesApi.managerApprove(entity.id, { approved: false, notes });
         return;
       }
 
       if (leave.permissions?.canHRApprove || leave.status === 'PENDING_HR') {
-        await LeavesApi.hrApprove(entity.id, { approved: false, notes: trimmed });
+        await LeavesApi.hrApprove(entity.id, { approved: false, notes });
         return;
       }
 
       if (leave.permissions?.canSuperAdminApprove || leave.status === 'PENDING_SUPER_ADMIN') {
-        await LeavesApi.superAdminApprove(entity.id, { approved: false, notes: trimmed });
+        await LeavesApi.superAdminApprove(entity.id, { approved: false, notes });
         return;
       }
 
@@ -171,44 +167,36 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'disciplinary.hrApprove': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add HR review notes.', '') ?? '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/hr-review`, {
         approved: true,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
 
     case 'disciplinary.hrReject': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes =
-        window.prompt('Optional: request changes notes (helps the reporter fix the record).', '') ??
-        '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/hr-review`, {
         approved: false,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
 
     case 'disciplinary.superAdminApprove': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes = window.prompt('Optional: add final approval notes.', '') ?? '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-review`, {
         approved: true,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
 
     case 'disciplinary.superAdminReject': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const notes =
-        window.prompt('Optional: request changes notes (helps HR fix the record).', '') ??
-        '';
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/super-admin-review`, {
         approved: false,
-        notes: notes.trim() || null,
+        notes: input?.notes || null,
       });
       return;
     }
@@ -221,33 +209,27 @@ export async function executeAction(actionId: ActionId, entity: WorkItemEntity):
 
     case 'disciplinary.appeal': {
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const appealReason = window.prompt('Explain your appeal (required).', '') ?? '';
-      if (appealReason.trim().length < 10)
+      if (!input?.notes || input.notes.length < 10) {
         throw new Error('Appeal reason must be at least 10 characters.');
+      }
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/appeal`, {
-        appealReason: appealReason.trim(),
+        appealReason: input.notes,
       });
       return;
     }
 
     case 'disciplinary.appeal.hrDecide': {
-      // HR makes final appeal decision (simplified for small teams)
       if (entity.type !== 'DISCIPLINARY_ACTION') throw new Error('Invalid action target');
-      const decision = (
-        window.prompt('Appeal decision: UPHELD, MODIFIED, or OVERTURNED', 'UPHELD') ?? ''
-      )
-        .trim()
-        .toUpperCase();
-      if (!['UPHELD', 'MODIFIED', 'OVERTURNED'].includes(decision)) {
+      if (!input?.appealStatus || !['UPHELD', 'MODIFIED', 'OVERTURNED'].includes(input.appealStatus)) {
         throw new Error('Invalid decision. Use UPHELD, MODIFIED, or OVERTURNED.');
       }
-      const explanation = window.prompt('Decision explanation (required).', '') ?? '';
-      if (!explanation.trim()) throw new Error('Decision explanation is required.');
-
+      if (!input?.notes) {
+        throw new Error('Decision explanation is required.');
+      }
       await postJson(`/api/disciplinary-actions/${encodeURIComponent(entity.id)}/appeal`, {
         hrDecision: true,
-        appealStatus: decision,
-        appealResolution: explanation.trim(),
+        appealStatus: input.appealStatus,
+        appealResolution: input.notes,
       });
       return;
     }
