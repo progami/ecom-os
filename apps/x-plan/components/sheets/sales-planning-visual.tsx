@@ -95,6 +95,10 @@ export function SalesPlanningVisual({
   const stockDataPoints = useMemo(() => {
     if (!selectedProductId) return [];
 
+    const stockStartKey = columnKeys.find(
+      (key) =>
+        columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'stockStart',
+    );
     const stockEndKey = columnKeys.find(
       (key) =>
         columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'stockEnd',
@@ -104,20 +108,22 @@ export function SalesPlanningVisual({
         columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'finalSales',
     );
 
-    if (!stockEndKey) return [];
+    if (!stockStartKey || !stockEndKey) return [];
 
     return rows
       .map((row) => {
+        const stockStartValue = row[stockStartKey];
         const stockValue = row[stockEndKey];
         const finalSalesValue = finalSalesKey ? row[finalSalesKey] : undefined;
         const weekNumber = Number(row.weekNumber);
+        const stockStart = stockStartValue ? Number(stockStartValue) : 0;
         const stockEnd = stockValue ? Number(stockValue) : 0;
         const finalSales = finalSalesValue ? Number(finalSalesValue) : 0;
-        // stockWeeks = how many weeks of cover we have
+        // stockWeeks = how many weeks of cover we have (aligned with tabular view)
         const stockWeeks =
           finalSales > 0
-            ? stockEnd / finalSales
-            : stockEnd > 0
+            ? stockStart / finalSales
+            : stockStart > 0
               ? Number.POSITIVE_INFINITY
               : 0;
         const isLowStock = Number.isFinite(stockWeeks) && stockWeeks <= warningThreshold;
@@ -125,6 +131,7 @@ export function SalesPlanningVisual({
           weekNumber,
           weekLabel: String(weekLabelByWeekNumber.get(weekNumber) ?? weekNumber),
           weekDate: row.weekDate,
+          stockStart,
           stockEnd,
           stockWeeks,
           isLowStock,
