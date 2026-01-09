@@ -141,6 +141,10 @@ export async function hasPermission(
   userId: string,
   permissionCode: string
 ): Promise<boolean> {
+  if (!userId) {
+    return false
+  }
+
   const prisma = await getTenantPrisma()
 
   // First check if user is super admin
@@ -179,6 +183,10 @@ export async function hasAnyPermission(
   userId: string,
   permissionCodes: string[]
 ): Promise<boolean> {
+  if (!userId) {
+    return false
+  }
+
   const prisma = await getTenantPrisma()
 
   // First check if user is super admin
@@ -217,6 +225,10 @@ export async function hasAllPermissions(
   userId: string,
   permissionCodes: string[]
 ): Promise<boolean> {
+  if (!userId) {
+    return false
+  }
+
   const prisma = await getTenantPrisma()
 
   // First check if user is super admin
