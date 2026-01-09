@@ -382,17 +382,6 @@ export function SalesPlanningVisual({
                       />
                     );
                   })}
-                {/* Red danger zone below zero */}
-                {yAxisBounds.hasNegative && (
-                  <ReferenceArea
-                    y1={0}
-                    y2={yAxisBounds.min}
-                    fill="#dc2626"
-                    fillOpacity={0.15}
-                    stroke="#dc2626"
-                    strokeOpacity={0.3}
-                  />
-                )}
                 {/* Zero reference line - always visible for context */}
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1.5} />
                 {/* Main stock line with teal fill */}
@@ -403,6 +392,17 @@ export function SalesPlanningVisual({
                     stroke="hsl(var(--chart-1))"
                     fill="url(#stockPositiveGradient)"
                     strokeWidth={2}
+                  />
+                )}
+                {/* Red danger zone below zero - rendered LAST so it's on top */}
+                {yAxisBounds.hasNegative && (
+                  <ReferenceArea
+                    y1={0}
+                    y2={yAxisBounds.min}
+                    fill="#dc2626"
+                    fillOpacity={0.35}
+                    stroke="#dc2626"
+                    strokeWidth={1}
                   />
                 )}
               </AreaChart>
