@@ -11,7 +11,10 @@ export const metadata: Metadata = {
   title: 'TargonOS',
   description: 'Central authentication and app launcher for TargonOS',
   icons: {
-    icon: [{ url: '/favicon.ico' }, { url: '/favicon.svg', type: 'image/svg+xml' }],
+    icon: [
+      { url: '/targonos-favicon.ico' },
+      { url: '/targonos-favicon.svg', type: 'image/svg+xml' },
+    ],
   },
 };
 
