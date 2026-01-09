@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -416,8 +415,7 @@ export default function NewPurchaseOrderPage() {
       cbmPerCarton: cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : null,
       cbmTotal: cbmPerCarton !== null && cartons ? (cbmPerCarton * cartons).toFixed(3) : null,
       kgPerCarton: batch.cartonWeightKg ? batch.cartonWeightKg.toFixed(2) : null,
-      kgTotal:
-        batch.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : null,
+      kgTotal: batch.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : null,
       packagingType: batch.packagingType ?? null,
       hasWarning,
     }
@@ -555,8 +553,7 @@ export default function NewPurchaseOrderPage() {
       if (!item.skuId || !item.batchLot || cartons === null) return
       const batchCode = item.batchLot.trim().toUpperCase()
       if (!batchCode) return
-      const batch =
-        (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === batchCode) ?? null
+      const batch = (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === batchCode) ?? null
       if (!batch) return
 
       const cartonTriplet = resolveDimensionTripletCm({
@@ -592,480 +589,526 @@ export default function NewPurchaseOrderPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <DashboardLayout>
-        <PageContainer>
-          <PageContent className="flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </PageContent>
-        </PageContainer>
-      </DashboardLayout>
+      <PageContainer>
+        <PageContent className="flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </PageContent>
+      </PageContainer>
     )
   }
 
   return (
-    <DashboardLayout>
-      <PageContainer>
-        <PageHeaderSection
-          title="New Purchase Order"
-          description="Operations"
-          icon={FileEdit}
-          actions={
-            <Button variant="outline" asChild className="gap-2">
-              <Link href="/operations/purchase-orders">
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </Link>
-            </Button>
-          }
-        />
-        <PageContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Order Details - Document Header Style */}
-            <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-              {/* Section Header */}
-              <div className="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-700">
-                <h2 className="text-sm font-semibold text-white tracking-wide uppercase">Order Details</h2>
+    <PageContainer>
+      <PageHeaderSection
+        title="New Purchase Order"
+        description="Operations"
+        icon={FileEdit}
+        actions={
+          <Button variant="outline" asChild className="gap-2">
+            <Link href="/operations/purchase-orders">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+          </Button>
+        }
+      />
+      <PageContent>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Order Details - Document Header Style */}
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* Section Header */}
+            <div className="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-700">
+              <h2 className="text-sm font-semibold text-white tracking-wide uppercase">
+                Order Details
+              </h2>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Row 1: Supplier + Destination - Two prominent fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
+                    Supplier
+                  </label>
+                  <select
+                    value={formData.supplierId}
+                    onChange={e => handleSupplierChange(e.target.value)}
+                    className="w-full h-11 px-4 border-2 border-slate-200 rounded-lg bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-medium transition-colors"
+                    required
+                  >
+                    <option value="" className="text-slate-400">
+                      Select supplier...
+                    </option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                        {supplier.contactName ? ` — ${supplier.contactName}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {suppliers.length === 0 && !loading && (
+                    <p className="text-xs text-slate-500">
+                      No suppliers configured.{' '}
+                      <Link
+                        href="/config/suppliers"
+                        className="text-cyan-600 font-medium hover:underline"
+                      >
+                        Add one →
+                      </Link>
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                    Ship To
+                  </label>
+                  <div className="h-11 px-4 flex items-center border-2 border-slate-100 rounded-lg bg-slate-50 text-sm font-medium text-slate-600">
+                    {tenantDestination}
+                  </div>
+                </div>
               </div>
 
-              <div className="p-5 space-y-5">
-                {/* Row 1: Supplier + Destination - Two prominent fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-500"></span>
-                      Supplier
-                    </label>
-                    <select
-                      value={formData.supplierId}
-                      onChange={e => handleSupplierChange(e.target.value)}
-                      className="w-full h-11 px-4 border-2 border-slate-200 rounded-lg bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-medium transition-colors"
-                      required
-                    >
-                      <option value="" className="text-slate-400">Select supplier...</option>
-                      {suppliers.map(supplier => (
-                        <option key={supplier.id} value={supplier.id}>
-                          {supplier.name}
-                          {supplier.contactName ? ` — ${supplier.contactName}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                    {suppliers.length === 0 && !loading && (
-                      <p className="text-xs text-slate-500">
-                        No suppliers configured.{' '}
-                        <Link href="/config/suppliers" className="text-cyan-600 font-medium hover:underline">
-                          Add one →
-                        </Link>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                      Ship To
-                    </label>
-                    <div className="h-11 px-4 flex items-center border-2 border-slate-100 rounded-lg bg-slate-50 text-sm font-medium text-slate-600">
-                      {tenantDestination}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Row 2: Cargo details - 4 columns with visual grouping */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      Currency
-                    </label>
-                    <select
-                      value={formData.currency}
-                      onChange={e => handleCurrencyChange(e.target.value)}
-                      className="w-full h-10 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-mono font-semibold transition-colors"
-                      required
-                    >
-                      {CURRENCY_OPTIONS.map(currency => (
-                        <option key={currency} value={currency}>
-                          {currency}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      Cargo Ready
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.expectedDate}
-                      onChange={e => setFormData(prev => ({ ...prev, expectedDate: e.target.value }))}
-                      className="h-10 text-sm font-medium border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      Incoterms
-                    </label>
-                    <select
-                      value={formData.incoterms}
-                      onChange={e => setFormData(prev => ({ ...prev, incoterms: e.target.value }))}
-                      className="w-full h-10 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-mono font-semibold transition-colors"
-                      required
-                    >
-                      <option value="" className="text-slate-400">Select</option>
-                      {INCOTERMS_OPTIONS.map(option => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                      Payment Terms
-                    </label>
-                    <Input
-                      value={formData.paymentTerms}
-                      onChange={e => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
-                      placeholder="e.g., 30/70"
-                      className="h-10 text-sm font-medium border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Row 3: Notes - full width with subtle styling */}
+              {/* Row 2: Cargo details - 4 columns with visual grouping */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Internal Notes
+                    Currency
+                  </label>
+                  <select
+                    value={formData.currency}
+                    onChange={e => handleCurrencyChange(e.target.value)}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-mono font-semibold transition-colors"
+                    required
+                  >
+                    {CURRENCY_OPTIONS.map(currency => (
+                      <option key={currency} value={currency}>
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Cargo Ready
                   </label>
                   <Input
-                    value={formData.notes}
-                    onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Optional notes for internal reference..."
-                    className="h-10 text-sm border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
+                    type="date"
+                    value={formData.expectedDate}
+                    onChange={e => setFormData(prev => ({ ...prev, expectedDate: e.target.value }))}
+                    className="h-10 text-sm font-medium border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Incoterms
+                  </label>
+                  <select
+                    value={formData.incoterms}
+                    onChange={e => setFormData(prev => ({ ...prev, incoterms: e.target.value }))}
+                    className="w-full h-10 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-mono font-semibold transition-colors"
+                    required
+                  >
+                    <option value="" className="text-slate-400">
+                      Select
+                    </option>
+                    {INCOTERMS_OPTIONS.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Payment Terms
+                  </label>
+                  <Input
+                    value={formData.paymentTerms}
+                    onChange={e => setFormData(prev => ({ ...prev, paymentTerms: e.target.value }))}
+                    placeholder="e.g., 30/70"
+                    className="h-10 text-sm font-medium border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                    required
                   />
                 </div>
               </div>
+
+              {/* Row 3: Notes - full width with subtle styling */}
+              <div className="space-y-2">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Internal Notes
+                </label>
+                <Input
+                  value={formData.notes}
+                  onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Optional notes for internal reference..."
+                  className="h-10 text-sm border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Line Items Section */}
+          <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+            {/* Section Header with Stats */}
+            <div className="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h2 className="text-sm font-semibold text-white tracking-wide uppercase">
+                  Line Items
+                </h2>
+                {/* Summary Stats as Pills */}
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 tabular-nums">
+                    {lineItems.length} SKU{lineItems.length !== 1 ? 's' : ''}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 tabular-nums">
+                    {lineTotals.totalUnits.toLocaleString()} units
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 tabular-nums">
+                    {lineTotals.totalCartons.toLocaleString()} ctns
+                  </span>
+                  {lineTotals.hasCbm && (
+                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-[11px] font-semibold text-cyan-200 tabular-nums">
+                      {lineTotals.totalCbm.toFixed(2)} m³
+                    </span>
+                  )}
+                  {lineTotals.hasKg && (
+                    <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-[11px] font-semibold text-cyan-200 tabular-nums">
+                      {lineTotals.totalKg.toFixed(1)} kg
+                    </span>
+                  )}
+                  {lineTotals.hasCost && (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-[11px] font-semibold text-emerald-200 tabular-nums">
+                      {formData.currency}{' '}
+                      {lineTotals.totalCost.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={addLineItem}
+                className="bg-white/10 hover:bg-white/20 text-white border-0 text-xs font-semibold"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                Add Line
+              </Button>
             </div>
 
-            {/* Line Items Section */}
-            <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-              {/* Section Header with Stats */}
-              <div className="px-5 py-3 bg-gradient-to-r from-slate-800 to-slate-700 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-sm font-semibold text-white tracking-wide uppercase">Line Items</h2>
-                  {/* Summary Stats as Pills */}
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 tabular-nums">
-                      {lineItems.length} SKU{lineItems.length !== 1 ? 's' : ''}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 tabular-nums">
-                      {lineTotals.totalUnits.toLocaleString()} units
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full bg-white/10 text-[11px] font-semibold text-white/90 tabular-nums">
-                      {lineTotals.totalCartons.toLocaleString()} ctns
-                    </span>
-                    {lineTotals.hasCbm && (
-                      <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-[11px] font-semibold text-cyan-200 tabular-nums">
-                        {lineTotals.totalCbm.toFixed(2)} m³
-                      </span>
-                    )}
-                    {lineTotals.hasKg && (
-                      <span className="px-2.5 py-1 rounded-full bg-cyan-500/20 text-[11px] font-semibold text-cyan-200 tabular-nums">
-                        {lineTotals.totalKg.toFixed(1)} kg
-                      </span>
-                    )}
-                    {lineTotals.hasCost && (
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-[11px] font-semibold text-emerald-200 tabular-nums">
-                        {formData.currency} {lineTotals.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    )}
-                  </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[960px]">
+                {/* Table Header */}
+                <div className="grid grid-cols-16 gap-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                  <div className="col-span-2">Product</div>
+                  <div className="col-span-2">Batch</div>
+                  <div className="col-span-3">Description</div>
+                  <div className="col-span-1 text-right">Qty</div>
+                  <div className="col-span-1 text-right">U/Ctn</div>
+                  <div className="col-span-1 text-right">Ctns</div>
+                  <div className="col-span-2 text-right">Cost</div>
+                  <div className="col-span-3">Notes</div>
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={addLineItem}
-                  className="bg-white/10 hover:bg-white/20 text-white border-0 text-xs font-semibold"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add Line
-                </Button>
-              </div>
 
-              <div className="overflow-x-auto">
-                <div className="min-w-[960px]">
-                  {/* Table Header */}
-                  <div className="grid grid-cols-16 gap-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider px-5 py-3 border-b border-slate-100 bg-slate-50/50">
-                    <div className="col-span-2">Product</div>
-                    <div className="col-span-2">Batch</div>
-                    <div className="col-span-3">Description</div>
-                    <div className="col-span-1 text-right">Qty</div>
-                    <div className="col-span-1 text-right">U/Ctn</div>
-                    <div className="col-span-1 text-right">Ctns</div>
-                    <div className="col-span-2 text-right">Cost</div>
-                    <div className="col-span-3">Notes</div>
-                  </div>
-
-                  {/* Line Items */}
-                  <div className="divide-y divide-slate-100">
-                    {lineItems.map(item => {
-                      const pkg = getLinePackagingDetails(item)
-                      const parsedCost = parseMoney(item.totalCost)
-                      const unitCost =
-                        parsedCost !== null && item.unitsOrdered > 0
-                          ? parsedCost / item.unitsOrdered
-                          : null
-                      const cartons = item.unitsPerCarton && item.unitsOrdered > 0
+                {/* Line Items */}
+                <div className="divide-y divide-slate-100">
+                  {lineItems.map(item => {
+                    const pkg = getLinePackagingDetails(item)
+                    const parsedCost = parseMoney(item.totalCost)
+                    const unitCost =
+                      parsedCost !== null && item.unitsOrdered > 0
+                        ? parsedCost / item.unitsOrdered
+                        : null
+                    const cartons =
+                      item.unitsPerCarton && item.unitsOrdered > 0
                         ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
                         : null
-                      return (
-                        <div key={item.id} className="group">
-                          {/* Main Row */}
-                          <div className="grid grid-cols-16 gap-3 items-center px-5 py-4 bg-white hover:bg-slate-50/50 transition-colors">
-                            {/* SKU */}
-                            <div className="col-span-2">
-                              <select
-                                value={item.skuCode}
-                                onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
-                                className="w-full h-9 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-semibold transition-colors"
-                                required
-                              >
-                                <option value="" className="text-slate-400">Select...</option>
-                                {skus.map(sku => (
-                                  <option key={sku.id} value={sku.skuCode}>
-                                    {sku.skuCode}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                    return (
+                      <div key={item.id} className="group">
+                        {/* Main Row */}
+                        <div className="grid grid-cols-16 gap-3 items-center px-5 py-4 bg-white hover:bg-slate-50/50 transition-colors">
+                          {/* SKU */}
+                          <div className="col-span-2">
+                            <select
+                              value={item.skuCode}
+                              onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
+                              className="w-full h-9 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-semibold transition-colors"
+                              required
+                            >
+                              <option value="" className="text-slate-400">
+                                Select...
+                              </option>
+                              {skus.map(sku => (
+                                <option key={sku.id} value={sku.skuCode}>
+                                  {sku.skuCode}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                            {/* Batch */}
-                            <div className="col-span-2">
-                              <select
-                                value={item.batchLot}
-                                onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
-                                className="w-full h-9 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-medium disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
-                                required
-                                disabled={!item.skuId}
-                              >
-                                {item.skuId ? (
-                                  batchesLoadingBySkuId[item.skuId] ? (
-                                    <option value="">Loading…</option>
-                                  ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
-                                    <>
-                                      <option value="">Select batch</option>
-                                      {(batchesBySkuId[item.skuId] ?? []).map(batch => (
-                                        <option key={batch.batchCode} value={batch.batchCode}>
-                                          {batch.batchCode}
-                                        </option>
-                                      ))}
-                                    </>
-                                  ) : (
-                                    <option value="">No batches</option>
-                                  )
+                          {/* Batch */}
+                          <div className="col-span-2">
+                            <select
+                              value={item.batchLot}
+                              onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
+                              className="w-full h-9 px-3 border border-slate-200 rounded-md bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm font-medium disabled:bg-slate-50 disabled:text-slate-400 transition-colors"
+                              required
+                              disabled={!item.skuId}
+                            >
+                              {item.skuId ? (
+                                batchesLoadingBySkuId[item.skuId] ? (
+                                  <option value="">Loading…</option>
+                                ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
+                                  <>
+                                    <option value="">Select batch</option>
+                                    {(batchesBySkuId[item.skuId] ?? []).map(batch => (
+                                      <option key={batch.batchCode} value={batch.batchCode}>
+                                        {batch.batchCode}
+                                      </option>
+                                    ))}
+                                  </>
                                 ) : (
-                                  <option value="" className="text-slate-400">—</option>
-                                )}
-                              </select>
-                            </div>
-
-                            {/* Description */}
-                            <div className="col-span-3">
-                              <Input
-                                value={item.skuDescription}
-                                onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
-                                placeholder="Product description"
-                                className="h-9 text-sm border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
-                              />
-                            </div>
-
-                            {/* Qty */}
-                            <div className="col-span-1">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.unitsOrdered}
-                                onChange={e => updateLineItem(item.id, 'unitsOrdered', parseInt(e.target.value) || 0)}
-                                className="h-9 text-sm font-semibold text-right tabular-nums border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                                required
-                              />
-                            </div>
-
-                            {/* U/Ctn */}
-                            <div className="col-span-1">
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.unitsPerCarton ?? ''}
-                                onChange={e => updateLineItem(item.id, 'unitsPerCarton', (() => {
-                                  const parsed = Number.parseInt(e.target.value, 10)
-                                  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-                                })())}
-                                placeholder="—"
-                                className="h-9 text-sm text-right tabular-nums border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 disabled:bg-slate-50 placeholder:text-slate-300"
-                                disabled={!item.skuId || !item.batchLot}
-                                required
-                              />
-                            </div>
-
-                            {/* Ctns (calculated) */}
-                            <div className="col-span-1">
-                              <div className="h-9 px-3 flex items-center justify-end rounded-md bg-slate-100 text-sm font-bold tabular-nums text-slate-600">
-                                {cartons ?? '—'}
-                              </div>
-                            </div>
-
-                            {/* Total Cost */}
-                            <div className="col-span-2">
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={item.totalCost}
-                                  onChange={e => updateLineItem(item.id, 'totalCost', e.target.value)}
-                                  placeholder="0.00"
-                                  className="h-9 text-sm text-right tabular-nums pr-14 border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
-                                />
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[11px] font-bold text-slate-400">
-                                  {item.currency}
-                                </div>
-                              </div>
-                              {unitCost !== null && (
-                                <p className="mt-1 text-[10px] font-medium text-slate-400 text-right tabular-nums">
-                                  @ {unitCost.toFixed(4)}/{item.currency.toLowerCase()}
-                                </p>
+                                  <option value="">No batches</option>
+                                )
+                              ) : (
+                                <option value="" className="text-slate-400">
+                                  —
+                                </option>
                               )}
-                            </div>
+                            </select>
+                          </div>
 
-                            {/* Notes + Delete */}
-                            <div className="col-span-3 flex gap-2">
-                              <Input
-                                value={item.notes}
-                                onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
-                                placeholder="Line notes..."
-                                className="h-9 text-sm flex-1 border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeLineItem(item.id)}
-                                disabled={lineItems.length === 1}
-                                className="h-9 w-9 p-0 flex-shrink-0 text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                          {/* Description */}
+                          <div className="col-span-3">
+                            <Input
+                              value={item.skuDescription}
+                              onChange={e =>
+                                updateLineItem(item.id, 'skuDescription', e.target.value)
+                              }
+                              placeholder="Product description"
+                              className="h-9 text-sm border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
+                            />
+                          </div>
+
+                          {/* Qty */}
+                          <div className="col-span-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.unitsOrdered}
+                              onChange={e =>
+                                updateLineItem(
+                                  item.id,
+                                  'unitsOrdered',
+                                  parseInt(e.target.value) || 0
+                                )
+                              }
+                              className="h-9 text-sm font-semibold text-right tabular-nums border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                              required
+                            />
+                          </div>
+
+                          {/* U/Ctn */}
+                          <div className="col-span-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.unitsPerCarton ?? ''}
+                              onChange={e =>
+                                updateLineItem(
+                                  item.id,
+                                  'unitsPerCarton',
+                                  (() => {
+                                    const parsed = Number.parseInt(e.target.value, 10)
+                                    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                                  })()
+                                )
+                              }
+                              placeholder="—"
+                              className="h-9 text-sm text-right tabular-nums border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 disabled:bg-slate-50 placeholder:text-slate-300"
+                              disabled={!item.skuId || !item.batchLot}
+                              required
+                            />
+                          </div>
+
+                          {/* Ctns (calculated) */}
+                          <div className="col-span-1">
+                            <div className="h-9 px-3 flex items-center justify-end rounded-md bg-slate-100 text-sm font-bold tabular-nums text-slate-600">
+                              {cartons ?? '—'}
                             </div>
                           </div>
 
-                          {/* Packaging Details Card */}
-                          {pkg && (
-                            <div className={`mx-5 mb-4 rounded-lg border overflow-hidden ${
+                          {/* Total Cost */}
+                          <div className="col-span-2">
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.totalCost}
+                                onChange={e => updateLineItem(item.id, 'totalCost', e.target.value)}
+                                placeholder="0.00"
+                                className="h-9 text-sm text-right tabular-nums pr-14 border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
+                              />
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[11px] font-bold text-slate-400">
+                                {item.currency}
+                              </div>
+                            </div>
+                            {unitCost !== null && (
+                              <p className="mt-1 text-[10px] font-medium text-slate-400 text-right tabular-nums">
+                                @ {unitCost.toFixed(4)}/{item.currency.toLowerCase()}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Notes + Delete */}
+                          <div className="col-span-3 flex gap-2">
+                            <Input
+                              value={item.notes}
+                              onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
+                              placeholder="Line notes..."
+                              className="h-9 text-sm flex-1 border-slate-200 hover:border-slate-300 focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 placeholder:text-slate-300"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeLineItem(item.id)}
+                              disabled={lineItems.length === 1}
+                              className="h-9 w-9 p-0 flex-shrink-0 text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-20 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Packaging Details Card */}
+                        {pkg && (
+                          <div
+                            className={`mx-5 mb-4 rounded-lg border overflow-hidden ${
                               pkg.hasWarning
                                 ? 'border-amber-200 bg-gradient-to-r from-amber-50 to-amber-50/50'
                                 : 'border-slate-200 bg-gradient-to-r from-slate-50 to-white'
-                            }`}>
-                              <div className="grid grid-cols-6 divide-x divide-slate-200/50">
-                                {/* Carton Dimensions */}
-                                <div className="px-4 py-3">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Carton</p>
-                                  <p className={`text-sm font-semibold tabular-nums ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}>
-                                    {pkg.cartonDims ?? 'Not set'}
-                                  </p>
-                                </div>
+                            }`}
+                          >
+                            <div className="grid grid-cols-6 divide-x divide-slate-200/50">
+                              {/* Carton Dimensions */}
+                              <div className="px-4 py-3">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                  Carton
+                                </p>
+                                <p
+                                  className={`text-sm font-semibold tabular-nums ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
+                                >
+                                  {pkg.cartonDims ?? 'Not set'}
+                                </p>
+                              </div>
 
-                                {/* CBM per Carton */}
-                                <div className="px-4 py-3">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">CBM/ctn</p>
-                                  <p className="text-sm font-semibold tabular-nums text-slate-700">
-                                    {pkg.cbmPerCarton ?? '—'}
-                                  </p>
-                                </div>
+                              {/* CBM per Carton */}
+                              <div className="px-4 py-3">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                  CBM/ctn
+                                </p>
+                                <p className="text-sm font-semibold tabular-nums text-slate-700">
+                                  {pkg.cbmPerCarton ?? '—'}
+                                </p>
+                              </div>
 
-                                {/* CBM Total */}
-                                <div className="px-4 py-3 bg-cyan-50/30">
-                                  <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">CBM Total</p>
-                                  <p className="text-sm font-bold tabular-nums text-cyan-700">
-                                    {pkg.cbmTotal ?? '—'}
-                                  </p>
-                                </div>
+                              {/* CBM Total */}
+                              <div className="px-4 py-3 bg-cyan-50/30">
+                                <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">
+                                  CBM Total
+                                </p>
+                                <p className="text-sm font-bold tabular-nums text-cyan-700">
+                                  {pkg.cbmTotal ?? '—'}
+                                </p>
+                              </div>
 
-                                {/* KG per Carton */}
-                                <div className="px-4 py-3">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">KG/ctn</p>
-                                  <p className="text-sm font-semibold tabular-nums text-slate-700">
-                                    {pkg.kgPerCarton ?? '—'}
-                                  </p>
-                                </div>
+                              {/* KG per Carton */}
+                              <div className="px-4 py-3">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                  KG/ctn
+                                </p>
+                                <p className="text-sm font-semibold tabular-nums text-slate-700">
+                                  {pkg.kgPerCarton ?? '—'}
+                                </p>
+                              </div>
 
-                                {/* KG Total */}
-                                <div className="px-4 py-3 bg-cyan-50/30">
-                                  <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">KG Total</p>
-                                  <p className="text-sm font-bold tabular-nums text-cyan-700">
-                                    {pkg.kgTotal ?? '—'}
-                                  </p>
-                                </div>
+                              {/* KG Total */}
+                              <div className="px-4 py-3 bg-cyan-50/30">
+                                <p className="text-[10px] font-bold text-cyan-600 uppercase tracking-wider mb-1">
+                                  KG Total
+                                </p>
+                                <p className="text-sm font-bold tabular-nums text-cyan-700">
+                                  {pkg.kgTotal ?? '—'}
+                                </p>
+                              </div>
 
-                                {/* Packaging Type */}
-                                <div className="px-4 py-3">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Pkg Type</p>
-                                  <p className="text-sm font-semibold text-slate-700">
-                                    {pkg.packagingType ?? '—'}
-                                  </p>
-                                </div>
+                              {/* Packaging Type */}
+                              <div className="px-4 py-3">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                  Pkg Type
+                                </p>
+                                <p className="text-sm font-semibold text-slate-700">
+                                  {pkg.packagingType ?? '—'}
+                                </p>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/operations/purchase-orders')}
-                disabled={submitting}
-                className="h-10 px-6 text-sm font-medium border-slate-200 hover:bg-slate-50"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  submitting ||
-                  !formData.supplierId ||
-                  !formData.expectedDate ||
-                  !formData.incoterms ||
-                  !formData.paymentTerms.trim() ||
-                  lineItems.length === 0
-                }
-                className="h-10 px-8 text-sm font-semibold bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600 shadow-sm"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Creating Order...
-                  </>
-                ) : (
-                  'Create Purchase Order'
-                )}
-              </Button>
-            </div>
-          </form>
-        </PageContent>
-      </PageContainer>
-    </DashboardLayout>
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/operations/purchase-orders')}
+              disabled={submitting}
+              className="h-10 px-6 text-sm font-medium border-slate-200 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={
+                submitting ||
+                !formData.supplierId ||
+                !formData.expectedDate ||
+                !formData.incoterms ||
+                !formData.paymentTerms.trim() ||
+                lineItems.length === 0
+              }
+              className="h-10 px-8 text-sm font-semibold bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-700 hover:to-cyan-600 shadow-sm"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating Order...
+                </>
+              ) : (
+                'Create Purchase Order'
+              )}
+            </Button>
+          </div>
+        </form>
+      </PageContent>
+    </PageContainer>
   )
 }

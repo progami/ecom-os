@@ -13,7 +13,6 @@ import {
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -111,8 +110,10 @@ function buildBatchPackagingMeta(options: {
   unitsPerCarton: number | null
 }): { text: string; tone: 'muted' | 'warning' } | null {
   const unitsOrdered = Number(options.unitsOrdered)
-  const unitsPerCarton = options.unitsPerCarton && options.unitsPerCarton > 0 ? options.unitsPerCarton : null
-  const cartons = unitsPerCarton && unitsOrdered > 0 ? Math.ceil(unitsOrdered / unitsPerCarton) : null
+  const unitsPerCarton =
+    options.unitsPerCarton && options.unitsPerCarton > 0 ? options.unitsPerCarton : null
+  const cartons =
+    unitsPerCarton && unitsOrdered > 0 ? Math.ceil(unitsOrdered / unitsPerCarton) : null
 
   const cartonTriplet = resolveDimensionTripletCm({
     lengthCm: options.batch.cartonLengthCm,
@@ -1041,9 +1042,10 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => {
     if (!editLineOpen || !editingLine) return
 
-    const skuRecord = skus.find(
-      sku => sku.skuCode.trim().toUpperCase() === editingLine.skuCode.trim().toUpperCase()
-    ) ?? null
+    const skuRecord =
+      skus.find(
+        sku => sku.skuCode.trim().toUpperCase() === editingLine.skuCode.trim().toUpperCase()
+      ) ?? null
 
     if (!skuRecord) {
       void ensureSkusLoaded()
@@ -1217,14 +1219,12 @@ export default function PurchaseOrderDetailPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span>Loading purchase order...</span>
-          </div>
+      <div className="flex items-center justify-center h-96">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span>Loading purchase order...</span>
         </div>
-      </DashboardLayout>
+      </div>
     )
   }
 
@@ -1243,7 +1243,12 @@ export default function PurchaseOrderDetailPage() {
   const selectedSku = newLineDraft.skuId
     ? skus.find(sku => sku.id === newLineDraft.skuId)
     : undefined
-  const documentStages: PurchaseOrderDocumentStage[] = ['ISSUED', 'MANUFACTURING', 'OCEAN', 'WAREHOUSE']
+  const documentStages: PurchaseOrderDocumentStage[] = [
+    'ISSUED',
+    'MANUFACTURING',
+    'OCEAN',
+    'WAREHOUSE',
+  ]
   if (documents.some(doc => doc.stage === 'SHIPPED')) {
     documentStages.push('SHIPPED')
   }
@@ -1272,7 +1277,9 @@ export default function PurchaseOrderDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           counterpartyName: orderInfoDraft.counterpartyName.trim(),
-          expectedDate: orderInfoDraft.expectedDate.trim() ? orderInfoDraft.expectedDate.trim() : null,
+          expectedDate: orderInfoDraft.expectedDate.trim()
+            ? orderInfoDraft.expectedDate.trim()
+            : null,
           incoterms: orderInfoDraft.incoterms.trim() ? orderInfoDraft.incoterms.trim() : null,
           paymentTerms: orderInfoDraft.paymentTerms.trim()
             ? orderInfoDraft.paymentTerms.trim()
@@ -1347,17 +1354,20 @@ export default function PurchaseOrderDetailPage() {
 
     setEditLineSubmitting(true)
     try {
-      const response = await fetchWithCSRF(`/api/purchase-orders/${order.id}/lines/${editingLine.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          batchLot,
-          unitsOrdered,
-          unitsPerCarton,
-          totalCost,
-          notes: editLineDraft.notes.trim().length ? editLineDraft.notes.trim() : null,
-        }),
-      })
+      const response = await fetchWithCSRF(
+        `/api/purchase-orders/${order.id}/lines/${editingLine.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            batchLot,
+            unitsOrdered,
+            unitsPerCarton,
+            totalCost,
+            notes: editLineDraft.notes.trim().length ? editLineDraft.notes.trim() : null,
+          }),
+        }
+      )
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
@@ -1397,7 +1407,9 @@ export default function PurchaseOrderDetailPage() {
         throw new Error(payload?.error ?? 'Failed to remove line item')
       }
 
-      setOrder(prev => (prev ? { ...prev, lines: prev.lines.filter(line => line.id !== lineId) } : prev))
+      setOrder(prev =>
+        prev ? { ...prev, lines: prev.lines.filter(line => line.id !== lineId) } : prev
+      )
       if (editingLine?.id === lineId) {
         setEditLineOpen(false)
         setEditingLine(null)
@@ -1511,7 +1523,8 @@ export default function PurchaseOrderDetailPage() {
       const match = disposition.match(/filename="?([^\";]+)"?/i)
       const headerFilename = match?.[1]?.trim()
       const fallbackFilename = `${order.poNumber || order.orderNumber || 'purchase-order'}.pdf`
-      const filename = headerFilename && headerFilename.length > 0 ? headerFilename : fallbackFilename
+      const filename =
+        headerFilename && headerFilename.length > 0 ? headerFilename : fallbackFilename
 
       const url = window.URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -1551,7 +1564,11 @@ export default function PurchaseOrderDetailPage() {
             ].filter((value): value is string => value !== null)
 
             fields.push(
-              { key: 'proformaInvoiceNumber', label: 'Proforma Invoice Number (PI #)', type: 'text' },
+              {
+                key: 'proformaInvoiceNumber',
+                label: 'Proforma Invoice Number (PI #)',
+                type: 'text',
+              },
               { key: 'proformaInvoiceDate', label: 'Proforma Invoice Date', type: 'date' }
             )
 
@@ -1740,388 +1757,1778 @@ export default function PurchaseOrderDetailPage() {
   }
 
   return (
-    <DashboardLayout>
-      <PageContainer>
-        <PageHeaderSection
-          title={order.poNumber || order.orderNumber}
-          description="Operations"
-          icon={Package2}
-          actions={
-            <>
+    <PageContainer>
+      <PageHeaderSection
+        title={order.poNumber || order.orderNumber}
+        description="Operations"
+        icon={Package2}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => router.back()} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            {canDownloadPdf && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.back()}
+                onClick={() => void handleDownloadPdf()}
+                disabled={pdfDownloading}
                 className="gap-2"
               >
-                <ArrowLeft className="h-4 w-4" />
-                Back
+                {pdfDownloading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                PDF
               </Button>
-              {canDownloadPdf && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void handleDownloadPdf()}
-                  disabled={pdfDownloading}
-                  className="gap-2"
-                >
-                  {pdfDownloading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Download className="h-4 w-4" />
-                  )}
-                  PDF
-                </Button>
-              )}
-              {!isTerminal && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleTransition('CANCELLED')}
-                  disabled={transitioning}
-                  className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
-            </>
-          }
-        />
-        <PageContent>
-          <div className="flex flex-col gap-6">
+            )}
+            {!isTerminal && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleTransition('CANCELLED')}
+                disabled={transitioning}
+                className="text-rose-500 hover:text-rose-600 hover:bg-rose-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </>
+        }
+      />
+      <PageContent>
+        <div className="flex flex-col gap-6">
+          {/* Stage Progress Bar */}
+          {!order.isLegacy && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
+            <div className="rounded-xl border bg-white p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">Order Progress</h2>
 
-        {/* Stage Progress Bar */}
-        {!order.isLegacy && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
-          <div className="rounded-xl border bg-white p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">Order Progress</h2>
+              {/* Stage Progress - Clickable Navigation */}
+              <div className="flex items-center justify-between relative">
+                {/* Progress line */}
+                <div className="absolute top-5 left-0 right-0 h-1 bg-slate-200 mx-8" />
+                <div
+                  className="absolute top-5 left-0 h-1 bg-emerald-500 transition-all duration-300 mx-8"
+                  style={{
+                    width: `calc(${(currentStageIndex / (STAGES.length - 1)) * 100}% - 4rem)`,
+                  }}
+                />
 
-            {/* Stage Progress - Clickable Navigation */}
-            <div className="flex items-center justify-between relative">
-              {/* Progress line */}
-              <div className="absolute top-5 left-0 right-0 h-1 bg-slate-200 mx-8" />
-              <div
-                className="absolute top-5 left-0 h-1 bg-emerald-500 transition-all duration-300 mx-8"
-                style={{
-                  width: `calc(${(currentStageIndex / (STAGES.length - 1)) * 100}% - 4rem)`,
-                }}
-              />
+                {STAGES.map((stage, index) => {
+                  const isCompleted = index < currentStageIndex
+                  const isCurrent = index === currentStageIndex
+                  const isClickable = canViewStage(stage.value)
+                  const isViewing = activeViewStage === stage.value
+                  const Icon = stage.icon
 
-              {STAGES.map((stage, index) => {
-                const isCompleted = index < currentStageIndex
-                const isCurrent = index === currentStageIndex
-                const isClickable = canViewStage(stage.value)
-                const isViewing = activeViewStage === stage.value
-                const Icon = stage.icon
-
-                return (
-                  <button
-                    key={stage.value}
-                    type="button"
-                    onClick={() => isClickable && setSelectedStageView(stage.value)}
-                    disabled={!isClickable}
-                    className={`flex flex-col items-center relative z-10 transition-all ${
-                      isClickable ? 'cursor-pointer group' : 'cursor-not-allowed'
-                    }`}
-                  >
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
-                        isViewing ? 'ring-2 ring-offset-2 ring-emerald-400' : ''
-                      } ${
-                        isCompleted
-                          ? 'bg-emerald-500 border-emerald-500 text-white group-hover:bg-emerald-600'
-                          : isCurrent
-                            ? 'bg-white border-emerald-500 text-emerald-600 group-hover:bg-emerald-50 animate-pulse'
-                            : 'bg-white border-slate-300 text-slate-400'
+                  return (
+                    <button
+                      key={stage.value}
+                      type="button"
+                      onClick={() => isClickable && setSelectedStageView(stage.value)}
+                      disabled={!isClickable}
+                      className={`flex flex-col items-center relative z-10 transition-all ${
+                        isClickable ? 'cursor-pointer group' : 'cursor-not-allowed'
                       }`}
                     >
-                      {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
-                    </div>
-                    <span
-                      className={`mt-2 text-xs font-medium transition-colors ${
-                        isViewing
-                          ? 'text-emerald-600'
-                          : isCompleted || isCurrent
-                            ? 'text-slate-900 group-hover:text-emerald-600'
-                            : 'text-slate-400'
-                      }`}
-                    >
-                      {stage.label}
-                    </span>
-                    {isCurrent && (
-                      <span className="mt-0.5 text-[10px] font-medium text-emerald-600 uppercase tracking-wider">
-                        Current
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                          isViewing ? 'ring-2 ring-offset-2 ring-emerald-400' : ''
+                        } ${
+                          isCompleted
+                            ? 'bg-emerald-500 border-emerald-500 text-white group-hover:bg-emerald-600'
+                            : isCurrent
+                              ? 'bg-white border-emerald-500 text-emerald-600 group-hover:bg-emerald-50 animate-pulse'
+                              : 'bg-white border-slate-300 text-slate-400'
+                        }`}
+                      >
+                        {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                      </div>
+                      <span
+                        className={`mt-2 text-xs font-medium transition-colors ${
+                          isViewing
+                            ? 'text-emerald-600'
+                            : isCompleted || isCurrent
+                              ? 'text-slate-900 group-hover:text-emerald-600'
+                              : 'text-slate-400'
+                        }`}
+                      >
+                        {stage.label}
                       </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+                      {isCurrent && (
+                        <span className="mt-0.5 text-[10px] font-medium text-emerald-600 uppercase tracking-wider">
+                          Current
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
 
-            {/* Action Buttons - All grouped together */}
-            <div className="flex flex-wrap items-center gap-2 mt-6">
-              {/* Primary: Advance */}
-              {nextStage && (
-                <Button
-                  onClick={() => setAdvanceModalOpen(true)}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
-                  Advance to {nextStage.label}
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
+              {/* Action Buttons - All grouped together */}
+              <div className="flex flex-wrap items-center gap-2 mt-6">
+                {/* Primary: Advance */}
+                {nextStage && (
+                  <Button
+                    onClick={() => setAdvanceModalOpen(true)}
+                    disabled={transitioning}
+                    className="gap-2"
+                  >
+                    Advance to {nextStage.label}
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                )}
 
-              {/* Secondary: Back to Draft (ISSUED only) */}
-              {order.status === 'ISSUED' && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleTransition('DRAFT')}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back to Draft
-                </Button>
-              )}
+                {/* Secondary: Back to Draft (ISSUED only) */}
+                {order.status === 'ISSUED' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleTransition('DRAFT')}
+                    disabled={transitioning}
+                    className="gap-2"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to Draft
+                  </Button>
+                )}
 
-              {/* Secondary: Mark Rejected (ISSUED only) */}
-              {order.status === 'ISSUED' && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleTransition('REJECTED')}
-                  disabled={transitioning}
-                  className="gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                >
-                  <PackageX className="h-4 w-4" />
-                  Mark Rejected
-                </Button>
-              )}
-            </div>
+                {/* Secondary: Mark Rejected (ISSUED only) */}
+                {order.status === 'ISSUED' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleTransition('REJECTED')}
+                    disabled={transitioning}
+                    className="gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                  >
+                    <PackageX className="h-4 w-4" />
+                    Mark Rejected
+                  </Button>
+                )}
+              </div>
 
-            {order.status === 'WAREHOUSE' && (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">
-                    Shipping is handled via Fulfillment Orders
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Create a fulfillment order (FO) to ship inventory out of this warehouse.
-                  </p>
+              {order.status === 'WAREHOUSE' && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">
+                      Shipping is handled via Fulfillment Orders
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Create a fulfillment order (FO) to ship inventory out of this warehouse.
+                    </p>
+                  </div>
+                  <Button asChild variant="outline">
+                    <Link href="/operations/fulfillment-orders/new" prefetch={false}>
+                      Create Fulfillment Order
+                    </Link>
+                  </Button>
                 </div>
-                <Button asChild variant="outline">
-                  <Link href="/operations/fulfillment-orders/new" prefetch={false}>
-                    Create Fulfillment Order
-                  </Link>
-                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Cancelled banner */}
+          {order.status === 'CANCELLED' && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <p className="text-sm text-slate-700">
+                This order has been cancelled and cannot be modified.
+              </p>
+            </div>
+          )}
+
+          {/* Rejected banner */}
+          {order.status === 'REJECTED' && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4">
+              <p className="text-sm text-slate-700">
+                This PO was rejected by the supplier. Reopen it as a draft to revise and re-issue.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => handleTransition('DRAFT')}
+                disabled={transitioning}
+                className="gap-2"
+              >
+                <FileEdit className="h-4 w-4" />
+                Reopen Draft
+              </Button>
+            </div>
+          )}
+
+          {/* Details, Cargo, Documents & History Tabs */}
+          <div className="rounded-xl border bg-white shadow-sm">
+            {/* Tab Headers */}
+            <div className="flex items-center border-b">
+              <button
+                type="button"
+                onClick={() => setActiveBottomTab('details')}
+                className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                  activeBottomTab === 'details'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Info className="h-4 w-4" />
+                Details
+                {activeBottomTab === 'details' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveBottomTab('cargo')}
+                className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                  activeBottomTab === 'cargo'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Package2 className="h-4 w-4" />
+                Cargo
+                <Badge variant="outline" className="text-xs ml-1">
+                  {order.lines.length}
+                </Badge>
+                {activeBottomTab === 'cargo' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveBottomTab('documents')
+                  void refreshDocuments()
+                }}
+                className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                  activeBottomTab === 'documents'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                Documents
+                {documentsCount > 0 && (
+                  <Badge variant="outline" className="text-xs ml-1">
+                    {documentsCount}
+                  </Badge>
+                )}
+                {activeBottomTab === 'documents' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveBottomTab('history')
+                  void refreshAuditLogs()
+                }}
+                className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
+                  activeBottomTab === 'history'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <History className="h-4 w-4" />
+                History
+                {historyCount > 0 && (
+                  <Badge variant="outline" className="text-xs ml-1">
+                    {historyCount}
+                  </Badge>
+                )}
+                {activeBottomTab === 'history' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                )}
+              </button>
+              {/* Spacer to push total to the right when cargo tab is active */}
+              {activeBottomTab === 'cargo' && (
+                <div className="ml-auto flex items-center gap-3 pr-6">
+                  <span className="text-sm text-muted-foreground">
+                    Total: {totalUnits.toLocaleString()} units · {totalCartons.toLocaleString()}{' '}
+                    cartons
+                  </span>
+                  {canEdit && (
+                    <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
+                      <PopoverTrigger asChild>
+                        <Button type="button" size="sm" variant="outline" className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Add SKU
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-[420px] space-y-4">
+                        <div>
+                          <h4 className="text-sm font-semibold text-slate-900">Add line item</h4>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Add another SKU to this purchase order.
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            SKU
+                          </label>
+                          <select
+                            value={newLineDraft.skuId}
+                            onChange={e => {
+                              const skuId = e.target.value
+                              setNewLineDraft(prev => ({
+                                ...prev,
+                                skuId,
+                                batchLot: '',
+                                unitsOrdered: 1,
+                                unitsPerCarton: null,
+                                totalCost: '',
+                                notes: '',
+                              }))
+                              void ensureSkuBatchesLoaded(skuId)
+                            }}
+                            disabled={skusLoading || addLineSubmitting}
+                            className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                          >
+                            <option value="">Select SKU</option>
+                            {skus.map(sku => (
+                              <option key={sku.id} value={sku.id}>
+                                {sku.skuCode}
+                              </option>
+                            ))}
+                          </select>
+                          {selectedSku?.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {selectedSku.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Batch / Lot
+                          </label>
+                          <select
+                            value={newLineDraft.batchLot}
+                            onChange={e => {
+                              const batchLot = e.target.value
+                              setNewLineDraft(prev => {
+                                const batches = prev.skuId ? (batchesBySkuId[prev.skuId] ?? []) : []
+                                const selected = batches.find(batch => batch.batchCode === batchLot)
+                                return {
+                                  ...prev,
+                                  batchLot,
+                                  unitsPerCarton: selected?.unitsPerCarton ?? null,
+                                }
+                              })
+                            }}
+                            disabled={!newLineDraft.skuId || addLineSubmitting}
+                            className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
+                          >
+                            {!newLineDraft.skuId ? (
+                              <option value="">Select SKU first</option>
+                            ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
+                              <option value="">Loading…</option>
+                            ) : (batchesBySkuId[newLineDraft.skuId]?.length ?? 0) > 0 ? (
+                              batchesBySkuId[newLineDraft.skuId].map(batch => (
+                                <option key={batch.batchCode} value={batch.batchCode}>
+                                  {batch.batchCode}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="">No batches found</option>
+                            )}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Units
+                            </label>
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min="1"
+                              step="1"
+                              value={newLineDraft.unitsOrdered}
+                              onChange={e =>
+                                setNewLineDraft(prev => ({
+                                  ...prev,
+                                  unitsOrdered: parseInt(e.target.value) || 0,
+                                }))
+                              }
+                              disabled={addLineSubmitting}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Units/Ctn
+                            </label>
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min="1"
+                              step="1"
+                              value={newLineDraft.unitsPerCarton ?? ''}
+                              onChange={e =>
+                                setNewLineDraft(prev => ({
+                                  ...prev,
+                                  unitsPerCarton: (() => {
+                                    const parsed = Number.parseInt(e.target.value, 10)
+                                    return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+                                  })(),
+                                }))
+                              }
+                              disabled={
+                                !newLineDraft.skuId || !newLineDraft.batchLot || addLineSubmitting
+                              }
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                              Cartons
+                            </label>
+                            <Input
+                              value={(() => {
+                                if (!newLineDraft.unitsPerCarton) return '—'
+                                if (newLineDraft.unitsOrdered <= 0) return '—'
+                                return String(
+                                  Math.ceil(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
+                                )
+                              })()}
+                              readOnly
+                              disabled
+                              className="bg-muted/30 text-muted-foreground"
+                            />
+                          </div>
+                        </div>
+                        {(() => {
+                          if (!newLineDraft.skuId || !newLineDraft.batchLot) return null
+                          const options = batchesBySkuId[newLineDraft.skuId] ?? []
+                          const batch =
+                            options.find(option => option.batchCode === newLineDraft.batchLot) ??
+                            null
+                          if (!batch) return null
+
+                          const meta = buildBatchPackagingMeta({
+                            batch,
+                            unitsOrdered: newLineDraft.unitsOrdered,
+                            unitsPerCarton: newLineDraft.unitsPerCarton,
+                          })
+
+                          if (!meta) return null
+
+                          return (
+                            <p
+                              className={`mt-1 text-[11px] ${
+                                meta.tone === 'warning' ? 'text-amber-600' : 'text-muted-foreground'
+                              }`}
+                            >
+                              {meta.text}
+                            </p>
+                          )
+                        })()}
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Total Cost
+                          </label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={newLineDraft.totalCost}
+                              onChange={e =>
+                                setNewLineDraft(prev => ({ ...prev, totalCost: e.target.value }))
+                              }
+                              placeholder="0.00"
+                              className="pr-12"
+                              disabled={addLineSubmitting}
+                            />
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
+                              {tenantCurrency}
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Unit:{' '}
+                            {(() => {
+                              const trimmed = newLineDraft.totalCost.trim()
+                              if (!trimmed) return '—'
+                              const parsed = Number(trimmed)
+                              if (!Number.isFinite(parsed) || parsed < 0) return '—'
+                              if (
+                                !Number.isInteger(newLineDraft.unitsOrdered) ||
+                                newLineDraft.unitsOrdered <= 0
+                              )
+                                return '—'
+                              return (parsed / newLineDraft.unitsOrdered).toFixed(4)
+                            })()}
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Notes
+                          </label>
+                          <Input
+                            value={newLineDraft.notes}
+                            onChange={e =>
+                              setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
+                            }
+                            placeholder="Optional"
+                            disabled={addLineSubmitting}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAddLineOpen(false)}
+                            disabled={addLineSubmitting}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => void handleAddLineItem()}
+                            disabled={
+                              !newLineDraft.skuId ||
+                              !newLineDraft.batchLot ||
+                              !newLineDraft.unitsPerCarton ||
+                              newLineDraft.unitsOrdered <= 0 ||
+                              addLineSubmitting
+                            }
+                            className="gap-2"
+                          >
+                            {addLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Add
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Tab Content */}
+            {activeBottomTab === 'cargo' && (
+              <div>
+                <div className="border-b bg-slate-50/50 px-4 py-3">
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Total Units
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {totalUnits.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Total Cartons
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {totalCartons.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Total Pallets
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {order.stageData.manufacturing?.totalPallets?.toLocaleString() ?? '—'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Total Weight (kg)
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {order.stageData.manufacturing?.totalWeightKg?.toLocaleString() ?? '—'}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Total Volume (CBM)
+                      </p>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {order.stageData.manufacturing?.totalVolumeCbm?.toLocaleString() ?? '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full table-auto text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-2 text-left font-semibold">SKU</th>
+                        <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
+                        <th className="px-4 py-2 text-left font-semibold">Description</th>
+                        <th className="px-4 py-2 text-right font-semibold">Units</th>
+                        <th className="px-4 py-2 text-right font-semibold">Units/Ctn</th>
+                        <th className="px-4 py-2 text-right font-semibold">Cartons</th>
+                        <th className="px-4 py-2 text-right font-semibold">Total</th>
+                        <th className="px-4 py-2 text-left font-semibold">Notes</th>
+                        <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
+                        <th className="px-4 py-2 text-left font-semibold">Status</th>
+                        {canEdit && <th className="px-4 py-2 text-right font-semibold">Actions</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {order.lines.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={canEdit ? 11 : 10}
+                            className="px-4 py-6 text-center text-muted-foreground"
+                          >
+                            No lines added to this order yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        order.lines.map((line, idx) => {
+                          const pkg = buildLinePackagingDetails(line)
+                          const isLast = idx === order.lines.length - 1
+                          return (
+                            <Fragment key={line.id}>
+                              <tr className="border-t border-slate-200 hover:bg-muted/10">
+                                <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                                  {line.skuCode}
+                                </td>
+                                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                                  {line.batchLot || '—'}
+                                </td>
+                                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate">
+                                  {line.skuDescription || '—'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                                  {line.unitsOrdered.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                  {line.unitsPerCarton.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                                  {line.quantity.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                                  <div className="text-right">
+                                    <div className="font-semibold text-foreground">
+                                      {line.totalCost !== null
+                                        ? `${line.totalCost.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })} ${(line.currency || tenantCurrency).toUpperCase()}`
+                                        : '—'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Unit:{' '}
+                                      {line.unitCost !== null
+                                        ? Number(line.unitCost).toFixed(4)
+                                        : '—'}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2.5 text-muted-foreground max-w-[220px] truncate">
+                                  {line.lineNotes || '—'}
+                                </td>
+                                <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                  {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
+                                </td>
+                                <td className="px-4 py-2.5 whitespace-nowrap">
+                                  <Badge variant="outline">{line.status}</Badge>
+                                </td>
+                                {canEdit && (
+                                  <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0"
+                                        onClick={() => openLineEditor(line)}
+                                        title="Edit line"
+                                      >
+                                        <FileEdit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 w-8 p-0 text-rose-700 hover:text-rose-800"
+                                        onClick={() =>
+                                          setConfirmDialog({
+                                            open: true,
+                                            type: 'delete-line',
+                                            title: 'Remove line item',
+                                            message: `Remove SKU ${line.skuCode} (${line.batchLot || '—'}) from this draft PO?`,
+                                            lineId: line.id,
+                                          })
+                                        }
+                                        title="Remove line"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                              {pkg ? (
+                                <tr
+                                  className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}
+                                >
+                                  <td colSpan={canEdit ? 11 : 10} className="px-4 pb-2 pt-1">
+                                    <div
+                                      className={`grid grid-cols-6 gap-3 text-xs border-l-2 ${
+                                        pkg.hasWarning
+                                          ? 'border-amber-400 bg-amber-50/30'
+                                          : 'border-cyan-400 bg-transparent'
+                                      } pl-3 py-1`}
+                                    >
+                                      <div>
+                                        <span className="text-muted-foreground">Carton</span>
+                                        <p
+                                          className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
+                                        >
+                                          {pkg.cartonDims ?? 'Not set'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">CBM/ctn</span>
+                                        <p className="font-medium text-slate-700">
+                                          {pkg.cbmPerCarton ?? '—'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">CBM Total</span>
+                                        <p className="font-medium text-slate-700">
+                                          {pkg.cbmTotal ?? '—'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">KG/ctn</span>
+                                        <p className="font-medium text-slate-700">
+                                          {pkg.kgPerCarton ?? '—'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">KG Total</span>
+                                        <p className="font-medium text-slate-700">
+                                          {pkg.kgTotal ?? '—'}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Pkg Type</span>
+                                        <p className="font-medium text-slate-700">
+                                          {pkg.packagingType ?? '—'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : !isLast ? (
+                                <tr className="border-b-2 border-slate-200">
+                                  <td colSpan={canEdit ? 11 : 10} className="h-0"></td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeBottomTab === 'documents' && (
+              <div className="overflow-x-auto">
+                <table className="min-w-full table-auto text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-semibold">Stage</th>
+                      <th className="px-4 py-2 text-left font-semibold">Document Type</th>
+                      <th className="px-4 py-2 text-left font-semibold">File</th>
+                      <th className="px-4 py-2 text-left font-semibold">Uploaded</th>
+                      <th className="px-4 py-2 text-left font-semibold">Status</th>
+                      <th className="px-4 py-2 text-right font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const allRows: Array<{
+                        stage: string
+                        stageLabel: string
+                        documentType: string
+                        label: string
+                        doc: PurchaseOrderDocumentSummary | undefined
+                      }> = []
+
+                      documentStages.forEach(stage => {
+                        const stageDocs = documents.filter(doc => doc.stage === stage)
+                        const requiredDocs =
+                          stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
+                        const requiredIds = new Set(requiredDocs.map(doc => doc.id))
+                        const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+                        const otherDocs = stageDocs.filter(
+                          doc => !requiredIds.has(doc.documentType)
+                        )
+                        const meta = DOCUMENT_STAGE_META[stage]
+
+                        requiredDocs.forEach(doc => {
+                          allRows.push({
+                            stage,
+                            stageLabel: meta.label,
+                            documentType: doc.id,
+                            label: doc.label,
+                            doc: docsByType.get(doc.id),
+                          })
+                        })
+                        otherDocs.forEach(doc => {
+                          allRows.push({
+                            stage,
+                            stageLabel: meta.label,
+                            documentType: doc.documentType,
+                            label: getDocumentLabel(stage, doc.documentType),
+                            doc,
+                          })
+                        })
+                      })
+
+                      if (allRows.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                              No documents configured for this order.
+                            </td>
+                          </tr>
+                        )
+                      }
+
+                      return allRows.map(row => {
+                        const key = `${row.stage}::${row.documentType}`
+                        const existing = row.doc
+                        const isUploading = Boolean(uploadingDoc[key])
+
+                        return (
+                          <tr key={key} className="border-t hover:bg-muted/10">
+                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {row.stageLabel}
+                            </td>
+                            <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                              {row.label}
+                            </td>
+                            <td className="px-4 py-2.5 whitespace-nowrap max-w-[200px]">
+                              {existing ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewDocument(existing)}
+                                  className="text-primary hover:underline truncate block max-w-full"
+                                  title={existing.fileName}
+                                >
+                                  {existing.fileName}
+                                </button>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {existing ? formatDateOnly(existing.uploadedAt) : '—'}
+                            </td>
+                            <td className="px-4 py-2.5 whitespace-nowrap">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  existing
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    : ''
+                                }
+                              >
+                                {existing ? 'UPLOADED' : 'PENDING'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2.5 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {existing && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setPreviewDocument(existing)}
+                                    className="h-7 w-7 p-0"
+                                    title="Preview"
+                                  >
+                                    <Eye className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                                {existing && (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    title="Open in new tab"
+                                  >
+                                    <a href={existing.viewUrl} target="_blank" rel="noreferrer">
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </a>
+                                  </Button>
+                                )}
+                                {(row.stage !== 'SHIPPED' || existing) && (
+                                  <label
+                                    className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-muted cursor-pointer"
+                                    title={existing ? 'Replace' : 'Upload'}
+                                  >
+                                    <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      disabled={isUploading}
+                                      onChange={e =>
+                                        void handleDocumentUpload(
+                                          e,
+                                          row.stage as PurchaseOrderDocumentStage,
+                                          row.documentType
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeBottomTab === 'details' && (
+              <div className="p-6">
+                <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Order Details</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Consolidated view of all essential information across stages.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Order Info Section */}
+                  {(() => {
+                    const sectionKey = 'order-info'
+                    const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                    return (
+                      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollapsedDetailSections(prev => ({
+                              ...prev,
+                              [sectionKey]: !isCollapsed,
+                            }))
+                          }
+                          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                              <FileEdit className="h-4 w-4" />
+                            </span>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">Order Info</p>
+                              <p className="text-xs text-muted-foreground">Basic order details</p>
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                          />
+                        </button>
+                        <div
+                          className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                        >
+                          {canEdit && (
+                            <div className="mb-4 flex items-center justify-end gap-2">
+                              {orderInfoEditing ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setOrderInfoEditing(false)}
+                                    disabled={orderInfoSaving}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => void handleSaveOrderInfo()}
+                                    disabled={
+                                      orderInfoSaving || !orderInfoDraft.counterpartyName.trim()
+                                    }
+                                    className="gap-2"
+                                  >
+                                    {orderInfoSaving && (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    )}
+                                    Save
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setOrderInfoEditing(true)}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                PO Number
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {order.poNumber || order.orderNumber}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Supplier
+                              </p>
+                              {canEdit && orderInfoEditing ? (
+                                <Input
+                                  value={orderInfoDraft.counterpartyName}
+                                  onChange={e =>
+                                    setOrderInfoDraft(prev => ({
+                                      ...prev,
+                                      counterpartyName: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Supplier"
+                                  disabled={orderInfoSaving}
+                                />
+                              ) : (
+                                <p className="text-sm font-medium text-slate-900">
+                                  {order.counterpartyName || '—'}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Destination
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {tenantDestination || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Cargo Ready Date
+                              </p>
+                              {canEdit && orderInfoEditing ? (
+                                <Input
+                                  type="date"
+                                  value={orderInfoDraft.expectedDate}
+                                  onChange={e =>
+                                    setOrderInfoDraft(prev => ({
+                                      ...prev,
+                                      expectedDate: e.target.value,
+                                    }))
+                                  }
+                                  disabled={orderInfoSaving}
+                                />
+                              ) : (
+                                <p className="text-sm font-medium text-slate-900">
+                                  {order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Incoterms
+                              </p>
+                              {canEdit && orderInfoEditing ? (
+                                <select
+                                  value={orderInfoDraft.incoterms}
+                                  onChange={e =>
+                                    setOrderInfoDraft(prev => ({
+                                      ...prev,
+                                      incoterms: e.target.value,
+                                    }))
+                                  }
+                                  disabled={orderInfoSaving}
+                                  className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                                >
+                                  <option value="">Select incoterms</option>
+                                  {INCOTERMS_OPTIONS.map(option => (
+                                    <option key={option} value={option}>
+                                      {option}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <p className="text-sm font-medium text-slate-900">
+                                  {order.incoterms || '—'}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Payment Terms
+                              </p>
+                              {canEdit && orderInfoEditing ? (
+                                <Input
+                                  value={orderInfoDraft.paymentTerms}
+                                  onChange={e =>
+                                    setOrderInfoDraft(prev => ({
+                                      ...prev,
+                                      paymentTerms: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Payment terms"
+                                  disabled={orderInfoSaving}
+                                />
+                              ) : (
+                                <p className="text-sm font-medium text-slate-900">
+                                  {order.paymentTerms || '—'}
+                                </p>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Created
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(order.createdAt) || '—'}
+                                {order.createdByName ? ` by ${order.createdByName}` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          {(order.notes || (canEdit && orderInfoEditing)) && (
+                            <div className="mt-4 pt-3 border-t">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                                Notes
+                              </p>
+                              {canEdit && orderInfoEditing ? (
+                                <Textarea
+                                  value={orderInfoDraft.notes}
+                                  onChange={e =>
+                                    setOrderInfoDraft(prev => ({ ...prev, notes: e.target.value }))
+                                  }
+                                  placeholder="Optional internal notes..."
+                                  disabled={orderInfoSaving}
+                                  className="min-h-[88px]"
+                                />
+                              ) : (
+                                <p className="text-sm text-slate-700">{order.notes}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Manufacturing Section */}
+                  {(() => {
+                    const mfg = order.stageData.manufacturing
+                    const hasData =
+                      mfg?.proformaInvoiceNumber ||
+                      mfg?.manufacturingStartDate ||
+                      mfg?.totalCartons ||
+                      mfg?.totalWeightKg
+                    if (!hasData) return null
+                    const sectionKey = 'manufacturing'
+                    const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                    return (
+                      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollapsedDetailSections(prev => ({
+                              ...prev,
+                              [sectionKey]: !isCollapsed,
+                            }))
+                          }
+                          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-amber-50 text-amber-700">
+                              <Factory className="h-4 w-4" />
+                            </span>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">Manufacturing</p>
+                              <p className="text-xs text-muted-foreground">Production details</p>
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                          />
+                        </button>
+                        <div
+                          className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                        >
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Proforma Invoice
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {mfg?.proformaInvoiceNumber || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Start Date
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(
+                                  mfg?.manufacturingStartDate || mfg?.manufacturingStart
+                                ) || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Expected Completion
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(mfg?.expectedCompletionDate) || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Cartons
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {mfg?.totalCartons?.toLocaleString() || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Pallets
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {mfg?.totalPallets?.toLocaleString() || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Weight (kg)
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {mfg?.totalWeightKg?.toLocaleString() || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Volume (CBM)
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {mfg?.totalVolumeCbm?.toLocaleString() || '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* In Transit Section */}
+                  {(() => {
+                    const ocean = order.stageData.ocean
+                    const hasData =
+                      ocean?.houseBillOfLading ||
+                      ocean?.masterBillOfLading ||
+                      ocean?.vesselName ||
+                      ocean?.portOfLoading ||
+                      ocean?.estimatedDeparture
+                    if (!hasData) return null
+                    const sectionKey = 'ocean'
+                    const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                    return (
+                      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollapsedDetailSections(prev => ({
+                              ...prev,
+                              [sectionKey]: !isCollapsed,
+                            }))
+                          }
+                          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-blue-50 text-blue-700">
+                              <Ship className="h-4 w-4" />
+                            </span>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">In Transit</p>
+                              <p className="text-xs text-muted-foreground">Shipping & logistics</p>
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                          />
+                        </button>
+                        <div
+                          className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                        >
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                House B/L
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.houseBillOfLading || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Master B/L
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.masterBillOfLading || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Vessel
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.vesselName || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Voyage
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.voyageNumber || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Port of Loading
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.portOfLoading || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Port of Discharge
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.portOfDischarge || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                ETD
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(ocean?.estimatedDeparture) || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                ETA
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(ocean?.estimatedArrival) || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Commercial Invoice
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {ocean?.commercialInvoiceNumber || '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Warehouse Section */}
+                  {(() => {
+                    const wh = order.stageData.warehouse
+                    const hasData =
+                      wh?.warehouseName ||
+                      wh?.warehouseCode ||
+                      wh?.customsEntryNumber ||
+                      wh?.customsClearedDate ||
+                      wh?.receivedDate
+                    if (!hasData) return null
+                    const sectionKey = 'warehouse'
+                    const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                    return (
+                      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollapsedDetailSections(prev => ({
+                              ...prev,
+                              [sectionKey]: !isCollapsed,
+                            }))
+                          }
+                          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-purple-50 text-purple-700">
+                              <Warehouse className="h-4 w-4" />
+                            </span>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">Warehouse</p>
+                              <p className="text-xs text-muted-foreground">Receiving & customs</p>
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                          />
+                        </button>
+                        <div
+                          className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                        >
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Warehouse
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {wh?.warehouseName || wh?.warehouseCode || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Customs Entry
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {wh?.customsEntryNumber || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Customs Cleared
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(wh?.customsClearedDate) || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Duty Amount
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {wh?.dutyAmount != null
+                                  ? `${wh.dutyAmount.toLocaleString()} ${wh.dutyCurrency || ''}`
+                                  : '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Received Date
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(wh?.receivedDate) || '—'}
+                              </p>
+                            </div>
+                          </div>
+                          {wh?.discrepancyNotes && (
+                            <div className="mt-4 pt-3 border-t">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                                Discrepancy Notes
+                              </p>
+                              <p className="text-sm text-slate-700">{wh.discrepancyNotes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Shipped Section */}
+                  {(() => {
+                    const shipped = order.stageData.shipped
+                    const hasData =
+                      shipped?.shipToName ||
+                      shipped?.shippingCarrier ||
+                      shipped?.trackingNumber ||
+                      shipped?.shippedDate
+                    if (!hasData) return null
+                    const sectionKey = 'shipped'
+                    const isCollapsed = collapsedDetailSections[sectionKey] ?? false
+                    return (
+                      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCollapsedDetailSections(prev => ({
+                              ...prev,
+                              [sectionKey]: !isCollapsed,
+                            }))
+                          }
+                          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700">
+                              <Package2 className="h-4 w-4" />
+                            </span>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">Shipped</p>
+                              <p className="text-xs text-muted-foreground">Delivery details</p>
+                            </div>
+                          </div>
+                          <ChevronDown
+                            className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
+                          />
+                        </button>
+                        <div
+                          className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
+                        >
+                          <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
+                            <div className="space-y-1 col-span-2">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Ship To
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {[
+                                  shipped?.shipToName,
+                                  shipped?.shipToAddress,
+                                  shipped?.shipToCity,
+                                  shipped?.shipToCountry,
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ') || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Carrier
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {shipped?.shippingCarrier || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Method
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {shipped?.shippingMethod || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Tracking
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {shipped?.trackingNumber || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Shipped Date
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(shipped?.shippedDate || shipped?.shippedAt) || '—'}
+                              </p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Delivered Date
+                              </p>
+                              <p className="text-sm font-medium text-slate-900">
+                                {formatDateOnly(shipped?.deliveredDate) || '—'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {activeBottomTab === 'history' && (
+              <div className="overflow-x-auto">
+                {auditLogsLoading ? (
+                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Loading history…
+                  </div>
+                ) : (
+                  <table className="min-w-full table-auto text-sm">
+                    <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                      <tr>
+                        <th className="w-10 px-4 py-2"></th>
+                        <th className="px-4 py-2 text-left font-semibold">Action</th>
+                        <th className="px-4 py-2 text-left font-semibold">Changes</th>
+                        <th className="px-4 py-2 text-left font-semibold">By</th>
+                        <th className="px-4 py-2 text-left font-semibold">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogs.length > 0 ? (
+                        auditLogs.map(entry => {
+                          const newValue = toAuditRecord(entry.newValue)
+                          const title = describeAuditAction(entry.action, newValue)
+                          const changes = describeAuditChanges(entry)
+                          const actor = entry.changedBy?.fullName || 'Unknown'
+                          const { Icon, iconClassName } = getAuditActionTheme(entry.action)
+
+                          return (
+                            <tr key={entry.id} className="border-t hover:bg-muted/10">
+                              <td className="px-4 py-2.5">
+                                <Icon className={`h-4 w-4 ${iconClassName}`} />
+                              </td>
+                              <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                                {title}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground max-w-[300px]">
+                                {changes.length > 0 ? (
+                                  <span className="line-clamp-2" title={changes.join(', ')}>
+                                    {changes.join(', ')}
+                                  </span>
+                                ) : (
+                                  '—'
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                                {actor}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                                {formatDateOnly(entry.createdAt)}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      ) : order.approvalHistory && order.approvalHistory.length > 0 ? (
+                        order.approvalHistory.map((approval, index) => (
+                          <tr key={index} className="border-t hover:bg-muted/10">
+                            <td className="px-4 py-2.5">
+                              <Check className="h-4 w-4 text-emerald-600" />
+                            </td>
+                            <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                              {approval.stage}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground">—</td>
+                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {approval.approvedBy || 'Unknown'}
+                            </td>
+                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                              {approval.approvedAt ? formatDateOnly(approval.approvedAt) : '—'}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                            No activity recorded yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
 
-        {/* Cancelled banner */}
-        {order.status === 'CANCELLED' && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-            <p className="text-sm text-slate-700">
-              This order has been cancelled and cannot be modified.
-            </p>
-          </div>
-        )}
-
-        {/* Rejected banner */}
-        {order.status === 'REJECTED' && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <p className="text-sm text-slate-700">
-              This PO was rejected by the supplier. Reopen it as a draft to revise and re-issue.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => handleTransition('DRAFT')}
-              disabled={transitioning}
-              className="gap-2"
-            >
-              <FileEdit className="h-4 w-4" />
-              Reopen Draft
-            </Button>
-          </div>
-        )}
-
-
-        {/* Details, Cargo, Documents & History Tabs */}
-        <div className="rounded-xl border bg-white shadow-sm">
-          {/* Tab Headers */}
-          <div className="flex items-center border-b">
-            <button
-              type="button"
-              onClick={() => setActiveBottomTab('details')}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeBottomTab === 'details'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Info className="h-4 w-4" />
-              Details
-              {activeBottomTab === 'details' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveBottomTab('cargo')}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeBottomTab === 'cargo'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Package2 className="h-4 w-4" />
-              Cargo
-              <Badge variant="outline" className="text-xs ml-1">
-                {order.lines.length}
-              </Badge>
-              {activeBottomTab === 'cargo' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            <button
-              type="button"
+        {editLineOpen && editingLine && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={() => {
-                setActiveBottomTab('documents')
-                void refreshDocuments()
+                if (editLineSubmitting) return
+                setEditLineOpen(false)
+                setEditingLine(null)
               }}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeBottomTab === 'documents'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <FileText className="h-4 w-4" />
-              Documents
-              {documentsCount > 0 && (
-                <Badge variant="outline" className="text-xs ml-1">
-                  {documentsCount}
-                </Badge>
-              )}
-              {activeBottomTab === 'documents' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveBottomTab('history')
-                void refreshAuditLogs()
-              }}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeBottomTab === 'history'
-                  ? 'text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <History className="h-4 w-4" />
-              History
-              {historyCount > 0 && (
-                <Badge variant="outline" className="text-xs ml-1">
-                  {historyCount}
-                </Badge>
-              )}
-              {activeBottomTab === 'history' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-              )}
-            </button>
-            {/* Spacer to push total to the right when cargo tab is active */}
-            {activeBottomTab === 'cargo' && (
-              <div className="ml-auto flex items-center gap-3 pr-6">
-                <span className="text-sm text-muted-foreground">
-                  Total: {totalUnits.toLocaleString()} units · {totalCartons.toLocaleString()} cartons
-                </span>
-                {canEdit && (
-                  <Popover open={addLineOpen} onOpenChange={setAddLineOpen}>
-                    <PopoverTrigger asChild>
-                      <Button type="button" size="sm" variant="outline" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Add SKU
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-[420px] space-y-4">
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900">Add line item</h4>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          Add another SKU to this purchase order.
-                        </p>
-                      </div>
+            />
+            <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Edit line item</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {editingLine.skuCode} • {editingLine.batchLot || '—'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editLineSubmitting) return
+                    setEditLineOpen(false)
+                    setEditingLine(null)
+                  }}
+                  className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                  disabled={editLineSubmitting}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          SKU
-                        </label>
-                        <select
-                          value={newLineDraft.skuId}
-                          onChange={e => {
-                            const skuId = e.target.value
-                            setNewLineDraft(prev => ({
-                              ...prev,
-                              skuId,
-                              batchLot: '',
-                              unitsOrdered: 1,
-                              unitsPerCarton: null,
-                              totalCost: '',
-                              notes: '',
-                            }))
-                            void ensureSkuBatchesLoaded(skuId)
-                          }}
-                          disabled={skusLoading || addLineSubmitting}
-                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                        >
-                          <option value="">Select SKU</option>
-                          {skus.map(sku => (
-                            <option key={sku.id} value={sku.id}>
-                              {sku.skuCode}
-                            </option>
-                          ))}
-                        </select>
-                        {selectedSku?.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {selectedSku.description}
-                          </p>
-                        )}
-                      </div>
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                {(() => {
+                  const skuRecord =
+                    skus.find(
+                      sku =>
+                        sku.skuCode.trim().toUpperCase() ===
+                        editingLine.skuCode.trim().toUpperCase()
+                    ) ?? null
+                  const skuId = skuRecord?.id ?? null
+                  const batchOptions = skuId ? (batchesBySkuId[skuId] ?? []) : []
+                  const batchesLoading = skuId ? Boolean(batchesLoadingBySkuId[skuId]) : false
+                  const batch =
+                    batchOptions.find(option => option.batchCode === editLineDraft.batchLot) ?? null
 
+                  return (
+                    <>
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                           Batch / Lot
                         </label>
                         <select
-                          value={newLineDraft.batchLot}
+                          value={editLineDraft.batchLot}
                           onChange={e => {
-                            const batchLot = e.target.value
-                            setNewLineDraft(prev => {
-                              const batches = prev.skuId ? (batchesBySkuId[prev.skuId] ?? []) : []
-                              const selected = batches.find(batch => batch.batchCode === batchLot)
-                              return {
-                                ...prev,
-                                batchLot,
-                                unitsPerCarton: selected?.unitsPerCarton ?? null,
-                              }
-                            })
+                            const nextBatch = e.target.value
+                            setEditLineDraft(prev => ({
+                              ...prev,
+                              batchLot: nextBatch,
+                              unitsPerCarton:
+                                batchOptions.find(option => option.batchCode === nextBatch)
+                                  ?.unitsPerCarton ?? prev.unitsPerCarton,
+                            }))
                           }}
-                          disabled={!newLineDraft.skuId || addLineSubmitting}
-                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
+                          disabled={editLineSubmitting || batchesLoading || !skuId}
+                          className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                         >
-                          {!newLineDraft.skuId ? (
-                            <option value="">Select SKU first</option>
-                          ) : batchesLoadingBySkuId[newLineDraft.skuId] ? (
-                            <option value="">Loading…</option>
-                          ) : (batchesBySkuId[newLineDraft.skuId]?.length ?? 0) > 0 ? (
-                            batchesBySkuId[newLineDraft.skuId].map(batch => (
-                              <option key={batch.batchCode} value={batch.batchCode}>
-                                {batch.batchCode}
-                              </option>
-                            ))
-                          ) : (
-                            <option value="">No batches found</option>
-                          )}
+                          <option value="">{!skuId ? 'Select SKU first' : 'Select batch'}</option>
+                          {batchOptions.map(option => (
+                            <option key={option.batchCode} value={option.batchCode}>
+                              {option.batchCode}
+                            </option>
+                          ))}
                         </select>
+                        {batch && (
+                          <p className="text-[11px] text-muted-foreground">
+                            {buildBatchPackagingMeta({
+                              batch,
+                              unitsOrdered: editLineDraft.unitsOrdered,
+                              unitsPerCarton:
+                                editLineDraft.unitsPerCarton ?? batch.unitsPerCarton ?? null,
+                            })?.text ?? ''}
+                          </p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-3 gap-3">
@@ -2134,14 +3541,17 @@ export default function PurchaseOrderDetailPage() {
                             inputMode="numeric"
                             min="1"
                             step="1"
-                            value={newLineDraft.unitsOrdered}
+                            value={editLineDraft.unitsOrdered}
                             onChange={e =>
-                              setNewLineDraft(prev => ({
+                              setEditLineDraft(prev => ({
                                 ...prev,
-                                unitsOrdered: parseInt(e.target.value) || 0,
+                                unitsOrdered: (() => {
+                                  const parsed = Number.parseInt(e.target.value, 10)
+                                  return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
+                                })(),
                               }))
                             }
-                            disabled={addLineSubmitting}
+                            disabled={editLineSubmitting}
                           />
                         </div>
                         <div className="space-y-2">
@@ -2153,9 +3563,9 @@ export default function PurchaseOrderDetailPage() {
                             inputMode="numeric"
                             min="1"
                             step="1"
-                            value={newLineDraft.unitsPerCarton ?? ''}
+                            value={editLineDraft.unitsPerCarton ?? ''}
                             onChange={e =>
-                              setNewLineDraft(prev => ({
+                              setEditLineDraft(prev => ({
                                 ...prev,
                                 unitsPerCarton: (() => {
                                   const parsed = Number.parseInt(e.target.value, 10)
@@ -2163,8 +3573,7 @@ export default function PurchaseOrderDetailPage() {
                                 })(),
                               }))
                             }
-                            disabled={!newLineDraft.skuId || !newLineDraft.batchLot || addLineSubmitting}
-                            placeholder="—"
+                            disabled={editLineSubmitting}
                           />
                         </div>
                         <div className="space-y-2">
@@ -2173,11 +3582,10 @@ export default function PurchaseOrderDetailPage() {
                           </label>
                           <Input
                             value={(() => {
-                              if (!newLineDraft.unitsPerCarton) return '—'
-                              if (newLineDraft.unitsOrdered <= 0) return '—'
-                              return String(
-                                Math.ceil(newLineDraft.unitsOrdered / newLineDraft.unitsPerCarton)
-                              )
+                              const units = Number(editLineDraft.unitsOrdered)
+                              const per = editLineDraft.unitsPerCarton
+                              if (!per || units <= 0) return '—'
+                              return String(Math.ceil(units / per))
                             })()}
                             readOnly
                             disabled
@@ -2185,33 +3593,6 @@ export default function PurchaseOrderDetailPage() {
                           />
                         </div>
                       </div>
-                      {(() => {
-                        if (!newLineDraft.skuId || !newLineDraft.batchLot) return null
-                        const options = batchesBySkuId[newLineDraft.skuId] ?? []
-                        const batch =
-                          options.find(option => option.batchCode === newLineDraft.batchLot) ?? null
-                        if (!batch) return null
-
-                        const meta = buildBatchPackagingMeta({
-                          batch,
-                          unitsOrdered: newLineDraft.unitsOrdered,
-                          unitsPerCarton: newLineDraft.unitsPerCarton,
-                        })
-
-                        if (!meta) return null
-
-                        return (
-                          <p
-                            className={`mt-1 text-[11px] ${
-                              meta.tone === 'warning'
-                                ? 'text-amber-600'
-                                : 'text-muted-foreground'
-                            }`}
-                          >
-                            {meta.text}
-                          </p>
-                        )
-                      })()}
 
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -2222,13 +3603,13 @@ export default function PurchaseOrderDetailPage() {
                             type="number"
                             step="0.01"
                             min="0"
-                            value={newLineDraft.totalCost}
+                            value={editLineDraft.totalCost}
                             onChange={e =>
-                              setNewLineDraft(prev => ({ ...prev, totalCost: e.target.value }))
+                              setEditLineDraft(prev => ({ ...prev, totalCost: e.target.value }))
                             }
                             placeholder="0.00"
                             className="pr-12"
-                            disabled={addLineSubmitting}
+                            disabled={editLineSubmitting}
                           />
                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
                             {tenantCurrency}
@@ -2237,13 +3618,13 @@ export default function PurchaseOrderDetailPage() {
                         <p className="text-[10px] text-muted-foreground">
                           Unit:{' '}
                           {(() => {
-                            const trimmed = newLineDraft.totalCost.trim()
+                            const trimmed = editLineDraft.totalCost.trim()
                             if (!trimmed) return '—'
                             const parsed = Number(trimmed)
                             if (!Number.isFinite(parsed) || parsed < 0) return '—'
-                            if (!Number.isInteger(newLineDraft.unitsOrdered) || newLineDraft.unitsOrdered <= 0)
-                              return '—'
-                            return (parsed / newLineDraft.unitsOrdered).toFixed(4)
+                            const units = Number(editLineDraft.unitsOrdered)
+                            if (!Number.isInteger(units) || units <= 0) return '—'
+                            return (parsed / units).toFixed(4)
                           })()}
                         </p>
                       </div>
@@ -2253,1559 +3634,249 @@ export default function PurchaseOrderDetailPage() {
                           Notes
                         </label>
                         <Input
-                          value={newLineDraft.notes}
+                          value={editLineDraft.notes}
                           onChange={e =>
-                            setNewLineDraft(prev => ({ ...prev, notes: e.target.value }))
+                            setEditLineDraft(prev => ({ ...prev, notes: e.target.value }))
                           }
                           placeholder="Optional"
-                          disabled={addLineSubmitting}
+                          disabled={editLineSubmitting}
                         />
                       </div>
-
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setAddLineOpen(false)}
-                          disabled={addLineSubmitting}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => void handleAddLineItem()}
-                          disabled={
-                            !newLineDraft.skuId ||
-                            !newLineDraft.batchLot ||
-                            !newLineDraft.unitsPerCarton ||
-                            newLineDraft.unitsOrdered <= 0 ||
-                            addLineSubmitting
-                          }
-                          className="gap-2"
-                        >
-                          {addLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                          Add
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                )}
+                    </>
+                  )
+                })()}
               </div>
-            )}
+
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (editLineSubmitting) return
+                    setEditLineOpen(false)
+                    setEditingLine(null)
+                  }}
+                  disabled={editLineSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void handleSaveLineEdit()}
+                  disabled={
+                    editLineSubmitting ||
+                    !editLineDraft.batchLot.trim() ||
+                    editLineDraft.batchLot.trim().toUpperCase() === 'DEFAULT' ||
+                    !editLineDraft.unitsPerCarton ||
+                    editLineDraft.unitsOrdered <= 0
+                  }
+                  className="gap-2"
+                >
+                  {editLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Save changes
+                </Button>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* Tab Content */}
-          {activeBottomTab === 'cargo' && (
-            <div>
-              <div className="border-b bg-slate-50/50 px-4 py-3">
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Units
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {totalUnits.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Cartons
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {totalCartons.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Pallets
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {order.stageData.manufacturing?.totalPallets?.toLocaleString() ?? '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Weight (kg)
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {order.stageData.manufacturing?.totalWeightKg?.toLocaleString() ?? '—'}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      Total Volume (CBM)
-                    </p>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {order.stageData.manufacturing?.totalVolumeCbm?.toLocaleString() ?? '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full table-auto text-sm">
-                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-semibold">SKU</th>
-                      <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
-                      <th className="px-4 py-2 text-left font-semibold">Description</th>
-                      <th className="px-4 py-2 text-right font-semibold">Units</th>
-                      <th className="px-4 py-2 text-right font-semibold">Units/Ctn</th>
-                      <th className="px-4 py-2 text-right font-semibold">Cartons</th>
-                      <th className="px-4 py-2 text-right font-semibold">Total</th>
-                      <th className="px-4 py-2 text-left font-semibold">Notes</th>
-                      <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
-                      <th className="px-4 py-2 text-left font-semibold">Status</th>
-                      {canEdit && <th className="px-4 py-2 text-right font-semibold">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.lines.length === 0 ? (
-                      <tr>
-                        <td colSpan={canEdit ? 11 : 10} className="px-4 py-6 text-center text-muted-foreground">
-                          No lines added to this order yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      order.lines.map((line, idx) => {
-                        const pkg = buildLinePackagingDetails(line)
-                        const isLast = idx === order.lines.length - 1
-                        return (
-                          <Fragment key={line.id}>
-                            <tr className="border-t border-slate-200 hover:bg-muted/10">
-                              <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                                {line.skuCode}
-                              </td>
-                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                                {line.batchLot || '—'}
-                              </td>
-                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[220px] truncate">
-                                {line.skuDescription || '—'}
-                              </td>
-                              <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
-                                {line.unitsOrdered.toLocaleString()}
-                              </td>
-                              <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-                                {line.unitsPerCarton.toLocaleString()}
-                              </td>
-                              <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
-                                {line.quantity.toLocaleString()}
-                              </td>
-                              <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                                <div className="text-right">
-                                  <div className="font-semibold text-foreground">
-                                    {line.totalCost !== null
-                                      ? `${line.totalCost.toLocaleString(undefined, {
-                                          minimumFractionDigits: 2,
-                                          maximumFractionDigits: 2,
-                                        })} ${(line.currency || tenantCurrency).toUpperCase()}`
-                                      : '—'}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    Unit:{' '}
-                                    {line.unitCost !== null
-                                      ? Number(line.unitCost).toFixed(4)
-                                      : '—'}
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-4 py-2.5 text-muted-foreground max-w-[220px] truncate">
-                                {line.lineNotes || '—'}
-                              </td>
-                              <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-                                {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
-                              </td>
-                              <td className="px-4 py-2.5 whitespace-nowrap">
-                                <Badge variant="outline">{line.status}</Badge>
-                              </td>
-                              {canEdit && (
-                                <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 w-8 p-0"
-                                      onClick={() => openLineEditor(line)}
-                                      title="Edit line"
-                                    >
-                                      <FileEdit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-8 w-8 p-0 text-rose-700 hover:text-rose-800"
-                                      onClick={() =>
-                                        setConfirmDialog({
-                                          open: true,
-                                          type: 'delete-line',
-                                          title: 'Remove line item',
-                                          message: `Remove SKU ${line.skuCode} (${line.batchLot || '—'}) from this draft PO?`,
-                                          lineId: line.id,
-                                        })
-                                      }
-                                      title="Remove line"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              )}
-                            </tr>
-                            {pkg ? (
-                              <tr className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
-                                <td colSpan={canEdit ? 11 : 10} className="px-4 pb-2 pt-1">
-                                  <div
-                                    className={`grid grid-cols-6 gap-3 text-xs border-l-2 ${
-                                      pkg.hasWarning ? 'border-amber-400 bg-amber-50/30' : 'border-cyan-400 bg-transparent'
-                                    } pl-3 py-1`}
-                                  >
-                                    <div>
-                                      <span className="text-muted-foreground">Carton</span>
-                                      <p
-                                        className={`font-medium ${pkg.cartonDims ? 'text-slate-700' : 'text-amber-600'}`}
-                                      >
-                                        {pkg.cartonDims ?? 'Not set'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">CBM/ctn</span>
-                                      <p className="font-medium text-slate-700">
-                                        {pkg.cbmPerCarton ?? '—'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">CBM Total</span>
-                                      <p className="font-medium text-slate-700">
-                                        {pkg.cbmTotal ?? '—'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">KG/ctn</span>
-                                      <p className="font-medium text-slate-700">
-                                        {pkg.kgPerCarton ?? '—'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">KG Total</span>
-                                      <p className="font-medium text-slate-700">
-                                        {pkg.kgTotal ?? '—'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">Pkg Type</span>
-                                      <p className="font-medium text-slate-700">
-                                        {pkg.packagingType ?? '—'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            ) : !isLast ? (
-                              <tr className="border-b-2 border-slate-200">
-                                <td colSpan={canEdit ? 11 : 10} className="h-0"></td>
-                              </tr>
-                            ) : null}
-                          </Fragment>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeBottomTab === 'documents' && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-auto text-sm">
-                <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-semibold">Stage</th>
-                    <th className="px-4 py-2 text-left font-semibold">Document Type</th>
-                    <th className="px-4 py-2 text-left font-semibold">File</th>
-                    <th className="px-4 py-2 text-left font-semibold">Uploaded</th>
-                    <th className="px-4 py-2 text-left font-semibold">Status</th>
-                    <th className="px-4 py-2 text-right font-semibold">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const allRows: Array<{
-                      stage: string
-                      stageLabel: string
-                      documentType: string
-                      label: string
-                      doc: PurchaseOrderDocumentSummary | undefined
-                    }> = []
-
-                    documentStages.forEach(stage => {
-                      const stageDocs = documents.filter(doc => doc.stage === stage)
-                      const requiredDocs = stage === 'SHIPPED' ? [] : (STAGE_DOCUMENTS[stage] ?? [])
-                      const requiredIds = new Set(requiredDocs.map(doc => doc.id))
-                      const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
-                      const otherDocs = stageDocs.filter(doc => !requiredIds.has(doc.documentType))
-                      const meta = DOCUMENT_STAGE_META[stage]
-
-                      requiredDocs.forEach(doc => {
-                        allRows.push({
-                          stage,
-                          stageLabel: meta.label,
-                          documentType: doc.id,
-                          label: doc.label,
-                          doc: docsByType.get(doc.id),
-                        })
-                      })
-                      otherDocs.forEach(doc => {
-                        allRows.push({
-                          stage,
-                          stageLabel: meta.label,
-                          documentType: doc.documentType,
-                          label: getDocumentLabel(stage, doc.documentType),
-                          doc,
-                        })
-                      })
-                    })
-
-                    if (allRows.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                            No documents configured for this order.
-                          </td>
-                        </tr>
-                      )
-                    }
-
-                    return allRows.map(row => {
-                      const key = `${row.stage}::${row.documentType}`
-                      const existing = row.doc
-                      const isUploading = Boolean(uploadingDoc[key])
-
-                      return (
-                        <tr key={key} className="border-t hover:bg-muted/10">
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {row.stageLabel}
-                          </td>
-                          <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                            {row.label}
-                          </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap max-w-[200px]">
-                            {existing ? (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewDocument(existing)}
-                                className="text-primary hover:underline truncate block max-w-full"
-                                title={existing.fileName}
-                              >
-                                {existing.fileName}
-                              </button>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {existing ? formatDateOnly(existing.uploadedAt) : '—'}
-                          </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap">
-                            <Badge variant="outline" className={existing ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
-                              {existing ? 'UPLOADED' : 'PENDING'}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {existing && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setPreviewDocument(existing)}
-                                  className="h-7 w-7 p-0"
-                                  title="Preview"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                              {existing && (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0"
-                                  title="Open in new tab"
-                                >
-                                  <a href={existing.viewUrl} target="_blank" rel="noreferrer">
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
-                                </Button>
-                              )}
-                              {(row.stage !== 'SHIPPED' || existing) && (
-                                <label className="inline-flex items-center justify-center h-7 w-7 rounded-md hover:bg-muted cursor-pointer" title={existing ? 'Replace' : 'Upload'}>
-                                  <Upload className="h-3.5 w-3.5 text-muted-foreground" />
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    disabled={isUploading}
-                                    onChange={e => void handleDocumentUpload(e, row.stage as PurchaseOrderDocumentStage, row.documentType)}
-                                  />
-                                </label>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  })()}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeBottomTab === 'details' && (
-            <div className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        {/* Advance Stage Modal */}
+        {advanceModalOpen && nextStage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => !transitioning && setAdvanceModalOpen(false)}
+            />
+            {/* Modal */}
+            <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-900">Order Details</h4>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Consolidated view of all essential information across stages.
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Advance to {nextStage.label}
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} →{' '}
+                    {nextStage.label}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => !transitioning && setAdvanceModalOpen(false)}
+                  className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                  disabled={transitioning}
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
-              <div className="space-y-4">
-                {/* Order Info Section */}
-                {(() => {
-                  const sectionKey = 'order-info'
-                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
-                  return (
-                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedDetailSections(prev => ({
-                            ...prev,
-                            [sectionKey]: !isCollapsed,
-                          }))
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
-                            <FileEdit className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Order Info</p>
-                            <p className="text-xs text-muted-foreground">Basic order details</p>
-                          </div>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                        />
-                      </button>
-                      <div
-                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
-                      >
-                        {canEdit && (
-                          <div className="mb-4 flex items-center justify-end gap-2">
-                            {orderInfoEditing ? (
-                              <>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setOrderInfoEditing(false)}
-                                  disabled={orderInfoSaving}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => void handleSaveOrderInfo()}
-                                  disabled={orderInfoSaving || !orderInfoDraft.counterpartyName.trim()}
-                                  className="gap-2"
-                                >
-                                  {orderInfoSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                                  Save
-                                </Button>
-                              </>
-                            ) : (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setOrderInfoEditing(true)}
-                              >
-                                Edit
-                              </Button>
-                            )}
-                          </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              PO Number
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {order.poNumber || order.orderNumber}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Supplier
-                            </p>
-                            {canEdit && orderInfoEditing ? (
-                              <Input
-                                value={orderInfoDraft.counterpartyName}
-                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, counterpartyName: e.target.value }))}
-                                placeholder="Supplier"
-                                disabled={orderInfoSaving}
-                              />
-                            ) : (
-                              <p className="text-sm font-medium text-slate-900">
-                                {order.counterpartyName || '—'}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Destination
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {tenantDestination || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Cargo Ready Date
-                            </p>
-                            {canEdit && orderInfoEditing ? (
-                              <Input
-                                type="date"
-                                value={orderInfoDraft.expectedDate}
-                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, expectedDate: e.target.value }))}
-                                disabled={orderInfoSaving}
-                              />
-                            ) : (
-                              <p className="text-sm font-medium text-slate-900">
-                                {order.expectedDate ? formatDateOnly(order.expectedDate) : '—'}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Incoterms
-                            </p>
-                            {canEdit && orderInfoEditing ? (
-                              <select
-                                value={orderInfoDraft.incoterms}
-                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, incoterms: e.target.value }))}
-                                disabled={orderInfoSaving}
-                                className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                              >
-                                <option value="">Select incoterms</option>
-                                {INCOTERMS_OPTIONS.map(option => (
-                                  <option key={option} value={option}>
-                                    {option}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <p className="text-sm font-medium text-slate-900">
-                                {order.incoterms || '—'}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Payment Terms
-                            </p>
-                            {canEdit && orderInfoEditing ? (
-                              <Input
-                                value={orderInfoDraft.paymentTerms}
-                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, paymentTerms: e.target.value }))}
-                                placeholder="Payment terms"
-                                disabled={orderInfoSaving}
-                              />
-                            ) : (
-                              <p className="text-sm font-medium text-slate-900">
-                                {order.paymentTerms || '—'}
-                              </p>
-                            )}
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Created
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(order.createdAt) || '—'}
-                              {order.createdByName ? ` by ${order.createdByName}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        {(order.notes || (canEdit && orderInfoEditing)) && (
-                          <div className="mt-4 pt-3 border-t">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                              Notes
-                            </p>
-                            {canEdit && orderInfoEditing ? (
-                              <Textarea
-                                value={orderInfoDraft.notes}
-                                onChange={e => setOrderInfoDraft(prev => ({ ...prev, notes: e.target.value }))}
-                                placeholder="Optional internal notes..."
-                                disabled={orderInfoSaving}
-                                className="min-h-[88px]"
-                              />
-                            ) : (
-                              <p className="text-sm text-slate-700">{order.notes}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })()}
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5">{renderStageTransitionForm()}</div>
 
-                {/* Manufacturing Section */}
-                {(() => {
-                  const mfg = order.stageData.manufacturing
-                  const hasData =
-                    mfg?.proformaInvoiceNumber ||
-                    mfg?.manufacturingStartDate ||
-                    mfg?.totalCartons ||
-                    mfg?.totalWeightKg
-                  if (!hasData) return null
-                  const sectionKey = 'manufacturing'
-                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
-                  return (
-                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedDetailSections(prev => ({
-                            ...prev,
-                            [sectionKey]: !isCollapsed,
-                          }))
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-amber-50 text-amber-700">
-                            <Factory className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Manufacturing</p>
-                            <p className="text-xs text-muted-foreground">Production details</p>
-                          </div>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                        />
-                      </button>
-                      <div
-                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
-                      >
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Proforma Invoice
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {mfg?.proformaInvoiceNumber || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Start Date
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(
-                                mfg?.manufacturingStartDate || mfg?.manufacturingStart
-                              ) || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Expected Completion
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(mfg?.expectedCompletionDate) || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Cartons
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {mfg?.totalCartons?.toLocaleString() || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Pallets
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {mfg?.totalPallets?.toLocaleString() || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Weight (kg)
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {mfg?.totalWeightKg?.toLocaleString() || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Volume (CBM)
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {mfg?.totalVolumeCbm?.toLocaleString() || '—'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* In Transit Section */}
-                {(() => {
-                  const ocean = order.stageData.ocean
-                  const hasData =
-                    ocean?.houseBillOfLading ||
-                    ocean?.masterBillOfLading ||
-                    ocean?.vesselName ||
-                    ocean?.portOfLoading ||
-                    ocean?.estimatedDeparture
-                  if (!hasData) return null
-                  const sectionKey = 'ocean'
-                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
-                  return (
-                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedDetailSections(prev => ({
-                            ...prev,
-                            [sectionKey]: !isCollapsed,
-                          }))
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-blue-50 text-blue-700">
-                            <Ship className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">In Transit</p>
-                            <p className="text-xs text-muted-foreground">Shipping & logistics</p>
-                          </div>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                        />
-                      </button>
-                      <div
-                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
-                      >
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              House B/L
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.houseBillOfLading || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Master B/L
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.masterBillOfLading || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Vessel
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.vesselName || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Voyage
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.voyageNumber || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Port of Loading
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.portOfLoading || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Port of Discharge
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.portOfDischarge || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              ETD
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(ocean?.estimatedDeparture) || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              ETA
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(ocean?.estimatedArrival) || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Commercial Invoice
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {ocean?.commercialInvoiceNumber || '—'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Warehouse Section */}
-                {(() => {
-                  const wh = order.stageData.warehouse
-                  const hasData =
-                    wh?.warehouseName ||
-                    wh?.warehouseCode ||
-                    wh?.customsEntryNumber ||
-                    wh?.customsClearedDate ||
-                    wh?.receivedDate
-                  if (!hasData) return null
-                  const sectionKey = 'warehouse'
-                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
-                  return (
-                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedDetailSections(prev => ({
-                            ...prev,
-                            [sectionKey]: !isCollapsed,
-                          }))
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-purple-50 text-purple-700">
-                            <Warehouse className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Warehouse</p>
-                            <p className="text-xs text-muted-foreground">Receiving & customs</p>
-                          </div>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                        />
-                      </button>
-                      <div
-                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
-                      >
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Warehouse
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {wh?.warehouseName || wh?.warehouseCode || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Customs Entry
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {wh?.customsEntryNumber || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Customs Cleared
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(wh?.customsClearedDate) || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Duty Amount
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {wh?.dutyAmount != null
-                                ? `${wh.dutyAmount.toLocaleString()} ${wh.dutyCurrency || ''}`
-                                : '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Received Date
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(wh?.receivedDate) || '—'}
-                            </p>
-                          </div>
-                        </div>
-                        {wh?.discrepancyNotes && (
-                          <div className="mt-4 pt-3 border-t">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                              Discrepancy Notes
-                            </p>
-                            <p className="text-sm text-slate-700">{wh.discrepancyNotes}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Shipped Section */}
-                {(() => {
-                  const shipped = order.stageData.shipped
-                  const hasData =
-                    shipped?.shipToName ||
-                    shipped?.shippingCarrier ||
-                    shipped?.trackingNumber ||
-                    shipped?.shippedDate
-                  if (!hasData) return null
-                  const sectionKey = 'shipped'
-                  const isCollapsed = collapsedDetailSections[sectionKey] ?? false
-                  return (
-                    <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setCollapsedDetailSections(prev => ({
-                            ...prev,
-                            [sectionKey]: !isCollapsed,
-                          }))
-                        }
-                        className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-emerald-50 text-emerald-700">
-                            <Package2 className="h-4 w-4" />
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">Shipped</p>
-                            <p className="text-xs text-muted-foreground">Delivery details</p>
-                          </div>
-                        </div>
-                        <ChevronDown
-                          className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
-                        />
-                      </button>
-                      <div
-                        className={`border-t px-4 py-4 transition-all duration-200 ${isCollapsed ? 'hidden' : ''}`}
-                      >
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-3 lg:grid-cols-4">
-                          <div className="space-y-1 col-span-2">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Ship To
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {[
-                                shipped?.shipToName,
-                                shipped?.shipToAddress,
-                                shipped?.shipToCity,
-                                shipped?.shipToCountry,
-                              ]
-                                .filter(Boolean)
-                                .join(', ') || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Carrier
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {shipped?.shippingCarrier || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Method
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {shipped?.shippingMethod || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Tracking
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {shipped?.trackingNumber || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Shipped Date
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(shipped?.shippedDate || shipped?.shippedAt) || '—'}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Delivered Date
-                            </p>
-                            <p className="text-sm font-medium text-slate-900">
-                              {formatDateOnly(shipped?.deliveredDate) || '—'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-          )}
-
-          {activeBottomTab === 'history' && (
-            <div className="overflow-x-auto">
-              {auditLogsLoading ? (
-                <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Loading history…
-                </div>
-              ) : (
-                <table className="min-w-full table-auto text-sm">
-                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="w-10 px-4 py-2"></th>
-                      <th className="px-4 py-2 text-left font-semibold">Action</th>
-                      <th className="px-4 py-2 text-left font-semibold">Changes</th>
-                      <th className="px-4 py-2 text-left font-semibold">By</th>
-                      <th className="px-4 py-2 text-left font-semibold">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditLogs.length > 0 ? (
-                      auditLogs.map(entry => {
-                        const newValue = toAuditRecord(entry.newValue)
-                        const title = describeAuditAction(entry.action, newValue)
-                        const changes = describeAuditChanges(entry)
-                        const actor = entry.changedBy?.fullName || 'Unknown'
-                        const { Icon, iconClassName } = getAuditActionTheme(entry.action)
-
-                        return (
-                          <tr key={entry.id} className="border-t hover:bg-muted/10">
-                            <td className="px-4 py-2.5">
-                              <Icon className={`h-4 w-4 ${iconClassName}`} />
-                            </td>
-                            <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                              {title}
-                            </td>
-                            <td className="px-4 py-2.5 text-muted-foreground max-w-[300px]">
-                              {changes.length > 0 ? (
-                                <span className="line-clamp-2" title={changes.join(', ')}>
-                                  {changes.join(', ')}
-                                </span>
-                              ) : (
-                                '—'
-                              )}
-                            </td>
-                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                              {actor}
-                            </td>
-                            <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                              {formatDateOnly(entry.createdAt)}
-                            </td>
-                          </tr>
-                        )
-                      })
-                    ) : order.approvalHistory && order.approvalHistory.length > 0 ? (
-                      order.approvalHistory.map((approval, index) => (
-                        <tr key={index} className="border-t hover:bg-muted/10">
-                          <td className="px-4 py-2.5">
-                            <Check className="h-4 w-4 text-emerald-600" />
-                          </td>
-                          <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
-                            {approval.stage}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground">—</td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {approval.approvedBy || 'Unknown'}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {approval.approvedAt ? formatDateOnly(approval.approvedAt) : '—'}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                          No activity recorded yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {editLineOpen && editingLine && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => {
-              if (editLineSubmitting) return
-              setEditLineOpen(false)
-              setEditingLine(null)
-            }}
-          />
-          <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Edit line item</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {editingLine.skuCode} • {editingLine.batchLot || '—'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (editLineSubmitting) return
-                  setEditLineOpen(false)
-                  setEditingLine(null)
-                }}
-                className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
-                disabled={editLineSubmitting}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-              {(() => {
-                const skuRecord =
-                  skus.find(
-                    sku =>
-                      sku.skuCode.trim().toUpperCase() === editingLine.skuCode.trim().toUpperCase()
-                  ) ?? null
-                const skuId = skuRecord?.id ?? null
-                const batchOptions = skuId ? batchesBySkuId[skuId] ?? [] : []
-                const batchesLoading = skuId ? Boolean(batchesLoadingBySkuId[skuId]) : false
-                const batch =
-                  batchOptions.find(option => option.batchCode === editLineDraft.batchLot) ?? null
-
-                return (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Batch / Lot
-                      </label>
-                      <select
-                        value={editLineDraft.batchLot}
-                        onChange={e => {
-                          const nextBatch = e.target.value
-                          setEditLineDraft(prev => ({
-                            ...prev,
-                            batchLot: nextBatch,
-                            unitsPerCarton:
-                              batchOptions.find(option => option.batchCode === nextBatch)?.unitsPerCarton ??
-                              prev.unitsPerCarton,
-                          }))
-                        }}
-                        disabled={editLineSubmitting || batchesLoading || !skuId}
-                        className="w-full h-10 px-3 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                      >
-                        <option value="">{!skuId ? 'Select SKU first' : 'Select batch'}</option>
-                        {batchOptions.map(option => (
-                          <option key={option.batchCode} value={option.batchCode}>
-                            {option.batchCode}
-                          </option>
-                        ))}
-                      </select>
-                      {batch && (
-                        <p className="text-[11px] text-muted-foreground">
-                          {buildBatchPackagingMeta({
-                            batch,
-                            unitsOrdered: editLineDraft.unitsOrdered,
-                            unitsPerCarton: editLineDraft.unitsPerCarton ?? batch.unitsPerCarton ?? null,
-                          })?.text ?? ''}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Units
-                        </label>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          step="1"
-                          value={editLineDraft.unitsOrdered}
-                          onChange={e =>
-                            setEditLineDraft(prev => ({
-                              ...prev,
-                              unitsOrdered: (() => {
-                                const parsed = Number.parseInt(e.target.value, 10)
-                                return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
-                              })(),
-                            }))
-                          }
-                          disabled={editLineSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Units/Ctn
-                        </label>
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          step="1"
-                          value={editLineDraft.unitsPerCarton ?? ''}
-                          onChange={e =>
-                            setEditLineDraft(prev => ({
-                              ...prev,
-                              unitsPerCarton: (() => {
-                                const parsed = Number.parseInt(e.target.value, 10)
-                                return Number.isInteger(parsed) && parsed > 0 ? parsed : null
-                              })(),
-                            }))
-                          }
-                          disabled={editLineSubmitting}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Cartons
-                        </label>
-                        <Input
-                          value={(() => {
-                            const units = Number(editLineDraft.unitsOrdered)
-                            const per = editLineDraft.unitsPerCarton
-                            if (!per || units <= 0) return '—'
-                            return String(Math.ceil(units / per))
-                          })()}
-                          readOnly
-                          disabled
-                          className="bg-muted/30 text-muted-foreground"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Total Cost
-                      </label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={editLineDraft.totalCost}
-                          onChange={e => setEditLineDraft(prev => ({ ...prev, totalCost: e.target.value }))}
-                          placeholder="0.00"
-                          className="pr-12"
-                          disabled={editLineSubmitting}
-                        />
-                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-xs font-medium text-muted-foreground">
-                          {tenantCurrency}
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        Unit:{' '}
-                        {(() => {
-                          const trimmed = editLineDraft.totalCost.trim()
-                          if (!trimmed) return '—'
-                          const parsed = Number(trimmed)
-                          if (!Number.isFinite(parsed) || parsed < 0) return '—'
-                          const units = Number(editLineDraft.unitsOrdered)
-                          if (!Number.isInteger(units) || units <= 0) return '—'
-                          return (parsed / units).toFixed(4)
-                        })()}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Notes
-                      </label>
-                      <Input
-                        value={editLineDraft.notes}
-                        onChange={e => setEditLineDraft(prev => ({ ...prev, notes: e.target.value }))}
-                        placeholder="Optional"
-                        disabled={editLineSubmitting}
-                      />
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  if (editLineSubmitting) return
-                  setEditLineOpen(false)
-                  setEditingLine(null)
-                }}
-                disabled={editLineSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => void handleSaveLineEdit()}
-                disabled={
-                  editLineSubmitting ||
-                  !editLineDraft.batchLot.trim() ||
-                  editLineDraft.batchLot.trim().toUpperCase() === 'DEFAULT' ||
-                  !editLineDraft.unitsPerCarton ||
-                  editLineDraft.unitsOrdered <= 0
-                }
-                className="gap-2"
-              >
-                {editLineSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Save changes
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Advance Stage Modal */}
-      {advanceModalOpen && nextStage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => !transitioning && setAdvanceModalOpen(false)}
-          />
-          {/* Modal */}
-          <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Advance to {nextStage.label}
-                </h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} →{' '}
-                  {nextStage.label}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => !transitioning && setAdvanceModalOpen(false)}
-                className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
-                disabled={transitioning}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-6 py-5">{renderStageTransitionForm()}</div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
-              <Button
-                variant="outline"
-                onClick={() => setAdvanceModalOpen(false)}
-                disabled={transitioning}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={async () => {
-                  const success = await executeTransition(nextStage.value as POStageStatus)
-                  if (success) {
-                    setAdvanceModalOpen(false)
-                  }
-                }}
-                disabled={
-                  transitioning ||
-                  pdfDownloading ||
-                  documentsLoading ||
-                  !nextStageDocsComplete ||
-                  (nextStage.value === 'ISSUED' &&
-                    (!order.expectedDate ||
-                      !order.incoterms ||
-                      !order.paymentTerms ||
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
+                <Button
+                  variant="outline"
+                  onClick={() => setAdvanceModalOpen(false)}
+                  disabled={transitioning}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    const success = await executeTransition(nextStage.value as POStageStatus)
+                    if (success) {
+                      setAdvanceModalOpen(false)
+                    }
+                  }}
+                  disabled={
+                    transitioning ||
+                    pdfDownloading ||
+                    documentsLoading ||
+                    !nextStageDocsComplete ||
+                    (nextStage.value === 'ISSUED' &&
+                      (!order.expectedDate ||
+                        !order.incoterms ||
+                        !order.paymentTerms ||
+                        !(
+                          stageFormData.proformaInvoiceNumber?.trim() ||
+                          order.stageData.manufacturing.proformaInvoiceNumber?.trim()
+                        ))) ||
+                    (nextStage.value === 'MANUFACTURING' &&
                       !(
-                        stageFormData.proformaInvoiceNumber?.trim() ||
-                        order.stageData.manufacturing.proformaInvoiceNumber?.trim()
-                      ))) ||
-                  (nextStage.value === 'MANUFACTURING' &&
-                    !(
-                      stageFormData.manufacturingStartDate?.trim() ||
-                      order.stageData.manufacturing.manufacturingStartDate
-                    ))
-                }
-                className="gap-2"
-              >
-                {transitioning ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Advancing...
-                  </>
-                ) : (
-                  <>
-                    Advance to {nextStage.label}
-                    <ChevronRight className="h-4 w-4" />
-                  </>
-                )}
-              </Button>
+                        stageFormData.manufacturingStartDate?.trim() ||
+                        order.stageData.manufacturing.manufacturingStartDate
+                      ))
+                  }
+                  className="gap-2"
+                >
+                  {transitioning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Advancing...
+                    </>
+                  ) : (
+                    <>
+                      Advance to {nextStage.label}
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDialog.open}
-        onClose={handleConfirmDialogClose}
-        onConfirm={handleConfirmDialogConfirm}
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        type={confirmDialog.type ? 'danger' : 'info'}
-        confirmText={
-          confirmDialog.type === 'cancel'
-            ? 'Cancel Order'
-            : confirmDialog.type === 'reject'
-              ? 'Mark Rejected'
-              : confirmDialog.type === 'delete-line'
-                ? 'Remove Line'
-              : 'Confirm'
-        }
-        cancelText="Go Back"
-      />
+        {/* Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={confirmDialog.open}
+          onClose={handleConfirmDialogClose}
+          onConfirm={handleConfirmDialogConfirm}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          type={confirmDialog.type ? 'danger' : 'info'}
+          confirmText={
+            confirmDialog.type === 'cancel'
+              ? 'Cancel Order'
+              : confirmDialog.type === 'reject'
+                ? 'Mark Rejected'
+                : confirmDialog.type === 'delete-line'
+                  ? 'Remove Line'
+                  : 'Confirm'
+          }
+          cancelText="Go Back"
+        />
 
-      {previewDocument && previewStageMeta && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div
-              className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
-              onClick={() => setPreviewDocument(null)}
-            />
+        {previewDocument && previewStageMeta && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <div
+                className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
+                onClick={() => setPreviewDocument(null)}
+              />
 
-            <div className="relative w-full max-w-5xl overflow-hidden rounded-xl bg-white text-left shadow-xl">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b px-6 py-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
-                      {PreviewStageIcon && <PreviewStageIcon className="h-4 w-4" />}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900 truncate">
-                        {previewDocument.fileName}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {previewStageMeta.label} •{' '}
-                        {getDocumentLabel(previewDocument.stage, previewDocument.documentType)} •{' '}
-                        Uploaded {formatDate(previewDocument.uploadedAt)}
-                        {previewDocument.uploadedByName
-                          ? ` by ${previewDocument.uploadedByName}`
-                          : ''}
-                      </p>
+              <div className="relative w-full max-w-5xl overflow-hidden rounded-xl bg-white text-left shadow-xl">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b px-6 py-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full border bg-slate-50 text-slate-700">
+                        {PreviewStageIcon && <PreviewStageIcon className="h-4 w-4" />}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {previewDocument.fileName}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {previewStageMeta.label} •{' '}
+                          {getDocumentLabel(previewDocument.stage, previewDocument.documentType)} •{' '}
+                          Uploaded {formatDate(previewDocument.uploadedAt)}
+                          {previewDocument.uploadedByName
+                            ? ` by ${previewDocument.uploadedByName}`
+                            : ''}
+                        </p>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="gap-2">
+                      <a href={previewDocument.viewUrl} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-4 w-4" />
+                        Open
+                      </a>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setPreviewDocument(null)}
+                      aria-label="Close preview"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button asChild variant="outline" size="sm" className="gap-2">
-                    <a href={previewDocument.viewUrl} target="_blank" rel="noreferrer">
-                      <ExternalLink className="h-4 w-4" />
-                      Open
-                    </a>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setPreviewDocument(null)}
-                    aria-label="Close preview"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="bg-slate-50">
-                <div className="h-[75vh] w-full">
-                  {previewIsImage ? (
-                    <div
-                      className="h-full w-full bg-center bg-no-repeat bg-contain"
-                      style={{ backgroundImage: `url(${previewDocument.viewUrl})` }}
-                    />
-                  ) : previewIsPdf ? (
-                    <iframe
-                      title={previewDocument.fileName}
-                      src={previewDocument.viewUrl}
-                      className="h-full w-full"
-                    />
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
-                      <div className="rounded-full border bg-white p-3 text-slate-700 shadow-sm">
-                        <FileText className="h-5 w-5" />
+                <div className="bg-slate-50">
+                  <div className="h-[75vh] w-full">
+                    {previewIsImage ? (
+                      <div
+                        className="h-full w-full bg-center bg-no-repeat bg-contain"
+                        style={{ backgroundImage: `url(${previewDocument.viewUrl})` }}
+                      />
+                    ) : previewIsPdf ? (
+                      <iframe
+                        title={previewDocument.fileName}
+                        src={previewDocument.viewUrl}
+                        className="h-full w-full"
+                      />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+                        <div className="rounded-full border bg-white p-3 text-slate-700 shadow-sm">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Preview not available
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Open the file in a new tab to view or download.
+                          </p>
+                        </div>
+                        <Button asChild className="gap-2">
+                          <a href={previewDocument.viewUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                            Open file
+                          </a>
+                        </Button>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          Preview not available
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Open the file in a new tab to view or download.
-                        </p>
-                      </div>
-                      <Button asChild className="gap-2">
-                        <a href={previewDocument.viewUrl} target="_blank" rel="noreferrer">
-                          <ExternalLink className="h-4 w-4" />
-                          Open file
-                        </a>
-                      </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-          </PageContent>
-        </PageContainer>
-    </DashboardLayout>
+        )}
+      </PageContent>
+    </PageContainer>
   )
 }
