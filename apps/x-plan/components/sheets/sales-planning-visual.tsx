@@ -164,24 +164,12 @@ export function SalesPlanningVisual({
     }));
   }, [stockDataPoints, shipmentByWeek]);
 
-  // Calculate Y-axis bounds with padding below zero for visibility
+  // Calculate Y-axis bounds - start at 0, no negative values needed
   const yAxisBounds = useMemo(() => {
     const allValues = stockDataPoints.map((p) => p.stockEnd).filter(Number.isFinite);
     if (allValues.length === 0) return { min: 0, max: 0 };
-    const dataMin = Math.min(...allValues);
-    const dataMax = Math.max(...allValues);
-
-    // Extend Y-axis to include 0 for context
-    const rawMin = Math.min(dataMin, 0);
-    const rawMax = Math.max(dataMax, 0);
-    const range = rawMax - rawMin;
-
-    // Add small padding below zero line for visibility
-    const padding = range > 0 ? range * 0.05 : 100;
-    const min = rawMin - padding;
-    const max = rawMax;
-
-    return { min, max };
+    const dataMax = Math.max(...allValues, 0);
+    return { min: 0, max: dataMax };
   }, [stockDataPoints]);
 
   // Actual vs Forecast data processing
@@ -325,10 +313,10 @@ export function SalesPlanningVisual({
                     <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
                     <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.05} />
                   </linearGradient>
-                  {/* Low stock gradient (red) */}
+                  {/* Low stock gradient (red) - more visible */}
                   <linearGradient id="stockDangerGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#dc2626" stopOpacity={0.5} />
-                    <stop offset="95%" stopColor="#dc2626" stopOpacity={0.1} />
+                    <stop offset="5%" stopColor="#dc2626" stopOpacity={0.7} />
+                    <stop offset="95%" stopColor="#dc2626" stopOpacity={0.2} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -412,8 +400,6 @@ export function SalesPlanningVisual({
                       />
                     );
                   })}
-                {/* Zero reference line - always visible for context */}
-                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1.5} />
                 {/* Main stock line with teal fill */}
                 {showStockLine && (
                   <Area
