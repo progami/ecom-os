@@ -1,0 +1,56 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+  fill="none"
+>
+  <defs>
+    <linearGradient id="targonos-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04111f" />
+      <stop offset="0.6" stop-color="#08283a" />
+      <stop offset="1" stop-color="#0f3b4b" />
+    </linearGradient>
+    <radialGradient
+      id="targonos-glow"
+      cx="0"
+      cy="0"
+      r="1"
+      gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(18 14) rotate(45) scale(42)"
+    >
+      <stop offset="0" stop-color="#00c2b9" stop-opacity="0.22" />
+      <stop offset="1" stop-color="#00c2b9" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="targonos-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b9fbf7" />
+      <stop offset="0.55" stop-color="#00d1c7" />
+      <stop offset="1" stop-color="#009b94" />
+    </linearGradient>
+  </defs>
+
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#targonos-bg)" />
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#targonos-glow)" />
+  <rect
+    x="1"
+    y="1"
+    width="62"
+    height="62"
+    rx="14"
+    fill="none"
+    stroke="#00c2b9"
+    stroke-opacity="0.16"
+  />
+
+  <g
+    transform="translate(8 8) scale(2)"
+    stroke="url(#targonos-mark)"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M12 2 2 7l10 5 10-5-10-5Z" fill="url(#targonos-mark)" fill-opacity="0.22" />
+    <path d="M2 12l10 5 10-5" />
+    <path d="M2 17l10 5 10-5" opacity="0.9" />
+  </g>
+</svg>
