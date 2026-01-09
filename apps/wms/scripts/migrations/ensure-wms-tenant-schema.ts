@@ -64,10 +64,10 @@ function parseArgs(): ScriptOptions {
 
 function showHelp() {
   console.log(`
-Ensure WMS Tenant Schema
+Ensure Talos Tenant Schema
 
 Brings each tenant schema in sync with required baseline tables/columns used by
-the WMS app (e.g. suppliers + supplier links + batch pallet fields).
+the Talos app (e.g. suppliers + supplier links + batch pallet fields).
 
 This is an idempotent migration intended for deployments on long-lived schemas
 where Prisma migrate deploy is not used.

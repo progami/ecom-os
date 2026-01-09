@@ -156,13 +156,13 @@ export default function LandingPage() {
  <div className="mx-auto max-w-7xl text-center">
  <div className="flex items-center justify-center gap-2 mb-4">
  <Package2 className="h-8 w-8 text-cyan-600 " />
- <span className="text-2xl font-bold text-slate-900 ">Talos WMS</span>
+                  <span className="text-2xl font-bold text-slate-900 ">Talos</span>
  </div>
  <p className="text-slate-600 ">
  Modern warehouse management for the digital age
  </p>
  <p className="mt-4 text-xs text-slate-500">
- Talos WMS{' '}
+                  Talos{' '}
  <a
  href={versionHref}
  target="_blank"

@@ -1,6 +1,6 @@
 # @ecom-os/wms
 
-Talos WMS (Warehouse Management System) powering inventory, billing, and operations for Ecom OS.
+Talos powering inventory, billing, and operations for Ecom OS.
 
 ## Local Development
 - Install dependencies from the monorepo root with `pnpm install`.
@@ -16,7 +16,7 @@ Talos WMS (Warehouse Management System) powering inventory, billing, and operati
 ## Environment
 Configuration is supplied through `.env` files stored on the host. Update env values before rebuilding when secrets or service endpoints change.
 
-The auth bootstrap fails fast when a required variable is missing. Make sure every WMS environment defines:
+The auth bootstrap fails fast when a required variable is missing. Make sure every Talos environment defines:
 - `NEXTAUTH_SECRET` (or `PORTAL_AUTH_SECRET`)
 - `NEXTAUTH_URL`, `PORTAL_AUTH_URL`, and `NEXT_PUBLIC_PORTAL_AUTH_URL`
 - `NEXT_PUBLIC_APP_URL`
@@ -30,7 +30,7 @@ Amazon Selling Partner API (SP-API) sync (optional) requires:
 - `AMAZON_SP_APP_CLIENT_SECRET`
 - `AMAZON_REFRESH_TOKEN`
 
-WMS is multi-tenant; set refresh tokens per tenant:
+Talos is multi-tenant; set refresh tokens per tenant:
 - `AMAZON_REFRESH_TOKEN_US`
 - `AMAZON_REFRESH_TOKEN_UK`
 

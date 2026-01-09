@@ -5,7 +5,7 @@ import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
 import type { TenantCode } from '@/lib/tenant/constants'
 
-// In-memory cache for WMS user data to avoid DB queries on every request
+// In-memory cache for Talos user data to avoid DB queries on every request
 // Key: `${email}:${tenantCode}`, Value: { data, expiresAt }
 const userCache = new Map<string, {
   data: { id: string; role: string; region: TenantCode; warehouseId?: string }
@@ -32,13 +32,13 @@ function setCachedUser(email: string, tenant: TenantCode, data: { id: string; ro
 }
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
-  throw new Error('NEXT_PUBLIC_APP_URL must be defined for WMS auth configuration.')
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined for Talos auth configuration.')
 }
 if (!process.env.PORTAL_AUTH_URL) {
-  throw new Error('PORTAL_AUTH_URL must be defined for WMS auth configuration.')
+  throw new Error('PORTAL_AUTH_URL must be defined for Talos auth configuration.')
 }
 if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
-  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for WMS auth configuration.')
+  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for Talos auth configuration.')
 }
 
 applyDevAuthDefaults({
@@ -70,7 +70,7 @@ if (normalizedNextAuthUrl) {
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
 if (!sharedSecret) {
-  throw new Error('PORTAL_AUTH_SECRET or NEXTAUTH_SECRET must be defined for WMS auth configuration.')
+  throw new Error('PORTAL_AUTH_SECRET or NEXTAUTH_SECRET must be defined for Talos auth configuration.')
 }
 process.env.NEXTAUTH_SECRET = sharedSecret
 
@@ -83,7 +83,7 @@ const baseAuthOptions: NextAuthConfig = {
   secret: sharedSecret,
   debug: false,
   // Include a no-op credentials provider so NextAuth routes (csrf/session) function
-  // WMS does not authenticate locally; the portal issues the session cookie
+  // Talos does not authenticate locally; the portal issues the session cookie
   providers: [
     Credentials({
       name: 'noop',
@@ -98,7 +98,7 @@ const baseAuthOptions: NextAuthConfig = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // WMS is decode-only; preserve portal-issued claims
+      // Talos is decode-only; preserve portal-issued claims
       const userId = (user as { id?: unknown } | null)?.id
       if (typeof userId === 'string') {
         token.sub = userId
