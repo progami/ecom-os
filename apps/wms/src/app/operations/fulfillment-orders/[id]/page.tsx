@@ -5,7 +5,6 @@ import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -219,7 +218,10 @@ export default function FulfillmentOrderDetailPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      redirectToPortal('/login', `${window.location.origin}/operations/fulfillment-orders/${params.id}`)
+      redirectToPortal(
+        '/login',
+        `${window.location.origin}/operations/fulfillment-orders/${params.id}`
+      )
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
@@ -246,7 +248,9 @@ export default function FulfillmentOrderDetailPage() {
       setOrder(data)
       setShipForm({
         shippedDate: data.shippedDate ? new Date(data.shippedDate).toISOString().slice(0, 16) : '',
-        deliveredDate: data.deliveredDate ? new Date(data.deliveredDate).toISOString().slice(0, 16) : '',
+        deliveredDate: data.deliveredDate
+          ? new Date(data.deliveredDate).toISOString().slice(0, 16)
+          : '',
         shippingCarrier: data.shippingCarrier ?? '',
         shippingMethod: data.shippingMethod ?? '',
         trackingNumber: data.trackingNumber ?? '',
@@ -339,8 +343,12 @@ export default function FulfillmentOrderDetailPage() {
       const payload = {
         targetStatus: 'SHIPPED',
         stageData: {
-          shippedDate: shipForm.shippedDate ? new Date(shipForm.shippedDate).toISOString() : undefined,
-          deliveredDate: shipForm.deliveredDate ? new Date(shipForm.deliveredDate).toISOString() : undefined,
+          shippedDate: shipForm.shippedDate
+            ? new Date(shipForm.shippedDate).toISOString()
+            : undefined,
+          deliveredDate: shipForm.deliveredDate
+            ? new Date(shipForm.deliveredDate).toISOString()
+            : undefined,
           shippingCarrier: shipForm.shippingCarrier || undefined,
           shippingMethod: shipForm.shippingMethod || undefined,
           trackingNumber: shipForm.trackingNumber || undefined,
@@ -539,9 +547,7 @@ export default function FulfillmentOrderDetailPage() {
                         {existing.fileName}
                       </a>
                     ) : (
-                      <span className="block text-xs text-muted-foreground">
-                        Not uploaded yet
-                      </span>
+                      <span className="block text-xs text-muted-foreground">Not uploaded yet</span>
                     )}
                   </div>
                 </div>
@@ -567,43 +573,39 @@ export default function FulfillmentOrderDetailPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <DashboardLayout>
-        <PageContainer>
-          <PageLoading />
-        </PageContainer>
-      </DashboardLayout>
+      <PageContainer>
+        <PageLoading />
+      </PageContainer>
     )
   }
 
   if (!order) {
     return (
-      <DashboardLayout>
-        <PageContainer>
-          <PageHeaderSection
-            title="Fulfillment Order"
-            description="Operations"
-            icon={FileText}
-            actions={
-              <Button asChild variant="outline" className="gap-2">
-                <Link href="/operations/fulfillment-orders">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Link>
-              </Button>
-            }
-          />
-          <PageContent>
-            <div className="rounded-xl border bg-white shadow-soft p-6 text-sm text-muted-foreground">
-              Fulfillment order not found.
-            </div>
-          </PageContent>
-        </PageContainer>
-      </DashboardLayout>
+      <PageContainer>
+        <PageHeaderSection
+          title="Fulfillment Order"
+          description="Operations"
+          icon={FileText}
+          actions={
+            <Button asChild variant="outline" className="gap-2">
+              <Link href="/operations/fulfillment-orders">
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Link>
+            </Button>
+          }
+        />
+        <PageContent>
+          <div className="rounded-xl border bg-white shadow-soft p-6 text-sm text-muted-foreground">
+            Fulfillment order not found.
+          </div>
+        </PageContent>
+      </PageContainer>
     )
   }
 
   return (
-    <DashboardLayout>
+    <>
       <PageContainer>
         <PageHeaderSection
           title={order.foNumber}
@@ -648,13 +650,21 @@ export default function FulfillmentOrderDetailPage() {
                             : 'bg-slate-50 border-slate-200 text-slate-400'
                         }`}
                       >
-                        {type === 'AMAZON_FBA' ? 'Amazon FBA' : type === 'CUSTOMER' ? 'Customer' : 'Transfer'}
+                        {type === 'AMAZON_FBA'
+                          ? 'Amazon FBA'
+                          : type === 'CUSTOMER'
+                            ? 'Customer'
+                            : 'Transfer'}
                       </div>
                     ))}
                   </div>
                 </div>
                 <Badge className={STATUS_BADGE_CLASSES[order.status]}>
-                  {order.status === 'DRAFT' ? 'Draft' : order.status === 'SHIPPED' ? 'Shipped' : 'Cancelled'}
+                  {order.status === 'DRAFT'
+                    ? 'Draft'
+                    : order.status === 'SHIPPED'
+                      ? 'Shipped'
+                      : 'Cancelled'}
                 </Badge>
               </div>
             </div>
@@ -669,7 +679,8 @@ export default function FulfillmentOrderDetailPage() {
                       <Check className="h-4 w-4 text-emerald-600" />
                       <span className="font-medium text-slate-900">Imported:</span>
                       <span className="text-slate-600">
-                        {order.amazonShipmentId} → {order.amazonDestinationFulfillmentCenterId || 'N/A'}
+                        {order.amazonShipmentId} →{' '}
+                        {order.amazonDestinationFulfillmentCenterId || 'N/A'}
                       </span>
                       {order.amazonShipmentName && (
                         <span className="text-muted-foreground">({order.amazonShipmentName})</span>
@@ -692,7 +703,9 @@ export default function FulfillmentOrderDetailPage() {
                     {order.amazonShipFromAddress && (
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Ship From</div>
-                        <div className="text-sm text-slate-600">{formatAmazonAddress(order.amazonShipFromAddress)}</div>
+                        <div className="text-sm text-slate-600">
+                          {formatAmazonAddress(order.amazonShipFromAddress)}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -709,7 +722,9 @@ export default function FulfillmentOrderDetailPage() {
                 <div className="grid gap-4 md:grid-cols-2 text-sm">
                   <div>
                     <div className="text-xs text-muted-foreground">Warehouse</div>
-                    <div className="font-medium">{order.warehouseCode} — {order.warehouseName}</div>
+                    <div className="font-medium">
+                      {order.warehouseCode} — {order.warehouseName}
+                    </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Destination Name</div>
@@ -733,7 +748,8 @@ export default function FulfillmentOrderDetailPage() {
                 <div>
                   <h3 className="text-sm font-semibold">Line Items</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {order.lines.length} item{order.lines.length !== 1 ? 's' : ''} · {totalQuantity.toLocaleString()} cartons
+                    {order.lines.length} item{order.lines.length !== 1 ? 's' : ''} ·{' '}
+                    {totalQuantity.toLocaleString()} cartons
                   </p>
                 </div>
               </div>
@@ -757,12 +773,17 @@ export default function FulfillmentOrderDetailPage() {
                         <span className="text-sm text-slate-600 uppercase">{line.batchLot}</span>
                       </div>
                       <div className="col-span-4">
-                        <span className="text-sm text-muted-foreground truncate" title={line.skuDescription ?? undefined}>
+                        <span
+                          className="text-sm text-muted-foreground truncate"
+                          title={line.skuDescription ?? undefined}
+                        >
                           {line.skuDescription || '—'}
                         </span>
                       </div>
                       <div className="col-span-2 text-right">
-                        <span className="text-sm font-semibold tabular-nums">{line.quantity.toLocaleString()}</span>
+                        <span className="text-sm font-semibold tabular-nums">
+                          {line.quantity.toLocaleString()}
+                        </span>
                       </div>
                       <div className="col-span-2">
                         <span className="text-sm text-muted-foreground">{line.status}</span>
@@ -784,7 +805,11 @@ export default function FulfillmentOrderDetailPage() {
                   <div className="flex items-center gap-2">
                     <Truck className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm font-semibold">Freight & Logistics</span>
-                    {canEdit && <Badge variant="outline" className="text-xs">Editable</Badge>}
+                    {canEdit && (
+                      <Badge variant="outline" className="text-xs">
+                        Editable
+                      </Badge>
+                    )}
                   </div>
                   {freightExpanded ? (
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -804,13 +829,22 @@ export default function FulfillmentOrderDetailPage() {
 
                       {/* Identifiers */}
                       <div className="space-y-3">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Shipment Identifiers</h4>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Shipment Identifiers
+                        </h4>
                         <div className="grid gap-4 md:grid-cols-2">
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Shipment Reference</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Shipment Reference
+                            </label>
                             <Input
                               value={amazonFreight.shipmentReference}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, shipmentReference: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  shipmentReference: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -819,7 +853,9 @@ export default function FulfillmentOrderDetailPage() {
                             <label className="block text-sm font-medium mb-1.5">Shipper ID</label>
                             <Input
                               value={amazonFreight.shipperId}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, shipperId: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, shipperId: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -828,16 +864,25 @@ export default function FulfillmentOrderDetailPage() {
                             <label className="block text-sm font-medium mb-1.5">Load ID</label>
                             <Input
                               value={amazonFreight.loadId}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, loadId: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, loadId: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pro/Freight Bill Number</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pro/Freight Bill Number
+                            </label>
                             <Input
                               value={amazonFreight.freightBillNumber}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, freightBillNumber: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  freightBillNumber: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -846,7 +891,12 @@ export default function FulfillmentOrderDetailPage() {
                             <label className="block text-sm font-medium mb-1.5">BOL Number</label>
                             <Input
                               value={amazonFreight.billOfLadingNumber}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, billOfLadingNumber: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  billOfLadingNumber: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -856,71 +906,122 @@ export default function FulfillmentOrderDetailPage() {
 
                       {/* Appointments */}
                       <div className="space-y-3 pt-4 border-t">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pickup & Delivery Appointments</h4>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Pickup & Delivery Appointments
+                        </h4>
                         <div className="grid gap-4 md:grid-cols-2">
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pickup Number</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Number
+                            </label>
                             <Input
                               value={amazonFreight.pickupNumber}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupNumber: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupNumber: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pickup Appointment ID</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Appointment ID
+                            </label>
                             <Input
                               value={amazonFreight.pickupAppointmentId}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupAppointmentId: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupAppointmentId: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">ISA / Delivery Appointment ID</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              ISA / Delivery Appointment ID
+                            </label>
                             <Input
                               value={amazonFreight.deliveryAppointmentId}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryAppointmentId: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  deliveryAppointmentId: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pickup Window Start</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Window Start
+                            </label>
                             <Input
                               type="datetime-local"
                               value={amazonFreight.pickupWindowStart}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupWindowStart: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupWindowStart: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pickup Window End</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Window End
+                            </label>
                             <Input
                               type="datetime-local"
                               value={amazonFreight.pickupWindowEnd}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupWindowEnd: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupWindowEnd: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Delivery Window Start</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Delivery Window Start
+                            </label>
                             <Input
                               type="datetime-local"
                               value={amazonFreight.deliveryWindowStart}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryWindowStart: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  deliveryWindowStart: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Delivery Window End</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Delivery Window End
+                            </label>
                             <Input
                               type="datetime-local"
                               value={amazonFreight.deliveryWindowEnd}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryWindowEnd: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  deliveryWindowEnd: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -930,50 +1031,87 @@ export default function FulfillmentOrderDetailPage() {
 
                       {/* Pickup & Delivery Details */}
                       <div className="space-y-3 pt-4 border-t">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pickup & Delivery Details</h4>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Pickup & Delivery Details
+                        </h4>
                         <div className="grid gap-4 md:grid-cols-2">
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pickup Contact Name</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Contact Name
+                            </label>
                             <Input
                               value={amazonFreight.pickupContactName}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupContactName: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupContactName: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Pickup Contact Phone</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Contact Phone
+                            </label>
                             <Input
                               value={amazonFreight.pickupContactPhone}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupContactPhone: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupContactPhone: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-sm font-medium mb-1.5">Pickup Address</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Pickup Address
+                            </label>
                             <Textarea
                               value={amazonFreight.pickupAddress}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, pickupAddress: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  pickupAddress: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               rows={2}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Shipment Mode</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Shipment Mode
+                            </label>
                             <Input
                               value={amazonFreight.shipmentMode}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, shipmentMode: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  shipmentMode: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-sm font-medium mb-1.5">Delivery Address</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Delivery Address
+                            </label>
                             <Textarea
                               value={amazonFreight.deliveryAddress}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, deliveryAddress: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  deliveryAddress: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               rows={2}
                               className="text-sm"
@@ -984,7 +1122,9 @@ export default function FulfillmentOrderDetailPage() {
 
                       {/* Cargo & Pricing */}
                       <div className="space-y-3 pt-4 border-t">
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cargo & Pricing</h4>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Cargo & Pricing
+                        </h4>
                         <div className="grid gap-4 md:grid-cols-2">
                           <div>
                             <label className="block text-sm font-medium mb-1.5">Box Count</label>
@@ -992,7 +1132,9 @@ export default function FulfillmentOrderDetailPage() {
                               type="number"
                               min="0"
                               value={amazonFreight.boxCount}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, boxCount: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, boxCount: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -1003,28 +1145,44 @@ export default function FulfillmentOrderDetailPage() {
                               type="number"
                               min="0"
                               value={amazonFreight.palletCount}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, palletCount: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, palletCount: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-sm font-medium mb-1.5">Commodity Description</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Commodity Description
+                            </label>
                             <Textarea
                               value={amazonFreight.commodityDescription}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, commodityDescription: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  commodityDescription: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               rows={2}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Distance (miles)</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Distance (miles)
+                            </label>
                             <Input
                               type="number"
                               min="0"
                               value={amazonFreight.distanceMiles}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, distanceMiles: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  distanceMiles: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -1033,7 +1191,9 @@ export default function FulfillmentOrderDetailPage() {
                             <label className="block text-sm font-medium mb-1.5">Currency</label>
                             <Input
                               value={amazonFreight.currency}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, currency: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, currency: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -1045,19 +1205,28 @@ export default function FulfillmentOrderDetailPage() {
                               min="0"
                               step="0.01"
                               value={amazonFreight.basePrice}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, basePrice: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, basePrice: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium mb-1.5">Fuel Surcharge</label>
+                            <label className="block text-sm font-medium mb-1.5">
+                              Fuel Surcharge
+                            </label>
                             <Input
                               type="number"
                               min="0"
                               step="0.01"
                               value={amazonFreight.fuelSurcharge}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, fuelSurcharge: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({
+                                  ...prev,
+                                  fuelSurcharge: e.target.value,
+                                }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -1069,7 +1238,9 @@ export default function FulfillmentOrderDetailPage() {
                               min="0"
                               step="0.01"
                               value={amazonFreight.totalPrice}
-                              onChange={e => setAmazonFreight(prev => ({ ...prev, totalPrice: e.target.value }))}
+                              onChange={e =>
+                                setAmazonFreight(prev => ({ ...prev, totalPrice: e.target.value }))
+                              }
                               disabled={!canEdit}
                               className="text-sm"
                             />
@@ -1080,7 +1251,11 @@ export default function FulfillmentOrderDetailPage() {
                       {/* Save Button */}
                       {canEdit && (
                         <div className="flex justify-end pt-4 border-t">
-                          <Button onClick={handleAmazonSave} disabled={amazonSaving} className="gap-2">
+                          <Button
+                            onClick={handleAmazonSave}
+                            disabled={amazonSaving}
+                            className="gap-2"
+                          >
                             {amazonSaving ? (
                               <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1107,7 +1282,9 @@ export default function FulfillmentOrderDetailPage() {
                     Upload BOL, POD, and invoice files
                   </p>
                 </div>
-                {documentsLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
+                {documentsLoading && (
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                )}
               </div>
               <div className="space-y-6">
                 {renderDocumentStage('SHIPPING', 'Shipping Documents')}
@@ -1121,7 +1298,8 @@ export default function FulfillmentOrderDetailPage() {
                 <div>
                   <h3 className="text-sm font-semibold">Shipping</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Shipped: {formatDateTimeDisplay(order.shippedDate)} · Delivered: {formatDateTimeDisplay(order.deliveredDate)}
+                    Shipped: {formatDateTimeDisplay(order.shippedDate)} · Delivered:{' '}
+                    {formatDateTimeDisplay(order.deliveredDate)}
                   </p>
                 </div>
               </div>
@@ -1142,7 +1320,9 @@ export default function FulfillmentOrderDetailPage() {
                   <Input
                     type="datetime-local"
                     value={shipForm.deliveredDate}
-                    onChange={e => setShipForm(prev => ({ ...prev, deliveredDate: e.target.value }))}
+                    onChange={e =>
+                      setShipForm(prev => ({ ...prev, deliveredDate: e.target.value }))
+                    }
                     disabled={!canEdit || submitting}
                     className="text-sm"
                   />
@@ -1151,7 +1331,9 @@ export default function FulfillmentOrderDetailPage() {
                   <label className="block text-sm font-medium mb-1.5">Shipping Carrier</label>
                   <Input
                     value={shipForm.shippingCarrier}
-                    onChange={e => setShipForm(prev => ({ ...prev, shippingCarrier: e.target.value }))}
+                    onChange={e =>
+                      setShipForm(prev => ({ ...prev, shippingCarrier: e.target.value }))
+                    }
                     disabled={!canEdit || submitting}
                     className="text-sm"
                   />
@@ -1160,7 +1342,9 @@ export default function FulfillmentOrderDetailPage() {
                   <label className="block text-sm font-medium mb-1.5">Shipping Method</label>
                   <Input
                     value={shipForm.shippingMethod}
-                    onChange={e => setShipForm(prev => ({ ...prev, shippingMethod: e.target.value }))}
+                    onChange={e =>
+                      setShipForm(prev => ({ ...prev, shippingMethod: e.target.value }))
+                    }
                     disabled={!canEdit || submitting}
                     className="text-sm"
                   />
@@ -1169,7 +1353,9 @@ export default function FulfillmentOrderDetailPage() {
                   <label className="block text-sm font-medium mb-1.5">Tracking Number</label>
                   <Input
                     value={shipForm.trackingNumber}
-                    onChange={e => setShipForm(prev => ({ ...prev, trackingNumber: e.target.value }))}
+                    onChange={e =>
+                      setShipForm(prev => ({ ...prev, trackingNumber: e.target.value }))
+                    }
                     disabled={!canEdit || submitting}
                     className="text-sm"
                   />
@@ -1201,6 +1387,6 @@ export default function FulfillmentOrderDetailPage() {
           void handleCancel()
         }}
       />
-    </DashboardLayout>
+    </>
   )
 }
