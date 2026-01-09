@@ -17,7 +17,12 @@ const nextConfig: NextConfig = {
   },
 
   transpilePackages: ['@ecom-os/auth', '@ecom-os/config', '@ecom-os/logger'],
+
+  serverExternalPackages: [
+    '@ecom-os/prisma-chronos',
+    '@bsull/augurs',
+    '@bsull/augurs-prophet-wasmstan',
+  ],
 };
 
 export default nextConfig;
-

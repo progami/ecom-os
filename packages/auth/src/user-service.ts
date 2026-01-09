@@ -119,6 +119,7 @@ function buildDemoUser(): AuthenticatedUser {
     wms: { departments: ['Ops'] },
     hrms: { departments: ['People Ops'] },
     website: { departments: [] },
+    chronos: { departments: ['Product'] },
     'x-plan': { departments: ['Product'] },
   }
 

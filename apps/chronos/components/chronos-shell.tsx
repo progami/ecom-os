@@ -38,7 +38,7 @@ export function ChronosShell({ children }: { children: React.ReactNode }) {
                     Chronos
                   </div>
                   <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    Forecasts → X-Plan
+                    Forecasting workspace
                   </div>
                 </CardContent>
               </Card>
