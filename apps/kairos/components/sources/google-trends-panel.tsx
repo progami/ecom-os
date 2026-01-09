@@ -203,15 +203,24 @@ export function GoogleTrendsPanel() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Google Trends</CardTitle>
-          <CardDescription>
-            Import interest-over-time data for a keyword. Kairos stores the resulting time series in its own database.
-          </CardDescription>
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal-500/10 to-brand-teal-600/10 dark:from-brand-cyan/10 dark:to-brand-teal-600/10">
+              <Download className="h-5 w-5 text-brand-teal-600 dark:text-brand-cyan" aria-hidden />
+            </div>
+            <div className="space-y-1">
+              <CardTitle className="text-base">Google Trends</CardTitle>
+              <CardDescription>
+                Import interest-over-time data for a keyword. Kairos stores the resulting time series in its own database.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Keyword</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Keyword
+              </label>
               <Input
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
@@ -220,7 +229,9 @@ export function GoogleTrendsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Geo (optional)</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Geo <span className="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
               <Input
                 value={geo}
                 onChange={(event) => setGeo(event.target.value)}
@@ -229,7 +240,9 @@ export function GoogleTrendsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Start date</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Start date
+              </label>
               <Input
                 value={startDate}
                 onChange={(event) => setStartDate(event.target.value)}
@@ -238,7 +251,9 @@ export function GoogleTrendsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">End date</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                End date
+              </label>
               <Input
                 value={endDate}
                 onChange={(event) => setEndDate(event.target.value)}
@@ -247,7 +262,9 @@ export function GoogleTrendsPanel() {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Name (optional)</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Name <span className="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -257,7 +274,7 @@ export function GoogleTrendsPanel() {
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-white/5">
             <Button
               variant="outline"
               onClick={() => {

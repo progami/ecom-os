@@ -1,5 +1,10 @@
+'use client'
+
+import { createContext, useContext } from 'react'
 import { MainNav } from './main-nav'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+
+const DashboardLayoutNestingContext = createContext(false)
 
 interface DashboardLayoutProps {
  children: React.ReactNode
@@ -8,6 +13,9 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, hideBreadcrumb = false, customBreadcrumb }: DashboardLayoutProps) {
+ const isNested = useContext(DashboardLayoutNestingContext)
+ if (isNested) return <>{children}</>
+
 const appName = 'Talos'
  const year = new Date().getFullYear()
  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
@@ -18,7 +26,7 @@ const appName = 'Talos'
  const href = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
  
  return (
- <>
+ <DashboardLayoutNestingContext.Provider value={true}>
  <MainNav />
  <div className="md:pl-16 lg:pl-64 transition-all duration-300 h-screen flex flex-col overflow-hidden bg-slate-50 ">
  <main className="flex-1 flex flex-col min-h-0">
@@ -50,6 +58,6 @@ const appName = 'Talos'
  </div>
  </footer>
  </div>
- </>
+ </DashboardLayoutNestingContext.Provider>
  )
 }

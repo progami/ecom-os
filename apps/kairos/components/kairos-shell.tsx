@@ -2,16 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Database, Menu, Sparkles } from 'lucide-react';
+import { BarChart3, Database, Menu, Sparkles, TrendingUp } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -27,79 +25,112 @@ export function KairosShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <div className="mx-auto flex w-full max-w-[1400px] gap-6 px-4 py-6">
-        <aside className="hidden w-72 shrink-0 lg:block">
-          <div className="sticky top-6 space-y-4">
-            <Link href="/forecasts" className="block focus:outline-none">
-              <Card className="bg-white/70 shadow-sm backdrop-blur dark:bg-slate-950/50">
-                <CardContent className="p-4">
-                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    Kairos
-                  </div>
-                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                    Forecasting workspace
-                  </div>
-                </CardContent>
-              </Card>
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95">
+        <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-6">
+            <Link
+              href="/forecasts"
+              className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 shadow-sm">
+                <TrendingUp className="h-5 w-5 text-white" aria-hidden />
+              </div>
+              <div className="hidden sm:block">
+                <div className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
+                  Kairos
+                </div>
+                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                  Forecasting
+                </div>
+              </div>
             </Link>
 
-            <div className="space-y-1">
+            {/* Desktop Navigation */}
+            <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
               {NAV_ITEMS.map((item) => {
                 const active = pathname === item.href || pathname?.startsWith(`${item.href}/`);
 
                 return (
-                  <Button
+                  <Link
                     key={item.href}
-                    asChild
-                    variant={active ? 'secondary' : 'ghost'}
-                    className={cn('w-full justify-start gap-2', active && 'shadow-sm')}
+                    href={item.href}
+                    className={cn(
+                      'group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+                      active
+                        ? 'text-brand-teal-600 dark:text-brand-cyan'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white',
+                    )}
                   >
-                    <Link href={item.href}>
-                      <item.icon className="h-4 w-4" aria-hidden />
-                      {item.label}
-                    </Link>
-                  </Button>
+                    <item.icon
+                      className={cn(
+                        'h-4 w-4 transition-colors',
+                        active
+                          ? 'text-brand-teal-500 dark:text-brand-cyan'
+                          : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300',
+                      )}
+                      aria-hidden
+                    />
+                    {item.label}
+                    {active && (
+                      <span className="absolute inset-x-3 -bottom-[17px] h-0.5 rounded-full bg-brand-teal-500 dark:bg-brand-cyan" />
+                    )}
+                  </Link>
                 );
               })}
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border bg-card px-3 py-2">
-              <div className="text-xs text-muted-foreground">Theme</div>
-              <ThemeToggle />
-            </div>
+            </nav>
           </div>
-        </aside>
 
-        <main className="min-w-0 flex-1">
-          <div className="mb-4 flex items-center justify-between gap-3 lg:hidden">
-            <div className="flex items-center gap-2">
+          {/* Right side controls */}
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+
+            {/* Mobile Menu */}
+            <div className="md:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="Open navigation menu">
-                    <Menu className="h-4 w-4" aria-hidden />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9"
+                    aria-label="Open navigation menu"
+                  >
+                    <Menu className="h-5 w-5" aria-hidden />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuLabel>Navigate</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {NAV_ITEMS.map((item) => (
+                <DropdownMenuContent align="end" className="w-48">
+                  {NAV_ITEMS.map((item, index) => (
                     <DropdownMenuItem key={item.href} asChild>
-                      <Link href={item.href}>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          'flex items-center gap-2',
+                          (pathname === item.href || pathname?.startsWith(`${item.href}/`)) &&
+                            'text-brand-teal-600 dark:text-brand-cyan',
+                        )}
+                      >
                         <item.icon className="h-4 w-4" aria-hidden />
                         {item.label}
                       </Link>
                     </DropdownMenuItem>
                   ))}
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5">
+                    <div className="text-xs text-muted-foreground">Kairos v1.0</div>
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">Kairos</div>
             </div>
-            <ThemeToggle />
           </div>
-          {children}
-        </main>
-      </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1">
+        <div className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6">{children}</div>
+      </main>
     </div>
   );
 }
