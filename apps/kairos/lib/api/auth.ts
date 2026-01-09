@@ -17,7 +17,8 @@ export function withKairosAuth<TContext = unknown>(handler: KairosAuthedHandler<
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const entitlement = getAppEntitlement((session as any).roles, 'kairos');
+    const roles = (session as any).roles;
+    const entitlement = getAppEntitlement(roles, 'kairos') ?? getAppEntitlement(roles, 'chronos');
     if (!entitlement) {
       return NextResponse.json({ error: 'No access to Kairos' }, { status: 403 });
     }
