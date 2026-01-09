@@ -90,7 +90,6 @@ export function WorkflowRecordLayout({
   const actions = safeData.actions ?? { primary: null, secondary: [], more: [] };
   const summary = Array.isArray(safeData.summary) ? safeData.summary : [];
   const timeline = Array.isArray(safeData.timeline) ? safeData.timeline : [];
-  const stages = Array.isArray(workflow.stages) ? workflow.stages : [];
   const disabledHint = useMemo(() => {
     if (actions.primary?.disabled && actions.primary.disabledReason) return actions.primary.disabledReason;
     const secondaryHint = actions.secondary.find((a) => a.disabled && a.disabledReason)?.disabledReason;
@@ -277,29 +276,6 @@ export function WorkflowRecordLayout({
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
-            {stages.map((stage, idx) => (
-              <div key={stage.id ?? idx} className="flex items-center gap-2">
-                <div
-                  className={
-                    stage.status === 'completed'
-                      ? 'h-2.5 w-2.5 rounded-full bg-success-500'
-                      : stage.status === 'current'
-                        ? 'h-2.5 w-2.5 rounded-full bg-primary'
-                        : 'h-2.5 w-2.5 rounded-full bg-border'
-                  }
-                />
-                <span
-                  className={
-                    stage.status === 'upcoming' ? 'text-xs text-muted-foreground' : 'text-xs text-foreground'
-                  }
-                >
-                  {toDisplayText(stage.label, '—')}
-                </span>
-                {idx < stages.length - 1 ? <div className="w-8 h-px bg-muted" /> : null}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
