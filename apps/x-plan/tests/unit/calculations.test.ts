@@ -279,7 +279,7 @@ describe('computeSalesPlan', () => {
     expect(gadgetArrival?.arrivalOrders[0]?.quantity).toBe(180)
   })
 
-  it('counts future weeks until depletion using projected sales', () => {
+  it('computes weeks of cover from projected demand', () => {
     const coverageInput: SalesWeekInput[] = [
       { id: 'c1', productId: product.id, weekNumber: 10, stockStart: 100, forecastSales: 20 },
       { id: 'c2', productId: product.id, weekNumber: 11, forecastSales: 20 },
@@ -294,6 +294,31 @@ describe('computeSalesPlan', () => {
 
     expect(week10?.stockWeeks).toBe(5)
     expect(week12?.stockWeeks).toBe(3)
+
+    const inboundInput: SalesWeekInput[] = Array.from({ length: 10 }, (_, index) => ({
+      id: `inbound-${index + 1}`,
+      productId: product.id,
+      weekNumber: index + 1,
+      stockStart: index === 0 ? 100 : undefined,
+      forecastSales: 10,
+    }))
+    const inboundOrder: PurchaseOrderInput = {
+      ...purchaseOrderInput,
+      id: 'po-inbound',
+      orderCode: 'PO-INBOUND',
+      quantity: 1000,
+      availableWeekNumber: 5,
+    }
+    const inboundDerived = computePurchaseOrderDerived(
+      inboundOrder,
+      productIndex,
+      leadProfile,
+      parameters,
+    )
+
+    const inboundPlan = computeSalesPlan(inboundInput, [inboundDerived])
+    const inboundWeek1 = inboundPlan.find((row) => row.weekNumber === 1)
+    expect(inboundWeek1?.stockWeeks).toBe(10)
 
     const plateauInput: SalesWeekInput[] = [
       { id: 'p1', productId: product.id, weekNumber: 20, stockStart: 80, forecastSales: 0 },
