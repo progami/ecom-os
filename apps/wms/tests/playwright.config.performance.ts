@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const baseUrl = process.env.BASE_URL;
 
 if (!baseUrl) {
-  throw new Error('BASE_URL must be defined before running WMS performance tests.');
+  throw new Error('BASE_URL must be defined before running Talos performance tests.');
 }
 
 export default defineConfig({

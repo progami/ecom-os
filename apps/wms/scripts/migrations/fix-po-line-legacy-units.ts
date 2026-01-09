@@ -100,7 +100,7 @@ function showHelp() {
   console.log(`
 Fix legacy Purchase Order line quantity semantics
 
-Early WMS PO lines stored "quantity" as UNITS. Later migrations introduced:
+Early Talos PO lines stored "quantity" as UNITS. Later migrations introduced:
   - units_ordered (units)
   - units_per_carton
   - total_cost

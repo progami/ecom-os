@@ -12,10 +12,10 @@ export default function NoAccessPage() {
             <ShieldX className="h-12 w-12 text-amber-600" />
           </div>
           <h1 className="mt-6 text-3xl font-extrabold text-slate-900">
-            No Access to Talos WMS
+            No Access to Talos
           </h1>
           <p className="mt-3 text-base text-slate-600">
-            Your account does not have permission to access Talos WMS.
+            Your account does not have permission to access Talos.
           </p>
         </div>
 
@@ -24,7 +24,7 @@ export default function NoAccessPage() {
           <ul className="text-sm text-slate-600 space-y-1.5">
             <li className="flex items-start gap-2">
               <span className="text-slate-400 mt-0.5">•</span>
-              <span>You are signed in but Talos WMS access has not been granted to your account</span>
+              <span>You are signed in but Talos access has not been granted to your account</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-400 mt-0.5">•</span>
@@ -42,7 +42,7 @@ export default function NoAccessPage() {
             Back to Portal
           </Link>
           <a
-            href={`mailto:support@targonglobal.com?subject=Talos WMS Access Request`}
+              href={`mailto:support@targonglobal.com?subject=Talos Access Request`}
             className="inline-flex items-center px-5 py-2.5 border border-slate-300 text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors"
           >
             <ExternalLink className="h-4 w-4 mr-2" />

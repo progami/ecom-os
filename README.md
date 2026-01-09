@@ -1,6 +1,6 @@
 # Ecom OS
 
-Ecom OS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, WMS, X‑Plan, Atlas, Website) with shared authentication and shared libraries.
+Ecom OS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, Talos, X‑Plan, Atlas, Website) with shared authentication and shared libraries.
 
 This repo is currently hosted from a macOS laptop for development and “live” environments (main + dev). The hosting setup is documented here so it’s reproducible and debuggable.
 
@@ -77,7 +77,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 | App | Workspace | Base path | Notes |
 | --- | --- | --- | --- |
 | Portal | `@ecom-os/ecomos` | `/` | Central auth (NextAuth v5) + app navigation |
-| WMS | `@ecom-os/wms` | `/wms` | Uses `apps/wms/server.js`, Redis, and S3 presigned uploads |
+| Talos | `@ecom-os/wms` | `/wms` | Uses `apps/wms/server.js`, Redis, and S3 presigned uploads |
 | X‑Plan | `@ecom-os/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
 | Atlas | `@ecom-os/hrms` | `/hrms` | Prisma schema `hrms`; Playwright tests |
 | Website | `@ecom-os/website` | `/` | Separate hostname (`targonglobal.com`) |
@@ -95,7 +95,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 - PostgreSQL runs locally (Homebrew `postgresql@14`), exposed on `localhost:5432` and optionally via `db.targonglobal.com` through the tunnel.
 - Schemas are per-app (and per-environment): `auth`, `wms`, `xplan`, `hrms` (dev schemas may be prefixed `dev_*` depending on env).
 - Prisma clients are generated into `packages/prisma-*` and imported by apps (e.g., `@ecom-os/prisma-wms`).
-- Redis runs locally (Homebrew `redis`) and is used by WMS.
+- Redis runs locally (Homebrew `redis`) and is used by Talos.
 
 ## Environment configuration (high level)
 
@@ -109,7 +109,7 @@ Common variables across apps:
 - `PORTAL_AUTH_URL`, `NEXT_PUBLIC_PORTAL_AUTH_URL`, `PORTAL_AUTH_SECRET`
 - `COOKIE_DOMAIN`
 - `DATABASE_URL` (Postgres)
-- `REDIS_URL` (WMS)
+- `REDIS_URL` (Talos)
 
 Portal app-link configuration:
 

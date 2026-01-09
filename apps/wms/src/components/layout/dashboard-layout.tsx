@@ -8,7 +8,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, hideBreadcrumb = false, customBreadcrumb }: DashboardLayoutProps) {
- const appName = 'Talos WMS'
+const appName = 'Talos'
  const year = new Date().getFullYear()
  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined

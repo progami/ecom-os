@@ -3,7 +3,7 @@
 import '@/lib/utils/patch-fetch'
 
 /**
- * Patches global fetch in the browser so API calls respect the WMS base path.
+ * Patches global fetch in the browser so API calls respect the Talos base path.
  */
 export function FetchPatch() {
  return null

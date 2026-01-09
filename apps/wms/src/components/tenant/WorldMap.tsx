@@ -102,7 +102,7 @@ export function WorldMap({ className }: WorldMapProps) {
         {/* Header */}
         <div className="text-center mb-4">
           <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-            Talos WMS
+            Talos
           </h1>
           <p className="text-xl text-slate-400">
             Select your region to continue

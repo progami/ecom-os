@@ -9,7 +9,7 @@
 const args = process.argv.slice(2)
 const baseUrl = process.env.BASE_URL || process.env.WMS_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
 if (!baseUrl) {
-  throw new Error('Set BASE_URL, WMS_BASE_URL, or NEXT_PUBLIC_APP_URL before running the WMS demo script.')
+  throw new Error('Set BASE_URL, WMS_BASE_URL, or NEXT_PUBLIC_APP_URL before running the Talos demo script.')
 }
 const force = !args.includes('--no-force')
 const verbose = args.includes('--verbose')
@@ -21,7 +21,7 @@ async function main() {
   }
 
   console.log('==================================================')
-  console.log('WMS DEMO DATA SEED (API)')
+  console.log('TALOS DEMO DATA SEED (API)')
   console.log('==================================================')
   console.log(`Target: ${setupUrl.toString()}`)
   console.log(`Force recreate: ${force ? 'yes' : 'no (existing demo data kept)'}`)
