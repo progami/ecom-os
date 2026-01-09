@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  const entitlement = session ? getAppEntitlement((session as any).roles, 'kairos') : null;
+  const roles = (session as any)?.roles;
+  const entitlement = session ? (getAppEntitlement(roles, 'kairos') ?? getAppEntitlement(roles, 'chronos')) : null;
   if (!session || !entitlement) {
     redirect('/no-access');
   }

@@ -23,7 +23,10 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
   }
 
   const rolesClaim = (session as any).roles as Record<string, { depts?: string[] }> | undefined
-  const allowedAppIds = rolesClaim ? Object.keys(rolesClaim) : []
+  const normalizedRolesClaim = rolesClaim && 'chronos' in rolesClaim && !('kairos' in rolesClaim)
+    ? { ...rolesClaim, kairos: rolesClaim.chronos }
+    : rolesClaim
+  const allowedAppIds = normalizedRolesClaim ? Object.keys(normalizedRolesClaim) : []
   const apps = filterAppsForUser(allowedAppIds)
 
   // Resolve URLs on the server side so the client never sees placeholder slugs or stale hosts
@@ -36,7 +39,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
     <PortalClient
       session={session}
       apps={appsWithUrls}
-      roles={rolesClaim}
+      roles={normalizedRolesClaim}
       accessError={accessError}
     />
   )
