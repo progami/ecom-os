@@ -562,23 +562,24 @@ export default function NewPurchaseOrderPage() {
                   <tr className="border-b bg-slate-50/50">
                     <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[140px]">Product</th>
                     <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[120px]">Batch</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3">Description</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[90px]">Units</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">U/Box</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Boxes</th>
-                    <th className="text-center font-medium text-muted-foreground px-4 py-3 w-[100px]">Dimensions</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[120px]">Total Cost</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[140px]">Notes</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[100px]">Units ordered</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[90px]">Units/box</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[90px]">Boxes ordered</th>
+                    <th className="text-center font-medium text-muted-foreground px-4 py-3 w-[110px]">Box dimensions</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[120px]">Total mfg cost</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[100px]">Mfg cost/unit</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[140px]">Comment</th>
                     <th className="w-[50px]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {lineItems.map(item => {
-                    const cartons = item.unitsPerCarton && item.unitsOrdered > 0
+                    const boxesOrdered = item.unitsPerCarton && item.unitsOrdered > 0
                       ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
                       : null
-                    const unitCost = parseMoney(item.totalCost) !== null && item.unitsOrdered > 0
-                      ? (parseMoney(item.totalCost)! / item.unitsOrdered).toFixed(2)
+                    const totalMfgCost = parseMoney(item.totalCost)
+                    const mfgCostPerUnit = totalMfgCost !== null && item.unitsOrdered > 0
+                      ? (totalMfgCost / item.unitsOrdered).toFixed(2)
                       : null
 
                     return (
@@ -626,17 +627,7 @@ export default function NewPurchaseOrderPage() {
                           </select>
                         </td>
 
-                        {/* Description */}
-                        <td className="px-4 py-3">
-                          <Input
-                            value={item.skuDescription}
-                            onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
-                            placeholder="Description"
-                            className="h-9 text-sm"
-                          />
-                        </td>
-
-                        {/* Units */}
+                        {/* Units ordered */}
                         <td className="px-4 py-3">
                           <Input
                             type="number"
@@ -648,7 +639,7 @@ export default function NewPurchaseOrderPage() {
                           />
                         </td>
 
-                        {/* U/Box */}
+                        {/* Units/box */}
                         <td className="px-4 py-3">
                           <Input
                             type="number"
@@ -665,17 +656,17 @@ export default function NewPurchaseOrderPage() {
                           />
                         </td>
 
-                        {/* Boxes (calculated) */}
+                        {/* Boxes ordered (calculated) */}
                         <td className="px-4 py-3 text-right tabular-nums font-medium text-muted-foreground">
-                          {cartons ?? '—'}
+                          {boxesOrdered ?? '—'}
                         </td>
 
-                        {/* Dimensions */}
+                        {/* Box dimensions */}
                         <td className="px-4 py-3 text-center text-xs text-muted-foreground tabular-nums">
                           {getBoxDimensions(item)}
                         </td>
 
-                        {/* Total Cost */}
+                        {/* Total mfg cost */}
                         <td className="px-4 py-3">
                           <div className="relative">
                             <Input
@@ -691,17 +682,19 @@ export default function NewPurchaseOrderPage() {
                               {item.currency}
                             </span>
                           </div>
-                          {unitCost && (
-                            <p className="text-[10px] text-muted-foreground text-right mt-0.5">@{unitCost}/unit</p>
-                          )}
                         </td>
 
-                        {/* Notes */}
+                        {/* Mfg cost/unit (calculated) */}
+                        <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
+                          {mfgCostPerUnit ? `$${mfgCostPerUnit}` : '—'}
+                        </td>
+
+                        {/* Comment */}
                         <td className="px-4 py-3">
                           <Input
                             value={item.notes}
                             onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
-                            placeholder="Notes..."
+                            placeholder="Comment..."
                             className="h-9 text-sm"
                           />
                         </td>
