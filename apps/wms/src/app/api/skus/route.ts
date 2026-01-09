@@ -63,6 +63,32 @@ const skuSchemaBase = z.object({
     .trim()
     .min(1)
     .transform(val => sanitizeForDisplay(val)),
+  amazonCategory: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
+  amazonSizeTier: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
+  amazonReferralFeePercent: z.number().min(0).max(100).optional().nullable(),
+  amazonFbaFulfillmentFee: z.number().min(0).optional().nullable(),
   packSize: z.number().int().positive().optional().nullable(),
   defaultSupplierId: supplierIdSchema,
   secondarySupplierId: supplierIdSchema,
@@ -211,6 +237,7 @@ export const GET = withAuth(async (request, _session) => {
     include: {
       batches: {
         orderBy: [{ createdAt: 'desc' }],
+        take: 1,
       },
     },
   })
@@ -294,6 +321,10 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       data: {
         skuCode: validatedData.skuCode,
         asin: validatedData.asin ?? null,
+        amazonCategory: validatedData.amazonCategory ?? null,
+        amazonSizeTier: validatedData.amazonSizeTier ?? null,
+        amazonReferralFeePercent: validatedData.amazonReferralFeePercent ?? null,
+        amazonFbaFulfillmentFee: validatedData.amazonFbaFulfillmentFee ?? null,
         description: validatedData.description,
         packSize: validatedData.initialBatch.packSize,
         defaultSupplierId: validatedData.defaultSupplierId ?? null,
