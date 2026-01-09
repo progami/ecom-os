@@ -2304,6 +2304,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           columnMeta={view.columnMeta}
           columnKeys={view.columnKeys}
           productOptions={view.productOptions}
+          stockWarningWeeks={view.stockWarningWeeks}
         />
       );
       break;
