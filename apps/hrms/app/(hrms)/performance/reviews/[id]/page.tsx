@@ -609,6 +609,27 @@ export default function PerformanceReviewPage() {
         ) : (
           /* View Mode - when user cannot edit */
           <div className="space-y-6">
+            {/* Inline feedback messages */}
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+                <span className="shrink-0">✕</span>
+                <div>
+                  <span>{error}</span>
+                  {errorDetails && errorDetails.length > 0 && (
+                    <ul className="mt-1 list-disc list-inside text-xs">
+                      {errorDetails.map((d, i) => <li key={i}>{d}</li>)}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+            {successMessage && (
+              <div className="flex items-center gap-2 text-sm text-success-600 bg-success-500/10 rounded-md px-3 py-2">
+                <span>✓</span>
+                <span>{successMessage}</span>
+              </div>
+            )}
+
             <Card padding="lg">
                 <h3 className="text-sm font-semibold text-foreground mb-4">Review Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">

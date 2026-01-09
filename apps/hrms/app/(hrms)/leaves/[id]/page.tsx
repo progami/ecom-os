@@ -7,9 +7,7 @@ import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 import { executeAction } from '@/lib/actions/execute-action'
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { RecordAlerts } from '@/components/workflow/RecordAlerts'
 import { Card } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS } from '@/lib/domain/leave/constants'
 
 function formatDate(value: string | null | undefined): string {
@@ -212,26 +210,22 @@ export default function LeaveWorkflowPage() {
   }
 
   return (
-    <>
-      <RecordAlerts
-        className="mb-6"
-        error={error}
-        errorDetails={errorDetails}
-        errorFooter={
-          leave ? (
-            <Button variant="secondary" href={`/leaves/${id}`}>
-              Refresh
-            </Button>
-          ) : null
-        }
-        success={null}
-        onDismissError={() => {
-          setError(null)
-          setErrorDetails(null)
-        }}
-      />
-
       <WorkflowRecordLayout data={dto} onAction={onAction} backHref="/leave">
+        {/* Inline feedback messages */}
+        {error && (
+          <div className="mb-6 flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+            <span className="shrink-0">✕</span>
+            <div>
+              <span>{error}</span>
+              {errorDetails && errorDetails.length > 0 && (
+                <ul className="mt-1 list-disc list-inside text-xs">
+                  {errorDetails.map((d, i) => <li key={i}>{d}</li>)}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
         {leave ? (
           <div className="space-y-6">
             <Card padding="lg">
@@ -300,6 +294,5 @@ export default function LeaveWorkflowPage() {
           </div>
         ) : null}
       </WorkflowRecordLayout>
-    </>
   )
 }
