@@ -9,48 +9,47 @@ import FetchPatch from '@/components/fetch-patch'
 const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
 
 const inter = Inter({
- subsets: ['latin'],
- variable: '--font-sans',
+  subsets: ['latin'],
+  variable: '--font-sans',
 })
 
 const jetbrainsMono = JetBrains_Mono({
- subsets: ['latin'],
- variable: '--font-mono',
+  subsets: ['latin'],
+  variable: '--font-mono',
 })
 
 export const metadata: Metadata = {
-    title: 'Talos',
- description: 'Modern warehouse inventory and billing management',
- keywords: ['warehouse', 'inventory', 'billing', 'management', '3PL'],
- icons: {
-  icon: `${appBasePath || ''}/favicon.ico`,
- },
+  title: 'Talos',
+  description: 'Modern warehouse inventory and billing management',
+  keywords: ['warehouse', 'inventory', 'billing', 'management', '3PL'],
+  icons: {
+    icon: [
+      { url: `${appBasePath || ''}/favicon.ico` },
+      { url: `${appBasePath || ''}/favicon.svg`, type: 'image/svg+xml' },
+    ],
+  },
 }
 
-export default function RootLayout({
- children,
-}: {
- children: React.ReactNode
-}) {
- return (
- <html lang="en" suppressHydrationWarning>
- <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
- <FetchPatch />
- <Providers>
- {children}
- <Toaster
- position="top-right"
- toastOptions={{
- duration: 4000,
- style: {
- background: 'hsl(var(--background))',
- color: 'hsl(var(--foreground))',
- border: '1px solid hsl(var(--border))',
- },
- }}
- />
- </Providers>
- </body>
- </html>
- )
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
+        <FetchPatch />
+        <Providers>
+          {children}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                border: '1px solid hsl(var(--border))',
+              },
+            }}
+          />
+        </Providers>
+      </body>
+    </html>
+  )
 }

@@ -1,29 +1,29 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   display: 'swap',
-})
+});
 
 export const metadata: Metadata = {
-  title: 'ecomOS Portal',
-  description: 'Central authentication and app launcher for ecomOS',
+  title: 'Talos',
+  description: 'Central authentication and app launcher for Talos',
   icons: {
-    icon: [
-      { url: '/favicon.ico' },
-    ],
+    icon: [{ url: '/favicon.ico' }, { url: '/favicon.svg', type: 'image/svg+xml' }],
   },
-}
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
-  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
-  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
-  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
-  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
-  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
+  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined;
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined;
+  const commitUrl = commitSha
+    ? `https://github.com/progami/ecom-os/commit/${commitSha}`
+    : undefined;
+  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`;
+  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl;
 
   return (
     <html lang="en">
@@ -56,11 +56,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             textDecoration: 'none',
             backdropFilter: 'blur(8px)',
           }}
-          aria-label={`Portal version v${version}`}
+          aria-label={`Talos version v${version}`}
         >
-          Portal v{version}
+          Talos v{version}
         </a>
       </body>
     </html>
-  )
+  );
 }
