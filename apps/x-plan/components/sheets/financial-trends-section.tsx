@@ -265,9 +265,9 @@ export function FinancialTrendsSection({
                             <stop
                               offset={`${zeroPoint * 100}%`}
                               stopColor="#dc2626"
-                              stopOpacity={0.25}
+                              stopOpacity={0.2}
                             />
-                            <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
+                            <stop offset="100%" stopColor="#dc2626" stopOpacity={0.7} />
                           </>
                         ) : (
                           <>
