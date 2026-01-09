@@ -106,6 +106,16 @@ const baseAuthOptions: NextAuthConfig = {
       return token
     },
     async session({ session, token }) {
+      // Always hydrate a stable user id (portal-issued) so API routes don't crash
+      // when a Talos user record doesn't exist yet in the tenant schema.
+      if (
+        (!session.user.id || typeof session.user.id !== 'string') &&
+        typeof token.sub === 'string' &&
+        token.sub.trim()
+      ) {
+        session.user.id = token.sub.trim()
+      }
+
       // Get current tenant - if no tenant selected yet, skip user enrichment
       let currentTenant: TenantCode
       try {
