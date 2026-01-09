@@ -391,24 +391,25 @@ export function SalesPlanningVisual({
                   })}
                 {/* Zero reference line - always visible for context */}
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1.5} />
-                {/* Red area for negative stock (below zero) */}
-                {showStockLine && yAxisBounds.hasNegative && (
-                  <Area
-                    type="monotone"
-                    dataKey="stockNegative"
-                    stroke="#dc2626"
-                    fill="url(#stockNegativeGradient)"
-                    strokeWidth={0}
-                    baseValue={0}
-                  />
-                )}
-                {/* Main stock line with teal fill for positive values */}
+                {/* Main stock line with teal fill */}
                 {showStockLine && (
                   <Area
                     type="monotone"
                     dataKey="stockEnd"
                     stroke="hsl(var(--chart-1))"
                     fill="url(#stockPositiveGradient)"
+                    strokeWidth={2}
+                    baseValue={0}
+                  />
+                )}
+                {/* Red area for negative stock - drawn on TOP to be visible */}
+                {showStockLine && yAxisBounds.hasNegative && (
+                  <Area
+                    type="monotone"
+                    dataKey="stockNegative"
+                    stroke="#dc2626"
+                    fill="#dc2626"
+                    fillOpacity={0.4}
                     strokeWidth={2}
                     baseValue={0}
                   />
