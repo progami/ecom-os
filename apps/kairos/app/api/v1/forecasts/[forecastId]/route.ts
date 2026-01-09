@@ -9,8 +9,8 @@ const paramsSchema = z.object({
   forecastId: z.string().min(1),
 });
 
-export const GET = withKairosAuth(async (_request, session, context: { params: unknown }) => {
-  const { forecastId } = paramsSchema.parse(context.params);
+export const GET = withKairosAuth(async (_request, session, context: { params: Promise<unknown> }) => {
+  const { forecastId } = paramsSchema.parse(await context.params);
   const actor = getKairosActor(session);
 
   const forecast = await prisma.forecast.findFirst({
