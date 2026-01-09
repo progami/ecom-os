@@ -12,6 +12,7 @@ import {
  Menu,
  X,
  BarChart3,
+ DollarSign,
  Building,
  BookOpen,
  Calendar,
@@ -44,6 +45,12 @@ const baseNavigation: NavSection[] = [
  { name: 'Purchase Orders', href: '/operations/purchase-orders', icon: FileText },
  { name: 'Fulfillment Orders', href: '/operations/fulfillment-orders', icon: Truck },
  { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
+ ]
+ },
+ {
+ title: 'Amazon',
+ items: [
+ { name: 'FBA Fee Discrepancies', href: '/amazon/fba-fee-discrepancies', icon: DollarSign },
  ]
  },
  {
