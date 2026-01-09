@@ -547,15 +547,15 @@ export default function NewPurchaseOrderPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-slate-50/50">
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[120px]">SKU</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[110px]">Batch / Lot</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3">Description</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[90px]">Units</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[110px]">SKU</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[100px]">Batch / Lot</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[180px]">Description</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Units</th>
                     <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Units/Ctn</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Cartons</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[120px]">Total</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[140px]">Notes</th>
-                    <th className="w-[50px]"></th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[70px]">Cartons</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[110px]">Total</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[120px]">Notes</th>
+                    <th className="w-[44px]"></th>
                   </tr>
                 </thead>
                 <tbody>
