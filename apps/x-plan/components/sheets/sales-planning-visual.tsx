@@ -154,11 +154,13 @@ export function SalesPlanningVisual({
     return map;
   }, [shipmentMarkers]);
 
-  // Transform for Recharts
+  // Transform for Recharts - add separate field for low-stock fill
   const chartData = useMemo(() => {
     return stockDataPoints.map((point) => ({
       ...point,
       hasShipment: shipmentByWeek.has(point.weekNumber),
+      // For red area fill under curve in low-stock weeks
+      stockEndLowStock: point.isLowStock ? point.stockEnd : null,
     }));
   }, [stockDataPoints, shipmentByWeek]);
 
@@ -181,34 +183,6 @@ export function SalesPlanningVisual({
 
     return { min, max };
   }, [stockDataPoints]);
-
-  // Compute low-stock week ranges for red highlighting
-  const lowStockRanges = useMemo(() => {
-    const ranges: Array<{ startLabel: string; endLabel: string }> = [];
-    let rangeStart: string | null = null;
-
-    chartData.forEach((point, index) => {
-      if (point.isLowStock) {
-        if (rangeStart === null) {
-          rangeStart = point.weekLabel;
-        }
-      } else {
-        if (rangeStart !== null) {
-          // End of a low-stock range - use previous point's label
-          const prevPoint = chartData[index - 1];
-          ranges.push({ startLabel: rangeStart, endLabel: prevPoint.weekLabel });
-          rangeStart = null;
-        }
-      }
-    });
-
-    // Handle case where range extends to end of data
-    if (rangeStart !== null && chartData.length > 0) {
-      ranges.push({ startLabel: rangeStart, endLabel: chartData[chartData.length - 1].weekLabel });
-    }
-
-    return ranges;
-  }, [chartData]);
 
   // Actual vs Forecast data processing
   const forecastChartData = useMemo(() => {
@@ -351,6 +325,11 @@ export function SalesPlanningVisual({
                     <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
                     <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.05} />
                   </linearGradient>
+                  {/* Low stock gradient (red) */}
+                  <linearGradient id="stockDangerGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#dc2626" stopOpacity={0.5} />
+                    <stop offset="95%" stopColor="#dc2626" stopOpacity={0.1} />
+                  </linearGradient>
                 </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -445,21 +424,17 @@ export function SalesPlanningVisual({
                     strokeWidth={2}
                   />
                 )}
-                {/* Low stock warning zones - weeks where stockWeeks <= threshold */}
-                {lowStockRanges.map((range, index) => (
-                  <ReferenceArea
-                    key={`low-stock-${index}`}
-                    x1={range.startLabel}
-                    x2={range.endLabel}
-                    y1={yAxisBounds.min}
-                    y2={yAxisBounds.max}
-                    fill="#dc2626"
-                    fillOpacity={0.15}
-                    stroke="#dc2626"
-                    strokeWidth={1}
-                    strokeOpacity={0.3}
+                {/* Red fill under curve for low-stock weeks */}
+                {showStockLine && (
+                  <Area
+                    type="monotone"
+                    dataKey="stockEndLowStock"
+                    stroke="none"
+                    fill="url(#stockDangerGradient)"
+                    strokeWidth={0}
+                    connectNulls={false}
                   />
-                ))}
+                )}
               </AreaChart>
             </ResponsiveContainer>
           </div>
