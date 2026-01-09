@@ -163,12 +163,12 @@ export default function LeaveWorkflowPage() {
   }, [load])
 
   const onAction = useCallback(
-    async (actionId: ActionId) => {
+    async (actionId: ActionId, input?: Parameters<typeof executeAction>[2]) => {
       setError(null)
       setErrorDetails(null)
 
       try {
-        await executeAction(actionId, { type: 'LEAVE_REQUEST', id })
+        await executeAction(actionId, { type: 'LEAVE_REQUEST', id }, input)
         await load()
       } catch (e) {
         if (e instanceof ApiError && Array.isArray(e.body?.details)) {
