@@ -31,6 +31,8 @@ interface SkuBatchRow {
   cartonHeightCm: number | string | null
   cartonWeightKg: number | string | null
   packagingType: string | null
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
   createdAt: string
   updatedAt: string
 }
@@ -40,6 +42,10 @@ interface SkuRow {
   skuCode: string
   description: string
   asin: string | null
+  amazonCategory?: string | null
+  amazonSizeTier?: string | null
+  amazonReferralFeePercent?: number | string | null
+  amazonFbaFulfillmentFee?: number | string | null
   packSize: number | null
   defaultSupplierId?: string | null
   secondarySupplierId?: string | null
@@ -56,6 +62,10 @@ interface SkuFormState {
   skuCode: string
   description: string
   asin: string
+  amazonCategory: string
+  amazonSizeTier: string
+  amazonReferralFeePercent: string
+  amazonFbaFulfillmentFee: string
   defaultSupplierId: string
   secondarySupplierId: string
   initialBatch: {
@@ -72,6 +82,10 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     skuCode: sku?.skuCode ?? '',
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
+    amazonCategory: sku?.amazonCategory ?? '',
+    amazonSizeTier: sku?.amazonSizeTier ?? '',
+    amazonReferralFeePercent: sku?.amazonReferralFeePercent?.toString?.() ?? '',
+    amazonFbaFulfillmentFee: sku?.amazonFbaFulfillmentFee?.toString?.() ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
     initialBatch: {
@@ -220,6 +234,37 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     const description = formState.description.trim()
     const asinValue = formState.asin.trim() ? formState.asin.trim() : null
 
+    const amazonCategory = formState.amazonCategory.trim()
+      ? formState.amazonCategory.trim()
+      : null
+    const amazonSizeTier = formState.amazonSizeTier.trim()
+      ? formState.amazonSizeTier.trim()
+      : null
+
+    const amazonReferralFeePercent = formState.amazonReferralFeePercent.trim()
+      ? Number.parseFloat(formState.amazonReferralFeePercent.trim())
+      : null
+    if (
+      amazonReferralFeePercent !== null &&
+      (!Number.isFinite(amazonReferralFeePercent) ||
+        amazonReferralFeePercent < 0 ||
+        amazonReferralFeePercent > 100)
+    ) {
+      toast.error('Amazon referral fee must be between 0 and 100')
+      return
+    }
+
+    const amazonFbaFulfillmentFee = formState.amazonFbaFulfillmentFee.trim()
+      ? Number.parseFloat(formState.amazonFbaFulfillmentFee.trim())
+      : null
+    if (
+      amazonFbaFulfillmentFee !== null &&
+      (!Number.isFinite(amazonFbaFulfillmentFee) || amazonFbaFulfillmentFee < 0)
+    ) {
+      toast.error('Amazon FBA fulfillment fee must be a non-negative number')
+      return
+    }
+
     if (!skuCode) {
       toast.error('SKU code is required')
       return
@@ -273,6 +318,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         skuCode,
         asin: asinValue,
         description,
+        amazonCategory,
+        amazonSizeTier,
+        amazonReferralFeePercent,
+        amazonFbaFulfillmentFee,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
       }
@@ -329,6 +378,39 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     } finally {
       setConfirmDelete(null)
     }
+  }
+
+  const formatPackagingType = (value: string | null | undefined) => {
+    const trimmed = value?.trim()
+    if (!trimmed) return null
+    const normalized = trimmed.toUpperCase()
+    if (normalized === 'BOX') return 'Box'
+    if (normalized === 'POLYBAG') return 'Polybag'
+    return trimmed
+  }
+
+  const formatBatchSummary = (batch: SkuBatchRow | undefined) => {
+    if (!batch) return '—'
+
+    const packSize = batch.packSize ? `Pack ${batch.packSize}` : null
+    const unitsPerCarton = batch.unitsPerCarton ? `${batch.unitsPerCarton} units/ctn` : null
+    const cartonsPerPallet =
+      batch.storageCartonsPerPallet || batch.shippingCartonsPerPallet
+        ? `Ctn/pallet S ${batch.storageCartonsPerPallet ?? '—'} • Ship ${batch.shippingCartonsPerPallet ?? '—'}`
+        : null
+    const packagingType = formatPackagingType(batch.packagingType)
+    const unitWeightKg =
+      typeof batch.unitWeightKg === 'number'
+        ? `${batch.unitWeightKg.toFixed(3)} kg/unit`
+        : batch.unitWeightKg
+          ? `${batch.unitWeightKg} kg/unit`
+          : null
+
+    const summary = [packSize, unitsPerCarton, cartonsPerPallet, unitWeightKg, packagingType]
+      .filter(Boolean)
+      .join(' • ')
+
+    return summary || '—'
   }
 
   return (
@@ -395,32 +477,47 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <th className="px-4 py-3 text-left font-semibold">SKU</th>
                   <th className="px-4 py-3 text-left font-semibold">Description</th>
                   <th className="px-4 py-3 text-left font-semibold">ASIN</th>
+                  <th className="px-4 py-3 text-left font-semibold hidden xl:table-cell">
+                    Latest Batch
+                  </th>
                   <th className="px-4 py-3 text-right font-semibold">Txns</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredSkus.map(sku => {
+                  const latestBatch = sku.batches?.[0]
+                  const batchSummary = formatBatchSummary(latestBatch)
+
                   return (
                     <tr key={sku.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            router.push(
-                              `/config/products/batches?skuId=${encodeURIComponent(sku.id)}`
-                            )
-                          }
-                          className="text-cyan-700 hover:underline"
-                        >
-                          {sku.skuCode}
-                        </button>
+                        <div className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(`/config/products/batches?skuId=${encodeURIComponent(sku.id)}`)
+                            }
+                            className="text-cyan-700 hover:underline"
+                          >
+                            {sku.skuCode}
+                          </button>
+                          <div className="text-xs text-slate-500 xl:hidden">{batchSummary}</div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                         {sku.description}
                       </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {sku.asin ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap hidden xl:table-cell">
+                        <div className="space-y-1">
+                          <div className="font-mono text-slate-700">
+                            {latestBatch?.batchCode ?? '—'}
+                          </div>
+                          <div className="text-xs text-slate-500">{batchSummary}</div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                         {sku._count?.inventoryTransactions ?? 0}
@@ -482,7 +579,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
               <form onSubmit={submitSku} className="flex min-h-0 flex-1 flex-col">
                 <div className="flex-1 space-y-6 overflow-y-auto p-6">
-                  <div className="grid gap-4 md:grid-cols-2">
+	                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-1">
                       <Label htmlFor="skuCode">SKU Code</Label>
                       <Input
@@ -507,17 +604,87 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       />
                     </div>
 
-                    <div className="space-y-1 md:col-span-2">
-                      <Label htmlFor="description">Description</Label>
-                      <Input
-                        id="description"
-                        value={formState.description}
-                        onChange={event =>
-                          setFormState(prev => ({ ...prev, description: event.target.value }))
-                        }
-                        required
-                      />
-                    </div>
+	                    <div className="space-y-1 md:col-span-2">
+	                      <Label htmlFor="description">Description</Label>
+	                      <Input
+	                        id="description"
+	                        value={formState.description}
+	                        onChange={event =>
+	                          setFormState(prev => ({ ...prev, description: event.target.value }))
+	                        }
+	                        required
+	                      />
+	                    </div>
+
+                        <div className="md:col-span-2 pt-2">
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            Amazon Defaults <span className="text-slate-400 font-normal">(optional)</span>
+                          </h3>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Used by Amazon → FBA Fee Discrepancies to compare your reference values against Amazon charges.
+                          </p>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="amazonCategory">Category</Label>
+                          <Input
+                            id="amazonCategory"
+                            value={formState.amazonCategory}
+                            onChange={event =>
+                              setFormState(prev => ({ ...prev, amazonCategory: event.target.value }))
+                            }
+                            placeholder="e.g. Home & Kitchen"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="amazonSizeTier">Size Tier</Label>
+                          <Input
+                            id="amazonSizeTier"
+                            value={formState.amazonSizeTier}
+                            onChange={event =>
+                              setFormState(prev => ({ ...prev, amazonSizeTier: event.target.value }))
+                            }
+                            placeholder="e.g. Large Standard"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
+                          <Input
+                            id="amazonReferralFeePercent"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.01}
+                            value={formState.amazonReferralFeePercent}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                amazonReferralFeePercent: event.target.value,
+                              }))
+                            }
+                            placeholder="e.g. 15"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                          <Input
+                            id="amazonFbaFulfillmentFee"
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={formState.amazonFbaFulfillmentFee}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                amazonFbaFulfillmentFee: event.target.value,
+                              }))
+                            }
+                            placeholder="Marketplace currency"
+                          />
+                        </div>
 
                     <div className="space-y-1">
                       <Label htmlFor="defaultSupplierId">Default Supplier</Label>

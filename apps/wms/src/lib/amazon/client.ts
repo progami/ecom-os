@@ -1,5 +1,6 @@
 import 'server-only'
 import type { TenantCode } from '@/lib/tenant/constants'
+import { getMarketplaceCurrencyCode } from '@/lib/amazon/fees'
 
 type SellingPartnerApiRegion = 'eu' | 'na' | 'fe'
 
@@ -799,6 +800,7 @@ export async function getCatalogItem(asin: string, tenantCode?: TenantCode) {
 export async function getProductFees(asin: string, price: number, tenantCode?: TenantCode) {
   try {
     const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const currencyCode = getMarketplaceCurrencyCode(tenantCode)
     const response = await callAmazonApi<unknown>(tenantCode, {
       operation: 'getMyFeesEstimateForASIN',
       endpoint: 'productFees',
@@ -810,7 +812,7 @@ export async function getProductFees(asin: string, price: number, tenantCode?: T
           MarketplaceId: config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID,
           PriceToEstimateFees: {
             ListingPrice: {
-              CurrencyCode: 'GBP',
+              CurrencyCode: currencyCode,
               Amount: price,
             },
           },
