@@ -45,7 +45,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Searc
                 </svg>
               </div>
             </div>
-            <h1 className="login-title">ecomOS Portal</h1>
+            <h1 className="login-title">TargonOS Portal</h1>
             <p className="login-headline">Welcome back</p>
             <p className="login-subtitle">Sign in with your targonglobal.com Google account</p>
           </div>

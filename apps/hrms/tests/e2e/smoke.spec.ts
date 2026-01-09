@@ -8,7 +8,7 @@ if (!hrmsBaseUrl) {
 
 test('Atlas redirects to portal sign-in when signed out', async ({ page }) => {
   await page.goto(`${hrmsBaseUrl}/tasks`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('ecomOS Portal')).toBeVisible()
+  await expect(page.getByText('TargonOS Portal')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Sign in with Google' })).toBeVisible()
 })
 
