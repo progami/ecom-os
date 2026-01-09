@@ -1,7 +1,7 @@
-ecomOS Portal (Auth)
-====================
+TargonOS Portal (Auth)
+======================
 
-Portal-managed authentication and app launcher for all ecomOS apps.
+Portal-managed authentication and app launcher for all TargonOS apps.
 
 Goals
 -----
