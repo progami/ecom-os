@@ -226,11 +226,11 @@ export default function PerformanceReviewPage() {
 
   // Workflow actions
   const onAction = useCallback(
-    async (actionId: ActionId) => {
+    async (actionId: ActionId, input?: Parameters<typeof executeAction>[2]) => {
       setError(null)
       setErrorDetails(null)
       try {
-        await executeAction(actionId, { type: 'PERFORMANCE_REVIEW', id })
+        await executeAction(actionId, { type: 'PERFORMANCE_REVIEW', id }, input)
         await load()
       } catch (e) {
         if (e instanceof ApiError && Array.isArray(e.body?.details)) {
