@@ -32,7 +32,7 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
 
   return (
     <ol className="space-y-4">
-      {items.map((item) => {
+      {items.map((item, index) => {
         const eventType = getEventType(item.event);
         const eventColor =
           eventType === 'approve'
@@ -42,21 +42,28 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
               : eventType === 'submit'
                 ? 'text-accent'
                 : 'text-foreground';
-        const dotColor =
+        const bgColor =
           eventType === 'approve'
-            ? 'bg-success-500'
+            ? 'bg-success-500 text-white'
             : eventType === 'reject'
-              ? 'bg-warning-500'
+              ? 'bg-warning-500 text-white'
               : eventType === 'submit'
-                ? 'bg-accent'
-                : 'bg-muted-foreground';
+                ? 'bg-accent text-white'
+                : 'bg-muted text-muted-foreground';
+
+        // Number from oldest (1) to newest (length) - timeline shows newest first
+        const stepNumber = items.length - index;
 
         return (
           <li key={item.id} className="flex gap-3">
-            {/* Timeline dot instead of avatar for cleaner look */}
+            {/* Step number */}
             <div className="flex flex-col items-center">
-              <div className={`h-2.5 w-2.5 rounded-full ${dotColor} mt-1.5`} />
-              <div className="flex-1 w-px bg-border mt-1" />
+              <div className={`h-6 w-6 rounded-full ${bgColor} flex items-center justify-center text-xs font-semibold`}>
+                {stepNumber}
+              </div>
+              {index < items.length - 1 && (
+                <div className="flex-1 w-px bg-border mt-1" />
+              )}
             </div>
             <div className="flex-1 pb-4">
               <p className={`text-sm font-medium ${eventColor}`}>{item.event}</p>
