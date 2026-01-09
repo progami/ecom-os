@@ -38,6 +38,7 @@ interface SalesPlanningVisualProps {
   columnMeta: ColumnMeta;
   columnKeys: string[];
   productOptions: Array<{ id: string; name: string }>;
+  stockWarningWeeks: number;
 }
 
 type ShipmentMarker = {
@@ -51,6 +52,7 @@ export function SalesPlanningVisual({
   columnMeta,
   columnKeys,
   productOptions,
+  stockWarningWeeks,
 }: SalesPlanningVisualProps) {
   const searchParams = useSearchParams();
   const productSetupHref = searchParams
@@ -86,29 +88,50 @@ export function SalesPlanningVisual({
     return map;
   }, [rows]);
 
+  const warningThreshold = Number.isFinite(stockWarningWeeks)
+    ? stockWarningWeeks
+    : Number.POSITIVE_INFINITY;
+
   const stockDataPoints = useMemo(() => {
     if (!selectedProductId) return [];
 
-    const productColumnKey = columnKeys.find(
+    const stockEndKey = columnKeys.find(
       (key) =>
         columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'stockEnd',
     );
+    const finalSalesKey = columnKeys.find(
+      (key) =>
+        columnMeta[key]?.productId === selectedProductId && columnMeta[key]?.field === 'finalSales',
+    );
 
-    if (!productColumnKey) return [];
+    if (!stockEndKey) return [];
 
     return rows
       .map((row) => {
-        const stockValue = row[productColumnKey];
+        const stockValue = row[stockEndKey];
+        const finalSalesValue = finalSalesKey ? row[finalSalesKey] : undefined;
         const weekNumber = Number(row.weekNumber);
+        const stockEnd = stockValue ? Number(stockValue) : 0;
+        const finalSales = finalSalesValue ? Number(finalSalesValue) : 0;
+        // stockWeeks = how many weeks of cover we have
+        const stockWeeks =
+          finalSales > 0
+            ? stockEnd / finalSales
+            : stockEnd > 0
+              ? Number.POSITIVE_INFINITY
+              : 0;
+        const isLowStock = Number.isFinite(stockWeeks) && stockWeeks <= warningThreshold;
         return {
           weekNumber,
           weekLabel: String(weekLabelByWeekNumber.get(weekNumber) ?? weekNumber),
           weekDate: row.weekDate,
-          stockEnd: stockValue ? Number(stockValue) : 0,
+          stockEnd,
+          stockWeeks,
+          isLowStock,
         };
       })
       .filter((point) => Number.isFinite(point.weekNumber) && Number.isFinite(point.stockEnd));
-  }, [selectedProductId, rows, columnKeys, columnMeta, weekLabelByWeekNumber]);
+  }, [selectedProductId, rows, columnKeys, columnMeta, weekLabelByWeekNumber, warningThreshold]);
 
   const shipmentMarkers = useMemo(() => {
     return rows
@@ -139,33 +162,53 @@ export function SalesPlanningVisual({
     }));
   }, [stockDataPoints, shipmentByWeek]);
 
-  // Calculate Y-axis bounds and zero offset for split gradients (red below 0)
+  // Calculate Y-axis bounds with padding below zero for visibility
   const yAxisBounds = useMemo(() => {
     const allValues = stockDataPoints.map((p) => p.stockEnd).filter(Number.isFinite);
-    if (allValues.length === 0)
-      return { min: 0, max: 0, zeroOffset: 0.5, hasNegative: false, allNegative: false };
+    if (allValues.length === 0) return { min: 0, max: 0 };
     const dataMin = Math.min(...allValues);
     const dataMax = Math.max(...allValues);
 
-    // Extend Y-axis to include 0 for context when data is all negative or all positive
-    // Add padding below zero to ensure the zero line is clearly visible
+    // Extend Y-axis to include 0 for context
     const rawMin = Math.min(dataMin, 0);
     const rawMax = Math.max(dataMax, 0);
     const range = rawMax - rawMin;
 
-    // Add 10% padding below zero line for visibility
-    const padding = range > 0 ? range * 0.1 : 100;
-    const min = rawMin < 0 ? rawMin - padding * 0.5 : -padding * 0.15;
+    // Add small padding below zero line for visibility
+    const padding = range > 0 ? range * 0.05 : 100;
+    const min = rawMin - padding;
     const max = rawMax;
-    const adjustedRange = max - min;
 
-    // zeroOffset is where 0 falls as a percentage from top (max) to bottom (min)
-    const zeroOffset = adjustedRange > 0 ? max / adjustedRange : 0.5;
-    const hasNegative = dataMin < 0;
-    const allNegative = dataMax <= 0;
-
-    return { min, max, zeroOffset: Math.max(0, Math.min(1, zeroOffset)), hasNegative, allNegative };
+    return { min, max };
   }, [stockDataPoints]);
+
+  // Compute low-stock week ranges for red highlighting
+  const lowStockRanges = useMemo(() => {
+    const ranges: Array<{ startLabel: string; endLabel: string }> = [];
+    let rangeStart: string | null = null;
+
+    chartData.forEach((point, index) => {
+      if (point.isLowStock) {
+        if (rangeStart === null) {
+          rangeStart = point.weekLabel;
+        }
+      } else {
+        if (rangeStart !== null) {
+          // End of a low-stock range - use previous point's label
+          const prevPoint = chartData[index - 1];
+          ranges.push({ startLabel: rangeStart, endLabel: prevPoint.weekLabel });
+          rangeStart = null;
+        }
+      }
+    });
+
+    // Handle case where range extends to end of data
+    if (rangeStart !== null && chartData.length > 0) {
+      ranges.push({ startLabel: rangeStart, endLabel: chartData[chartData.length - 1].weekLabel });
+    }
+
+    return ranges;
+  }, [chartData]);
 
   // Actual vs Forecast data processing
   const forecastChartData = useMemo(() => {
@@ -342,19 +385,27 @@ export function SalesPlanningVisual({
                   content={({ active, payload }) => {
                     if (!active || !payload?.[0]) return null;
                     const data = payload[0].payload;
+                    const stockWeeksDisplay =
+                      Number.isFinite(data.stockWeeks) && data.stockWeeks < 1000
+                        ? data.stockWeeks.toFixed(1)
+                        : '∞';
                     return (
                       <div className="rounded-lg border bg-background p-2 shadow-md">
                         <p className="text-xs font-medium">
                           Week {data.weekLabel} · {data.weekDate}
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          Stock: {Math.round(data.stockEnd).toLocaleString()} units
+                        </p>
                         <p
                           className={`text-xs ${
-                            data.stockEnd < 0
+                            data.isLowStock
                               ? 'font-medium text-red-600 dark:text-red-400'
                               : 'text-muted-foreground'
                           }`}
                         >
-                          Stock: {Math.round(data.stockEnd).toLocaleString()} units
+                          Cover: {stockWeeksDisplay}w{' '}
+                          {data.isLowStock && `(≤ ${warningThreshold}w threshold)`}
                         </p>
                         {data.hasShipment && (
                           <p className="text-xs text-emerald-600 dark:text-emerald-200">
@@ -394,17 +445,21 @@ export function SalesPlanningVisual({
                     strokeWidth={2}
                   />
                 )}
-                {/* Red danger zone below zero - rendered LAST so it's on top */}
-                {yAxisBounds.hasNegative && (
+                {/* Low stock warning zones - weeks where stockWeeks <= threshold */}
+                {lowStockRanges.map((range, index) => (
                   <ReferenceArea
-                    y1={0}
-                    y2={yAxisBounds.min}
+                    key={`low-stock-${index}`}
+                    x1={range.startLabel}
+                    x2={range.endLabel}
+                    y1={yAxisBounds.min}
+                    y2={yAxisBounds.max}
                     fill="#dc2626"
-                    fillOpacity={0.35}
+                    fillOpacity={0.15}
                     stroke="#dc2626"
                     strokeWidth={1}
+                    strokeOpacity={0.3}
                   />
-                )}
+                ))}
               </AreaChart>
             </ResponsiveContainer>
           </div>
