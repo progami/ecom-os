@@ -56,6 +56,7 @@ Pers/
 .env.local
 .todo*
 todo-hrms.md
+xplan-todo.md
 cookies.txt
 
 # Claude Code local files

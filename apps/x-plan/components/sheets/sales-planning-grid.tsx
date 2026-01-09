@@ -81,6 +81,7 @@ const BASE_SALES_METRICS = [
   'stockStart',
   'actualSales',
   'forecastSales',
+  'systemForecastSales',
   'finalSales',
   'finalSalesError',
 ] as const;
@@ -387,7 +388,12 @@ export function SalesPlanningGrid({
   );
 
   const visibleMetrics = useMemo(() => {
-    const metrics = new Set<string>(['stockStart', 'actualSales', 'forecastSales']);
+    const metrics = new Set<string>([
+      'stockStart',
+      'actualSales',
+      'forecastSales',
+      'systemForecastSales',
+    ]);
     metrics.add(showFinalError ? 'finalSalesError' : 'finalSales');
     metrics.add(activeStockMetric);
     return metrics;
@@ -536,6 +542,7 @@ export function SalesPlanningGrid({
       'stockStart',
       'actualSales',
       'forecastSales',
+      'systemForecastSales',
       showFinalError ? 'finalSalesError' : 'finalSales',
       activeStockMetric,
     ];
@@ -573,8 +580,9 @@ export function SalesPlanningGrid({
               const labelMap: Record<string, string> = {
                 stockStart: 'Stock Start',
                 actualSales: 'Actual',
-                forecastSales: 'Forecast',
-                finalSales: 'Final',
+                forecastSales: 'Planner Forecast',
+                systemForecastSales: 'System Forecast',
+                finalSales: 'Demand',
                 finalSalesError: '% Error',
                 stockWeeks: 'Stockout',
                 stockEnd: 'Stock Qty',
@@ -720,6 +728,7 @@ export function SalesPlanningGrid({
       const stockStartKey = keysByField.get('stockStart');
       const actualSalesKey = keysByField.get('actualSales');
       const forecastSalesKey = keysByField.get('forecastSales');
+      const systemForecastSalesKey = keysByField.get('systemForecastSales');
       const finalSalesKey = keysByField.get('finalSales');
       const finalSalesErrorKey = keysByField.get('finalSalesError');
       const stockWeeksKey = keysByField.get('stockWeeks');
@@ -729,6 +738,7 @@ export function SalesPlanningGrid({
         !stockStartKey ||
         !actualSalesKey ||
         !forecastSalesKey ||
+        !systemForecastSalesKey ||
         !finalSalesKey ||
         !finalSalesErrorKey ||
         !stockWeeksKey ||
@@ -742,6 +752,7 @@ export function SalesPlanningGrid({
       const previousStockEnd: number[] = new Array(n);
       const actual: Array<number | null> = new Array(n);
       const forecast: Array<number | null> = new Array(n);
+      const systemForecast: Array<number | null> = new Array(n);
 
       for (let i = 0; i < n; i += 1) {
         const row = nextData[i];
@@ -749,6 +760,7 @@ export function SalesPlanningGrid({
         previousStockEnd[i] = parseNumericInput(row?.[stockEndKey]) ?? 0;
         actual[i] = parseNumericInput(row?.[actualSalesKey]);
         forecast[i] = parseNumericInput(row?.[forecastSalesKey]);
+        systemForecast[i] = parseNumericInput(row?.[systemForecastSalesKey]);
       }
 
       const inboundDelta: number[] = new Array(n).fill(0);
@@ -760,13 +772,23 @@ export function SalesPlanningGrid({
       const nextFinalSales: number[] = new Array(n);
       const nextStockEnd: number[] = new Array(n);
       const nextError: Array<number | null> = new Array(n);
+      const nextDemandSource: string[] = new Array(n);
 
       nextStockStart[0] = previousStockStart[0];
 
       for (let i = 0; i < n; i += 1) {
-        const demand = actual[i] ?? forecast[i] ?? 0;
+        const demand = actual[i] ?? forecast[i] ?? systemForecast[i] ?? 0;
         nextFinalSales[i] = Math.max(0, demand);
-        nextStockEnd[i] = nextStockStart[i] - nextFinalSales[i];
+        nextStockEnd[i] = Math.max(0, nextStockStart[i] - nextFinalSales[i]);
+
+        nextDemandSource[i] =
+          actual[i] != null
+            ? 'ACTUAL'
+            : forecast[i] != null
+              ? 'PLANNER'
+              : systemForecast[i] != null
+                ? 'SYSTEM'
+                : 'ZERO';
 
         if (i + 1 < n) {
           nextStockStart[i + 1] = nextStockEnd[i] + inboundDelta[i + 1];
@@ -881,6 +903,8 @@ export function SalesPlanningGrid({
           ? nextStockWeeks[i].toFixed(2)
           : '∞';
         const errorValue = nextError[i] == null ? '' : `${(nextError[i]! * 100).toFixed(1)}%`;
+        const demandSourceKey = finalSalesKey.replace(/_finalSales$/, '_finalSalesSource');
+        const demandSourceValue = nextDemandSource[i] ?? '';
 
         if (row?.[stockStartKey] !== stockStartValue)
           changes.push([i, stockStartKey, stockStartValue]);
@@ -891,6 +915,8 @@ export function SalesPlanningGrid({
           changes.push([i, stockWeeksKey, stockWeeksValue]);
         if (row?.[finalSalesErrorKey] !== errorValue)
           changes.push([i, finalSalesErrorKey, errorValue]);
+        if (row?.[demandSourceKey] !== demandSourceValue)
+          changes.push([i, demandSourceKey, demandSourceValue]);
       }
 
       const startIndex = Math.max(0, Math.min(n - 1, startRowIndex ?? 0));
@@ -1754,6 +1780,7 @@ export function SalesPlanningGrid({
           hasInbound,
           highlight: 'none' as const,
           tooltip: '',
+          badge: null as string | null,
         };
       }
 
@@ -1766,6 +1793,7 @@ export function SalesPlanningGrid({
           hasInbound,
           highlight: 'none' as const,
           tooltip: '',
+          badge: null as string | null,
         };
       }
 
@@ -1867,6 +1895,7 @@ export function SalesPlanningGrid({
           hasInbound,
           highlight: hasReorderCue ? ('reorder' as const) : ('none' as const),
           tooltip,
+          badge: null as string | null,
         };
       }
 
@@ -1876,6 +1905,7 @@ export function SalesPlanningGrid({
       let isWarning = false;
       let isReorder = false;
       let highlight: 'none' | 'warning' | 'reorder' | 'inbound' = 'none';
+      let badge: string | null = null;
 
       const productId = colMeta?.productId;
       const reorderInfo = productId ? reorderCueByProductRef.current.get(productId) : undefined;
@@ -1959,6 +1989,53 @@ export function SalesPlanningGrid({
         if (allocations && allocations.length > 0) {
           tooltipText = tooltipText || formatBatchComment(allocations);
         }
+
+        const sourceKey = columnId.replace(/_finalSales$/, '_finalSalesSource');
+        const systemVersionKey = columnId.replace(/_finalSales$/, '_systemForecastVersion');
+        const sourceRaw = (row[sourceKey] ?? '').trim();
+        const systemVersion = (row[systemVersionKey] ?? '').trim();
+
+        const sourceLabel =
+          sourceRaw === 'OVERRIDE'
+            ? 'Override'
+            : sourceRaw === 'ACTUAL'
+              ? 'Actual'
+              : sourceRaw === 'PLANNER'
+                ? 'Planner Forecast'
+                : sourceRaw === 'SYSTEM'
+                  ? 'System Forecast'
+                  : sourceRaw
+                    ? sourceRaw
+                    : '—';
+
+        badge =
+          sourceRaw === 'ACTUAL'
+            ? 'Act'
+            : sourceRaw === 'PLANNER'
+              ? 'Plan'
+              : sourceRaw === 'SYSTEM'
+                ? 'Sys'
+                : sourceRaw === 'OVERRIDE'
+                  ? 'Ovr'
+                  : null;
+
+        const versionLine =
+          sourceRaw === 'SYSTEM' && systemVersion ? `System version: ${systemVersion}` : '';
+        const sourceLines = [`Demand source: ${sourceLabel}`, versionLine].filter(Boolean);
+        const sourceInfo = sourceLines.join('\n');
+        tooltipText = tooltipText ? `${tooltipText}\n\n${sourceInfo}` : sourceInfo;
+      }
+
+      if (field === 'systemForecastSales') {
+        const systemVersionKey = columnId.replace(
+          /_systemForecastSales$/,
+          '_systemForecastVersion',
+        );
+        const systemVersion = (row[systemVersionKey] ?? '').trim();
+        if (systemVersion) {
+          const versionLine = `System version: ${systemVersion}`;
+          tooltipText = tooltipText ? `${tooltipText}\n\n${versionLine}` : versionLine;
+        }
       }
 
       const raw = row[columnId] ?? '';
@@ -1971,6 +2048,7 @@ export function SalesPlanningGrid({
           hasInbound,
           highlight,
           tooltip: tooltipText,
+          badge,
         };
       }
 
@@ -1983,6 +2061,7 @@ export function SalesPlanningGrid({
           hasInbound,
           highlight,
           tooltip: tooltipText,
+          badge,
         };
       }
 
@@ -1995,6 +2074,7 @@ export function SalesPlanningGrid({
           hasInbound,
           highlight,
           tooltip: tooltipText,
+          badge,
         };
       }
 
@@ -2006,6 +2086,7 @@ export function SalesPlanningGrid({
         hasInbound,
         highlight,
         tooltip: tooltipText,
+        badge,
       };
     },
     [
@@ -2116,8 +2197,9 @@ export function SalesPlanningGrid({
       const labelMap: Record<string, string> = {
         stockStart: 'Stock Start',
         actualSales: 'Actual',
-        forecastSales: 'Forecast',
-        finalSales: 'Final',
+        forecastSales: 'Planner Forecast',
+        systemForecastSales: 'System Forecast',
+        finalSales: 'Demand',
         finalSalesError: '% Error',
         stockWeeks: 'Stockout',
         stockEnd: 'Stock Qty',
@@ -2316,14 +2398,24 @@ export function SalesPlanningGrid({
                         className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     ) : (
-                      <span
+                      <div
                         className={cn(
-                          'block min-w-0 truncate tabular-nums',
-                          isPinned ? 'text-left' : 'text-right',
+                          'flex min-w-0 items-center gap-1',
+                          isPinned ? 'justify-start' : 'justify-end',
                         )}
                       >
-                        {presentation.display}
-                      </span>
+                        <span className="block min-w-0 truncate tabular-nums">
+                          {presentation.display}
+                        </span>
+                        {presentation.badge ? (
+                          <Badge
+                            variant="secondary"
+                            className="h-5 shrink-0 px-1.5 text-[10px] font-semibold leading-none"
+                          >
+                            {presentation.badge}
+                          </Badge>
+                        ) : null}
+                      </div>
                     );
 
                     const isFirstProductCol = productBoundaryColumns.firstColIndices.has(colIndex);

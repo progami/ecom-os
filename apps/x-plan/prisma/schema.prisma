@@ -256,6 +256,8 @@ model SalesWeek {
   stockStart    Int?
   actualSales   Int?
   forecastSales Int?
+  systemForecastSales   Int?
+  systemForecastVersion String? @db.VarChar(64)
   finalSales    Int?
   stockWeeks    Decimal? @db.Decimal(8, 2)
   stockEnd      Int?

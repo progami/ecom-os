@@ -104,6 +104,7 @@ const SALES_METRICS = [
   'stockStart',
   'actualSales',
   'forecastSales',
+  'systemForecastSales',
   'finalSales',
   'finalSalesError',
   'stockWeeks',
@@ -590,11 +591,17 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
     case 'stockStart':
       return 'Stock Start';
     case 'actualSales':
-      return 'Actual Sales';
+      return 'Actual';
     case 'forecastSales':
-      return 'Fcst Sales';
+      return 'Planner Forecast';
+    case 'systemForecastSales':
+      return 'System Forecast';
     case 'finalSales':
-      return 'Final Sales';
+      return {
+        label: 'Demand',
+        title:
+          'Demand = Actual when present, otherwise Planner Forecast, otherwise System Forecast.',
+      };
     case 'finalSalesError':
       return {
         label: '% Error',
@@ -604,7 +611,7 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
       return {
         label: 'Stockout (Weeks)',
         title:
-          'Stockout weeks = number of future weeks until projected inventory reaches zero using Final Sales (Actuals when present, otherwise Forecast) and scheduled arrivals.',
+          'Stockout weeks = number of future weeks until projected inventory reaches zero using Demand (Actual → Planner Forecast → System Forecast) and scheduled arrivals.',
       };
     case 'stockEnd':
       return 'Stock Qty';
@@ -1683,8 +1690,17 @@ function getSalesPlanningView(
           case 'forecastSales':
             row[key] = formatNumeric(derived?.forecastSales ?? null, 0);
             break;
+          case 'systemForecastSales':
+            row[key] = formatNumeric(derived?.systemForecastSales ?? null, 0);
+            break;
           case 'finalSales':
             row[key] = formatNumeric(derived?.finalSales ?? null, 0);
+            if (derived?.finalSalesSource) {
+              row[`p${productIdx}_finalSalesSource`] = derived.finalSalesSource;
+            }
+            if (derived?.systemForecastVersion) {
+              row[`p${productIdx}_systemForecastVersion`] = derived.systemForecastVersion;
+            }
             break;
           case 'finalSalesError':
             row[key] = formatPercent(derived?.finalPercentError ?? null, 1);

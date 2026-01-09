@@ -40,7 +40,10 @@ export interface SalesWeekDerived {
   }>;
   actualSales: number | null;
   forecastSales: number | null;
+  systemForecastSales: number | null;
+  systemForecastVersion: string | null;
   finalSales: number;
+  finalSalesSource: 'OVERRIDE' | 'ACTUAL' | 'PLANNER' | 'SYSTEM' | 'ZERO';
   finalPercentError: number | null;
   stockEnd: number;
   stockWeeks: number;
@@ -150,38 +153,6 @@ function buildArrivalSchedule(
 
 function clampNonNegative(value: number): number {
   return value < 0 ? 0 : value;
-}
-
-function consumeInventoryFIFO(
-  consumptionQuantity: number,
-  batchInventory: BatchInventory[],
-): BatchInventory[] {
-  if (consumptionQuantity <= 0 || batchInventory.length === 0) {
-    return [...batchInventory];
-  }
-
-  const remaining: BatchInventory[] = [];
-  let remainingToConsume = consumptionQuantity;
-
-  const sortedBatches = [...batchInventory].sort((a, b) => a.arrivalWeek - b.arrivalWeek);
-
-  for (const batch of sortedBatches) {
-    if (remainingToConsume <= 0) {
-      remaining.push(batch);
-      continue;
-    }
-
-    const quantityToConsume = Math.min(remainingToConsume, batch.quantity);
-    const remainingQuantity = batch.quantity - quantityToConsume;
-
-    if (remainingQuantity > 0) {
-      remaining.push({ ...batch, quantity: remainingQuantity });
-    }
-
-    remainingToConsume -= quantityToConsume;
-  }
-
-  return remaining;
 }
 
 /**
@@ -294,23 +265,33 @@ export function computeSalesPlan(
 
       const previousEnd = index > 0 ? stockEndSeries[index - 1] : coerceNumber(week?.stockStart);
       const manualStart = week?.stockStart;
-      const baseStart = manualStart != null ? coerceNumber(manualStart) : previousEnd;
-      const backlog = baseStart < 0 ? Math.abs(baseStart) : 0;
-
-      if (backlog > 0) {
-        batchInventory = consumeInventoryFIFO(backlog, batchInventory);
-      }
-      const stockStart = baseStart + arrivals;
+      const baseStart =
+        manualStart != null ? clampNonNegative(coerceNumber(manualStart)) : previousEnd;
+      const stockStart = clampNonNegative(baseStart + arrivals);
 
       const actualSales = week?.actualSales != null ? coerceNumber(week.actualSales) : null;
       const forecastSales = week?.forecastSales != null ? coerceNumber(week.forecastSales) : null;
+      const systemForecastSales =
+        week?.systemForecastSales != null ? coerceNumber(week.systemForecastSales) : null;
+      const systemForecastVersion = week?.systemForecastVersion ?? null;
 
       let computedFinalSales: number;
+      let finalSalesSource: SalesWeekDerived['finalSalesSource'];
       if (week?.finalSales != null) {
         computedFinalSales = clampNonNegative(coerceNumber(week.finalSales));
+        finalSalesSource = 'OVERRIDE';
+      } else if (actualSales != null) {
+        computedFinalSales = clampNonNegative(actualSales);
+        finalSalesSource = 'ACTUAL';
+      } else if (forecastSales != null) {
+        computedFinalSales = clampNonNegative(forecastSales);
+        finalSalesSource = 'PLANNER';
+      } else if (systemForecastSales != null) {
+        computedFinalSales = clampNonNegative(systemForecastSales);
+        finalSalesSource = 'SYSTEM';
       } else {
-        const demand = actualSales != null ? actualSales : (forecastSales ?? 0);
-        computedFinalSales = clampNonNegative(demand);
+        computedFinalSales = 0;
+        finalSalesSource = 'ZERO';
       }
 
       // Allocate sales using FIFO
@@ -320,7 +301,7 @@ export function computeSalesPlan(
       );
       batchInventory = remainingBatches;
 
-      const stockEnd = stockStart - computedFinalSales;
+      const stockEnd = clampNonNegative(stockStart - computedFinalSales);
       let percentError: number | null = null;
       if (actualSales != null && forecastSales != null && forecastSales !== 0) {
         percentError = (actualSales - forecastSales) / Math.abs(forecastSales);
@@ -336,7 +317,10 @@ export function computeSalesPlan(
         arrivalOrders: arrivalEntry?.orders ?? [],
         actualSales,
         forecastSales,
+        systemForecastSales,
+        systemForecastVersion,
         finalSales: computedFinalSales,
+        finalSalesSource,
         finalPercentError: percentError,
         stockEnd,
         stockWeeks: 0, // updated after loop
