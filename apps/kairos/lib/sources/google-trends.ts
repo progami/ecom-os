@@ -22,6 +22,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function stripGoogleTrendsPrefix(value: string) {
+  return value.replace(/^\)\]\}',?\s*/, '');
+}
+
+function parseGoogleTrendsJson(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    throw new Error('Google Trends returned an empty response.');
+  }
+
+  if (trimmed.startsWith('<')) {
+    throw new Error('Google Trends returned HTML instead of JSON. Please retry in a minute.');
+  }
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    const cleaned = stripGoogleTrendsPrefix(raw);
+    try {
+      return JSON.parse(cleaned) as unknown;
+    } catch {
+      throw new Error('Google Trends returned an unexpected response. Please retry.');
+    }
+  }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchGoogleTrendsInterestOverTime(
   input: GoogleTrendsInterestOverTimeInput,
 ): Promise<GoogleTrendsInterestOverTimeResult> {
@@ -33,14 +63,27 @@ export async function fetchGoogleTrendsInterestOverTime(
   const endDate = input.endDate ?? new Date();
   const geo = input.geo?.trim() || undefined;
 
-  const raw = await googleTrends.interestOverTime({
-    keyword,
-    startTime: input.startDate,
-    endTime: endDate,
-    geo,
-  });
+  const maxAttempts = 2;
+  let raw = '';
 
-  const parsed = JSON.parse(raw) as unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      raw = await googleTrends.interestOverTime({
+        keyword,
+        startTime: input.startDate,
+        endTime: endDate,
+        geo,
+      });
+      break;
+    } catch (error) {
+      if (attempt >= maxAttempts) {
+        throw error;
+      }
+      await sleep(750 * attempt);
+    }
+  }
+
+  const parsed = parseGoogleTrendsJson(raw);
   const defaultBlock = isRecord(parsed) && isRecord(parsed.default) ? parsed.default : null;
   const timelineData = defaultBlock && Array.isArray(defaultBlock.timelineData) ? defaultBlock.timelineData : [];
 
@@ -55,6 +98,10 @@ export async function fetchGoogleTrendsInterestOverTime(
       };
     })
     .filter((point) => Number.isFinite(point.value) && !Number.isNaN(point.t.getTime()));
+
+  if (points.length === 0) {
+    throw new Error('Google Trends returned no data for this query.');
+  }
 
   let granularity: 'DAILY' | 'WEEKLY' = 'DAILY';
   if (points.length >= 2) {
@@ -79,4 +126,3 @@ export async function fetchGoogleTrendsInterestOverTime(
 
   return { points, granularity, sourceMeta };
 }
-
