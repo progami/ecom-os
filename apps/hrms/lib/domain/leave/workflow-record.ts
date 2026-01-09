@@ -100,17 +100,8 @@ export async function leaveToWorkflowRecordDTO(
     },
     actions: buildLeaveNextActions(leave, viewer),
     summary: [
-      {
-        label: 'Type',
-        value:
-          LEAVE_TYPE_LABELS[leave.leaveType as keyof typeof LEAVE_TYPE_LABELS] ?? leave.leaveType.replaceAll('_', ' '),
-      },
       { label: 'Dates', value: `${leave.startDate.toLocaleDateString('en-US')} → ${leave.endDate.toLocaleDateString('en-US')}` },
       { label: 'Total days', value: String(leave.totalDays) },
-      {
-        label: 'Status',
-        value: LEAVE_STATUS_LABELS[leave.status as keyof typeof LEAVE_STATUS_LABELS] ?? leave.status.replaceAll('_', ' '),
-      },
     ],
     timeline,
     access: { canView: true },

@@ -121,46 +121,6 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-function formatWhen(value: string | null | undefined): string {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
-function NoteSection({
-  title,
-  status,
-  when,
-  note,
-}: {
-  title: string
-  status: string
-  when: string
-  note?: string | null
-}) {
-  return (
-    <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          <p className="text-xs text-muted-foreground mt-1">{when}</p>
-        </div>
-        <span className="shrink-0 inline-flex items-center rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-semibold tracking-wide">
-          {status}
-        </span>
-      </div>
-      {note ? <p className="mt-3 text-sm text-foreground whitespace-pre-line">{note}</p> : null}
-    </div>
-  )
-}
-
 export default function ViolationWorkflowPage() {
   const params = useParams()
   const id = params.id as string
@@ -504,62 +464,6 @@ export default function ViolationWorkflowPage() {
     }
   }, [appealDecision, appealDecisionDraft, id, load])
 
-  const approvalBlocks = useMemo(() => {
-    if (!record) return null
-
-    const hrStatus =
-      record.hrApproved === true
-        ? 'Approved'
-        : record.hrApproved === false
-          ? 'Changes requested'
-          : 'Pending'
-
-    const adminStatus =
-      record.superAdminApproved === true
-        ? 'Approved'
-        : record.superAdminApproved === false
-          ? 'Changes requested'
-          : 'Pending'
-
-    const ackStatus =
-      record.employeeAcknowledged && record.managerAcknowledged
-        ? 'Complete'
-        : record.employeeAcknowledged
-          ? 'Waiting for manager'
-          : record.managerAcknowledged
-            ? 'Waiting for employee'
-            : 'Waiting for acknowledgements'
-
-    const appealStatus = record.appealedAt
-      ? record.appealResolvedAt
-        ? `Decided: ${record.appealStatus ?? '—'}`
-        : 'Pending HR decision'
-      : 'No appeal'
-
-    return {
-      hr: {
-        status: hrStatus,
-        when: record.hrReviewedAt ? formatWhen(record.hrReviewedAt) : '—',
-        note: record.hrReviewNotes ?? null,
-      },
-      admin: {
-        status: adminStatus,
-        when: record.superAdminApprovedAt ? formatWhen(record.superAdminApprovedAt) : '—',
-        note: record.superAdminNotes ?? null,
-      },
-      ack: {
-        status: ackStatus,
-        when: record.employeeAcknowledgedAt ? formatWhen(record.employeeAcknowledgedAt) : '—',
-        note: null,
-      },
-      appeal: {
-        status: appealStatus,
-        when: record.appealedAt ? formatWhen(record.appealedAt) : '—',
-        note: record.appealReason ?? null,
-      },
-    }
-  }, [record])
-
   const layoutDto = useMemo(() => {
     if (!dto) return null
     if (!isEditing) return dto
@@ -884,60 +788,37 @@ export default function ViolationWorkflowPage() {
             ) : (
               /* View Mode */
               <div className="space-y-6">
-                {/* Summary Card */}
+                {/* Violation Details Card */}
                 <Card padding="lg">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Type</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">
+                  <h3 className="text-sm font-semibold text-foreground mb-4">Violation Details</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Type</p>
+                      <p className="text-foreground">
                         {toLabel(VIOLATION_TYPE_LABELS as Record<string, string>, record.violationType)}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Reason</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Reason</p>
+                      <p className="text-foreground">
                         {toLabel(VIOLATION_REASON_LABELS as Record<string, string>, record.violationReason)}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Severity</p>
-                      <p className="mt-1 text-sm font-semibold text-foreground">
-                        {record.severity.replaceAll('_', ' ')}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Narrative Card */}
-                <Card padding="lg">
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <h3 className="text-sm font-semibold text-foreground">Narrative</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Incident: <span className="text-foreground">{formatDate(record.incidentDate)}</span>
-                    </p>
-                  </div>
-                  <p className="text-sm text-foreground whitespace-pre-line">{record.description}</p>
-
-                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Reported by</p>
-                      <p className="mt-1 text-sm font-medium text-foreground">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Reported by</p>
+                      <p className="text-foreground">
                         {record.createdBy
                           ? `${record.createdBy.firstName} ${record.createdBy.lastName}`
                           : record.reportedBy}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Reported: {formatDate(record.reportedDate)}
-                      </p>
                     </div>
-                    <div className="rounded-lg border border-border/60 bg-muted/30 p-4">
-                      <p className="text-xs font-medium text-muted-foreground">Action taken</p>
-                      <p className="mt-1 text-sm font-medium text-foreground">
-                        {toLabel(DISCIPLINARY_ACTION_TYPE_LABELS as Record<string, string>, record.actionTaken)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Action date: {record.actionDate ? formatDate(record.actionDate) : '—'}
-                      </p>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Reported date</p>
+                      <p className="text-foreground">{formatDate(record.reportedDate)}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Description</p>
+                      <p className="text-foreground whitespace-pre-line">{record.description}</p>
                     </div>
                   </div>
                 </Card>
@@ -982,58 +863,6 @@ export default function ViolationWorkflowPage() {
                     </div>
                   </Card>
                 ) : null}
-
-                {/* Approvals & Appeal */}
-                <Card padding="lg">
-                  <h3 className="text-sm font-semibold text-foreground">Approvals & Appeal</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    This record loops until it gets approved (or appeal overturns it).
-                  </p>
-                  <div className="mt-4 grid grid-cols-1 gap-4">
-                    {approvalBlocks ? (
-                      <>
-                        <NoteSection
-                          title="HR Review"
-                          status={approvalBlocks.hr.status}
-                          when={approvalBlocks.hr.when}
-                          note={approvalBlocks.hr.note}
-                        />
-                        <NoteSection
-                          title="Final Approval"
-                          status={approvalBlocks.admin.status}
-                          when={approvalBlocks.admin.when}
-                          note={approvalBlocks.admin.note}
-                        />
-                        <NoteSection
-                          title="Acknowledgements"
-                          status={approvalBlocks.ack.status}
-                          when={approvalBlocks.ack.when}
-                        />
-                        <NoteSection
-                          title="Appeal"
-                          status={approvalBlocks.appeal.status}
-                          when={approvalBlocks.appeal.when}
-                          note={approvalBlocks.appeal.note}
-                        />
-                        {record.appealResolvedAt || record.appealResolution ? (
-                          <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
-                            <p className="text-sm font-semibold text-foreground">Appeal Decision</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {record.appealResolvedAt ? formatWhen(record.appealResolvedAt) : '—'} •{' '}
-                              {record.appealStatus ?? '—'}
-                            </p>
-                            {record.appealResolution ? (
-                              <p className="mt-3 text-sm text-foreground whitespace-pre-line">
-                                {record.appealResolution}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </div>
-                </Card>
-
               </div>
             )}
       </WorkflowRecordLayout>
