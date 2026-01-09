@@ -1,21 +1,8 @@
+import Link from 'next/link';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-
-const models = [
-  {
-    id: 'prophet',
-    name: 'Prophet',
-    description: 'Baseline forecasting model with seasonality and holiday effects.',
-    status: 'available' as const,
-  },
-  {
-    id: 'signal_blend',
-    name: 'Signal Blend',
-    description: 'Blend Amazon signals + Google Trends into the Prophet baseline.',
-    status: 'planned' as const,
-  },
-];
 
 export default function ModelsPage() {
   return (
@@ -26,28 +13,28 @@ export default function ModelsPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {models.map((model) => (
-          <Card key={model.id}>
-            <CardHeader className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <CardTitle className="text-base">{model.name}</CardTitle>
-                  <CardDescription>{model.description}</CardDescription>
-                </div>
-                <Badge variant={model.status === 'available' ? 'default' : 'outline'}>
-                  {model.status === 'available' ? 'Available' : 'Planned'}
-                </Badge>
+        <Card>
+          <CardHeader className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle className="text-base">Prophet</CardTitle>
+                <CardDescription>
+                  Statistical forecasting model with trend + seasonality. Runs in-app via Augurs (WASM).
+                </CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" disabled={model.status !== 'available'}>
-                Configure
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              <Badge>Available</Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-sm text-muted-foreground">
+              Prophet is the default Chronos model today. Create a forecast to run it against any imported time series.
+            </div>
+            <Button asChild className="w-full">
+              <Link href="/forecasts">Create forecast</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
 }
-

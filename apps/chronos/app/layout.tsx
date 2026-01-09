@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 export const metadata: Metadata = {
   title: 'Chronos | Ecom OS',
   description:
-    'Forecasting workspace that blends marketplace signals and statistical models to feed X-Plan.',
+    'Forecasting workspace that blends marketplace signals and statistical models.',
   icons: {
     icon: `${appBasePath || ''}/favicon.ico`,
   },
@@ -54,4 +54,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-
