@@ -16,7 +16,6 @@ import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 import { executeAction } from '@/lib/actions/execute-action'
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { RecordAlerts } from '@/components/workflow/RecordAlerts'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -374,20 +373,7 @@ export default function PerformanceReviewPage() {
   }
 
   return (
-    <>
-      <RecordAlerts
-        className="mb-6"
-        error={error}
-        errorDetails={errorDetails}
-        success={successMessage}
-        onDismissError={() => {
-          setError(null)
-          setErrorDetails(null)
-        }}
-        onDismissSuccess={() => setSuccessMessage(null)}
-      />
-
-      <WorkflowRecordLayout data={layoutDto ?? dto} onAction={onAction} backHref="/performance/reviews">
+    <WorkflowRecordLayout data={layoutDto ?? dto} onAction={onAction} backHref="/performance/reviews">
         {/* Content - Edit mode or View mode */}
         {canEditMeta ? (
           /* Edit Mode */
@@ -580,19 +566,42 @@ export default function PerformanceReviewPage() {
                 </Tabs>
 
                 {/* Form actions */}
-                <div className="pt-6 mt-6 border-t border-border flex items-center justify-between gap-4">
-                  <div className="text-xs text-muted-foreground">
-                    {canEditContent ? 'Changes are saved as draft until submitted' : 'Limited editing available'}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Button type="submit" variant="secondary" loading={isSaving}>
-                      {canEditContent ? 'Save Draft' : 'Save Changes'}
-                    </Button>
-                    {canEditContent && (
-                      <Button type="button" onClick={handleSubmitForReview} loading={submitting}>
-                        {submitLabel}
+                <div className="pt-6 mt-6 border-t border-border space-y-3">
+                  {/* Inline feedback messages */}
+                  {error && (
+                    <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+                      <span className="shrink-0">✕</span>
+                      <div>
+                        <span>{error}</span>
+                        {errorDetails && errorDetails.length > 0 && (
+                          <ul className="mt-1 list-disc list-inside text-xs">
+                            {errorDetails.map((d, i) => <li key={i}>{d}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {successMessage && (
+                    <div className="flex items-center gap-2 text-sm text-success-600 bg-success-500/10 rounded-md px-3 py-2">
+                      <span>✓</span>
+                      <span>{successMessage}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="text-xs text-muted-foreground">
+                      {canEditContent ? 'Changes are saved as draft until submitted' : 'Limited editing available'}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button type="submit" variant="secondary" loading={isSaving}>
+                        {canEditContent ? 'Save Draft' : 'Save Changes'}
                       </Button>
-                    )}
+                      {canEditContent && (
+                        <Button type="button" onClick={handleSubmitForReview} loading={submitting}>
+                          {submitLabel}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
             </Card>
@@ -677,6 +686,5 @@ export default function PerformanceReviewPage() {
             </div>
         )}
       </WorkflowRecordLayout>
-    </>
   )
 }
