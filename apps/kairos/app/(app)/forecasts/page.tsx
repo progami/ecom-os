@@ -1,4 +1,5 @@
 import { ForecastsTable } from '@/components/forecasts/forecasts-table';
+import { GettingStartedCard } from '@/components/getting-started-card';
 
 export default function ForecastsPage() {
   return (
@@ -10,6 +11,8 @@ export default function ForecastsPage() {
           Create Prophet forecasts from imported time series. Run predictions with configurable horizons and view confidence intervals.
         </p>
       </div>
+
+      <GettingStartedCard active="forecasts" />
 
       <ForecastsTable />
     </div>

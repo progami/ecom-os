@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { href: '/forecasts', label: 'Forecasts', icon: BarChart3 },
   { href: '/sources', label: 'Data Sources', icon: Database },
-  { href: '/models', label: 'Models', icon: Sparkles },
+  { href: '/models', label: 'Model Library', icon: Sparkles },
 ] as const;
 
 export function KairosShell({ children }: { children: React.ReactNode }) {
