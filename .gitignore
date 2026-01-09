@@ -44,6 +44,7 @@ apps/archived/**/prisma/*.db*
 !apps/ecomos/.env.dev.ci
 !apps/wms/.env.dev.ci
 !apps/x-plan/.env.dev.ci
+!apps/chronos/.env.dev.ci
 
 # Editor
 .DS_Store
