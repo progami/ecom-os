@@ -9,7 +9,13 @@ const paramsSchema = z.object({
 });
 
 export const POST = withKairosAuth(async (_request, session, context: { params: Promise<unknown> }) => {
-  const { forecastId } = paramsSchema.parse(await context.params);
+  const rawParams = await context.params;
+  const safeParams =
+    rawParams && typeof rawParams === 'object'
+      ? { ...(rawParams as Record<string, unknown>), then: undefined }
+      : rawParams;
+
+  const { forecastId } = paramsSchema.parse(safeParams);
 
   const result = await runForecastNow({ forecastId, session });
   if (!result) {
