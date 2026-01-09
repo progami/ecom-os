@@ -147,12 +147,19 @@ export function SalesPlanningVisual({
     const dataMax = Math.max(...allValues);
 
     // Extend Y-axis to include 0 for context when data is all negative or all positive
-    const min = Math.min(dataMin, 0);
-    const max = Math.max(dataMax, 0);
-    const range = max - min;
+    // Add padding below zero to ensure the zero line is clearly visible
+    const rawMin = Math.min(dataMin, 0);
+    const rawMax = Math.max(dataMax, 0);
+    const range = rawMax - rawMin;
+
+    // Add 10% padding below zero line for visibility
+    const padding = range > 0 ? range * 0.1 : 100;
+    const min = rawMin < 0 ? rawMin - padding * 0.5 : -padding * 0.15;
+    const max = rawMax;
+    const adjustedRange = max - min;
 
     // zeroOffset is where 0 falls as a percentage from top (max) to bottom (min)
-    const zeroOffset = range > 0 ? max / range : 0.5;
+    const zeroOffset = adjustedRange > 0 ? max / adjustedRange : 0.5;
     const hasNegative = dataMin < 0;
     const allNegative = dataMax <= 0;
 
@@ -400,10 +407,8 @@ export function SalesPlanningVisual({
                       />
                     );
                   })}
-                {/* Zero reference line when stock goes negative */}
-                {yAxisBounds.hasNegative && (
-                  <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                )}
+                {/* Zero reference line - always visible for context */}
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1.5} />
                 {showStockLine && (
                   <Area
                     type="monotone"
