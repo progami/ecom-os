@@ -16,7 +16,6 @@ import {
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { RecordAlerts } from '@/components/workflow/RecordAlerts'
 import { Card, CardDivider } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -590,18 +589,6 @@ export default function ViolationWorkflowPage() {
 
   return (
     <>
-      <RecordAlerts
-        className="mb-6"
-        error={error}
-        errorDetails={errorDetails}
-        success={successMessage}
-        onDismissError={() => {
-          setError(null)
-          setErrorDetails(null)
-        }}
-        onDismissSuccess={() => setSuccessMessage(null)}
-      />
-
       <WorkflowRecordLayout
         data={layoutDto ?? dto}
         onAction={onAction}
@@ -619,6 +606,31 @@ export default function ViolationWorkflowPage() {
           ) : null
         }
       >
+        {/* Inline feedback messages */}
+        {(error || successMessage) && !isEditing && (
+          <div className="mb-6 space-y-3">
+            {error && (
+              <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+                <span className="shrink-0">✕</span>
+                <div>
+                  <span>{error}</span>
+                  {errorDetails && errorDetails.length > 0 && (
+                    <ul className="mt-1 list-disc list-inside text-xs">
+                      {errorDetails.map((d, i) => <li key={i}>{d}</li>)}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            )}
+            {successMessage && (
+              <div className="flex items-center gap-2 text-sm text-success-600 bg-success-500/10 rounded-md px-3 py-2">
+                <span>✓</span>
+                <span>{successMessage}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Edit Mode or View Mode */}
             {isEditing ? (
               /* Edit Mode */
@@ -836,13 +848,35 @@ export default function ViolationWorkflowPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="pt-6 border-t border-border flex items-center justify-end gap-3">
-                      <Button type="button" variant="secondary" onClick={cancelEdit}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" loading={isSaving}>
-                        Save Changes
-                      </Button>
+                    <div className="pt-6 border-t border-border space-y-3">
+                      {/* Inline feedback messages */}
+                      {error && (
+                        <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
+                          <span className="shrink-0">✕</span>
+                          <div>
+                            <span>{error}</span>
+                            {errorDetails && errorDetails.length > 0 && (
+                              <ul className="mt-1 list-disc list-inside text-xs">
+                                {errorDetails.map((d, i) => <li key={i}>{d}</li>)}
+                              </ul>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {successMessage && (
+                        <div className="flex items-center gap-2 text-sm text-success-600 bg-success-500/10 rounded-md px-3 py-2">
+                          <span>✓</span>
+                          <span>{successMessage}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-end gap-3">
+                        <Button type="button" variant="secondary" onClick={cancelEdit}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" loading={isSaving}>
+                          Save Changes
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </Card>
