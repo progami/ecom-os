@@ -184,7 +184,7 @@ export function ForecastsTable() {
             className="h-8 px-2"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            Project
+            Forecast
             <ArrowUpDown className="ml-2 h-4 w-4" aria-hidden />
           </Button>
         ),
@@ -267,14 +267,14 @@ export function ForecastsTable() {
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <CardTitle className="text-base">Forecast Projects</CardTitle>
+        <CardTitle className="text-base">Forecasts</CardTitle>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-72">
             <Input
               value={globalFilter ?? ''}
               onChange={(event) => setGlobalFilter(event.target.value)}
-              placeholder="Search projects…"
-              aria-label="Search forecast projects"
+              placeholder="Search forecasts…"
+              aria-label="Search forecasts"
             />
           </div>
           <div className="flex gap-2">
@@ -433,7 +433,7 @@ export function ForecastsTable() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                    No projects found.
+                    No forecasts found.
                   </TableCell>
                 </TableRow>
               )}
@@ -443,7 +443,7 @@ export function ForecastsTable() {
 
         <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
           <div className="text-xs text-muted-foreground">
-            {table.getFilteredRowModel().rows.length} project(s)
+            {table.getFilteredRowModel().rows.length} forecast(s)
           </div>
           <div className="flex gap-2">
             <Button

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, Sparkles, Zap } from 'lucide-react';
 
+import { GettingStartedCard } from '@/components/getting-started-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +10,14 @@ export default function ModelsPage() {
   return (
     <div className="space-y-8 animate-in">
       <div className="space-y-2">
-        <div className="text-section-header">Configuration</div>
+        <div className="text-section-header">Library</div>
         <h1 className="text-h1">Models</h1>
         <p className="text-body max-w-2xl">
-          Choose how Kairos generates and blends forecasts. Select from statistical and machine learning models.
+          Models are applied per forecast. Use this page as a reference for what Kairos supports today (Prophet) and what’s coming next.
         </p>
       </div>
+
+      <GettingStartedCard active="models" />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Prophet Card - Available */}
@@ -38,7 +41,7 @@ export default function ModelsPage() {
             <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-brand-teal-500 dark:text-brand-cyan" aria-hidden />
-                <span>Runs in-browser via Augurs WASM</span>
+                <span>Runs in Kairos via Augurs WASM (no Python)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-brand-teal-500 dark:text-brand-cyan" aria-hidden />

@@ -1,3 +1,4 @@
+import { GettingStartedCard } from '@/components/getting-started-card';
 import { GoogleTrendsPanel } from '@/components/sources/google-trends-panel';
 
 export default function SourcesPage() {
@@ -10,6 +11,8 @@ export default function SourcesPage() {
           Bring external signals into Kairos as time series. Import Google Trends data to power your forecasts.
         </p>
       </div>
+
+      <GettingStartedCard active="sources" />
       <GoogleTrendsPanel />
     </div>
   );
