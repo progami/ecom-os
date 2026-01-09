@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -63,7 +63,6 @@ function formatDate(value: string | null | undefined): string {
 }
 
 export default function PerformanceReviewPage() {
-  const router = useRouter()
   const params = useParams()
   const id = params.id as string
   const currentYear = new Date().getFullYear()
@@ -316,7 +315,8 @@ export default function PerformanceReviewPage() {
       })
 
       await PerformanceReviewsApi.submit(id)
-      router.push('/performance/reviews')
+      setSuccessMessage('Submitted to HR')
+      await load()
     } catch (e: any) {
       if (e instanceof ApiError && Array.isArray(e.body?.details)) {
         const details = e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim())
