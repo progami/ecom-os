@@ -1,5 +1,5 @@
 /**
- * Status and type mapping constants for consistent UI rendering across the WMS app.
+ * Status and type mapping constants for consistent UI rendering across the Talos app.
  * Centralizes badge classes, labels, and other status-related UI configurations.
  */
 

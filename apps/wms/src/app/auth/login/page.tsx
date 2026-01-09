@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Searc
  const portalAuth = portalOrigin()
  const resolvedAppBase = resolveAppBase()
  if (!resolvedAppBase) {
- throw new Error('Unable to determine WMS application base URL. Configure BASE_PATH or NEXT_PUBLIC_APP_URL.')
+  throw new Error('Unable to determine Talos application base URL. Configure BASE_PATH or NEXT_PUBLIC_APP_URL.')
  }
 const { baseUrl, basePath, originHostname } = resolvedAppBase
 
@@ -70,7 +70,7 @@ function resolveAppBase(): { baseUrl: string; basePath: string; originHostname: 
 
  const originUrl = appUrlFromEnv ?? portalUrl
  if (!originUrl) {
-  throw new Error('NEXT_PUBLIC_APP_URL or PORTAL_AUTH_URL must be configured for WMS login redirect.')
+  throw new Error('NEXT_PUBLIC_APP_URL or PORTAL_AUTH_URL must be configured for Talos login redirect.')
  }
 
  const baseUrl = `${originUrl.origin}${basePath}`

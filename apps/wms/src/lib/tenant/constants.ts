@@ -1,5 +1,5 @@
 /**
- * Multi-tenant configuration for WMS regions.
+ * Multi-tenant configuration for Talos regions.
  * Each tenant operates as a completely isolated instance with its own database.
  */
 

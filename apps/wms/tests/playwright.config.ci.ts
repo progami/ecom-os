@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 const baseUrl = process.env.BASE_URL;
 
 if (!baseUrl) {
-  throw new Error('BASE_URL must be defined before running the WMS Playwright CI tests.');
+  throw new Error('BASE_URL must be defined before running the Talos Playwright CI tests.');
 }
 
 export default defineConfig({

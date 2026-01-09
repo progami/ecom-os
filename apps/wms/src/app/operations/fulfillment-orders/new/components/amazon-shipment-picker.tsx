@@ -269,7 +269,7 @@ export function AmazonShipmentPicker({
       if (missingSkus.size > 0) {
         const list = Array.from(missingSkus)
         const preview = list.slice(0, 3).join(', ')
-        toast.error(`Missing SKUs in Talos WMS: ${preview}${list.length > 3 ? '...' : ''}`)
+        toast.error(`Missing SKUs in Talos: ${preview}${list.length > 3 ? '...' : ''}`)
       }
 
       if (missingBatches.size > 0) {

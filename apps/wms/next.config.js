@@ -14,7 +14,7 @@ const basePath = process.env.BASE_PATH || ''
 const assetPrefix = basePath || ''
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
-  throw new Error('NEXT_PUBLIC_APP_URL must be defined before loading the WMS Next.js config.')
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined before loading the Talos Next.js config.')
 }
 
 /** @type {import('next').NextConfig} */

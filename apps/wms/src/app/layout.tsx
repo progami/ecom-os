@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
- title: 'Talos WMS',
+    title: 'Talos',
  description: 'Modern warehouse inventory and billing management',
  keywords: ['warehouse', 'inventory', 'billing', 'management', '3PL'],
  icons: {

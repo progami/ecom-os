@@ -8,7 +8,7 @@ fi
 
 echo "Starting test server..."
 
-# Navigate to WMS directory
+# Navigate to Talos directory
 cd /Users/jarraramjad/Documents/ecom_os/WMS
 
 # Set environment variables for test
