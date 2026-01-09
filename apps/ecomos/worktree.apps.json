@@ -2,7 +2,7 @@
   "host": "https://worktree.ecomos.targonglobal.com",
   "apps": {
     "wms": "/wms",
-    "chronos": "/chronos/forecasts",
+    "kairos": "/kairos/forecasts",
     "hrms": "/hrms",
     "fcc": "/fcc",
     "website": "https://worktree.website.targonglobal.com",

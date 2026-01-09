@@ -2,7 +2,7 @@
   "host": "https://dev-ecomos.targonglobal.com",
   "apps": {
     "wms": "/wms",
-    "chronos": "/chronos/forecasts",
+    "kairos": "/kairos/forecasts",
     "hrms": "/hrms",
     "website": "https://dev.targonglobal.com",
     "x-plan": "/x-plan/1-strategies"
