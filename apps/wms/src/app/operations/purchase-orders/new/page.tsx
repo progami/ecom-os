@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
@@ -317,19 +317,6 @@ export default function NewPurchaseOrderPage() {
     return parsed
   }
 
-  const getBoxDimensions = (item: LineItem): string => {
-    if (!item.skuId || !item.batchLot) return '—'
-    const batch = (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
-    if (!batch) return '—'
-    const triplet = resolveDimensionTripletCm({
-      lengthCm: batch.cartonLengthCm,
-      widthCm: batch.cartonWidthCm,
-      heightCm: batch.cartonHeightCm,
-      legacy: batch.cartonDimensionsCm,
-    })
-    return triplet ? formatDimensionTripletCm(triplet) : '—'
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -560,166 +547,229 @@ export default function NewPurchaseOrderPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-slate-50/50">
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[140px]">Product</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[120px]">Batch</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3">Description</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[90px]">Units</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">U/Box</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Boxes</th>
-                    <th className="text-center font-medium text-muted-foreground px-4 py-3 w-[100px]">Dimensions</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[120px]">Total Cost</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[140px]">Notes</th>
-                    <th className="w-[50px]"></th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[110px]">SKU</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[100px]">Batch / Lot</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[180px]">Description</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Units</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Units/Ctn</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[70px]">Cartons</th>
+                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[110px]">Total</th>
+                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[120px]">Notes</th>
+                    <th className="w-[44px]"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
-                  {lineItems.map(item => {
+                <tbody>
+                  {lineItems.map((item, idx) => {
                     const cartons = item.unitsPerCarton && item.unitsOrdered > 0
                       ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
                       : null
-                    const unitCost = parseMoney(item.totalCost) !== null && item.unitsOrdered > 0
-                      ? (parseMoney(item.totalCost)! / item.unitsOrdered).toFixed(2)
+                    const totalCost = parseMoney(item.totalCost)
+                    const unitCost = totalCost !== null && item.unitsOrdered > 0
+                      ? (totalCost / item.unitsOrdered).toFixed(4)
                       : null
+                    const isLast = idx === lineItems.length - 1
+
+                    // Build packaging details from batch data
+                    const batch = item.skuId && item.batchLot
+                      ? (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
+                      : null
+                    const cartonTriplet = batch ? resolveDimensionTripletCm({
+                      lengthCm: batch.cartonLengthCm,
+                      widthCm: batch.cartonWidthCm,
+                      heightCm: batch.cartonHeightCm,
+                      legacy: batch.cartonDimensionsCm,
+                    }) : null
+                    const cbmPerCarton = cartonTriplet
+                      ? (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+                      : null
+                    const hasPackagingData = cartonTriplet || batch?.cartonWeightKg || batch?.packagingType
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50/50">
-                        {/* Product */}
-                        <td className="px-4 py-3">
-                          <select
-                            value={item.skuCode}
-                            onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
-                            className="w-full h-9 px-2 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            required
-                          >
-                            <option value="">Select...</option>
-                            {skus.map(sku => (
-                              <option key={sku.id} value={sku.skuCode}>{sku.skuCode}</option>
-                            ))}
-                          </select>
-                        </td>
+                      <Fragment key={item.id}>
+                        <tr className="border-t border-slate-200 hover:bg-slate-50/50">
+                          {/* SKU */}
+                          <td className="px-4 py-2.5">
+                            <select
+                              value={item.skuCode}
+                              onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
+                              className="w-full h-9 px-2 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                              required
+                            >
+                              <option value="">Select...</option>
+                              {skus.map(sku => (
+                                <option key={sku.id} value={sku.skuCode}>{sku.skuCode}</option>
+                              ))}
+                            </select>
+                          </td>
 
-                        {/* Batch */}
-                        <td className="px-4 py-3">
-                          <select
-                            value={item.batchLot}
-                            onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
-                            className="w-full h-9 px-2 border rounded bg-white text-sm disabled:bg-slate-50 disabled:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                            required
-                            disabled={!item.skuId}
-                          >
-                            {item.skuId ? (
-                              batchesLoadingBySkuId[item.skuId] ? (
-                                <option value="">Loading…</option>
-                              ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
-                                <>
-                                  <option value="">Select...</option>
-                                  {(batchesBySkuId[item.skuId] ?? []).map(batch => (
-                                    <option key={batch.batchCode} value={batch.batchCode}>{batch.batchCode}</option>
-                                  ))}
-                                </>
+                          {/* Batch / Lot */}
+                          <td className="px-4 py-2.5">
+                            <select
+                              value={item.batchLot}
+                              onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
+                              className="w-full h-9 px-2 border rounded bg-white text-sm disabled:bg-slate-50 disabled:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                              required
+                              disabled={!item.skuId}
+                            >
+                              {item.skuId ? (
+                                batchesLoadingBySkuId[item.skuId] ? (
+                                  <option value="">Loading…</option>
+                                ) : (batchesBySkuId[item.skuId] ?? []).length > 0 ? (
+                                  <>
+                                    <option value="">Select...</option>
+                                    {(batchesBySkuId[item.skuId] ?? []).map(b => (
+                                      <option key={b.batchCode} value={b.batchCode}>{b.batchCode}</option>
+                                    ))}
+                                  </>
+                                ) : (
+                                  <option value="">No batches</option>
+                                )
                               ) : (
-                                <option value="">No batches</option>
-                              )
-                            ) : (
-                              <option value="">—</option>
-                            )}
-                          </select>
-                        </td>
+                                <option value="">—</option>
+                              )}
+                            </select>
+                          </td>
 
-                        {/* Description */}
-                        <td className="px-4 py-3">
-                          <Input
-                            value={item.skuDescription}
-                            onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
-                            placeholder="Description"
-                            className="h-9 text-sm"
-                          />
-                        </td>
+                          {/* Description */}
+                          <td className="px-4 py-2.5">
+                            <Input
+                              value={item.skuDescription}
+                              onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
+                              placeholder="Description"
+                              className="h-9 text-sm"
+                            />
+                          </td>
 
-                        {/* Units */}
-                        <td className="px-4 py-3">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.unitsOrdered}
-                            onChange={e => updateLineItem(item.id, 'unitsOrdered', parseInt(e.target.value) || 0)}
-                            className="h-9 text-sm text-right tabular-nums"
-                            required
-                          />
-                        </td>
-
-                        {/* U/Box */}
-                        <td className="px-4 py-3">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.unitsPerCarton ?? ''}
-                            onChange={e => {
-                              const parsed = Number.parseInt(e.target.value, 10)
-                              updateLineItem(item.id, 'unitsPerCarton', Number.isInteger(parsed) && parsed > 0 ? parsed : null)
-                            }}
-                            placeholder="—"
-                            className="h-9 text-sm text-right tabular-nums disabled:bg-slate-50"
-                            disabled={!item.skuId || !item.batchLot}
-                            required
-                          />
-                        </td>
-
-                        {/* Boxes (calculated) */}
-                        <td className="px-4 py-3 text-right tabular-nums font-medium text-muted-foreground">
-                          {cartons ?? '—'}
-                        </td>
-
-                        {/* Dimensions */}
-                        <td className="px-4 py-3 text-center text-xs text-muted-foreground tabular-nums">
-                          {getBoxDimensions(item)}
-                        </td>
-
-                        {/* Total Cost */}
-                        <td className="px-4 py-3">
-                          <div className="relative">
+                          {/* Units */}
+                          <td className="px-4 py-2.5">
                             <Input
                               type="number"
-                              step="0.01"
-                              min="0"
-                              value={item.totalCost}
-                              onChange={e => updateLineItem(item.id, 'totalCost', e.target.value)}
-                              placeholder="0.00"
-                              className="h-9 text-sm text-right tabular-nums pr-12"
+                              min="1"
+                              value={item.unitsOrdered}
+                              onChange={e => updateLineItem(item.id, 'unitsOrdered', parseInt(e.target.value) || 0)}
+                              className="h-9 text-sm text-right tabular-nums"
+                              required
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                              {item.currency}
-                            </span>
-                          </div>
-                          {unitCost && (
-                            <p className="text-[10px] text-muted-foreground text-right mt-0.5">@{unitCost}/unit</p>
-                          )}
-                        </td>
+                          </td>
 
-                        {/* Notes */}
-                        <td className="px-4 py-3">
-                          <Input
-                            value={item.notes}
-                            onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
-                            placeholder="Notes..."
-                            className="h-9 text-sm"
-                          />
-                        </td>
+                          {/* Units/Ctn */}
+                          <td className="px-4 py-2.5">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.unitsPerCarton ?? ''}
+                              onChange={e => {
+                                const parsed = Number.parseInt(e.target.value, 10)
+                                updateLineItem(item.id, 'unitsPerCarton', Number.isInteger(parsed) && parsed > 0 ? parsed : null)
+                              }}
+                              placeholder="—"
+                              className="h-9 text-sm text-right tabular-nums disabled:bg-slate-50"
+                              disabled={!item.skuId || !item.batchLot}
+                              required
+                            />
+                          </td>
 
-                        {/* Delete */}
-                        <td className="px-4 py-3">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeLineItem(item.id)}
-                            disabled={lineItems.length === 1}
-                            className="h-9 w-9 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-20"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
+                          {/* Cartons (calculated) */}
+                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
+                            {cartons ?? '—'}
+                          </td>
+
+                          {/* Total */}
+                          <td className="px-4 py-2.5">
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.totalCost}
+                                onChange={e => updateLineItem(item.id, 'totalCost', e.target.value)}
+                                placeholder="0.00"
+                                className="h-9 text-sm text-right tabular-nums pr-12"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                {item.currency}
+                              </span>
+                            </div>
+                            {unitCost && (
+                              <p className="text-[10px] text-muted-foreground text-right mt-0.5">Unit: {unitCost}</p>
+                            )}
+                          </td>
+
+                          {/* Notes */}
+                          <td className="px-4 py-2.5">
+                            <Input
+                              value={item.notes}
+                              onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
+                              placeholder="Notes..."
+                              className="h-9 text-sm"
+                            />
+                          </td>
+
+                          {/* Delete */}
+                          <td className="px-4 py-2.5">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeLineItem(item.id)}
+                              disabled={lineItems.length === 1}
+                              className="h-9 w-9 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-20"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+
+                        {/* Packaging details sub-row */}
+                        {hasPackagingData ? (
+                          <tr className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
+                            <td colSpan={9} className="px-4 pb-2 pt-1">
+                              <div className="grid grid-cols-6 gap-3 text-xs border-l-2 border-cyan-400 pl-3 py-1">
+                                <div>
+                                  <span className="text-muted-foreground">Carton</span>
+                                  <p className="font-medium text-slate-700">
+                                    {cartonTriplet ? `${formatDimensionTripletCm(cartonTriplet)} cm` : '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">CBM/ctn</span>
+                                  <p className="font-medium text-slate-700">
+                                    {cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">CBM Total</span>
+                                  <p className="font-medium text-slate-700">
+                                    {cbmPerCarton !== null && cartons ? (cbmPerCarton * cartons).toFixed(3) : '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">KG/ctn</span>
+                                  <p className="font-medium text-slate-700">
+                                    {batch?.cartonWeightKg ? batch.cartonWeightKg.toFixed(2) : '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">KG Total</span>
+                                  <p className="font-medium text-slate-700">
+                                    {batch?.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Pkg Type</span>
+                                  <p className="font-medium text-slate-700">
+                                    {batch?.packagingType ?? '—'}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : !isLast ? (
+                          <tr className="border-b-2 border-slate-200">
+                            <td colSpan={9} className="h-0"></td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
                     )
                   })}
                 </tbody>

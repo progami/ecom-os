@@ -15,7 +15,11 @@ export const metadata: Metadata = {
   description:
     'Forecasting workspace that blends marketplace signals and statistical models.',
   icons: {
-    icon: `${appBasePath || ''}/favicon.ico`,
+    icon: [
+      { url: `${appBasePath}/favicon.ico`, sizes: '48x48' },
+      { url: `${appBasePath}/favicon.svg`, type: 'image/svg+xml' },
+    ],
+    apple: `${appBasePath}/apple-touch-icon.png`,
   },
 };
 

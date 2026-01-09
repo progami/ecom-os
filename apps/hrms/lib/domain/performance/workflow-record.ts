@@ -134,10 +134,8 @@ export async function performanceReviewToWorkflowRecordDTO(
     workflow: buildWorkflow(review),
     actions: buildPerformanceReviewNextActions(review, viewer),
     summary: [
-      { label: 'Period', value: review.reviewPeriod },
-      { label: 'Role', value: review.roleTitle },
       { label: 'Reviewer', value: reviewerName },
-      { label: 'Overall rating', value: String(review.overallRating) },
+      { label: 'Overall rating', value: review.overallRating ? String(review.overallRating) : '—' },
     ],
     timeline,
     access: { canView: true },

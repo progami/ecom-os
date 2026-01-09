@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type TimeSeriesResponse = {
@@ -33,24 +34,48 @@ type GoogleTrendsImportResponse = {
   series: TimeSeriesListItem;
 };
 
+type GoogleTrendsTimeRange = 'PAST_12_MONTHS' | 'PAST_2_YEARS' | 'PAST_5_YEARS' | 'ALL_TIME';
+
 type GoogleTrendsImportInput = {
   keyword: string;
   geo: string;
-  startDate: string;
-  endDate: string;
+  timeRange: GoogleTrendsTimeRange;
   name: string;
 };
 
 const SERIES_QUERY_KEY = ['kairos', 'time-series'] as const;
 
-function todayDateInput() {
-  return new Date().toISOString().slice(0, 10);
+const GOOGLE_TRENDS_TIME_RANGE_OPTIONS: Array<{ value: GoogleTrendsTimeRange; label: string }> = [
+  { value: 'PAST_12_MONTHS', label: 'Past 12 months' },
+  { value: 'PAST_2_YEARS', label: 'Past 2 years' },
+  { value: 'PAST_5_YEARS', label: 'Past 5 years' },
+  { value: 'ALL_TIME', label: 'All time (2004–present)' },
+];
+
+function toDateInput(date: Date) {
+  return date.toISOString().slice(0, 10);
 }
 
-function defaultStartDateInput() {
-  const date = new Date();
-  date.setFullYear(date.getFullYear() - 2);
-  return date.toISOString().slice(0, 10);
+function resolveStartDate(timeRange: GoogleTrendsTimeRange, now: Date) {
+  if (timeRange === 'ALL_TIME') {
+    return new Date('2004-01-01T00:00:00.000Z');
+  }
+
+  const start = new Date(now);
+  switch (timeRange) {
+    case 'PAST_12_MONTHS':
+      start.setFullYear(start.getFullYear() - 1);
+      break;
+    case 'PAST_2_YEARS':
+      start.setFullYear(start.getFullYear() - 2);
+      break;
+    case 'PAST_5_YEARS':
+      start.setFullYear(start.getFullYear() - 5);
+      break;
+    default:
+      break;
+  }
+  return start;
 }
 
 export function GoogleTrendsPanel() {
@@ -61,8 +86,7 @@ export function GoogleTrendsPanel() {
 
   const [keyword, setKeyword] = useState('');
   const [geo, setGeo] = useState('');
-  const [startDate, setStartDate] = useState(defaultStartDateInput);
-  const [endDate, setEndDate] = useState(todayDateInput);
+  const [timeRange, setTimeRange] = useState<GoogleTrendsTimeRange>('PAST_2_YEARS');
   const [name, setName] = useState('');
 
   const seriesQuery = useQuery({
@@ -72,14 +96,17 @@ export function GoogleTrendsPanel() {
 
   const importMutation = useMutation({
     mutationFn: async (payload: GoogleTrendsImportInput) => {
+      const now = new Date();
+      const startDate = toDateInput(resolveStartDate(payload.timeRange, now));
+
       return fetchJson<GoogleTrendsImportResponse>('/api/v1/time-series/google-trends', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           keyword: payload.keyword,
           geo: payload.geo || null,
-          startDate: payload.startDate,
-          endDate: payload.endDate || null,
+          startDate,
+          endDate: null,
           name: payload.name || undefined,
         }),
       });
@@ -203,15 +230,24 @@ export function GoogleTrendsPanel() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Google Trends</CardTitle>
-          <CardDescription>
-            Import interest-over-time data for a keyword. Kairos stores the resulting time series in its own database.
-          </CardDescription>
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal-500/10 to-brand-teal-600/10 dark:from-brand-cyan/10 dark:to-brand-teal-600/10">
+              <Download className="h-5 w-5 text-brand-teal-600 dark:text-brand-cyan" aria-hidden />
+            </div>
+            <div className="space-y-1">
+              <CardTitle className="text-base">Google Trends</CardTitle>
+              <CardDescription>
+                Import interest-over-time data for a keyword. Kairos stores the resulting time series in its own database.
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Keyword</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Keyword
+              </label>
               <Input
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
@@ -220,7 +256,9 @@ export function GoogleTrendsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Geo (optional)</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Geo <span className="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
               <Input
                 value={geo}
                 onChange={(event) => setGeo(event.target.value)}
@@ -228,26 +266,27 @@ export function GoogleTrendsPanel() {
                 aria-label="Google Trends geo"
               />
             </div>
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Start date</div>
-              <Input
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                type="date"
-                aria-label="Google Trends start date"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">End date</div>
-              <Input
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                type="date"
-                aria-label="Google Trends end date"
-              />
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Time range
+              </label>
+              <Select value={timeRange} onValueChange={(value) => setTimeRange(value as GoogleTrendsTimeRange)}>
+                <SelectTrigger aria-label="Google Trends time range">
+                  <SelectValue placeholder="Select time range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GOOGLE_TRENDS_TIME_RANGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Name (optional)</div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Name <span className="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
               <Input
                 value={name}
                 onChange={(event) => setName(event.target.value)}
@@ -257,7 +296,7 @@ export function GoogleTrendsPanel() {
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-white/5">
             <Button
               variant="outline"
               onClick={() => {
@@ -274,12 +313,11 @@ export function GoogleTrendsPanel() {
                 void importMutation.mutateAsync({
                   keyword,
                   geo,
-                  startDate,
-                  endDate,
+                  timeRange,
                   name,
                 });
               }}
-              disabled={!keyword.trim() || !startDate || importMutation.isPending}
+              disabled={!keyword.trim() || importMutation.isPending}
               className="gap-2"
             >
               {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
