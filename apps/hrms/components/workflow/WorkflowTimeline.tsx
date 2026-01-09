@@ -16,13 +16,13 @@ function formatWhen(isoString: string) {
   });
 }
 
-// Determine event type for color coding
-function getEventType(event: string): 'approve' | 'reject' | 'submit' | 'neutral' {
+// Determine event type for color coding - using brand colors only
+function getEventType(event: string): 'positive' | 'action' {
   const lower = event.toLowerCase();
-  if (lower.includes('approved') || lower.includes('acknowledged')) return 'approve';
-  if (lower.includes('rejected') || lower.includes('requested changes') || lower.includes('request changes')) return 'reject';
-  if (lower.includes('submitted') || lower.includes('resubmitted')) return 'submit';
-  return 'neutral';
+  // Positive completions: approved, acknowledged
+  if (lower.includes('approved') || lower.includes('acknowledged')) return 'positive';
+  // All other actions: submitted, resubmitted, requested changes, etc.
+  return 'action';
 }
 
 export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
@@ -34,22 +34,15 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
     <ol className="space-y-4">
       {items.map((item, index) => {
         const eventType = getEventType(item.event);
+        // Brand colors only: teal for positive completions, navy for all actions
         const eventColor =
-          eventType === 'approve'
-            ? 'text-success-600'
-            : eventType === 'reject'
-              ? 'text-warning-600'
-              : eventType === 'submit'
-                ? 'text-accent'
-                : 'text-foreground';
+          eventType === 'positive'
+            ? 'text-brand-teal-600'
+            : 'text-brand-navy-700';
         const bgColor =
-          eventType === 'approve'
-            ? 'bg-success-500 text-white'
-            : eventType === 'reject'
-              ? 'bg-warning-500 text-white'
-              : eventType === 'submit'
-                ? 'bg-accent text-white'
-                : 'bg-muted text-muted-foreground';
+          eventType === 'positive'
+            ? 'bg-brand-teal-500 text-white'
+            : 'bg-brand-navy-700 text-white';
 
         // Number from oldest (1) to newest (length) - timeline shows newest first
         const stepNumber = items.length - index;
@@ -81,7 +74,7 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
                     <a
                       key={att.downloadHref}
                       href={att.downloadHref}
-                      className="text-xs text-accent hover:underline"
+                      className="text-xs text-brand-teal-600 hover:underline"
                     >
                       {att.name}
                     </a>
