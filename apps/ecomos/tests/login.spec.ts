@@ -2,11 +2,11 @@ import { test, expect } from '@playwright/test'
 
 const portalBaseUrl = process.env.PORTAL_BASE_URL
 if (!portalBaseUrl) {
-  throw new Error('PORTAL_BASE_URL must be defined for ecomOS login tests.')
+  throw new Error('PORTAL_BASE_URL must be defined for TargonOS login tests.')
 }
 const wmsBaseUrl = process.env.WMS_BASE_URL
 if (!wmsBaseUrl) {
-  throw new Error('WMS_BASE_URL must be defined for ecomOS login tests.')
+  throw new Error('WMS_BASE_URL must be defined for TargonOS login tests.')
 }
 const DEMO_USERNAMES = ['jarraramjad']
 const DEMO_PASS = 'xUh2*KC2%tZYNzV'
@@ -20,7 +20,7 @@ test('portal login redirects to portal home', async ({ page }) => {
   // In headless, occasionally the POST 302 isn't auto-followed; stabilize by reloading home.
   await page.waitForTimeout(300)
   await page.goto(`${portalBaseUrl}/`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('ecomOS Portal')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('TargonOS Portal')).toBeVisible({ timeout: 10000 })
 })
 
 test('portal login with callback still lands on portal home (tile page)', async ({ page }) => {
@@ -31,5 +31,5 @@ test('portal login with callback still lands on portal home (tile page)', async 
   await page.click('button.submit-button')
   await page.waitForTimeout(300)
   await page.goto(`${portalBaseUrl}/`, { waitUntil: 'domcontentloaded' })
-  await expect(page.getByText('ecomOS Portal')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('TargonOS Portal')).toBeVisible({ timeout: 10000 })
 })

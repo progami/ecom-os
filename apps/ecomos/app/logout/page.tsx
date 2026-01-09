@@ -49,7 +49,7 @@ export default async function LogoutPage({ searchParams }: LogoutPageProps) {
                 </svg>
               </div>
             </div>
-            <h1 className="login-title">ecomOS Portal</h1>
+            <h1 className="login-title">TargonOS Portal</h1>
             <p className="login-headline">{signedIn ? 'Ready to sign out?' : 'You are already signed out'}</p>
             <p className="login-subtitle">
               {signedIn
@@ -64,7 +64,7 @@ export default async function LogoutPage({ searchParams }: LogoutPageProps) {
               <p className="logout-name">{userName || userEmail || 'Signed in user'}</p>
               {userEmail && <p className="logout-email">{userEmail}</p>}
               <p className="logout-note">
-                Signing out clears your ecomOS session across the connected applications.
+                Signing out clears your TargonOS session across the connected applications.
               </p>
             </div>
           )}

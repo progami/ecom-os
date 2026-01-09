@@ -234,7 +234,7 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
                 />
               </svg>
             </div>
-            <span className={styles.brandTitle}>ecomOS Portal</span>
+            <span className={styles.brandTitle}>TargonOS Portal</span>
           </div>
           <div className={styles.headerCenter}>Control Center</div>
           <div className={styles.actions}>

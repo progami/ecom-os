@@ -8,8 +8,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Talos',
-  description: 'Central authentication and app launcher for Talos',
+  title: 'TargonOS',
+  description: 'Central authentication and app launcher for TargonOS',
   icons: {
     icon: [{ url: '/favicon.ico' }, { url: '/favicon.svg', type: 'image/svg+xml' }],
   },
@@ -56,9 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             textDecoration: 'none',
             backdropFilter: 'blur(8px)',
           }}
-          aria-label={`Talos version v${version}`}
+          aria-label={`TargonOS version v${version}`}
         >
-          Talos v{version}
+          TargonOS v{version}
         </a>
       </body>
     </html>
