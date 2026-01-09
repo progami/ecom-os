@@ -107,7 +107,7 @@ const BASE_APPS: AppBase[] = [
   {
     id: 'chronos',
     name: 'Chronos',
-    description: 'Forecasting workspace that feeds X-Plan.',
+    description: 'Forecasting workspace for marketplace signals and statistical models.',
     url: joinBaseUrl(PORTAL_BASE_URL, '/chronos'),
     category: 'Product',
     devUrl: 'http://localhost:3010',

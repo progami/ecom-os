@@ -1,0 +1,82 @@
+import googleTrends from 'google-trends-api';
+
+export type GoogleTrendsInterestPoint = {
+  t: Date;
+  value: number;
+};
+
+export type GoogleTrendsInterestOverTimeInput = {
+  keyword: string;
+  geo?: string;
+  startDate: Date;
+  endDate?: Date;
+};
+
+export type GoogleTrendsInterestOverTimeResult = {
+  points: GoogleTrendsInterestPoint[];
+  granularity: 'DAILY' | 'WEEKLY';
+  sourceMeta: Record<string, unknown>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+export async function fetchGoogleTrendsInterestOverTime(
+  input: GoogleTrendsInterestOverTimeInput,
+): Promise<GoogleTrendsInterestOverTimeResult> {
+  const keyword = input.keyword.trim();
+  if (!keyword) {
+    throw new Error('Keyword is required.');
+  }
+
+  const endDate = input.endDate ?? new Date();
+  const geo = input.geo?.trim() || undefined;
+
+  const raw = await googleTrends.interestOverTime({
+    keyword,
+    startTime: input.startDate,
+    endTime: endDate,
+    geo,
+  });
+
+  const parsed = JSON.parse(raw) as unknown;
+  const defaultBlock = isRecord(parsed) && isRecord(parsed.default) ? parsed.default : null;
+  const timelineData = defaultBlock && Array.isArray(defaultBlock.timelineData) ? defaultBlock.timelineData : [];
+
+  const points: GoogleTrendsInterestPoint[] = timelineData
+    .map((row: any) => {
+      const timeSeconds = Number(row?.time);
+      const value = Array.isArray(row?.value) ? Number(row.value[0]) : Number(row?.value);
+      const t = Number.isFinite(timeSeconds) ? new Date(timeSeconds * 1000) : new Date(NaN);
+      return {
+        t,
+        value,
+      };
+    })
+    .filter((point) => Number.isFinite(point.value) && !Number.isNaN(point.t.getTime()));
+
+  let granularity: 'DAILY' | 'WEEKLY' = 'DAILY';
+  if (points.length >= 2) {
+    const diffMs = points[1].t.getTime() - points[0].t.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDays >= 6) {
+      granularity = 'WEEKLY';
+    }
+  }
+
+  const sourceMeta: Record<string, unknown> = {
+    keyword,
+    geo: geo ?? null,
+    request: {
+      startDate: input.startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    },
+    result: {
+      title: typeof (defaultBlock as any)?.title === 'string' ? (defaultBlock as any).title : undefined,
+    },
+  };
+
+  return { points, granularity, sourceMeta };
+}
+

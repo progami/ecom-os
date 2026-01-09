@@ -139,6 +139,32 @@ const APP_ICONS: Record<string, ReactNode> = {
       />
     </svg>
   ),
+  chronos: (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        fill="rgba(0,194,185,0.14)"
+      />
+      <path
+        d="M12 7v5l3 2"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 3v2m0 14v2m9-9h-2M5 12H3"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.65"
+      />
+    </svg>
+  ),
 }
 
 const getAppIcon = (appId: string): ReactNode => APP_ICONS[appId] ?? FALLBACK_ICON

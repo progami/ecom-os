@@ -16,6 +16,7 @@ packages/**/prisma/generated/
 packages/prisma-wms/generated/
 packages/prisma-x-plan/generated/
 packages/prisma-hrms/generated/
+packages/prisma-chronos/generated/
 
 # TypeScript
 *.tsbuildinfo
@@ -43,6 +44,7 @@ apps/archived/**/prisma/*.db*
 !apps/ecomos/.env.dev.ci
 !apps/wms/.env.dev.ci
 !apps/x-plan/.env.dev.ci
+!apps/chronos/.env.dev.ci
 
 # Editor
 .DS_Store
