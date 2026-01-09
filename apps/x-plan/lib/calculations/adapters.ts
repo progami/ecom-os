@@ -203,18 +203,22 @@ export function mapPurchaseOrders(
 }
 
 export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {
-  return rows.map((row) => ({
-    id: row.id,
-    productId: row.productId,
-    weekNumber: row.weekNumber,
-    weekDate: row.weekDate,
-    stockStart: row.stockStart ?? null,
-    actualSales: row.actualSales ?? null,
-    forecastSales: row.forecastSales ?? null,
-    finalSales: row.finalSales ?? null,
-    stockWeeks: row.stockWeeks != null ? coerceNumber(row.stockWeeks) : null,
-    stockEnd: row.stockEnd ?? null,
-  }));
+  return rows.map((row) => {
+    return {
+      id: row.id,
+      productId: row.productId,
+      weekNumber: row.weekNumber,
+      weekDate: row.weekDate,
+      stockStart: row.stockStart ?? null,
+      actualSales: row.actualSales ?? null,
+      forecastSales: row.forecastSales ?? null,
+      systemForecastSales: row.systemForecastSales ?? null,
+      systemForecastVersion: row.systemForecastVersion ?? null,
+      finalSales: row.finalSales ?? null,
+      stockWeeks: row.stockWeeks != null ? coerceNumber(row.stockWeeks) : null,
+      stockEnd: row.stockEnd ?? null,
+    };
+  });
 }
 
 export function mapProfitAndLossWeeks(rows: ProfitAndLossWeek[]): ProfitAndLossWeekInput[] {

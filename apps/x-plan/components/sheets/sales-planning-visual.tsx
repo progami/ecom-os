@@ -250,7 +250,9 @@ export function SalesPlanningVisual({
 
   // Y-axis bounds for forecast chart
   const forecastYAxisBounds = useMemo(() => {
-    const allValues = activeForecastData.flatMap((p) => [p.actual, p.forecast]).filter(Number.isFinite);
+    const allValues = activeForecastData
+      .flatMap((p) => [p.actual, p.forecast])
+      .filter(Number.isFinite);
     if (allValues.length === 0) return { min: 0, max: 0 };
     const dataMin = Math.min(...allValues);
     const dataMax = Math.max(...allValues);
