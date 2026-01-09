@@ -8,8 +8,8 @@ const paramsSchema = z.object({
   forecastId: z.string().min(1),
 });
 
-export const POST = withKairosAuth(async (_request, session, context: { params: unknown }) => {
-  const { forecastId } = paramsSchema.parse(context.params);
+export const POST = withKairosAuth(async (_request, session, context: { params: Promise<unknown> }) => {
+  const { forecastId } = paramsSchema.parse(await context.params);
 
   const result = await runForecastNow({ forecastId, session });
   if (!result) {
