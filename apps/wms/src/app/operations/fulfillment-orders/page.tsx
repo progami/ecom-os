@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { Suspense, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { PageTabs } from '@/components/ui/page-tabs'
@@ -84,44 +83,40 @@ function FulfillmentOrdersPageContent() {
 
   if (status === 'loading') {
     return (
-      <DashboardLayout>
-        <PageContainer>
-          <PageLoading />
-        </PageContainer>
-      </DashboardLayout>
+      <PageContainer>
+        <PageLoading />
+      </PageContainer>
     )
   }
 
   return (
-    <DashboardLayout>
-      <PageContainer>
-        <PageHeaderSection
-          title="Fulfillment Orders"
-          description="Operations"
-          icon={FileText}
-          actions={
-            <Button asChild className="gap-2">
-              <Link href="/operations/fulfillment-orders/new">
-                <Plus className="h-4 w-4" />
-                New Fulfillment Order
-              </Link>
-            </Button>
-          }
-        />
-        <PageContent>
-          <div className="flex flex-col gap-6">
-            <PageTabs
-              tabs={statusTabs}
-              value={currentStatus}
-              onChange={handleStatusChange}
-              variant="underline"
-            />
+    <PageContainer>
+      <PageHeaderSection
+        title="Fulfillment Orders"
+        description="Operations"
+        icon={FileText}
+        actions={
+          <Button asChild className="gap-2">
+            <Link href="/operations/fulfillment-orders/new">
+              <Plus className="h-4 w-4" />
+              New Fulfillment Order
+            </Link>
+          </Button>
+        }
+      />
+      <PageContent>
+        <div className="flex flex-col gap-6">
+          <PageTabs
+            tabs={statusTabs}
+            value={currentStatus}
+            onChange={handleStatusChange}
+            variant="underline"
+          />
 
-            <FulfillmentOrdersPanel statusFilter={currentStatus} />
-          </div>
-        </PageContent>
-      </PageContainer>
-    </DashboardLayout>
+          <FulfillmentOrdersPanel statusFilter={currentStatus} />
+        </div>
+      </PageContent>
+    </PageContainer>
   )
 }
 
@@ -129,11 +124,9 @@ export default function FulfillmentOrdersPage() {
   return (
     <Suspense
       fallback={
-        <DashboardLayout>
-          <PageContainer>
-            <PageLoading />
-          </PageContainer>
-        </DashboardLayout>
+        <PageContainer>
+          <PageLoading />
+        </PageContainer>
       }
     >
       <FulfillmentOrdersPageContent />

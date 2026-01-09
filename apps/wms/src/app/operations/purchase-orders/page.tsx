@@ -4,35 +4,34 @@ import Link from 'next/link'
 import { Suspense, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { PageTabs } from '@/components/ui/page-tabs'
 import { PageLoading } from '@/components/ui/loading-spinner'
-	import {
-	  FileText,
-	  Plus,
-	  FileEdit,
-	  Send,
-	  Factory,
-	  Ship,
-	  Warehouse,
-	  PackageX,
-	  XCircle,
-	} from '@/lib/lucide-icons'
+import {
+  FileText,
+  Plus,
+  FileEdit,
+  Send,
+  Factory,
+  Ship,
+  Warehouse,
+  PackageX,
+  XCircle,
+} from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
 import type { LucideIcon } from 'lucide-react'
 
-	// 5-Stage State Machine Status Types
-	type POStageStatus =
-	  | 'DRAFT'
-	  | 'ISSUED'
-	  | 'MANUFACTURING'
-	  | 'OCEAN'
-	  | 'WAREHOUSE'
-	  | 'REJECTED'
-	  | 'CANCELLED'
+// 5-Stage State Machine Status Types
+type POStageStatus =
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'MANUFACTURING'
+  | 'OCEAN'
+  | 'WAREHOUSE'
+  | 'REJECTED'
+  | 'CANCELLED'
 
 type StatusConfig = {
   value: POStageStatus
@@ -42,24 +41,24 @@ type StatusConfig = {
 }
 
 // Main pipeline stages (5-stage state machine)
-	const PIPELINE_STAGES: StatusConfig[] = [
-	  {
-	    value: 'DRAFT',
-	    label: 'Draft',
-	    description: 'Editable draft shared with supplier for review',
-	    icon: FileEdit,
-	  },
-	  {
-	    value: 'ISSUED',
-	    label: 'Issued',
-	    description: 'Accepted by supplier (signed PI received)',
-	    icon: Send,
-	  },
-	  {
-	    value: 'MANUFACTURING',
-	    label: 'Manufacturing',
-	    description: 'Goods in production at manufacturer',
-	    icon: Factory,
+const PIPELINE_STAGES: StatusConfig[] = [
+  {
+    value: 'DRAFT',
+    label: 'Draft',
+    description: 'Editable draft shared with supplier for review',
+    icon: FileEdit,
+  },
+  {
+    value: 'ISSUED',
+    label: 'Issued',
+    description: 'Accepted by supplier (signed PI received)',
+    icon: Send,
+  },
+  {
+    value: 'MANUFACTURING',
+    label: 'Manufacturing',
+    description: 'Goods in production at manufacturer',
+    icon: Factory,
   },
   {
     value: 'OCEAN',
@@ -76,17 +75,17 @@ type StatusConfig = {
 ]
 
 // Terminal statuses
-	const TERMINAL_STATUSES: StatusConfig[] = [
-	  {
-	    value: 'REJECTED',
-	    label: 'Rejected',
-	    description: 'Purchase orders declined by the supplier',
-	    icon: PackageX,
-	  },
-	  {
-	    value: 'CANCELLED',
-	    label: 'Cancelled',
-	    description: 'Purchase orders cancelled before completion',
+const TERMINAL_STATUSES: StatusConfig[] = [
+  {
+    value: 'REJECTED',
+    label: 'Rejected',
+    description: 'Purchase orders declined by the supplier',
+    icon: PackageX,
+  },
+  {
+    value: 'CANCELLED',
+    label: 'Cancelled',
+    description: 'Purchase orders cancelled before completion',
     icon: XCircle,
   },
 ]
@@ -135,49 +134,45 @@ function OrdersPageContent() {
 
   if (status === 'loading') {
     return (
-      <DashboardLayout>
-        <PageContainer>
-          <PageLoading />
-        </PageContainer>
-      </DashboardLayout>
+      <PageContainer>
+        <PageLoading />
+      </PageContainer>
     )
   }
 
   return (
-    <DashboardLayout>
-      <PageContainer>
-        <PageHeaderSection
-          title="Purchase Orders"
-          description="Operations"
-          icon={FileText}
-          actions={
-            <Button asChild className="gap-2">
-              <Link href="/operations/purchase-orders/new">
-                <Plus className="h-4 w-4" />
-                New Purchase Order
-              </Link>
-            </Button>
-          }
-        />
-        <PageContent>
-          <div className="flex flex-col gap-6">
-            {/* Status Tabs */}
-            <PageTabs
-              tabs={statusTabs}
-              value={currentStatus}
-              onChange={handleStatusChange}
-              variant="underline"
-            />
+    <PageContainer>
+      <PageHeaderSection
+        title="Purchase Orders"
+        description="Operations"
+        icon={FileText}
+        actions={
+          <Button asChild className="gap-2">
+            <Link href="/operations/purchase-orders/new">
+              <Plus className="h-4 w-4" />
+              New Purchase Order
+            </Link>
+          </Button>
+        }
+      />
+      <PageContent>
+        <div className="flex flex-col gap-6">
+          {/* Status Tabs */}
+          <PageTabs
+            tabs={statusTabs}
+            value={currentStatus}
+            onChange={handleStatusChange}
+            variant="underline"
+          />
 
-            <PurchaseOrdersPanel
-              onPosted={() => {}}
-              statusFilter={currentStatus}
-              typeFilter="PURCHASE"
-            />
-          </div>
-        </PageContent>
-      </PageContainer>
-    </DashboardLayout>
+          <PurchaseOrdersPanel
+            onPosted={() => {}}
+            statusFilter={currentStatus}
+            typeFilter="PURCHASE"
+          />
+        </div>
+      </PageContent>
+    </PageContainer>
   )
 }
 
@@ -185,11 +180,9 @@ export default function OrdersPage() {
   return (
     <Suspense
       fallback={
-        <DashboardLayout>
-          <PageContainer>
-            <PageLoading />
-          </PageContainer>
-        </DashboardLayout>
+        <PageContainer>
+          <PageLoading />
+        </PageContainer>
       }
     >
       <OrdersPageContent />
