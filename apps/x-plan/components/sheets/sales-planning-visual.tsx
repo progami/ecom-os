@@ -130,11 +130,14 @@ export function SalesPlanningVisual({
     return map;
   }, [shipmentMarkers]);
 
-  // Transform for Recharts
+  // Transform for Recharts - add separate fields for positive/negative areas
   const chartData = useMemo(() => {
     return stockDataPoints.map((point) => ({
       ...point,
       hasShipment: shipmentByWeek.has(point.weekNumber),
+      // Split stock into positive and negative for separate coloring
+      stockPositive: point.stockEnd >= 0 ? point.stockEnd : 0,
+      stockNegative: point.stockEnd < 0 ? point.stockEnd : 0,
     }));
   }, [stockDataPoints, shipmentByWeek]);
 
@@ -302,36 +305,15 @@ export function SalesPlanningVisual({
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
                 <defs>
-                  <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
-                    {yAxisBounds.allNegative ? (
-                      // All values negative: solid red gradient
-                      <>
-                        <stop offset="0%" stopColor="#dc2626" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
-                      </>
-                    ) : yAxisBounds.hasNegative ? (
-                      // Mixed values: split gradient at zero
-                      <>
-                        <stop offset="0%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                        <stop
-                          offset={`${yAxisBounds.zeroOffset * 100}%`}
-                          stopColor="hsl(var(--chart-1))"
-                          stopOpacity={0.05}
-                        />
-                        <stop
-                          offset={`${yAxisBounds.zeroOffset * 100}%`}
-                          stopColor="#dc2626"
-                          stopOpacity={0.25}
-                        />
-                        <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
-                      </>
-                    ) : (
-                      // All values positive: normal gradient
-                      <>
-                        <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
-                      </>
-                    )}
+                  {/* Positive stock gradient (teal) */}
+                  <linearGradient id="stockPositiveGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0.05} />
+                  </linearGradient>
+                  {/* Negative stock gradient (red) - fills from zero downward */}
+                  <linearGradient id="stockNegativeGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#dc2626" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#dc2626" stopOpacity={0.6} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -409,13 +391,26 @@ export function SalesPlanningVisual({
                   })}
                 {/* Zero reference line - always visible for context */}
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1.5} />
+                {/* Red area for negative stock (below zero) */}
+                {showStockLine && yAxisBounds.hasNegative && (
+                  <Area
+                    type="monotone"
+                    dataKey="stockNegative"
+                    stroke="#dc2626"
+                    fill="url(#stockNegativeGradient)"
+                    strokeWidth={0}
+                    baseValue={0}
+                  />
+                )}
+                {/* Main stock line with teal fill for positive values */}
                 {showStockLine && (
                   <Area
                     type="monotone"
                     dataKey="stockEnd"
                     stroke="hsl(var(--chart-1))"
-                    fill="url(#stockGradient)"
+                    fill="url(#stockPositiveGradient)"
                     strokeWidth={2}
+                    baseValue={0}
                   />
                 )}
               </AreaChart>
