@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: deploy-app.sh <app-key> <environment>" >&2
-  echo "  app-key: wms, ecomos, website, xplan, chronos, hrms" >&2
+  echo "  app-key: wms, ecomos, website, xplan, kairos, hrms" >&2
   echo "  environment: dev, main" >&2
   exit 1
 fi
@@ -71,10 +71,10 @@ case "$app_key" in
     migrate_cmd="pnpm --filter $workspace prisma:migrate:deploy"
     build_cmd="pnpm --filter $workspace build"
     ;;
-  chronos)
-    workspace="@ecom-os/chronos"
-    app_dir="$REPO_DIR/apps/chronos"
-    pm2_name="${PM2_PREFIX}-chronos"
+  kairos)
+    workspace="@ecom-os/kairos"
+    app_dir="$REPO_DIR/apps/kairos"
+    pm2_name="${PM2_PREFIX}-kairos"
     prisma_cmd="pnpm --filter $workspace prisma:generate"
     migrate_cmd="pnpm --filter $workspace prisma:migrate:deploy"
     build_cmd="pnpm --filter $workspace build"
