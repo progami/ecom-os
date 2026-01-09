@@ -593,14 +593,14 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
     case 'actualSales':
       return 'Actual';
     case 'forecastSales':
-      return 'Planner Forecast';
+      return 'Planner';
     case 'systemForecastSales':
-      return 'System Forecast';
+      return 'System';
     case 'finalSales':
       return {
         label: 'Demand',
         title:
-          'Demand = Actual when present, otherwise Planner Forecast, otherwise System Forecast.',
+          'Demand precedence: Override (if set) → Actual → Planner → System.',
       };
     case 'finalSalesError':
       return {
@@ -609,9 +609,9 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
       };
     case 'stockWeeks':
       return {
-        label: 'Stockout (Weeks)',
+        label: 'Cover (w)',
         title:
-          'Stockout weeks = number of future weeks until projected inventory reaches zero using Demand (Actual → Planner Forecast → System Forecast) and scheduled arrivals.',
+          'Cover (weeks) = projected Stock Start ÷ projected Demand (higher is safer). ∞ means Demand is 0 for that week.',
       };
     case 'stockEnd':
       return 'Stock Qty';

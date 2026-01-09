@@ -86,7 +86,7 @@ const BASE_SALES_METRICS = [
   'finalSalesError',
 ] as const;
 const STOCK_METRIC_OPTIONS = [
-  { id: 'stockWeeks', label: 'Stockout' },
+  { id: 'stockWeeks', label: 'Cover (w)' },
   { id: 'stockEnd', label: 'Stock Qty' },
 ] as const;
 type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id'];
@@ -580,11 +580,11 @@ export function SalesPlanningGrid({
               const labelMap: Record<string, string> = {
                 stockStart: 'Stock Start',
                 actualSales: 'Actual',
-                forecastSales: 'Planner Forecast',
-                systemForecastSales: 'System Forecast',
+                forecastSales: 'Planner',
+                systemForecastSales: 'System',
                 finalSales: 'Demand',
                 finalSalesError: '% Error',
-                stockWeeks: 'Stockout',
+                stockWeeks: 'Cover (w)',
                 stockEnd: 'Stock Qty',
               };
 
@@ -802,31 +802,11 @@ export function SalesPlanningGrid({
       }
 
       const nextStockWeeks: number[] = new Array(n);
-      const depletionIndexByRow: Array<number | null> = new Array(n).fill(null);
-      let nextDepletionIndex: number | null = null;
-
-      for (let i = n - 1; i >= 0; i -= 1) {
-        if (nextStockEnd[i] <= 0) {
-          nextDepletionIndex = i;
-        }
-        depletionIndexByRow[i] = nextDepletionIndex;
-      }
-
-      const fractionAtDepletion: number[] = new Array(n).fill(0);
       for (let i = 0; i < n; i += 1) {
-        if (nextStockEnd[i] > 0) continue;
-        const depletionSales = nextFinalSales[i];
-        const depletionStart = nextStockStart[i];
-        fractionAtDepletion[i] = depletionSales > 0 ? depletionStart / depletionSales : 0;
-      }
-
-      for (let i = 0; i < n; i += 1) {
-        const depletionIndex = depletionIndexByRow[i];
-        if (depletionIndex == null) {
-          nextStockWeeks[i] = Number.POSITIVE_INFINITY;
-          continue;
-        }
-        nextStockWeeks[i] = depletionIndex - i + fractionAtDepletion[depletionIndex];
+        const demand = nextFinalSales[i] ?? 0;
+        const stockStart = nextStockStart[i] ?? 0;
+        nextStockWeeks[i] =
+          demand > 0 ? stockStart / demand : stockStart > 0 ? Number.POSITIVE_INFINITY : 0;
       }
 
       if (Number.isFinite(warningThreshold) && warningThreshold > 0) {
@@ -1955,8 +1935,8 @@ export function SalesPlanningGrid({
         const isFirstInfinity = visibleRowIndex === 0 || previousValue !== '∞';
         if (isFirstInfinity) {
           tooltipText =
-            `Stockout (Weeks) is forward-looking coverage until projected inventory reaches 0.\n` +
-            `∞ means inventory never reaches 0 within the loaded horizon.`;
+            `Cover (w) = projected Stock Start ÷ projected Demand.\n` +
+            `∞ means Demand is 0 for that week.`;
         }
       }
 
@@ -2001,9 +1981,9 @@ export function SalesPlanningGrid({
             : sourceRaw === 'ACTUAL'
               ? 'Actual'
               : sourceRaw === 'PLANNER'
-                ? 'Planner Forecast'
+                ? 'Planner'
                 : sourceRaw === 'SYSTEM'
-                  ? 'System Forecast'
+                  ? 'System'
                   : sourceRaw
                     ? sourceRaw
                     : '—';
@@ -2197,11 +2177,11 @@ export function SalesPlanningGrid({
       const labelMap: Record<string, string> = {
         stockStart: 'Stock Start',
         actualSales: 'Actual',
-        forecastSales: 'Planner Forecast',
-        systemForecastSales: 'System Forecast',
+        forecastSales: 'Planner',
+        systemForecastSales: 'System',
         finalSales: 'Demand',
         finalSalesError: '% Error',
-        stockWeeks: 'Stockout',
+        stockWeeks: 'Cover (w)',
         stockEnd: 'Stock Qty',
       };
 

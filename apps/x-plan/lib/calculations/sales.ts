@@ -302,6 +302,12 @@ export function computeSalesPlan(
       batchInventory = remainingBatches;
 
       const stockEnd = clampNonNegative(stockStart - computedFinalSales);
+      const stockWeeks =
+        computedFinalSales > 0
+          ? stockStart / computedFinalSales
+          : stockStart > 0
+            ? Number.POSITIVE_INFINITY
+            : 0;
       let percentError: number | null = null;
       if (actualSales != null && forecastSales != null && forecastSales !== 0) {
         percentError = (actualSales - forecastSales) / Math.abs(forecastSales);
@@ -323,36 +329,9 @@ export function computeSalesPlan(
         finalSalesSource,
         finalPercentError: percentError,
         stockEnd,
-        stockWeeks: 0, // updated after loop
+        stockWeeks,
         batchAllocations: allocations.length > 0 ? allocations : undefined,
       });
-    }
-
-    // Compute weeks of coverage
-    const productRows = results
-      .filter((row) => row.productId === productId)
-      .sort((a, b) => a.weekNumber - b.weekNumber);
-    for (let i = 0; i < productRows.length; i += 1) {
-      let depletionIndex: number | null = null;
-      for (let j = i; j < productRows.length; j += 1) {
-        if (productRows[j].stockEnd <= 0) {
-          depletionIndex = j;
-          break;
-        }
-      }
-      if (depletionIndex == null) {
-        productRows[i].stockWeeks = Number.POSITIVE_INFINITY;
-      } else {
-        const depletionRow = productRows[depletionIndex];
-        if (depletionIndex === i) {
-          productRows[i].stockWeeks =
-            depletionRow.finalSales > 0 ? depletionRow.stockStart / depletionRow.finalSales : 0;
-        } else {
-          const fraction =
-            depletionRow.finalSales > 0 ? depletionRow.stockStart / depletionRow.finalSales : 0;
-          productRows[i].stockWeeks = depletionIndex - i + fraction;
-        }
-      }
     }
   }
 
