@@ -16,8 +16,8 @@ CREATE TYPE "AmazonFbaFeeAlertStatus" AS ENUM (
 );
 
 CREATE TABLE "amazon_fba_fee_alerts" (
-  "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-  "sku_id" UUID NOT NULL,
+  "id" text NOT NULL,
+  "sku_id" text NOT NULL,
   "reference_size_tier" text,
   "reference_fba_fulfillment_fee" numeric(12, 2),
   "amazon_fba_fulfillment_fee" numeric(12, 2),
@@ -39,4 +39,3 @@ CREATE INDEX "amazon_fba_fee_alerts_checked_at_idx" ON "amazon_fba_fee_alerts"("
 ALTER TABLE "amazon_fba_fee_alerts"
   ADD CONSTRAINT "amazon_fba_fee_alerts_sku_id_fkey"
   FOREIGN KEY ("sku_id") REFERENCES "skus"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
