@@ -177,6 +177,8 @@ declare module '@ecom-os/prisma-x-plan' {
     stockStart?: number | null;
     actualSales?: number | null;
     forecastSales?: number | null;
+    systemForecastSales?: number | null;
+    systemForecastVersion?: string | null;
     finalSales?: number | null;
     stockWeeks?: number | null;
     stockEnd?: number | null;

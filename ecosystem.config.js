@@ -66,8 +66,8 @@ module.exports = {
       max_memory_restart: '300M'
     },
     {
-      name: 'dev-chronos',
-      cwd: path.join(DEV_DIR, 'apps/chronos'),
+      name: 'dev-kairos',
+      cwd: path.join(DEV_DIR, 'apps/kairos'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3110',
       interpreter: 'node',
@@ -140,8 +140,8 @@ module.exports = {
       max_memory_restart: '300M'
     },
     {
-      name: 'main-chronos',
-      cwd: path.join(MAIN_DIR, 'apps/chronos'),
+      name: 'main-kairos',
+      cwd: path.join(MAIN_DIR, 'apps/kairos'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3010',
       interpreter: 'node',

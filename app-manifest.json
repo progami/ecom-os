@@ -3,7 +3,7 @@
     "ecomos": { "lifecycle": "active" },
     "wms": { "lifecycle": "active" },
     "website": { "lifecycle": "active" },
-    "chronos": { "lifecycle": "active" },
+    "kairos": { "lifecycle": "active" },
     "hrms": { "lifecycle": "active" },
     "x-plan": { "lifecycle": "active" },
     "fcc": { "lifecycle": "archived" },

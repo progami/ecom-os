@@ -17,7 +17,7 @@ on:
           - wms
           - website
           - xplan
-          - chronos
+          - kairos
           - hrms
       environment:
         description: 'Environment to deploy to'
@@ -46,7 +46,7 @@ jobs:
       wms: ${{ steps.changes.outputs.wms }}
       website: ${{ steps.changes.outputs.website }}
       xplan: ${{ steps.changes.outputs.xplan }}
-      chronos: ${{ steps.changes.outputs.chronos }}
+      kairos: ${{ steps.changes.outputs.kairos }}
       hrms: ${{ steps.changes.outputs.hrms }}
       packages: ${{ steps.changes.outputs.packages }}
       any_app: ${{ steps.changes.outputs.any_app }}
@@ -99,8 +99,8 @@ jobs:
               echo "xplan=true" >> "$GITHUB_OUTPUT"
               ANY_APP=true
             fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/chronos/"; then
-              echo "chronos=true" >> "$GITHUB_OUTPUT"
+            if echo "$CHANGED_FILES" | grep -q "^apps/kairos/"; then
+              echo "kairos=true" >> "$GITHUB_OUTPUT"
               ANY_APP=true
             fi
             if echo "$CHANGED_FILES" | grep -q "^apps/hrms/"; then
@@ -326,15 +326,15 @@ jobs:
 
           declare -a apps=()
           if [[ "$TARGET_ENV" == "main" ]]; then
-            apps=(ecomos wms website xplan chronos hrms)
+            apps=(ecomos wms website xplan kairos hrms)
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(ecomos wms website xplan chronos hrms)
+            apps=(ecomos wms website xplan kairos hrms)
           else
             [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
             [[ "${{ needs.detect-changes.outputs.wms }}" == "true" ]] && apps+=(wms)
             [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
-            [[ "${{ needs.detect-changes.outputs.chronos }}" == "true" ]] && apps+=(chronos)
+            [[ "${{ needs.detect-changes.outputs.kairos }}" == "true" ]] && apps+=(kairos)
             [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" ]] && apps+=(hrms)
           fi
 
@@ -393,17 +393,17 @@ jobs:
 
           declare -a apps=()
           if [[ "$target_env" == "main" ]]; then
-            apps=(ecomos wms website xplan chronos hrms)
+            apps=(ecomos wms website xplan kairos hrms)
           elif [[ -n "$requested_app" ]]; then
             apps=("$requested_app")
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(ecomos wms website xplan chronos hrms)
+            apps=(ecomos wms website xplan kairos hrms)
           else
             [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
             [[ "${{ needs.detect-changes.outputs.wms }}" == "true" ]] && apps+=(wms)
             [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
-            [[ "${{ needs.detect-changes.outputs.chronos }}" == "true" ]] && apps+=(chronos)
+            [[ "${{ needs.detect-changes.outputs.kairos }}" == "true" ]] && apps+=(kairos)
             [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" ]] && apps+=(hrms)
           fi
 

@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../packages/prisma-kairos/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TimeSeries {
+  id             String               @id @default(cuid())
+  name           String
+  source         TimeSeriesSource
+  granularity    TimeSeriesGranularity
+  query          String
+  geo            String?
+  sourceMeta     Json?
+
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  points         TimeSeriesPoint[]
+  forecasts      Forecast[]
+
+  @@index([source])
+  @@index([createdById])
+  @@index([createdByEmail])
+}
+
+model TimeSeriesPoint {
+  id       String     @id @default(cuid())
+  seriesId String
+  t        DateTime
+  value    Float
+
+  series   TimeSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, t])
+  @@index([seriesId])
+  @@index([t])
+}
+
+model Forecast {
+  id             String        @id @default(cuid())
+  name           String
+  model          ForecastModel
+  horizon        Int
+  status         ForecastStatus @default(DRAFT)
+  lastRunAt      DateTime?
+
+  seriesId       String
+  series         TimeSeries    @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  runs           ForecastRun[]
+
+  @@index([seriesId])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdByEmail])
+}
+
+model ForecastRun {
+  id           String          @id @default(cuid())
+  forecastId   String
+  status       ForecastRunStatus @default(SUCCESS)
+  ranAt        DateTime        @default(now())
+  errorMessage String?
+  params       Json?
+  output       Json?
+
+  forecast     Forecast        @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+
+  @@index([forecastId])
+  @@index([ranAt])
+}
+
+enum TimeSeriesSource {
+  GOOGLE_TRENDS
+}
+
+enum TimeSeriesGranularity {
+  DAILY
+  WEEKLY
+}
+
+enum ForecastModel {
+  PROPHET
+}
+
+enum ForecastStatus {
+  DRAFT
+  RUNNING
+  READY
+  FAILED
+}
+
+enum ForecastRunStatus {
+  SUCCESS
+  FAILED
+}
