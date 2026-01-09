@@ -48,13 +48,13 @@ type CreateForecastResponse = {
 function statusTone(status: ForecastStatus) {
   switch (status) {
     case 'DRAFT':
-      return 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-300';
+      return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400';
     case 'READY':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100';
+      return 'border-transparent bg-success-100 text-success-700 dark:bg-success-950 dark:text-success-400';
     case 'RUNNING':
-      return 'border-cyan-200 bg-cyan-50 text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-100';
+      return 'border-transparent bg-brand-teal-100 text-brand-teal-700 dark:bg-brand-cyan/15 dark:text-brand-cyan';
     case 'FAILED':
-      return 'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100';
+      return 'border-transparent bg-danger-100 text-danger-700 dark:bg-danger-950 dark:text-danger-400';
   }
 }
 
