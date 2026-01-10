@@ -37,6 +37,8 @@ function normalizeSku(value: string) {
   return value.trim().toLowerCase();
 }
 
+const RESULTS_LIMIT = 500;
+
 export function ProductSetupAmazonImport({
   strategyId,
   existingSkus,
@@ -59,119 +61,122 @@ export function ProductSetupAmazonImport({
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [catalog, setCatalog] = useState<AmazonProduct[]>([]);
-  const [selectedSkus, setSelectedSkus] = useState<Set<string>>(() => new Set());
+  const [results, setResults] = useState<AmazonProduct[]>([]);
+  const [selectedBySku, setSelectedBySku] = useState<Map<string, { sku: string; name: string }>>(
+    () => new Map(),
+  );
 
-  const filtered = useMemo(() => {
-    const trimmed = query.trim().toLowerCase();
-    const base = trimmed
-      ? catalog.filter((item) => {
-          const sku = item.sku.toLowerCase();
-          const name = item.name.toLowerCase();
-          const asin = (item.asin ?? '').toLowerCase();
-          return sku.includes(trimmed) || name.includes(trimmed) || asin.includes(trimmed);
-        })
-      : catalog;
-    return base.slice(0, 500);
-  }, [catalog, query]);
+  const selectedCount = useMemo(() => selectedBySku.size, [selectedBySku]);
 
-  const selectedCount = useMemo(() => selectedSkus.size, [selectedSkus]);
-  const selectableFilteredSkus = useMemo(() => {
-    return filtered
-      .map((row) => row.sku)
-      .filter((sku) => !existingSkuSet.has(normalizeSku(sku)));
-  }, [existingSkuSet, filtered]);
+  const selectableVisible = useMemo(() => {
+    return results.filter((row) => !existingSkuSet.has(normalizeSku(row.sku)));
+  }, [existingSkuSet, results]);
 
-  const allFilteredSelected = useMemo(() => {
-    if (selectableFilteredSkus.length === 0) return false;
-    return selectableFilteredSkus.every((sku) => selectedSkus.has(normalizeSku(sku)));
-  }, [selectableFilteredSkus, selectedSkus]);
+  const allVisibleSelected = useMemo(() => {
+    if (selectableVisible.length === 0) return false;
+    return selectableVisible.every((row) => selectedBySku.has(normalizeSku(row.sku)));
+  }, [selectableVisible, selectedBySku]);
 
   useEffect(() => {
     if (!open) return;
-    if (catalog.length > 0 || isLoading) return;
 
     const controller = new AbortController();
+    const timeout = setTimeout(
+      () => {
+        const trimmed = query.trim();
+        const params = new URLSearchParams({
+          strategyId,
+          limit: String(RESULTS_LIMIT),
+        });
+        if (trimmed) params.set('q', trimmed);
 
-    setIsLoading(true);
-    setError(null);
-    fetch(withAppBasePath(`/api/v1/x-plan/amazon/products?strategyId=${encodeURIComponent(strategyId)}`), {
-      method: 'GET',
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const json = (await response.json().catch(() => null)) as any;
-        if (!response.ok) {
-          const message = typeof json?.error === 'string' ? json.error : 'Failed to load catalog';
-          throw new Error(message);
-        }
-        const products = Array.isArray(json?.products) ? (json.products as AmazonProduct[]) : [];
-        setCatalog(
-          products
-            .map((row) => ({
-              sku: String(row.sku ?? '').trim(),
-              name: String(row.name ?? '').trim(),
-              asin: row.asin ? String(row.asin).trim() : null,
-            }))
-            .filter((row) => row.sku && row.name),
-        );
-      })
-      .catch((fetchError) => {
-        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
-        const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
-        setError(message);
-      })
-      .finally(() => setIsLoading(false));
+        setIsLoading(true);
+        setError(null);
 
-    return () => controller.abort();
-  }, [catalog.length, isLoading, open, strategyId]);
+        fetch(withAppBasePath(`/api/v1/x-plan/amazon/products?${params.toString()}`), {
+          method: 'GET',
+          signal: controller.signal,
+        })
+          .then(async (response) => {
+            const json = (await response.json().catch(() => null)) as any;
+            if (!response.ok) {
+              const message = typeof json?.error === 'string' ? json.error : 'Failed to load catalog';
+              throw new Error(message);
+            }
+            const products = Array.isArray(json?.products)
+              ? (json.products as AmazonProduct[])
+              : [];
+            setResults(
+              products
+                .map((row) => ({
+                  sku: String(row.sku ?? '').trim(),
+                  name: String(row.name ?? '').trim(),
+                  asin: row.asin ? String(row.asin).trim() : null,
+                }))
+                .filter((row) => row.sku && row.name),
+            );
+          })
+          .catch((fetchError) => {
+            if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
+            const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
+            setError(message);
+            setResults([]);
+          })
+          .finally(() => setIsLoading(false));
+      },
+      query.trim().length > 0 ? 250 : 0,
+    );
 
-  const toggleSku = (sku: string) => {
-    const key = normalizeSku(sku);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [open, query, strategyId]);
+
+  const toggleSku = (row: AmazonProduct) => {
+    const key = normalizeSku(row.sku);
     if (existingSkuSet.has(key)) return;
-    setSelectedSkus((prev) => {
-      const next = new Set(prev);
+    setSelectedBySku((prev) => {
+      const next = new Map(prev);
       if (next.has(key)) next.delete(key);
-      else next.add(key);
+      else next.set(key, { sku: row.sku, name: row.name });
       return next;
     });
   };
 
-  const selectAllFiltered = () => {
-    if (selectableFilteredSkus.length === 0) return;
-    setSelectedSkus((prev) => {
-      const next = new Set(prev);
-      for (const sku of selectableFilteredSkus) next.add(normalizeSku(sku));
+  const clearAll = () => setSelectedBySku(new Map());
+
+  const selectAllVisible = () => {
+    if (selectableVisible.length === 0) return;
+    setSelectedBySku((prev) => {
+      const next = new Map(prev);
+      for (const row of selectableVisible) {
+        next.set(normalizeSku(row.sku), { sku: row.sku, name: row.name });
+      }
       return next;
     });
   };
 
-  const clearAll = () => setSelectedSkus(new Set());
-
-  const toggleSelectFiltered = () => {
-    if (allFilteredSelected) {
-      setSelectedSkus((prev) => {
-        const next = new Set(prev);
-        for (const sku of selectableFilteredSkus) next.delete(normalizeSku(sku));
+  const toggleSelectVisible = () => {
+    if (allVisibleSelected) {
+      setSelectedBySku((prev) => {
+        const next = new Map(prev);
+        for (const row of selectableVisible) next.delete(normalizeSku(row.sku));
         return next;
       });
       return;
     }
-    selectAllFiltered();
+    selectAllVisible();
   };
 
   const handleImport = async () => {
     if (isImporting) return;
-    if (selectedSkus.size === 0) {
+    if (selectedBySku.size === 0) {
       toast.error('Select at least one product');
       return;
     }
 
-    const selected = catalog.filter((row) => selectedSkus.has(normalizeSku(row.sku)));
-    if (selected.length === 0) {
-      toast.error('Nothing to import');
-      return;
-    }
+    const selected = Array.from(selectedBySku.values());
 
     setIsImporting(true);
     setError(null);
@@ -182,7 +187,7 @@ export function ProductSetupAmazonImport({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           strategyId,
-          products: selected.map((row) => ({ sku: row.sku, name: row.name })),
+          products: selected,
         }),
       });
 
@@ -205,7 +210,7 @@ export function ProductSetupAmazonImport({
       });
 
       setOpen(false);
-      setSelectedSkus(new Set());
+      setSelectedBySku(new Map());
       setQuery('');
       router.refresh();
     } catch (importError) {
@@ -241,7 +246,8 @@ export function ProductSetupAmazonImport({
           if (!nextOpen) {
             setError(null);
             setQuery('');
-            setSelectedSkus(new Set());
+            setResults([]);
+            setSelectedBySku(new Map());
           }
         }}
       >
@@ -263,22 +269,22 @@ export function ProductSetupAmazonImport({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={toggleSelectFiltered}
-                    disabled={isLoading || isImporting || selectableFilteredSkus.length === 0}
+                    onClick={toggleSelectVisible}
+                    disabled={isLoading || isImporting || selectableVisible.length === 0}
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-[#2a4a64] dark:bg-[#0a2438] dark:text-slate-300 dark:hover:bg-[#0f2d45]"
                   >
-                    {allFilteredSelected ? (
+                    {allVisibleSelected ? (
                       <CheckSquare className="h-4 w-4" />
                     ) : (
                       <Square className="h-4 w-4" />
                     )}
-                    {allFilteredSelected ? 'Unselect visible' : 'Select visible'}
+                    {allVisibleSelected ? 'Unselect visible' : 'Select visible'}
                   </button>
 
                   <button
                     type="button"
                     onClick={clearAll}
-                    disabled={isImporting || selectedSkus.size === 0}
+                    disabled={isImporting || selectedBySku.size === 0}
                     className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-[#2a4a64] dark:bg-[#0a2438] dark:text-slate-300 dark:hover:bg-[#0f2d45]"
                   >
                     Clear
@@ -322,22 +328,22 @@ export function ProductSetupAmazonImport({
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading catalog…
                   </div>
-                ) : filtered.length === 0 ? (
+                ) : results.length === 0 ? (
                   <div className="p-6 text-sm text-slate-600 dark:text-slate-300">
                     No matches.
                   </div>
                 ) : (
                   <ul className="divide-y divide-slate-200 dark:divide-[#1a3a54]">
-                    {filtered.map((row) => {
+                    {results.map((row) => {
                       const key = normalizeSku(row.sku);
                       const isExisting = existingSkuSet.has(key);
-                      const isSelected = selectedSkus.has(key);
+                      const isSelected = selectedBySku.has(key);
                       return (
                         <li key={row.sku}>
                           <button
                             type="button"
                             disabled={isExisting || isImporting}
-                            onClick={() => toggleSku(row.sku)}
+                            onClick={() => toggleSku(row)}
                             className={cn(
                               'flex w-full items-start gap-3 px-4 py-3 text-left transition',
                               isExisting
@@ -405,7 +411,7 @@ export function ProductSetupAmazonImport({
                   event.preventDefault();
                   void handleImport();
                 }}
-                disabled={isImporting || selectedSkus.size === 0}
+                disabled={isImporting || selectedBySku.size === 0}
                 className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 font-medium text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-600 hover:to-cyan-700 hover:shadow-xl hover:shadow-cyan-500/30 disabled:opacity-70 dark:from-[#00c2b9] dark:to-[#00a89d] dark:text-[#002430] dark:shadow-[#00c2b9]/25 dark:hover:from-[#00d5cb] dark:hover:to-[#00c2b9]"
               >
                 {isImporting ? 'Importing…' : 'Import selected'}
