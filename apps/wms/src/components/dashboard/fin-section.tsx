@@ -49,7 +49,7 @@ export function FinSection({ data, loading }: FinSectionProps) {
       </div>
 
       <Link 
-        href="/finance/storage-ledger" 
+        href="/operations/storage-ledger" 
         className="block border rounded-lg p-4 hover:bg-slate-50 transition-colors group"
       >
         <div className="flex items-center justify-between">
