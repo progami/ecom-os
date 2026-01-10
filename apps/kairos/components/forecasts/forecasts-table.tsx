@@ -18,8 +18,8 @@ import {
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ForecastListItem, TimeSeriesListItem } from '@/types/kairos';
-import { Badge, StatusBadge } from '@/components/ui/badge';
+import type { ForecastListItem, ForecastModel, TimeSeriesListItem } from '@/types/kairos';
+import { StatusBadge } from '@/components/ui/badge';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,7 +28,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fetchJson } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
 
 const FORECASTS_QUERY_KEY = ['kairos', 'forecasts'] as const;
 const SERIES_QUERY_KEY = ['kairos', 'time-series'] as const;
@@ -46,6 +45,35 @@ type CreateForecastResponse = {
   run?: unknown;
 };
 
+function parseHorizon(value: string) {
+  const horizon = Number(value);
+  if (!Number.isFinite(horizon) || !Number.isInteger(horizon)) {
+    return null;
+  }
+  if (horizon < 1 || horizon > 3650) {
+    return null;
+  }
+  return horizon;
+}
+
+function parseInterval(value: string) {
+  const interval = Number(value);
+  if (!Number.isFinite(interval)) {
+    return null;
+  }
+  if (interval <= 0 || interval >= 1) {
+    return null;
+  }
+  return interval;
+}
+
+function parseOptionalInt(value: string) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    return null;
+  }
+  return parsed;
+}
 function RunForecastButton({ forecast }: { forecast: ForecastListItem }) {
   const queryClient = useQueryClient();
 
@@ -59,6 +87,8 @@ function RunForecastButton({ forecast }: { forecast: ForecastListItem }) {
       const status = String(data.run.status).toUpperCase();
       if (status === 'FAILED') {
         toast.error('Forecast run failed', { description: data.run.errorMessage ?? undefined });
+      } else if (status === 'RUNNING') {
+        toast.success('Forecast run started', { description: forecast.name });
       } else {
         toast.success('Forecast run complete', { description: forecast.name });
       }
@@ -103,6 +133,14 @@ export function ForecastsTable() {
   const [createName, setCreateName] = useState('');
   const [createSeriesId, setCreateSeriesId] = useState('');
   const [createHorizon, setCreateHorizon] = useState('26');
+  const [createModel, setCreateModel] = useState<ForecastModel>('PROPHET');
+
+  const [prophetIntervalWidth, setProphetIntervalWidth] = useState('0.8');
+  const [prophetUncertaintySamples, setProphetUncertaintySamples] = useState('200');
+
+  const [etsSeasonLength, setEtsSeasonLength] = useState('7');
+  const [etsSpec, setEtsSpec] = useState('ZZZ');
+  const [etsIntervalLevel, setEtsIntervalLevel] = useState('0.8');
 
   useEffect(() => {
     const seriesId = searchParams.get('seriesId');
@@ -130,12 +168,41 @@ export function ForecastsTable() {
     return series.find((s) => s.id === createSeriesId) ?? null;
   }, [seriesQuery.data, createSeriesId]);
 
+  useEffect(() => {
+    if (!selectedSeries) return;
+    if (selectedSeries.granularity === 'WEEKLY') {
+      setEtsSeasonLength('52');
+    } else {
+      setEtsSeasonLength('7');
+    }
+  }, [selectedSeries]);
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const horizon = Number(createHorizon);
+      const horizon = parseHorizon(createHorizon);
+      if (!horizon) {
+        throw new Error('Horizon must be an integer between 1 and 3650.');
+      }
+
       const name =
         createName.trim() ||
-        (selectedSeries ? `${selectedSeries.name} (Prophet)` : 'Prophet Forecast');
+        (selectedSeries ? `${selectedSeries.name} (${createModel})` : `${createModel} Forecast`);
+
+      const config =
+        createModel === 'ETS'
+          ? {
+              seasonLength: parseOptionalInt(etsSeasonLength) ?? undefined,
+              spec: etsSpec.trim() || undefined,
+              intervalLevel: etsIntervalLevel.trim() === '' ? null : (parseInterval(etsIntervalLevel) ?? undefined),
+            }
+          : {
+              intervalWidth: parseInterval(prophetIntervalWidth) ?? undefined,
+              uncertaintySamples: parseOptionalInt(prophetUncertaintySamples) ?? undefined,
+            };
+
+      const configCleaned = Object.fromEntries(
+        Object.entries(config).filter(([, value]) => value !== undefined),
+      );
 
       return fetchJson<CreateForecastResponse>('/api/v1/forecasts', {
         method: 'POST',
@@ -143,9 +210,10 @@ export function ForecastsTable() {
         body: JSON.stringify({
           name,
           seriesId: createSeriesId,
-          model: 'PROPHET',
+          model: createModel,
           horizon,
           runNow: true,
+          config: Object.keys(configCleaned).length > 0 ? configCleaned : undefined,
         }),
       });
     },
@@ -154,6 +222,9 @@ export function ForecastsTable() {
       setCreateOpen(false);
       setCreateName('');
       setCreateHorizon('26');
+      setCreateModel('PROPHET');
+      setProphetIntervalWidth('0.8');
+      setProphetUncertaintySamples('200');
       await queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY });
       router.push(`/forecasts/${data.forecast.id}`);
     },
@@ -290,7 +361,7 @@ export function ForecastsTable() {
                 <DialogHeader>
                   <DialogTitle>New Forecast</DialogTitle>
                   <DialogDescription>
-                    Create a Prophet forecast from an existing time series.
+                    Create a forecast from an existing time series.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -327,7 +398,7 @@ export function ForecastsTable() {
                     <Input
                       value={createName}
                       onChange={(event) => setCreateName(event.target.value)}
-                      placeholder={selectedSeries ? `${selectedSeries.name} (Prophet)` : 'Prophet Forecast'}
+                      placeholder={selectedSeries ? `${selectedSeries.name} (${createModel})` : `${createModel} Forecast`}
                       aria-label="Forecast name"
                     />
                   </div>
@@ -335,7 +406,15 @@ export function ForecastsTable() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Model</div>
-                      <Input value="PROPHET" disabled aria-label="Forecast model" />
+                      <Select value={createModel} onValueChange={(value) => setCreateModel(value as ForecastModel)}>
+                        <SelectTrigger aria-label="Forecast model">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PROPHET">PROPHET</SelectItem>
+                          <SelectItem value="ETS">ETS (Auto)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Horizon (periods)</div>
@@ -345,6 +424,7 @@ export function ForecastsTable() {
                         type="number"
                         min={1}
                         max={3650}
+                        step={1}
                         aria-label="Forecast horizon"
                       />
                       <div className="text-xs text-muted-foreground">
@@ -352,6 +432,77 @@ export function ForecastsTable() {
                       </div>
                     </div>
                   </div>
+
+                  {createModel === 'PROPHET' ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval width</div>
+                        <Input
+                          value={prophetIntervalWidth}
+                          onChange={(event) => setProphetIntervalWidth(event.target.value)}
+                          type="number"
+                          step="0.05"
+                          min={0.5}
+                          max={0.99}
+                          aria-label="Prophet interval width"
+                        />
+                        <div className="text-xs text-muted-foreground">Common values: 0.8, 0.9, 0.95.</div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Uncertainty samples</div>
+                        <Input
+                          value={prophetUncertaintySamples}
+                          onChange={(event) => setProphetUncertaintySamples(event.target.value)}
+                          type="number"
+                          step={1}
+                          min={0}
+                          max={2000}
+                          aria-label="Prophet uncertainty samples"
+                        />
+                        <div className="text-xs text-muted-foreground">Set to 0 to disable intervals.</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Season length</div>
+                        <Input
+                          value={etsSeasonLength}
+                          onChange={(event) => setEtsSeasonLength(event.target.value)}
+                          type="number"
+                          step={1}
+                          min={1}
+                          max={365}
+                          aria-label="ETS season length"
+                        />
+                        <div className="text-xs text-muted-foreground">
+                          Defaults to 7 for daily series, 52 for weekly.
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval level</div>
+                        <Input
+                          value={etsIntervalLevel}
+                          onChange={(event) => setEtsIntervalLevel(event.target.value)}
+                          type="number"
+                          step="0.05"
+                          min={0.5}
+                          max={0.99}
+                          aria-label="ETS interval level"
+                        />
+                        <div className="text-xs text-muted-foreground">Common values: 0.8, 0.9, 0.95.</div>
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Spec</div>
+                        <Input
+                          value={etsSpec}
+                          onChange={(event) => setEtsSpec(event.target.value)}
+                          aria-label="ETS spec"
+                        />
+                        <div className="text-xs text-muted-foreground">Use ZZZ for full auto selection.</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-2">
@@ -367,8 +518,7 @@ export function ForecastsTable() {
                     disabled={
                       createMutation.isPending ||
                       !createSeriesId ||
-                      !Number.isFinite(Number(createHorizon)) ||
-                      Number(createHorizon) < 1
+                      !parseHorizon(createHorizon)
                     }
                     className="gap-2"
                   >

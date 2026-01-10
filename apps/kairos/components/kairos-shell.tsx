@@ -21,6 +21,8 @@ const NAV_ITEMS = [
   { href: '/models', label: 'Model Library', icon: Sparkles },
 ] as const;
 
+const APP_VERSION = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
+
 export function KairosShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
@@ -118,7 +120,7 @@ export function KairosShell({ children }: { children: React.ReactNode }) {
                   ))}
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5">
-                    <div className="text-xs text-muted-foreground">Kairos v1.0</div>
+                    <div className="text-xs text-muted-foreground">Kairos v{APP_VERSION}</div>
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>

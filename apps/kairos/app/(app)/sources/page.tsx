@@ -1,4 +1,4 @@
-import { GoogleTrendsPanel } from '@/components/sources/google-trends-panel';
+import { DataSourcesPanel } from '@/components/sources/data-sources-panel';
 
 export default function SourcesPage() {
   return (
@@ -7,7 +7,7 @@ export default function SourcesPage() {
         <h1 className="text-h1">Sources</h1>
         <p className="text-body-muted">Import time series from external data sources</p>
       </div>
-      <GoogleTrendsPanel />
+      <DataSourcesPanel />
     </div>
   );
 }
