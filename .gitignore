@@ -15,7 +15,7 @@ out/
 packages/**/prisma/generated/
 packages/prisma-wms/generated/
 packages/prisma-x-plan/generated/
-packages/prisma-hrms/generated/
+packages/prisma-atlas/generated/
 packages/prisma-kairos/generated/
 
 # TypeScript
@@ -45,6 +45,7 @@ apps/archived/**/prisma/*.db*
 !apps/wms/.env.dev.ci
 !apps/x-plan/.env.dev.ci
 !apps/kairos/.env.dev.ci
+!apps/atlas/.env.dev.ci
 
 # Editor
 .DS_Store
@@ -55,7 +56,7 @@ apps/archived/**/prisma/*.db*
 Pers/
 .env.local
 .todo*
-todo-hrms.md
+todo-atlas.md
 xplan-todo.md
 cookies.txt
 

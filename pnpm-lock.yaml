@@ -55,7 +55,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  apps/hrms:
+  apps/atlas:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.943.0
@@ -72,9 +72,9 @@ importers:
       '@ecom-os/aws-s3':
         specifier: workspace:*
         version: link:../../packages/aws-s3
-      '@ecom-os/prisma-hrms':
+      '@ecom-os/prisma-atlas':
         specifier: workspace:*
-        version: link:../../packages/prisma-hrms
+        version: link:../../packages/prisma-atlas
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.68.0(react@19.2.1))
@@ -1132,7 +1132,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  packages/prisma-hrms: {}
+  packages/prisma-atlas: {}
 
   packages/prisma-kairos: {}
 

@@ -45,7 +45,7 @@ const APP_ICONS: Record<string, ReactNode> = {
       <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   ),
-  hrms: (
+  atlas: (
     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
       <circle
         cx="9"

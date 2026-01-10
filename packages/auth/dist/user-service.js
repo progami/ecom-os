@@ -78,7 +78,7 @@ function buildDemoUser() {
     const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
     const entitlements = {
         wms: { departments: ['Ops'] },
-        hrms: { departments: ['People Ops'] },
+        atlas: { departments: ['People Ops'] },
         website: { departments: [] },
         'x-plan': { departments: ['Product'] },
     };
