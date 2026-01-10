@@ -165,11 +165,11 @@ ensure_database_url() {
     fi
   done
 
-  # HRMS deployments run against a local Postgres instance on the self-hosted runner.
+  # Atlas deployments run against a local Postgres instance on the self-hosted runner.
   # Defaulting here prevents CD from failing when no env file is present.
-  if [[ "$app_key" == "hrms" ]]; then
-    export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/hrms}"
-    warn "DATABASE_URL not set; defaulting to $DATABASE_URL for hrms deployment"
+  if [[ "$app_key" == "atlas" ]]; then
+    export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/atlas}"
+    warn "DATABASE_URL not set; defaulting to $DATABASE_URL for atlas deployment"
     return 0
   fi
 
