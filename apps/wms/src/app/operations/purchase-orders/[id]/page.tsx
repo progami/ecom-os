@@ -2371,7 +2371,6 @@ export default function PurchaseOrderDetailPage() {
                         <th className="px-4 py-2 text-right font-semibold">Total</th>
                         <th className="px-4 py-2 text-left font-semibold">Notes</th>
                         <th className="px-4 py-2 text-right font-semibold">Cartons Received</th>
-                        <th className="px-4 py-2 text-left font-semibold">Status</th>
                         {canEdit && <th className="px-4 py-2 text-right font-semibold">Actions</th>}
                       </tr>
                     </thead>
@@ -2379,7 +2378,7 @@ export default function PurchaseOrderDetailPage() {
                       {order.lines.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={canEdit ? 11 : 10}
+                            colSpan={canEdit ? 10 : 9}
                             className="px-4 py-6 text-center text-muted-foreground"
                           >
                             No lines added to this order yet.
@@ -2434,9 +2433,6 @@ export default function PurchaseOrderDetailPage() {
                                 <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
                                   {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
                                 </td>
-                                <td className="px-4 py-2.5 whitespace-nowrap">
-                                  <Badge variant="outline">{line.status}</Badge>
-                                </td>
                                 {canEdit && (
                                   <td className="px-4 py-2.5 whitespace-nowrap text-right">
                                     <div className="flex items-center justify-end gap-1">
@@ -2476,7 +2472,7 @@ export default function PurchaseOrderDetailPage() {
                                 <tr
                                   className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}
                                 >
-                                  <td colSpan={canEdit ? 11 : 10} className="px-4 pb-2 pt-1">
+                                  <td colSpan={canEdit ? 10 : 9} className="px-4 pb-2 pt-1">
                                     <div
                                       className={`grid grid-cols-6 gap-3 text-xs border-l-2 ${
                                         pkg.hasWarning
