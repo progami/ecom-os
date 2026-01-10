@@ -8,6 +8,8 @@ All testing should be done via Chrome browser directly to `https://ecomos.targon
 
 Once work is complete:
 
+COMMIT AND PR YOUR WORK TO DEV ON TOP.
+
 1. **PR to dev** - Create a pull request targeting the `dev` branch
 2. **Wait for GitHub CI to pass** - Do not proceed until all checks are green
 3. **Merge to dev** - Merge the PR yourself without waiting for approval
