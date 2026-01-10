@@ -5,28 +5,8 @@ import { Prisma } from '@ecom-os/prisma-kairos';
 import { withKairosAuth } from '@/lib/api/auth';
 import prisma from '@/lib/prisma';
 import { buildKairosOwnershipWhere, getKairosActor } from '@/lib/access';
+import { etsConfigSchema, prophetConfigSchema } from '@/lib/forecasts/config';
 import { runForecastNow } from '@/lib/forecasts/run';
-
-const seasonalityToggleSchema = z.enum(['auto', 'on', 'off']);
-
-const prophetConfigSchema = z
-  .object({
-    intervalWidth: z.coerce.number().min(0.5).max(0.99).optional(),
-    uncertaintySamples: z.coerce.number().int().min(0).max(2000).optional(),
-    seasonalityMode: z.enum(['additive', 'multiplicative']).optional(),
-    yearlySeasonality: seasonalityToggleSchema.optional(),
-    weeklySeasonality: seasonalityToggleSchema.optional(),
-    dailySeasonality: seasonalityToggleSchema.optional(),
-  })
-  .strict();
-
-const etsConfigSchema = z
-  .object({
-    seasonLength: z.coerce.number().int().min(1).max(365).optional(),
-    spec: z.string().trim().min(1).optional(),
-    intervalLevel: z.coerce.number().min(0.5).max(0.99).nullable().optional(),
-  })
-  .strict();
 
 const createSchema = z.object({
   name: z.string().trim().min(1),

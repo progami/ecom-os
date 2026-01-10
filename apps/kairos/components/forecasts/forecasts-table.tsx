@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowUpDown, ExternalLink, Loader2, Play, Plus, RefreshCw } from 'lucide-react';
+import { ArrowUpDown, ExternalLink, Loader2, Play, Plus, RefreshCw, X } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -104,11 +104,47 @@ function RunForecastButton({ forecast }: { forecast: ForecastListItem }) {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async () =>
+      fetchJson(`/api/v1/forecasts/${forecast.id}/cancel`, { method: 'POST' }),
+    onSuccess: async () => {
+      toast.success('Forecast run cancelled', { description: forecast.name });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ['kairos', 'forecast', forecast.id] }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error('Cancel failed', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
+  if (forecast.status === 'RUNNING') {
+    return (
+      <Button
+        size="sm"
+        variant="destructive"
+        onClick={() => void cancelMutation.mutateAsync()}
+        disabled={cancelMutation.isPending}
+        className="gap-2"
+      >
+        {cancelMutation.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        ) : (
+          <X className="h-4 w-4" aria-hidden />
+        )}
+        Cancel
+      </Button>
+    );
+  }
+
   return (
     <Button
       size="sm"
       onClick={() => void runMutation.mutateAsync()}
-      disabled={forecast.status === 'RUNNING' || runMutation.isPending}
+      disabled={runMutation.isPending}
       className="gap-2"
     >
       {runMutation.isPending ? (
