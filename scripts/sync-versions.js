@@ -21,7 +21,7 @@ const ROOT_PKG_PATH = path.join(ROOT, 'package.json')
 
 // Apps that should have their version synced
 const APPS_TO_SYNC = [
-  'apps/wms',
+  'apps/talos',
   'apps/website',
   'apps/ecomos',
   'apps/x-plan',

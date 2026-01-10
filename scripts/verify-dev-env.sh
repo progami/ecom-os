@@ -5,7 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 declare -a required_dev_host_files=(
   "apps/ecomos/.env.dev"
-  "apps/wms/.env.dev"
+  "apps/talos/.env.dev"
   "apps/x-plan/.env.dev"
 )
 

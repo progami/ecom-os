@@ -116,7 +116,7 @@ function handleDevFallback(emailOrUsername: string, password: string): Authentic
 function buildDemoUser(): AuthenticatedUser {
   const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase()
   const entitlements: AppEntitlementMap = {
-    wms: { departments: ['Ops'] },
+    talos: { departments: ['Ops'] },
     atlas: { departments: ['People Ops'] },
     website: { departments: [] },
     kairos: { departments: ['Product'] },

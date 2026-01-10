@@ -11,7 +11,7 @@ export interface CookieDomainOptions {
   domain: string; // e.g. .targonglobal.com
   secure?: boolean; // default true in production
   sameSite?: SameSite; // default 'lax'
-  appId?: string; // used to namespace cookies in dev (e.g., 'wms')
+  appId?: string; // used to namespace cookies in dev (e.g., 'talos')
 }
 
 /**
@@ -360,7 +360,17 @@ export async function decodePortalSession(options: DecodePortalSessionOptions = 
           salt: name, // Use the cookie name as salt
         });
         if (decoded && typeof decoded === 'object') {
-          return decoded as PortalJwtPayload;
+          const payload = decoded as PortalJwtPayload;
+
+          const roles = payload.roles;
+          if (roles && typeof roles === 'object') {
+            const roleMap = roles as Record<string, any>;
+            if (!roleMap.talos && roleMap.wms) {
+              roleMap.talos = roleMap.wms;
+            }
+          }
+
+          return payload;
         }
       } catch (error) {
         if (debug) {
@@ -612,7 +622,7 @@ export type AppEntitlement = {
   depts?: string[];
 };
 
-export type RolesClaim = Record<string, AppEntitlement>; // { wms: { depts }, fcc: { ... } }
+export type RolesClaim = Record<string, AppEntitlement>; // { talos: { depts }, fcc: { ... } }
 
 export function getAppEntitlement(roles: unknown, appId: string): AppEntitlement | undefined {
   if (!roles || typeof roles !== 'object') return undefined;
