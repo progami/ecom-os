@@ -18,8 +18,9 @@ import {
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ForecastListItem, ForecastStatus, TimeSeriesListItem } from '@/types/kairos';
-import { Badge } from '@/components/ui/badge';
+import type { ForecastListItem, TimeSeriesListItem } from '@/types/kairos';
+import { Badge, StatusBadge } from '@/components/ui/badge';
+import { SkeletonTable } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -44,19 +45,6 @@ type CreateForecastResponse = {
   forecast: ForecastListItem;
   run?: unknown;
 };
-
-function statusTone(status: ForecastStatus) {
-  switch (status) {
-    case 'DRAFT':
-      return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400';
-    case 'READY':
-      return 'border-transparent bg-success-100 text-success-700 dark:bg-success-950 dark:text-success-400';
-    case 'RUNNING':
-      return 'border-transparent bg-brand-teal-100 text-brand-teal-700 dark:bg-brand-cyan/15 dark:text-brand-cyan';
-    case 'FAILED':
-      return 'border-transparent bg-danger-100 text-danger-700 dark:bg-danger-950 dark:text-danger-400';
-  }
-}
 
 function RunForecastButton({ forecast }: { forecast: ForecastListItem }) {
   const queryClient = useQueryClient();
@@ -131,6 +119,10 @@ export function ForecastsTable() {
   const forecastsQuery = useQuery({
     queryKey: FORECASTS_QUERY_KEY,
     queryFn: async () => fetchJson<ForecastsResponse>('/api/v1/forecasts'),
+    refetchInterval: (query) => {
+      const hasRunning = query.state.data?.forecasts?.some((f) => f.status === 'RUNNING');
+      return hasRunning ? 5000 : false;
+    },
   });
 
   const selectedSeries = useMemo(() => {
@@ -225,11 +217,7 @@ export function ForecastsTable() {
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-          <Badge variant="outline" className={cn('capitalize', statusTone(row.original.status))}>
-            {row.original.status.toLowerCase()}
-          </Badge>
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         id: 'actions',
@@ -415,11 +403,7 @@ export function ForecastsTable() {
             </TableHeader>
             <TableBody>
               {forecastsQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                    Loading…
-                  </TableCell>
-                </TableRow>
+                <SkeletonTable rows={5} columns={columns.length} />
               ) : table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
