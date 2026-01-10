@@ -89,7 +89,16 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
     }
 
     const latestRun = forecast.runs[0] ?? null;
-    const outputPoints = parseOutputPoints(latestRun?.output);
+    const latestSuccessfulRun =
+      latestRun?.status === 'SUCCESS'
+        ? latestRun
+        : await prisma.forecastRun.findFirst({
+            where: { forecastId: forecast.id, status: 'SUCCESS' },
+            orderBy: { ranAt: 'desc' },
+            select: { id: true, status: true, ranAt: true, output: true },
+          });
+
+    const outputPoints = parseOutputPoints(latestSuccessfulRun?.output);
 
     const outputMap = new Map<string, ForecastOutputPoint>();
     for (const point of outputPoints ?? []) {

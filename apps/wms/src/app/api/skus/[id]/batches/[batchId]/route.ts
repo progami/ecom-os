@@ -63,6 +63,9 @@ const updateSchema = refineDimensions(
     unitsPerCarton: z.number().int().positive().optional().nullable(),
     material: z.string().trim().max(120).optional().nullable(),
     packagingType: packagingTypeSchema,
+    amazonSizeTier: z.string().trim().max(80).optional().nullable(),
+    amazonFbaFulfillmentFee: z.number().min(0).optional().nullable(),
+    amazonReferenceWeightKg: z.number().positive().optional().nullable(),
     storageCartonsPerPallet: z.number().int().positive().optional(),
     shippingCartonsPerPallet: z.number().int().positive().optional(),
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
@@ -174,6 +177,20 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
 
   if (parsed.data.packagingType !== undefined) {
     data.packagingType = parsed.data.packagingType ?? null
+  }
+
+  if (parsed.data.amazonSizeTier !== undefined) {
+    data.amazonSizeTier = parsed.data.amazonSizeTier
+      ? sanitizeForDisplay(parsed.data.amazonSizeTier)
+      : null
+  }
+
+  if (parsed.data.amazonFbaFulfillmentFee !== undefined) {
+    data.amazonFbaFulfillmentFee = parsed.data.amazonFbaFulfillmentFee ?? null
+  }
+
+  if (parsed.data.amazonReferenceWeightKg !== undefined) {
+    data.amazonReferenceWeightKg = parsed.data.amazonReferenceWeightKg ?? null
   }
 
   if (parsed.data.unitWeightKg !== undefined) {
