@@ -54,7 +54,7 @@ const navigation: NavSection[] = [
     title: 'People',
     items: [
       { name: 'Employees', href: '/employees', icon: UsersIcon },
-      { name: 'Onboarding / Offboarding', href: '/onboarding', icon: ClipboardIcon, requireHR: true },
+      { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon },
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
