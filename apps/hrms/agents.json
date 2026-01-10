@@ -14,7 +14,7 @@
         "acceptTasksIf": [
           "Conform to monorepo docs (README.md, docs/*).",
           "Reuse Website brand colors and tokens; no ad‑hoc palettes.",
-          "Follow WMS UX patterns; no one‑off navigation.",
+          "Follow Talos UX patterns; no one‑off navigation.",
           "Shared concerns (auth/ui/theme) should live in packages/* where possible.",
           "Scripts/tsconfig consistent with root turbo/tsconfig.base.json"
         ],

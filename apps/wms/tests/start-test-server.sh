@@ -8,8 +8,8 @@ fi
 
 echo "Starting test server..."
 
-# Navigate to Talos directory
-cd /Users/jarraramjad/Documents/ecom_os/WMS
+# Navigate to Talos app directory
+cd "$(cd "$(dirname "$0")/.." && pwd)"
 
 # Set environment variables for test
 export NODE_ENV=test

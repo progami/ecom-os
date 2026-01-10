@@ -63,13 +63,13 @@ export async function middleware(request: NextRequest) {
       ...getCandidateSessionCookieNames('wms'),
     ])
   )
-  const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-  if (!sharedSecret) {
-    console.error('[wms middleware] Missing PORTAL_AUTH_SECRET/NEXTAUTH_SECRET')
-    return normalizedPath.startsWith('/api/')
-      ? NextResponse.json({ error: 'Authentication misconfigured' }, { status: 500 })
-      : new NextResponse('Authentication misconfigured', { status: 500 })
-  }
+	  const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+	  if (!sharedSecret) {
+	    console.error('[talos middleware] Missing PORTAL_AUTH_SECRET/NEXTAUTH_SECRET')
+	    return normalizedPath.startsWith('/api/')
+	      ? NextResponse.json({ error: 'Authentication misconfigured' }, { status: 500 })
+	      : new NextResponse('Authentication misconfigured', { status: 500 })
+	  }
 
   const authDebugFlag =
     typeof process.env.NEXTAUTH_DEBUG === 'string' &&
