@@ -67,6 +67,20 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
     });
 
     const latestRun = forecast.runs[0] ?? null;
+    const latestSuccessfulRun =
+      latestRun?.status === 'SUCCESS'
+        ? latestRun
+        : await prisma.forecastRun.findFirst({
+            where: { forecastId: forecast.id, status: 'SUCCESS' },
+            orderBy: { ranAt: 'desc' },
+            select: {
+              id: true,
+              status: true,
+              ranAt: true,
+              errorMessage: true,
+              output: true,
+            },
+          });
 
     return NextResponse.json({
       forecast: {
@@ -95,6 +109,15 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
               ranAt: latestRun.ranAt.toISOString(),
               errorMessage: latestRun.errorMessage,
               output: latestRun.output,
+            }
+          : null,
+        latestSuccessfulRun: latestSuccessfulRun
+          ? {
+              id: latestSuccessfulRun.id,
+              status: latestSuccessfulRun.status,
+              ranAt: latestSuccessfulRun.ranAt.toISOString(),
+              errorMessage: latestSuccessfulRun.errorMessage,
+              output: latestSuccessfulRun.output,
             }
           : null,
       },

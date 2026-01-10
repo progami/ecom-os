@@ -2,11 +2,13 @@ import 'server-only';
 
 import type { Session } from 'next-auth';
 import { Prisma } from '@ecom-os/prisma-kairos';
+import { ZodError } from 'zod';
 
 import prisma from '@/lib/prisma';
 import { buildKairosOwnershipWhere, getKairosActor } from '@/lib/access';
-import { runEtsForecast, type EtsRunConfig } from '@/lib/models/ets';
-import { runProphetForecast, type ProphetRunConfig } from '@/lib/models/prophet';
+import { parseEtsConfig, parseProphetConfig } from '@/lib/forecasts/config';
+import { runEtsForecast } from '@/lib/models/ets';
+import { runProphetForecast } from '@/lib/models/prophet';
 
 type RunResult = {
   forecast: {
@@ -34,22 +36,6 @@ function jsonSafe(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value ?? null)) as Prisma.InputJsonValue;
 }
 
-function asObject(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object') return null;
-  if (Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
-function toProphetConfig(config: unknown): ProphetRunConfig | undefined {
-  const obj = asObject(config);
-  return obj ? (obj as ProphetRunConfig) : undefined;
-}
-
-function toEtsConfig(config: unknown): EtsRunConfig | undefined {
-  const obj = asObject(config);
-  return obj ? (obj as EtsRunConfig) : undefined;
-}
-
 async function pruneForecastRuns(tx: Prisma.TransactionClient, forecastId: string, keep: number) {
   const stale = await tx.forecastRun.findMany({
     where: { forecastId },
@@ -66,7 +52,18 @@ async function pruneForecastRuns(tx: Prisma.TransactionClient, forecastId: strin
 }
 
 async function finalizeForecastRun(args: { forecastId: string; runId: string }) {
+  const totalStart = Date.now();
   try {
+    const runState = await prisma.forecastRun.findUnique({
+      where: { id: args.runId },
+      select: { status: true },
+    });
+
+    if (runState?.status !== 'RUNNING') {
+      return;
+    }
+
+    const loadStart = Date.now();
     const forecast = await prisma.forecast.findUnique({
       where: { id: args.forecastId },
       include: {
@@ -86,6 +83,10 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
       throw new Error('Forecast not found.');
     }
 
+    if (forecast.status !== 'RUNNING') {
+      throw new Error('Forecast is no longer running.');
+    }
+
     const points = await prisma.timeSeriesPoint.findMany({
       where: { seriesId: forecast.seriesId },
       orderBy: { t: 'asc' },
@@ -95,27 +96,38 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     const ds = points.map((point) => Math.floor(point.t.getTime() / 1000));
     const y = points.map((point) => point.value);
 
-    const config = forecast.config ?? undefined;
+    const loadMs = Date.now() - loadStart;
 
-    const result =
-      forecast.model === 'ETS'
-        ? await runEtsForecast({
-            ds,
-            y,
-            horizon: forecast.horizon,
-            config: toEtsConfig(config),
-          })
-        : forecast.model === 'PROPHET'
-          ? await runProphetForecast({
-              ds,
-              y,
-              horizon: forecast.horizon,
-              config: toProphetConfig(config),
-            })
-          : (() => {
-              throw new Error(`Unsupported model: ${forecast.model}`);
-            })();
+    const modelStart = Date.now();
+    const result = await (async () => {
+      if (forecast.model === 'ETS') {
+        try {
+          const config = parseEtsConfig(forecast.config) ?? undefined;
+          return await runEtsForecast({ ds, y, horizon: forecast.horizon, config });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
+          }
+          throw error;
+        }
+      }
 
+      if (forecast.model === 'PROPHET') {
+        try {
+          const config = parseProphetConfig(forecast.config) ?? undefined;
+          return await runProphetForecast({ ds, y, horizon: forecast.horizon, config });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
+          }
+          throw error;
+        }
+      }
+
+      throw new Error(`Unsupported model: ${forecast.model}`);
+    })();
+
+    const modelMs = Date.now() - modelStart;
     const completedAt = new Date();
 
     const output = {
@@ -129,19 +141,28 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
       },
       generatedAt: completedAt.toISOString(),
       points: result.points,
-      meta: result.meta,
+      meta: {
+        ...result.meta,
+        timings: {
+          loadMs,
+          modelMs,
+          saveMs: 0,
+          totalMs: 0,
+        },
+      },
     };
 
-    const outputJson = jsonSafe(output);
     const paramsJson = jsonSafe({
       model: forecast.model,
       horizon: forecast.horizon,
       config: forecast.config ?? null,
     });
 
+    const outputJson = jsonSafe(output);
+    const saveStart = Date.now();
     await prisma.$transaction(async (tx) => {
-      await tx.forecastRun.update({
-        where: { id: args.runId },
+      const updatedRun = await tx.forecastRun.updateMany({
+        where: { id: args.runId, status: 'RUNNING' },
         data: {
           status: 'SUCCESS',
           output: outputJson,
@@ -150,15 +171,36 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
         },
       });
 
-      await tx.forecast.update({
-        where: { id: args.forecastId },
+      await tx.forecast.updateMany({
+        where: { id: args.forecastId, status: 'RUNNING' },
         data: {
           status: 'READY',
           lastRunAt: completedAt,
         },
       });
 
-      await pruneForecastRuns(tx, args.forecastId, 20);
+      if (updatedRun.count > 0) {
+        await pruneForecastRuns(tx, args.forecastId, 20);
+      }
+    });
+
+    const saveMs = Date.now() - saveStart;
+    const totalMs = Date.now() - totalStart;
+    const outputWithTimingsJson = jsonSafe({
+      ...output,
+      meta: {
+        ...output.meta,
+        timings: {
+          ...output.meta.timings,
+          saveMs,
+          totalMs,
+        },
+      },
+    });
+
+    await prisma.forecastRun.updateMany({
+      where: { id: args.runId, status: 'SUCCESS' },
+      data: { output: outputWithTimingsJson },
     });
   } catch (error) {
     const completedAt = new Date();
@@ -166,16 +208,16 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     const safeMessage = message.length > 2000 ? `${message.slice(0, 2000)}…` : message;
 
     await prisma.$transaction(async (tx) => {
-      await tx.forecastRun.update({
-        where: { id: args.runId },
+      await tx.forecastRun.updateMany({
+        where: { id: args.runId, status: 'RUNNING' },
         data: {
           status: 'FAILED',
           errorMessage: safeMessage,
         },
       });
 
-      await tx.forecast.update({
-        where: { id: args.forecastId },
+      await tx.forecast.updateMany({
+        where: { id: args.forecastId, status: 'RUNNING' },
         data: {
           status: 'FAILED',
           lastRunAt: completedAt,
@@ -185,6 +227,41 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
       await pruneForecastRuns(tx, args.forecastId, 20);
     });
   }
+}
+
+type PendingForecastRun = { forecastId: string; runId: string };
+
+const forecastRunQueue: PendingForecastRun[] = [];
+let forecastRunWorker: Promise<void> | null = null;
+
+async function processForecastRunQueue() {
+  while (true) {
+    const next =
+      forecastRunQueue.shift() ??
+      (await prisma.forecastRun.findFirst({
+        where: { status: 'RUNNING' },
+        orderBy: { ranAt: 'asc' },
+        select: { id: true, forecastId: true },
+      }));
+
+    if (!next) {
+      return;
+    }
+
+    const job = 'runId' in next ? next : { runId: next.id, forecastId: next.forecastId };
+    await finalizeForecastRun(job);
+  }
+}
+
+function kickForecastRunWorker() {
+  if (forecastRunWorker) return;
+  forecastRunWorker = processForecastRunQueue()
+    .catch((error) => {
+      console.error('[kairos] Forecast run worker crashed', error);
+    })
+    .finally(() => {
+      forecastRunWorker = null;
+    });
 }
 
 export async function runForecastNow(args: { forecastId: string; session: Session }): Promise<RunResult | null> {
@@ -273,9 +350,8 @@ export async function runForecastNow(args: { forecastId: string; session: Sessio
     return null;
   }
 
-  void finalizeForecastRun({ forecastId: started.forecast.id, runId: started.run.id }).catch((error) => {
-    console.error('[kairos] Forecast run background task crashed', error);
-  });
+  forecastRunQueue.push({ forecastId: started.forecast.id, runId: started.run.id });
+  kickForecastRunWorker();
 
   return started;
 }

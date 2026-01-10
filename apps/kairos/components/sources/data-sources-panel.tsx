@@ -22,9 +22,6 @@ import {
   type SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -51,10 +48,19 @@ import {
 
 type TimeSeriesResponse = {
   series: TimeSeriesListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 };
 
 type GoogleTrendsImportResponse = {
   series: TimeSeriesListItem;
+  import: {
+    mode: 'CACHED' | 'MERGE' | 'REPLACE' | 'CREATE';
+    insertedPoints: number;
+    deletedPoints: number;
+    totalPoints: number;
+  };
 };
 
 type GoogleTrendsTimeRange = 'PAST_12_MONTHS' | 'PAST_2_YEARS' | 'PAST_5_YEARS' | 'ALL_TIME';
@@ -64,6 +70,7 @@ type GoogleTrendsImportInput = {
   geo: string;
   timeRange: GoogleTrendsTimeRange;
   name: string;
+  force: boolean;
 };
 
 type DataSourceType = 'google-trends' | 'brand-analytics' | 'marketplace-guidance' | 'jungle-scout';
@@ -165,6 +172,11 @@ function resolveStartDate(timeRange: GoogleTrendsTimeRange, now: Date) {
   return start;
 }
 
+function formatIsoDate(value: string | null | undefined) {
+  if (!value) return null;
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
 // ============================================================================
 // Source Selection Component
 // ============================================================================
@@ -231,11 +243,12 @@ function GoogleTrendsForm({
   const [geo, setGeo] = useState('');
   const [timeRange, setTimeRange] = useState<GoogleTrendsTimeRange>('PAST_2_YEARS');
   const [name, setName] = useState('');
+  const [force, setForce] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
-    onSubmit({ keyword, geo, timeRange, name });
+    onSubmit({ keyword, geo, timeRange, name, force });
   };
 
   return (
@@ -305,6 +318,24 @@ function GoogleTrendsForm({
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
+            Import Mode
+          </label>
+          <Select value={force ? 'force' : 'cache'} onValueChange={(v) => setForce(v === 'force')}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cache">Use cache if available</SelectItem>
+              <SelectItem value="force">Force refresh (replace existing points)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            Force refresh overwrites points for an existing series (same keyword + range).
+          </p>
         </div>
 
         <div className="space-y-1.5">
@@ -408,11 +439,26 @@ export function DataSourcesPanel() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const pageSize = 10;
 
   // Query
+  const sort = sorting[0]?.id === 'name' ? 'name' : 'updatedAt';
+  const dir = sorting[0]?.id ? (sorting[0]?.desc ? 'desc' : 'asc') : 'desc';
+  const search = globalFilter.trim();
+
   const seriesQuery = useQuery({
-    queryKey: SERIES_QUERY_KEY,
-    queryFn: async () => fetchJson<TimeSeriesResponse>('/api/v1/time-series'),
+    queryKey: [...SERIES_QUERY_KEY, { search, pageIndex, pageSize, sort, dir }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.set('page', String(pageIndex + 1));
+      params.set('pageSize', String(pageSize));
+      params.set('sort', sort);
+      params.set('dir', dir);
+      if (search) params.set('q', search);
+      return fetchJson<TimeSeriesResponse>(`/api/v1/time-series?${params.toString()}`);
+    },
+    placeholderData: (prev) => prev,
   });
 
   // Mutation
@@ -430,12 +476,21 @@ export function DataSourcesPanel() {
           startDate,
           endDate: null,
           name: payload.name || undefined,
+          force: payload.force,
         }),
       });
     },
     onSuccess: async (data) => {
+      const summary =
+        data.import.mode === 'CACHED'
+          ? 'Already imported (cached).'
+          : data.import.mode === 'REPLACE'
+            ? `Replaced ${data.import.deletedPoints} points.`
+            : data.import.mode === 'MERGE'
+              ? `Added ${data.import.insertedPoints} new points.`
+              : `Imported ${data.import.insertedPoints} points.`;
       toast.success('Data source imported', {
-        description: data.series.name,
+        description: `${data.series.name} — ${summary}`,
       });
       await queryClient.invalidateQueries({ queryKey: SERIES_QUERY_KEY });
     },
@@ -448,6 +503,8 @@ export function DataSourcesPanel() {
 
   // Data
   const data = useMemo(() => seriesQuery.data?.series ?? [], [seriesQuery.data]);
+  const totalCount = seriesQuery.data?.totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   // Columns
   const columns = useMemo<ColumnDef<TimeSeriesListItem>[]>(
@@ -480,9 +537,32 @@ export function DataSourcesPanel() {
                   <span>{row.original.geo}</span>
                 </>
               )}
+              {row.original.sourceTitle ? (
+                <>
+                  <span>-</span>
+                  <span className="truncate">{row.original.sourceTitle}</span>
+                </>
+              ) : null}
             </div>
           </div>
         ),
+      },
+      {
+        id: 'range',
+        header: 'Range',
+        cell: ({ row }) => {
+          const start = formatIsoDate(row.original.importStartDate);
+          const end = formatIsoDate(row.original.importEndDate);
+          if (!start || !end) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          return (
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {start} → {end}
+            </span>
+          );
+        },
+        enableSorting: false,
       },
       {
         accessorKey: 'granularity',
@@ -540,14 +620,13 @@ export function DataSourcesPanel() {
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    state: { sorting },
+    onSortingChange: (next) => {
+      setSorting(next);
+      setPageIndex(0);
+    },
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: 'includesString',
+    manualSorting: true,
   });
 
   const handleImport = async (data: GoogleTrendsImportInput) => {
@@ -561,13 +640,16 @@ export function DataSourcesPanel() {
           <div className="space-y-1">
             <CardTitle className="text-base">Imported Series</CardTitle>
             <CardDescription>
-              Time series data from external sources for Prophet forecasting
+              Time series data from external sources for forecasting
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Input
               value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(e.target.value)}
+              onChange={(e) => {
+                setGlobalFilter(e.target.value);
+                setPageIndex(0);
+              }}
               placeholder="Search..."
               className="h-9 w-40"
             />
@@ -616,6 +698,19 @@ export function DataSourcesPanel() {
                       <Loader2 className="mx-auto h-5 w-5 animate-spin text-brand-teal-500" />
                     </TableCell>
                   </TableRow>
+                ) : seriesQuery.isError ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-32 text-center text-sm">
+                      <div className="space-y-2">
+                        <div className="text-muted-foreground">
+                          {(seriesQuery.error as Error)?.message ?? 'Failed to load time series.'}
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => void seriesQuery.refetch()}>
+                          Retry
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ) : table.getRowModel().rows.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
@@ -652,25 +747,25 @@ export function DataSourcesPanel() {
             </Table>
           </div>
 
-          {table.getFilteredRowModel().rows.length > 0 && (
+          {totalCount > 0 && (
             <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
               <div className="text-xs text-muted-foreground">
-                {table.getFilteredRowModel().rows.length} series
+                {totalCount} series • Page {pageIndex + 1} of {totalPages}
               </div>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => setPageIndex((v) => Math.max(0, v - 1))}
+                  disabled={pageIndex === 0}
                 >
                   Previous
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
+                  onClick={() => setPageIndex((v) => Math.min(totalPages - 1, v + 1))}
+                  disabled={pageIndex + 1 >= totalPages}
                 >
                   Next
                 </Button>
