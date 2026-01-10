@@ -4,7 +4,7 @@ import Link from 'next/link';
 import React, { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { Loader2, Play, RefreshCw, TrendingUp } from 'lucide-react';
+import { Download, Loader2, Play, RefreshCw, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -19,9 +19,10 @@ import {
 import { useState } from 'react';
 
 import { fetchJson } from '@/lib/api/client';
-import type { ForecastDetail, ForecastStatus, ProphetOutput } from '@/types/kairos';
+import { withAppBasePath } from '@/lib/base-path';
+import type { ForecastDetail, ForecastOutput, ForecastOutputPoint, ForecastStatus } from '@/types/kairos';
 import { Badge, StatusBadge } from '@/components/ui/badge';
-import { SkeletonCard, SkeletonTable } from '@/components/ui/skeleton';
+import { SkeletonCard } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -50,13 +51,33 @@ type ForecastPointRow = {
   isFuture: boolean | null;
 };
 
-function isProphetOutput(value: unknown): value is ProphetOutput {
+function isForecastOutputPoint(value: unknown): value is ForecastOutputPoint {
   if (!value || typeof value !== 'object') return false;
   const rec = value as Record<string, unknown>;
-  if (rec.model !== 'PROPHET') return false;
-  return Array.isArray(rec.points);
+  return (
+    typeof rec.t === 'string' &&
+    typeof rec.yhat === 'number' &&
+    (rec.yhatLower === null || typeof rec.yhatLower === 'number') &&
+    (rec.yhatUpper === null || typeof rec.yhatUpper === 'number') &&
+    typeof rec.isFuture === 'boolean'
+  );
 }
 
+function parseForecastOutput(value: unknown): ForecastOutput | null {
+  if (!value || typeof value !== 'object') return null;
+  const rec = value as Record<string, unknown>;
+
+  if (!Array.isArray(rec.points) || rec.points.length === 0) return null;
+
+  const points = rec.points.filter(isForecastOutputPoint);
+  if (points.length === 0) return null;
+
+  return { ...(rec as ForecastOutput), points };
+}
+
+function formatIsoDate(value: string) {
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
 export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -65,6 +86,11 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const forecastQuery = useQuery({
     queryKey: FORECAST_DETAIL_KEY(forecastId),
     queryFn: async () => fetchJson<ForecastDetailResponse>(`/api/v1/forecasts/${forecastId}`),
+    refetchInterval: (query) => {
+      const data = query.state.data as ForecastDetailResponse | undefined;
+      return data?.forecast?.status === 'RUNNING' ? 2000 : false;
+    },
+    refetchIntervalInBackground: true,
   });
 
   const runMutation = useMutation({
@@ -76,6 +102,8 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
       const runStatus = String(data.run.status).toUpperCase();
       if (runStatus === 'FAILED') {
         toast.error('Forecast run failed', { description: data.run.errorMessage ?? undefined });
+      } else if (runStatus === 'RUNNING') {
+        toast.success('Forecast run started');
       } else {
         toast.success('Forecast run complete');
       }
@@ -94,38 +122,47 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const forecast = forecastQuery.data?.forecast ?? null;
   const latestRun = forecast?.latestRun ?? null;
   const output = latestRun?.output;
+  const outputParsed = useMemo(() => parseForecastOutput(output), [output]);
 
   const rows = useMemo<ForecastPointRow[]>(() => {
     if (!forecast) return [];
 
     const actualMap = new Map<string, number>();
     for (const point of forecast.points) {
-      const iso = new Date(point.t).toISOString();
-      actualMap.set(iso, point.value);
+      actualMap.set(point.t, point.value);
     }
 
-    if (!isProphetOutput(output)) {
-      return forecast.points.map((point) => ({
-        t: point.t,
-        actual: point.value,
-        yhat: null,
-        yhatLower: null,
-        yhatUpper: null,
-        isFuture: null,
-      }));
+    const outputMap = new Map<string, ForecastOutputPoint>();
+    if (outputParsed) {
+      for (const point of outputParsed.points) {
+        outputMap.set(point.t, point);
+      }
     }
 
-    return output.points
-      .map((p) => ({
-        t: p.t,
-        actual: actualMap.get(p.t) ?? null,
-        yhat: p.yhat,
-        yhatLower: p.yhatLower,
-        yhatUpper: p.yhatUpper,
-        isFuture: p.isFuture,
-      }))
-      .sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
-  }, [forecast, output]);
+    const timestamps = new Set<string>();
+    for (const point of forecast.points) {
+      timestamps.add(point.t);
+    }
+    for (const point of outputMap.values()) {
+      timestamps.add(point.t);
+    }
+
+    return Array.from(timestamps)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+      .map((t) => {
+        const predicted = outputMap.get(t) ?? null;
+        const actual = actualMap.get(t) ?? null;
+
+        return {
+          t,
+          actual,
+          yhat: predicted?.yhat ?? null,
+          yhatLower: predicted?.yhatLower ?? null,
+          yhatUpper: predicted?.yhatUpper ?? null,
+          isFuture: predicted?.isFuture ?? (actual !== null ? false : null),
+        };
+      });
+  }, [forecast, outputParsed]);
 
   const columns = useMemo<ColumnDef<ForecastPointRow>[]>(
     () => [
@@ -134,7 +171,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         header: 'Date',
         cell: ({ row }) => (
           <span className="text-xs text-muted-foreground tabular-nums">
-            {new Date(row.original.t).toLocaleDateString()}
+            {formatIsoDate(row.original.t)}
           </span>
         ),
       },
@@ -243,7 +280,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
       ? formatDistanceToNowStrict(runDate, { addSuffix: true })
       : null;
 
-  const outputMeta = isProphetOutput(output) ? output.meta : null;
+  const outputMeta = outputParsed?.meta ?? null;
 
   return (
     <div className="space-y-8 animate-in">
@@ -267,6 +304,15 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href="/forecasts">Back</Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <a
+              href={withAppBasePath(`/api/v1/forecasts/${encodeURIComponent(forecast.id)}/export`)}
+              download
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              CSV
+            </a>
           </Button>
           <Button
             onClick={() => void runMutation.mutateAsync()}
@@ -330,9 +376,20 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                   </div>
                 ) : null}
                 {outputMeta ? (
-                  <div className="text-xs text-muted-foreground">
-                    Prophet meta: horizon {outputMeta.horizon}, history {outputMeta.historyCount}
-                    {outputMeta.intervalLevel ? `, interval ${(outputMeta.intervalLevel * 100).toFixed(0)}%` : ''}
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <div>
+                      Model meta: horizon {outputMeta.horizon}, history {outputMeta.historyCount}
+                      {outputMeta.intervalLevel ? `, interval ${(outputMeta.intervalLevel * 100).toFixed(0)}%` : ''}
+                    </div>
+                    {outputMeta.metrics?.sampleCount ? (
+                      <div>
+                        Metrics (history): MAE {outputMeta.metrics.mae?.toFixed(4) ?? '—'}, RMSE{' '}
+                        {outputMeta.metrics.rmse?.toFixed(4) ?? '—'}
+                        {outputMeta.metrics.mape !== null && outputMeta.metrics.mape !== undefined
+                          ? `, MAPE ${(outputMeta.metrics.mape * 100).toFixed(2)}%`
+                          : ''}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </>
@@ -349,7 +406,11 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
           <CardHeader>
             <CardTitle className="text-base">Forecast Visualization</CardTitle>
             <CardDescription>
-              Time series with Prophet predictions and {outputMeta?.intervalLevel ? `${(outputMeta.intervalLevel * 100).toFixed(0)}%` : '80%'} confidence interval.
+              Time series with model predictions and{' '}
+              {outputMeta?.intervalLevel
+                ? `${(outputMeta.intervalLevel * 100).toFixed(0)}% prediction interval`
+                : 'no prediction interval'}
+              .
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -367,7 +428,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
           <div className="space-y-1">
             <CardTitle className="text-base">Forecast Output</CardTitle>
             <CardDescription>
-              Combined actuals and Prophet predictions (including historical fit + future horizon).
+              Combined actuals and model predictions (including historical fit + future horizon when available).
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

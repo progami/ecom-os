@@ -4,13 +4,18 @@ packages:
   - packages/*
 
 onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
   - '@scarf/scarf'
+  - '@swc/core'
   - '@tree-sitter-grammars/tree-sitter-yaml'
   - core-js
   - core-js-pure
   - esbuild
   - msgpackr-extract
+  - prisma
   - puppeteer
+  - sharp
   - tree-sitter
   - tree-sitter-json
   - unrs-resolver

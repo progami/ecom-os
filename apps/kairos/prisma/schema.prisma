@@ -48,6 +48,7 @@ model Forecast {
   name           String
   model          ForecastModel
   horizon        Int
+  config         Json?
   status         ForecastStatus @default(DRAFT)
   lastRunAt      DateTime?
 
@@ -93,6 +94,7 @@ enum TimeSeriesGranularity {
 
 enum ForecastModel {
   PROPHET
+  ETS
 }
 
 enum ForecastStatus {
@@ -103,6 +105,7 @@ enum ForecastStatus {
 }
 
 enum ForecastRunStatus {
+  RUNNING
   SUCCESS
   FAILED
 }
