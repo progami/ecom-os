@@ -278,9 +278,7 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
 	                    const cardClassName = isDisabled
 	                      ? `${styles.card} ${styles.cardDisabled}`
 	                      : styles.card
-	                    const iconBoxClassName = app.id === 'wms'
-	                      ? `${styles.iconBox} ${styles.iconBoxTalos}`
-	                      : styles.iconBox
+	                    const iconBoxClassName = styles.iconBox
 
                     const linkProps = isDisabled
                       ? {}
