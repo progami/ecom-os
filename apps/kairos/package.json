@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint app components lib",
-    "type-check": "tsc --noEmit",
+    "type-check": "prisma generate --schema prisma/schema.prisma && tsc --noEmit",
     "format": "prettier --check \"{app,components,lib,styles}/**/*.{ts,tsx,mdx}\"",
     "format:write": "prettier --write \"{app,components,lib,styles}/**/*.{ts,tsx,mdx}\"",
     "test": "vitest run",

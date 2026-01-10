@@ -14,7 +14,7 @@ export type TimeSeriesListItem = {
   updatedAt: string;
 };
 
-export type ForecastModel = 'PROPHET';
+export type ForecastModel = 'PROPHET' | 'ETS';
 
 export type ForecastStatus = 'DRAFT' | 'RUNNING' | 'READY' | 'FAILED';
 
@@ -33,9 +33,9 @@ export type ForecastListItem = {
   >;
 };
 
-export type ForecastRunStatus = 'SUCCESS' | 'FAILED';
+export type ForecastRunStatus = 'RUNNING' | 'SUCCESS' | 'FAILED';
 
-export type ProphetOutputPoint = {
+export type ForecastOutputPoint = {
   t: string;
   yhat: number;
   yhatLower: number | null;
@@ -43,8 +43,15 @@ export type ProphetOutputPoint = {
   isFuture: boolean;
 };
 
-export type ProphetOutput = {
-  model: 'PROPHET';
+export type ForecastOutputMetrics = {
+  sampleCount: number;
+  mae: number | null;
+  rmse: number | null;
+  mape: number | null;
+};
+
+export type ForecastOutput = {
+  model: ForecastModel;
   series: {
     id: string;
     source: TimeSeriesSource;
@@ -53,19 +60,43 @@ export type ProphetOutput = {
     granularity: TimeSeriesGranularity;
   };
   generatedAt: string;
-  points: ProphetOutputPoint[];
+  points: ForecastOutputPoint[];
   meta: {
     horizon: number;
     historyCount: number;
     intervalLevel: number | null;
+    metrics?: ForecastOutputMetrics;
   };
 };
+
+export type ProphetOutput = ForecastOutput & { model: 'PROPHET' };
+export type EtsOutput = ForecastOutput & { model: 'ETS' };
+
+export type SeasonalityToggle = 'auto' | 'on' | 'off';
+
+export type ProphetForecastConfig = {
+  intervalWidth?: number;
+  uncertaintySamples?: number;
+  seasonalityMode?: 'additive' | 'multiplicative';
+  yearlySeasonality?: SeasonalityToggle;
+  weeklySeasonality?: SeasonalityToggle;
+  dailySeasonality?: SeasonalityToggle;
+};
+
+export type EtsForecastConfig = {
+  seasonLength?: number;
+  spec?: string;
+  intervalLevel?: number | null;
+};
+
+export type ForecastConfig = ProphetForecastConfig | EtsForecastConfig;
 
 export type ForecastDetail = {
   id: string;
   name: string;
   model: ForecastModel;
   horizon: number;
+  config: ForecastConfig | null;
   status: ForecastStatus;
   lastRunAt: string | null;
   createdAt: string;
@@ -89,4 +120,3 @@ export type ForecastDetail = {
     output: unknown;
   } | null;
 };
-
