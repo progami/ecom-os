@@ -34,7 +34,7 @@ const DEFAULT_ATLAS_SUPER_ADMINS = new Set(['jarrar@targonglobal.com'])
 
 function atlasSuperAdminEmailSet() {
   const configured = parseEmailSet(process.env.ATLAS_SUPER_ADMIN_EMAILS)
-  return configured.size > 0 ? configured : DEFAULT_ATLAS_SUPER_ADMINS
+  return new Set([...DEFAULT_ATLAS_SUPER_ADMINS, ...configured])
 }
 
 function splitNameFromSession(sessionName: string | undefined, email: string): { firstName: string; lastName: string } {
