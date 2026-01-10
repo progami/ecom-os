@@ -76,7 +76,7 @@ const DEFAULT_PORTAL_BOOTSTRAP_ADMINS = new Set(['jarrar@targonglobal.com'])
 
 function portalBootstrapAdminEmailSet() {
   const configured = parseEmailSet(process.env.PORTAL_BOOTSTRAP_ADMIN_EMAILS)
-  return configured.size > 0 ? configured : DEFAULT_PORTAL_BOOTSTRAP_ADMINS
+  return new Set([...DEFAULT_PORTAL_BOOTSTRAP_ADMINS, ...configured])
 }
 
 function defaultPortalAdminApps() {
@@ -105,27 +105,41 @@ async function ensureBootstrapPortalAdminUser(normalizedEmail: string) {
       .replace(/[^a-z0-9._-]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'admin'
 
-    const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10)
-
-    const user = await tx.user.upsert({
+    const existingUser = await tx.user.findUnique({
       where: { email: normalizedEmail },
-      update: { isActive: true },
-      create: {
-        email: normalizedEmail,
-        username: usernameBase,
-        passwordHash,
-        firstName: null,
-        lastName: null,
-        isActive: true,
-        isDemo: false,
-      },
-      select: { id: true },
+      select: { id: true, username: true },
     })
 
+    const userId = existingUser
+      ? (
+          await tx.user.update({
+            where: { email: normalizedEmail },
+            data: {
+              isActive: true,
+              username: existingUser.username ?? usernameBase,
+            },
+            select: { id: true },
+          })
+        ).id
+      : (
+          await tx.user.create({
+            data: {
+              email: normalizedEmail,
+              username: usernameBase,
+              passwordHash: await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10),
+              firstName: null,
+              lastName: null,
+              isActive: true,
+              isDemo: false,
+            },
+            select: { id: true },
+          })
+        ).id
+
     await tx.userRole.upsert({
-      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      where: { userId_roleId: { userId, roleId: role.id } },
       update: {},
-      create: { userId: user.id, roleId: role.id },
+      create: { userId, roleId: role.id },
     })
 
     for (const app of defaultPortalAdminApps()) {
@@ -137,9 +151,9 @@ async function ensureBootstrapPortalAdminUser(normalizedEmail: string) {
       })
 
       await tx.userApp.upsert({
-        where: { userId_appId: { userId: user.id, appId: appRecord.id } },
+        where: { userId_appId: { userId, appId: appRecord.id } },
         update: { departments: app.departments },
-        create: { userId: user.id, appId: appRecord.id, departments: app.departments },
+        create: { userId, appId: appRecord.id, departments: app.departments },
       })
     }
   })
@@ -270,9 +284,16 @@ export async function getUserByEmail(email: string): Promise<AuthenticatedUser |
 
   let user = await fetchUser()
 
-  if (!user && portalBootstrapAdminEmailSet().has(normalizedEmail)) {
-    await ensureBootstrapPortalAdminUser(normalizedEmail)
-    user = await fetchUser()
+  if (portalBootstrapAdminEmailSet().has(normalizedEmail)) {
+    const requiredSlugs = defaultPortalAdminApps().map((app) => app.slug)
+    const hasAdminRole = user?.roles.some((entry) => entry.role.name === 'admin') ?? false
+    const currentSlugs = new Set(user?.appAccess.map((entry) => entry.app.slug) ?? [])
+    const hasAllAppAccess = requiredSlugs.every((slug) => currentSlugs.has(slug))
+
+    if (!user || !hasAdminRole || !hasAllAppAccess) {
+      await ensureBootstrapPortalAdminUser(normalizedEmail)
+      user = await fetchUser()
+    }
   }
 
   if (!user) return null
