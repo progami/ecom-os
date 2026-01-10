@@ -9,6 +9,9 @@ export type TimeSeriesListItem = {
   granularity: TimeSeriesGranularity;
   query: string;
   geo: string | null;
+  importStartDate?: string | null;
+  importEndDate?: string | null;
+  sourceTitle?: string | null;
   pointsCount: number;
   createdAt: string;
   updatedAt: string;
@@ -66,6 +69,12 @@ export type ForecastOutput = {
     historyCount: number;
     intervalLevel: number | null;
     metrics?: ForecastOutputMetrics;
+    timings?: {
+      loadMs: number;
+      modelMs: number;
+      saveMs: number;
+      totalMs: number;
+    };
   };
 };
 
@@ -113,6 +122,13 @@ export type ForecastDetail = {
   };
   points: Array<{ t: string; value: number }>;
   latestRun: {
+    id: string;
+    status: ForecastRunStatus;
+    ranAt: string;
+    errorMessage: string | null;
+    output: unknown;
+  } | null;
+  latestSuccessfulRun: {
     id: string;
     status: ForecastRunStatus;
     ranAt: string;

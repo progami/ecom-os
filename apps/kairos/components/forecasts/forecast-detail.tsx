@@ -4,7 +4,7 @@ import Link from 'next/link';
 import React, { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { Download, Loader2, Play, RefreshCw, TrendingUp } from 'lucide-react';
+import { Download, Loader2, Play, RefreshCw, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -42,6 +42,11 @@ type RunForecastResponse = {
   run: { id: string; status: string; ranAt: string; output: unknown; errorMessage: string | null };
 };
 
+type CancelForecastResponse = {
+  forecast: { id: string; status: ForecastStatus; lastRunAt: string | null };
+  run: { id: string; status: string } | null;
+};
+
 type ForecastPointRow = {
   t: string;
   actual: number | null;
@@ -77,6 +82,12 @@ function parseForecastOutput(value: unknown): ForecastOutput | null {
 
 function formatIsoDate(value: string) {
   return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
+function formatDurationMs(ms: number) {
+  if (!Number.isFinite(ms)) return '—';
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.round(ms)}ms`;
 }
 export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const queryClient = useQueryClient();
@@ -119,10 +130,31 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: async () =>
+      fetchJson<CancelForecastResponse>(`/api/v1/forecasts/${forecastId}/cancel`, {
+        method: 'POST',
+      }),
+    onSuccess: async () => {
+      toast.success('Forecast run cancelled');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: FORECAST_DETAIL_KEY(forecastId) }),
+        queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error('Cancel failed', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
   const forecast = forecastQuery.data?.forecast ?? null;
   const latestRun = forecast?.latestRun ?? null;
-  const output = latestRun?.output;
-  const outputParsed = useMemo(() => parseForecastOutput(output), [output]);
+  const latestSuccessfulRun = forecast?.latestSuccessfulRun ?? null;
+  const chartOutput =
+    latestRun?.status === 'SUCCESS' ? latestRun.output : latestSuccessfulRun?.output ?? null;
+  const outputParsed = useMemo(() => parseForecastOutput(chartOutput), [chartOutput]);
 
   const rows = useMemo<ForecastPointRow[]>(() => {
     if (!forecast) return [];
@@ -326,6 +358,21 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
             )}
             Run now
           </Button>
+          {forecast.status === 'RUNNING' ? (
+            <Button
+              variant="destructive"
+              onClick={() => void cancelMutation.mutateAsync()}
+              disabled={cancelMutation.isPending}
+              className="gap-2"
+            >
+              {cancelMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <X className="h-4 w-4" aria-hidden />
+              )}
+              Cancel
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -381,6 +428,13 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                       Model meta: horizon {outputMeta.horizon}, history {outputMeta.historyCount}
                       {outputMeta.intervalLevel ? `, interval ${(outputMeta.intervalLevel * 100).toFixed(0)}%` : ''}
                     </div>
+                    {outputMeta.timings ? (
+                      <div>
+                        Timings: load {formatDurationMs(outputMeta.timings.loadMs)}, model{' '}
+                        {formatDurationMs(outputMeta.timings.modelMs)}, save {formatDurationMs(outputMeta.timings.saveMs)}, total{' '}
+                        {formatDurationMs(outputMeta.timings.totalMs)}
+                      </div>
+                    ) : null}
                     {outputMeta.metrics?.sampleCount ? (
                       <div>
                         Metrics (history): MAE {outputMeta.metrics.mae?.toFixed(4) ?? '—'}, RMSE{' '}

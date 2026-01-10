@@ -16,6 +16,15 @@ const payloadSchema = z.object({
   force: z.coerce.boolean().optional().default(false),
 });
 
+function readStringPath(meta: unknown, path: string[]): string | null {
+  let current: unknown = meta;
+  for (const key of path) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return null;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return typeof current === 'string' ? current : null;
+}
+
 function parseDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -69,6 +78,7 @@ export const POST = withKairosAuth(async (request, session) => {
         granularity: true,
         query: true,
         geo: true,
+        sourceMeta: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { points: true } },
@@ -84,9 +94,18 @@ export const POST = withKairosAuth(async (request, session) => {
           granularity: cached.granularity,
           query: cached.query,
           geo: cached.geo,
+          sourceTitle: readStringPath(cached.sourceMeta, ['result', 'title']),
+          importStartDate: readStringPath(cached.sourceMeta, ['request', 'startDate']),
+          importEndDate: readStringPath(cached.sourceMeta, ['request', 'endDate']),
           pointsCount: cached._count.points,
           createdAt: cached.createdAt.toISOString(),
           updatedAt: cached.updatedAt.toISOString(),
+        },
+        import: {
+          mode: 'CACHED',
+          insertedPoints: 0,
+          deletedPoints: 0,
+          totalPoints: cached._count.points,
         },
       });
     }
@@ -103,16 +122,17 @@ export const POST = withKairosAuth(async (request, session) => {
       cached?.name ??
       `Google Trends: ${payload.keyword}${payload.geo ? ` (${payload.geo})` : ''}`;
 
-    const sourceMetaJson = JSON.parse(JSON.stringify(result.sourceMeta)) as Prisma.InputJsonValue;
+    const sourceMetaBase = JSON.parse(JSON.stringify(result.sourceMeta)) as Record<string, unknown>;
 
-    const { series, pointsCount } = await prisma.$transaction(async (tx) => {
+    const { series, pointsCount, insertedPoints, deletedPoints, importMode, sourceMetaFinal } =
+      await prisma.$transaction(async (tx) => {
+      const importedAt = new Date().toISOString();
       const series = cached
         ? await tx.timeSeries.update({
             where: { id: cached.id },
             data: {
               name,
               granularity: result.granularity,
-              sourceMeta: sourceMetaJson,
             },
             select: {
               id: true,
@@ -121,6 +141,7 @@ export const POST = withKairosAuth(async (request, session) => {
               granularity: true,
               query: true,
               geo: true,
+              sourceMeta: true,
               createdAt: true,
               updatedAt: true,
             },
@@ -132,7 +153,7 @@ export const POST = withKairosAuth(async (request, session) => {
               granularity: result.granularity,
               query: payload.keyword,
               geo: payload.geo || null,
-              sourceMeta: sourceMetaJson,
+              sourceMeta: sourceMetaBase as Prisma.InputJsonValue,
               createdById: actor.id,
               createdByEmail: actor.email,
             },
@@ -143,25 +164,56 @@ export const POST = withKairosAuth(async (request, session) => {
               granularity: true,
               query: true,
               geo: true,
+              sourceMeta: true,
               createdAt: true,
               updatedAt: true,
             },
           });
 
-      await tx.timeSeriesPoint.createMany({
+      const shouldReplace = Boolean(cached) && payload.force;
+      const deleted = shouldReplace
+        ? await tx.timeSeriesPoint.deleteMany({ where: { seriesId: series.id } })
+        : { count: 0 };
+
+      const created = await tx.timeSeriesPoint.createMany({
         data: result.points.map((point) => ({
           seriesId: series.id,
           t: point.t,
           value: point.value,
         })),
-        skipDuplicates: true,
+        skipDuplicates: !shouldReplace,
       });
 
       const pointsCount = await tx.timeSeriesPoint.count({
         where: { seriesId: series.id },
       });
 
-      return { series, pointsCount };
+      const importMode = cached ? (shouldReplace ? 'REPLACE' : 'MERGE') : 'CREATE';
+
+      const sourceMetaFinal = {
+        ...sourceMetaBase,
+        import: {
+          mode: importMode,
+          insertedPoints: created.count,
+          deletedPoints: deleted.count,
+          totalPoints: pointsCount,
+          importedAt,
+        },
+      } satisfies Record<string, unknown>;
+
+      await tx.timeSeries.update({
+        where: { id: series.id },
+        data: { sourceMeta: sourceMetaFinal as Prisma.InputJsonValue },
+      });
+
+      return {
+        series,
+        pointsCount,
+        insertedPoints: created.count,
+        deletedPoints: deleted.count,
+        importMode,
+        sourceMetaFinal,
+      };
     });
 
     return NextResponse.json({
@@ -172,9 +224,18 @@ export const POST = withKairosAuth(async (request, session) => {
         granularity: series.granularity,
         query: series.query,
         geo: series.geo,
+        sourceTitle: readStringPath(sourceMetaFinal, ['result', 'title']),
+        importStartDate: readStringPath(sourceMetaFinal, ['request', 'startDate']),
+        importEndDate: readStringPath(sourceMetaFinal, ['request', 'endDate']),
         pointsCount,
         createdAt: series.createdAt.toISOString(),
         updatedAt: series.updatedAt.toISOString(),
+      },
+      import: {
+        mode: importMode,
+        insertedPoints,
+        deletedPoints,
+        totalPoints: pointsCount,
       },
     });
   } catch (error) {
