@@ -51,7 +51,8 @@ export async function middleware(request: NextRequest) {
   if (
     isPublicRoute ||
     normalizedPath.startsWith('/_next') ||
-    normalizedPath === '/favicon.ico'
+    normalizedPath === '/favicon.ico' ||
+    normalizedPath === '/favicon.svg'
   ) {
     return NextResponse.next()
   }
