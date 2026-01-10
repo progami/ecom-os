@@ -46,6 +46,23 @@ jobs:
             fi
           fi
 
+          # Fallback: GitHub's commit→PR association can miss merge commits created by the merge API,
+          # especially when custom merge commit messages are used. In that case, locate a merged PR whose
+          # `merge_commit_sha` matches the pushed SHA.
+          pr_search_url="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls?state=closed&sort=updated&direction=desc&per_page=50"
+          recent_prs_json="$(curl -fsSL \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "$pr_search_url" || true)"
+
+          if [[ -n "$recent_prs_json" ]]; then
+            merged_pr_count="$(echo "$recent_prs_json" | jq --arg sha "${GITHUB_SHA}" '[.[] | select(.merge_commit_sha == $sha and .merged_at != null)] | length')"
+            if [[ "${merged_pr_count}" -gt 0 ]]; then
+              echo "Merged PR detected by merge_commit_sha for ${GITHUB_SHA}; allowed."
+              exit 0
+            fi
+          fi
+
           message="$(jq -r '.head_commit.message // ""' "$GITHUB_EVENT_PATH")"
 
           # Allow merge commits (regular merge)
