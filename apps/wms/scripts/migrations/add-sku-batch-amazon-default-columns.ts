@@ -77,6 +77,26 @@ Options:
 `)
 }
 
+async function columnExists(
+  prisma: Awaited<ReturnType<typeof getTenantPrismaClient>>,
+  tableName: string,
+  columnName: string
+): Promise<boolean> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ exists: boolean }>>(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = $1
+        AND column_name = $2
+    ) AS exists`,
+    tableName,
+    columnName
+  )
+
+  return rows[0]?.exists ?? false
+}
+
 async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
   const prisma = await getTenantPrismaClient(tenant)
 
@@ -96,18 +116,45 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
   }
 
   console.log(`[${tenant}] Backfilling sku_batches Amazon defaults from skus`)
-  const backfillSql = `
-    UPDATE sku_batches b
-    SET
-      amazon_size_tier = COALESCE(b.amazon_size_tier, s.amazon_size_tier),
-      amazon_fba_fulfillment_fee = COALESCE(b.amazon_fba_fulfillment_fee, s.amazon_fba_fulfillment_fee),
-      amazon_reference_weight_kg = COALESCE(b.amazon_reference_weight_kg, b.unit_weight_kg, s.unit_weight_kg)
-    FROM skus s
-    WHERE b.sku_id = s.id
-  `
+
+  const [hasSkuAmazonSizeTier, hasSkuAmazonFbaFee, hasSkuUnitWeight] = options.dryRun
+    ? [true, true, true]
+    : await Promise.all([
+        columnExists(prisma, 'skus', 'amazon_size_tier'),
+        columnExists(prisma, 'skus', 'amazon_fba_fulfillment_fee'),
+        columnExists(prisma, 'skus', 'unit_weight_kg'),
+      ])
+
+  const setClauses = [
+    hasSkuAmazonSizeTier
+      ? `amazon_size_tier = COALESCE(b.amazon_size_tier, s.amazon_size_tier)`
+      : null,
+    hasSkuAmazonFbaFee
+      ? `amazon_fba_fulfillment_fee = COALESCE(b.amazon_fba_fulfillment_fee, s.amazon_fba_fulfillment_fee)`
+      : null,
+    `amazon_reference_weight_kg = COALESCE(b.amazon_reference_weight_kg, b.unit_weight_kg${hasSkuUnitWeight ? ', s.unit_weight_kg' : ''})`,
+  ].filter((clause): clause is string => Boolean(clause))
+
+  const needsSkuJoin = hasSkuAmazonSizeTier || hasSkuAmazonFbaFee || hasSkuUnitWeight
+
+  const backfillSql = needsSkuJoin
+    ? `
+      UPDATE sku_batches b
+      SET
+        ${setClauses.join(',\n        ')}
+      FROM skus s
+      WHERE b.sku_id = s.id
+    `
+    : `
+      UPDATE sku_batches b
+      SET
+        ${setClauses.join(',\n        ')}
+    `
 
   if (options.dryRun) {
-    console.log(`[${tenant}] DRY RUN: backfill sku_batches Amazon defaults from skus`)
+    console.log(
+      `[${tenant}] DRY RUN: backfill sku_batches Amazon defaults (sku join=${needsSkuJoin})`
+    )
     return
   }
 
@@ -132,4 +179,3 @@ main().catch(error => {
   console.error(error)
   process.exitCode = 1
 })
-
