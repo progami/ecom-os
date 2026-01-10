@@ -22,10 +22,24 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
     accessError = `You don't have access to ${appName}. Contact an administrator if you need access.`
   }
 
-  const rolesClaim = (session as any).roles as Record<string, { depts?: string[] }> | undefined
-  const normalizedRolesClaim = rolesClaim && 'chronos' in rolesClaim && !('kairos' in rolesClaim)
-    ? { ...rolesClaim, kairos: rolesClaim.chronos }
-    : rolesClaim
+  const rolesClaim = (session as any).roles as Record<string, any> | undefined
+  const normalizedRolesClaim = (() => {
+    if (!rolesClaim) return rolesClaim
+
+    let normalized = rolesClaim
+
+    // Backwards-compat: Chronos was renamed to Kairos.
+    if ('chronos' in normalized && !('kairos' in normalized)) {
+      normalized = { ...normalized, kairos: (normalized as any).chronos }
+    }
+
+    // Backwards-compat: HRMS was renamed to Atlas.
+    if ('hrms' in normalized && !('atlas' in normalized)) {
+      normalized = { ...normalized, atlas: (normalized as any).hrms }
+    }
+
+    return normalized
+  })()
   const allowedAppIds = normalizedRolesClaim ? Object.keys(normalizedRolesClaim) : []
   const apps = filterAppsForUser(allowedAppIds)
 

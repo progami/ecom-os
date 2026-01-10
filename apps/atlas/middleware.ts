@@ -70,6 +70,7 @@ export async function middleware(request: NextRequest) {
     const cookieNames = Array.from(new Set([
       ...getCandidateSessionCookieNames('ecomos'),
       ...getCandidateSessionCookieNames('atlas'),
+      ...getCandidateSessionCookieNames('hrms'),
     ]))
     const cookieHeader = request.headers.get('cookie')
     const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
@@ -82,7 +83,9 @@ export async function middleware(request: NextRequest) {
     })
 
     const hasSession = !!decoded
-    const atlasEntitlement = decoded ? getAppEntitlement(decoded.roles, 'atlas') : undefined
+    const atlasEntitlement = decoded
+      ? getAppEntitlement(decoded.roles, 'atlas') ?? getAppEntitlement(decoded.roles, 'hrms')
+      : undefined
     const hasAccess = hasSession && !!atlasEntitlement
 
     if (!hasAccess) {
