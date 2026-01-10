@@ -2281,7 +2281,7 @@ export function SalesPlanningGrid({
                       key={column.id}
                       rowSpan={2}
                       className={cn(
-                        'sticky top-0 z-40 h-10 whitespace-nowrap border-b border-r bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 align-middle dark:text-cyan-300/80',
+                        'sticky top-0 z-40 h-10 whitespace-nowrap border-b border-r bg-muted px-2 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 align-middle dark:text-cyan-300/80',
                         meta?.sticky && 'z-50',
                       )}
                       style={{
@@ -2298,7 +2298,7 @@ export function SalesPlanningGrid({
                   <TableHead
                     key={product.id}
                     colSpan={columnIds.length}
-                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b bg-muted px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    className="sticky top-0 z-20 h-10 whitespace-nowrap border-b bg-muted px-2 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                   >
                     {renderProductGroupHeader(product)}
                   </TableHead>
@@ -2314,7 +2314,7 @@ export function SalesPlanningGrid({
                       <TableHead
                         key={`${product.id}:${columnId}`}
                         className={cn(
-                          'sticky top-10 z-20 h-10 whitespace-nowrap border-b border-r px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80',
+                          'sticky top-10 z-20 h-10 whitespace-nowrap border-b border-r px-2 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80',
                           isInputColumn ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
                         )}
                       >
@@ -2390,7 +2390,7 @@ export function SalesPlanningGrid({
                         {presentation.badge ? (
                           <Badge
                             variant="secondary"
-                            className="h-5 shrink-0 px-1.5 text-[10px] font-semibold leading-none"
+                            className="h-5 shrink-0 px-1.5 text-2xs font-semibold leading-none"
                           >
                             {presentation.badge}
                           </Badge>
