@@ -300,7 +300,7 @@ export function GoogleTrendsPanel() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                      No series imported yet. Click "Import" to add Google Trends data.
+                      No series imported yet. Click Import to add Google Trends data.
                     </TableCell>
                   </TableRow>
                 )}
