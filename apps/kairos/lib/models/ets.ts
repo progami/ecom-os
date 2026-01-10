@@ -1,9 +1,8 @@
 import 'server-only';
 
 import initEts, { AutoETS } from '@bsull/augurs/ets';
-import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import path from 'node:path';
+
+import { withFileUrlFetch } from './wasm';
 
 type ForecastPoint = {
   t: string;
@@ -38,19 +37,11 @@ export type EtsRunResult = {
 
 let initPromise: Promise<void> | null = null;
 
-const require = createRequire(import.meta.url);
-
 async function ensureAugursEtsReady() {
   if (!initPromise) {
-    initPromise = (async () => {
-      const etsWasmPath = path.join(
-        path.dirname(require.resolve('@bsull/augurs/ets')),
-        'ets_bg.wasm',
-      );
-
-      const etsWasm = await readFile(etsWasmPath);
-      await initEts({ module_or_path: etsWasm });
-    })();
+    initPromise = withFileUrlFetch(async () => {
+      await initEts();
+    });
   }
   await initPromise;
 }
@@ -131,4 +122,3 @@ export async function runEtsForecast(args: { ds: number[]; y: number[]; horizon:
     },
   };
 }
-
