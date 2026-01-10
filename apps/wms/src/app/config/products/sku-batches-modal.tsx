@@ -27,6 +27,9 @@ interface BatchRow {
   unitsPerCarton: number | null
   material: string | null
   packagingType: string | null
+  amazonSizeTier: string | null
+  amazonFbaFulfillmentFee: number | string | null
+  amazonReferenceWeightKg: number | string | null
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   unitDimensionsCm: string | null
@@ -50,6 +53,9 @@ interface BatchFormState {
   unitsPerCarton: string
   material: string
   packagingType: PackagingTypeOption
+  amazonSizeTier: string
+  amazonFbaFulfillmentFee: string
+  amazonReferenceWeight: string
   storageCartonsPerPallet: string
   shippingCartonsPerPallet: string
   unitLength: string
@@ -69,6 +75,7 @@ type BatchMeasurementState = {
   unitWidthCm: number | null
   unitHeightCm: number | null
   unitWeightKg: number | null
+  amazonReferenceWeightKg: number | null
   cartonLengthCm: number | null
   cartonWidthCm: number | null
   cartonHeightCm: number | null
@@ -120,6 +127,8 @@ function buildMeasurementState(batch?: BatchRow | null): BatchMeasurementState {
     unitWidthCm: unitTriplet?.widthCm ?? null,
     unitHeightCm: unitTriplet?.heightCm ?? null,
     unitWeightKg: coerceFiniteNumber(batch?.unitWeightKg),
+    amazonReferenceWeightKg:
+      coerceFiniteNumber(batch?.amazonReferenceWeightKg) ?? coerceFiniteNumber(batch?.unitWeightKg),
     cartonLengthCm: cartonTriplet?.lengthCm ?? null,
     cartonWidthCm: cartonTriplet?.widthCm ?? null,
     cartonHeightCm: cartonTriplet?.heightCm ?? null,
@@ -148,6 +157,7 @@ function formatMeasurementFields(
   | 'unitWidth'
   | 'unitHeight'
   | 'unitWeight'
+  | 'amazonReferenceWeight'
   | 'cartonLength'
   | 'cartonWidth'
   | 'cartonHeight'
@@ -158,6 +168,7 @@ function formatMeasurementFields(
     unitWidth: formatDimensionFromCm(measurements.unitWidthCm, unitSystem),
     unitHeight: formatDimensionFromCm(measurements.unitHeightCm, unitSystem),
     unitWeight: formatWeightFromKg(measurements.unitWeightKg, unitSystem),
+    amazonReferenceWeight: formatWeightFromKg(measurements.amazonReferenceWeightKg, unitSystem),
     cartonLength: formatDimensionFromCm(measurements.cartonLengthCm, unitSystem),
     cartonWidth: formatDimensionFromCm(measurements.cartonWidthCm, unitSystem),
     cartonHeight: formatDimensionFromCm(measurements.cartonHeightCm, unitSystem),
@@ -177,6 +188,8 @@ function buildBatchFormState(
     unitsPerCarton: batch?.unitsPerCarton?.toString() ?? '1',
     material: batch?.material ?? '',
     packagingType: normalizePackagingType(batch?.packagingType),
+    amazonSizeTier: batch?.amazonSizeTier ?? '',
+    amazonFbaFulfillmentFee: batch?.amazonFbaFulfillmentFee?.toString?.() ?? '',
     storageCartonsPerPallet:
       batch?.storageCartonsPerPallet?.toString() ?? `${DEFAULT_CARTONS_PER_PALLET}`,
     shippingCartonsPerPallet:
@@ -368,7 +381,7 @@ function SkuBatchesManager({
     | 'cartonWidth'
     | 'cartonHeight'
 
-  type WeightFieldKey = 'unitWeight' | 'cartonWeight'
+  type WeightFieldKey = 'unitWeight' | 'amazonReferenceWeight' | 'cartonWeight'
 
   const dimensionFieldToMeasurementKey: Record<DimensionFieldKey, keyof BatchMeasurementState> = {
     unitLength: 'unitLengthCm',
@@ -381,6 +394,7 @@ function SkuBatchesManager({
 
   const weightFieldToMeasurementKey: Record<WeightFieldKey, keyof BatchMeasurementState> = {
     unitWeight: 'unitWeightKg',
+    amazonReferenceWeight: 'amazonReferenceWeightKg',
     cartonWeight: 'cartonWeightKg',
   }
 
@@ -454,6 +468,23 @@ function SkuBatchesManager({
       return
     }
 
+    const amazonReferenceWeightProvided = Boolean(formState.amazonReferenceWeight.trim())
+    if (amazonReferenceWeightProvided && !parsePositiveNumber(formState.amazonReferenceWeight)) {
+      toast.error('Amazon reference weight must be a positive number')
+      return
+    }
+
+    const amazonFbaFulfillmentFee = formState.amazonFbaFulfillmentFee.trim()
+      ? Number.parseFloat(formState.amazonFbaFulfillmentFee.trim())
+      : null
+    if (
+      amazonFbaFulfillmentFee !== null &&
+      (!Number.isFinite(amazonFbaFulfillmentFee) || amazonFbaFulfillmentFee < 0)
+    ) {
+      toast.error('Amazon FBA fulfillment fee must be a non-negative number')
+      return
+    }
+
     const validateDimensions = (
       dims: { length: string; width: string; height: string },
       label: string
@@ -509,6 +540,13 @@ function SkuBatchesManager({
         return
       }
 
+      const amazonSizeTier = formState.amazonSizeTier.trim()
+        ? formState.amazonSizeTier.trim()
+        : null
+
+      const amazonReferenceWeightKg =
+        roundWeightKg(measurements.amazonReferenceWeightKg) ?? unitWeightKg
+
       const payload = {
         batchCode: formState.batchCode.trim(),
         description: formState.description.trim() ? formState.description.trim() : null,
@@ -516,6 +554,9 @@ function SkuBatchesManager({
         unitsPerCarton,
         material: formState.material.trim() ? formState.material.trim() : null,
         packagingType: formState.packagingType ? formState.packagingType : null,
+        amazonSizeTier,
+        amazonFbaFulfillmentFee,
+        amazonReferenceWeightKg,
         storageCartonsPerPallet,
         shippingCartonsPerPallet,
         unitLengthCm: roundDimensionCm(measurements.unitLengthCm),
@@ -974,6 +1015,63 @@ function SkuBatchesManager({
                       value={formState.cartonWeight}
                       onChange={event => handleWeightChange('cartonWeight', event.target.value)}
                       placeholder="Optional"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 pt-2">
+                    <h4 className="text-sm font-semibold text-slate-900">
+                      Amazon Reference{' '}
+                      <span className="text-slate-400 font-normal">(optional)</span>
+                    </h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Used by Amazon → FBA Fee Discrepancies for this batch.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="amazonSizeTier">Size Tier</Label>
+                    <Input
+                      id="amazonSizeTier"
+                      value={formState.amazonSizeTier}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, amazonSizeTier: event.target.value }))
+                      }
+                      placeholder="e.g. Large Standard"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                    <Input
+                      id="amazonFbaFulfillmentFee"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={formState.amazonFbaFulfillmentFee}
+                      onChange={event =>
+                        setFormState(prev => ({
+                          ...prev,
+                          amazonFbaFulfillmentFee: event.target.value,
+                        }))
+                      }
+                      placeholder="Marketplace currency"
+                    />
+                  </div>
+
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="amazonReferenceWeight">
+                      Amazon Reference Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                    </Label>
+                    <Input
+                      id="amazonReferenceWeight"
+                      type="number"
+                      step="0.001"
+                      min={0.001}
+                      value={formState.amazonReferenceWeight}
+                      onChange={event =>
+                        handleWeightChange('amazonReferenceWeight', event.target.value)
+                      }
+                      placeholder="Defaults to unit weight"
                     />
                   </div>
                 </div>
