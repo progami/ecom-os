@@ -335,7 +335,7 @@ export function SalesPlanningVisual({
                   dataKey="weekLabel"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   interval={3}
                   label={{
                     value: 'Week',
@@ -348,7 +348,7 @@ export function SalesPlanningVisual({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) =>
                     Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()
                   }
@@ -583,7 +583,7 @@ export function SalesPlanningVisual({
                   dataKey="weekLabel"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   interval={3}
                   label={{
                     value: 'Week',
@@ -597,7 +597,7 @@ export function SalesPlanningVisual({
                   yAxisId="sales"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) =>
                     Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()
                   }
@@ -609,7 +609,7 @@ export function SalesPlanningVisual({
                   orientation="right"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) => `${value.toFixed(0)}%`}
                   width={50}
                   domain={[-100, 100]}

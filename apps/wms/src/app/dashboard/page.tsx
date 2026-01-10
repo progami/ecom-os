@@ -16,6 +16,7 @@ import { SectionHeader } from '@/components/dashboard/section-header'
 import { MarketSection } from '@/components/dashboard/market-section'
 import { toast } from 'react-hot-toast'
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import { withBasePath } from '@/lib/utils/base-path'
 
 interface DashboardStats {
  totalInventory: number
@@ -164,14 +165,15 @@ export default function DashboardPage() {
  logPerformance('dashboard_stats_fetch_error', duration)
  setHasError(true)
  
- // Check if it's an authentication error
- if (_error instanceof Error && _error.message.includes('401')) {
- router.push('/WMS/auth/login?callbackUrl=/WMS/dashboard')
- } else {
- toast.error(_error instanceof Error ? _error.message : 'Failed to load dashboard stats')
- }
- } finally {
- setLoadingStats(false)
+	 // Check if it's an authentication error
+	 if (_error instanceof Error && _error.message.includes('401')) {
+	 const callbackUrl = withBasePath('/dashboard')
+	 router.push(withBasePath(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`))
+	 } else {
+	 toast.error(_error instanceof Error ? _error.message : 'Failed to load dashboard stats')
+	 }
+	 } finally {
+	 setLoadingStats(false)
  }
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [selectedTimeRange, timeRanges, logAction, logPerformance, logError])

@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { Download, Loader2, Play, RefreshCw } from 'lucide-react';
+import { Download, Loader2, Play, RefreshCw, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -21,11 +21,13 @@ import { useState } from 'react';
 import { fetchJson } from '@/lib/api/client';
 import { withAppBasePath } from '@/lib/base-path';
 import type { ForecastDetail, ForecastOutput, ForecastOutputPoint, ForecastStatus } from '@/types/kairos';
-import { Badge } from '@/components/ui/badge';
+import { Badge, StatusBadge } from '@/components/ui/badge';
+import { SkeletonCard } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ForecastChart } from '@/components/charts/forecast-chart';
 import { cn } from '@/lib/utils';
 
 const FORECAST_DETAIL_KEY = (forecastId: string) => ['kairos', 'forecast', forecastId] as const;
@@ -73,23 +75,9 @@ function parseForecastOutput(value: unknown): ForecastOutput | null {
   return { ...(rec as ForecastOutput), points };
 }
 
-function statusTone(status: ForecastStatus) {
-  switch (status) {
-    case 'DRAFT':
-      return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400';
-    case 'READY':
-      return 'border-transparent bg-success-100 text-success-700 dark:bg-success-950 dark:text-success-400';
-    case 'RUNNING':
-      return 'border-transparent bg-brand-teal-100 text-brand-teal-700 dark:bg-brand-cyan/15 dark:text-brand-cyan';
-    case 'FAILED':
-      return 'border-transparent bg-danger-100 text-danger-700 dark:bg-danger-950 dark:text-danger-400';
-  }
-}
-
 function formatIsoDate(value: string) {
   return value.length >= 10 ? value.slice(0, 10) : value;
 }
-
 export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const queryClient = useQueryClient();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -253,8 +241,18 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
 
   if (forecastQuery.isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="text-sm text-muted-foreground">Loading forecast…</div>
+      <div className="space-y-8 animate-in">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-3">
+            <div className="h-3 w-24 rounded bg-slate-200 dark:bg-white/10" />
+            <div className="h-8 w-64 rounded bg-slate-200 dark:bg-white/10" />
+            <div className="h-4 w-48 rounded bg-slate-200 dark:bg-white/10" />
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SkeletonCard className="lg:col-span-2" />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }
@@ -293,9 +291,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
             <h1 className="text-h1">{forecast.name}</h1>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{forecast.model}</Badge>
-              <Badge variant="outline" className={cn('capitalize', statusTone(forecast.status))}>
-                {forecast.status.toLowerCase()}
-              </Badge>
+              <StatusBadge status={forecast.status} />
             </div>
           </div>
           <p className="text-body">
@@ -404,6 +400,29 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         </Card>
       </div>
 
+      {/* Forecast Visualization Chart */}
+      {rows.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Forecast Visualization</CardTitle>
+            <CardDescription>
+              Time series with model predictions and{' '}
+              {outputMeta?.intervalLevel
+                ? `${(outputMeta.intervalLevel * 100).toFixed(0)}% prediction interval`
+                : 'no prediction interval'}
+              .
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ForecastChart
+              data={rows}
+              granularity={forecast.series.granularity}
+              intervalLevel={outputMeta?.intervalLevel ?? 0.8}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -454,15 +473,38 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                  table.getRowModel().rows.map((row, index) => {
+                    const isFuture = row.original.isFuture === true;
+                    const prevRow = table.getRowModel().rows[index - 1];
+                    const isFirstFuture = isFuture && prevRow && prevRow.original.isFuture !== true;
+
+                    return (
+                      <React.Fragment key={row.id}>
+                        {isFirstFuture && (
+                          <TableRow key={`divider-${row.id}`} className="bg-slate-50/80 dark:bg-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5">
+                            <TableCell colSpan={columns.length} className="py-2">
+                              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-teal-600 dark:text-brand-cyan">
+                                <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                                Forecast Horizon
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow
+                          key={row.id}
+                          className={cn(
+                            isFuture && 'bg-brand-teal-50/30 dark:bg-brand-cyan/5 border-l-2 border-l-brand-teal-500 dark:border-l-brand-cyan',
+                          )}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">

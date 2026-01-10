@@ -18,8 +18,9 @@ import {
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ForecastListItem, ForecastModel, ForecastStatus, TimeSeriesListItem } from '@/types/kairos';
-import { Badge } from '@/components/ui/badge';
+import type { ForecastListItem, ForecastModel, TimeSeriesListItem } from '@/types/kairos';
+import { StatusBadge } from '@/components/ui/badge';
+import { SkeletonTable } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -27,7 +28,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fetchJson } from '@/lib/api/client';
-import { cn } from '@/lib/utils';
 
 const FORECASTS_QUERY_KEY = ['kairos', 'forecasts'] as const;
 const SERIES_QUERY_KEY = ['kairos', 'time-series'] as const;
@@ -44,19 +44,6 @@ type CreateForecastResponse = {
   forecast: ForecastListItem;
   run?: unknown;
 };
-
-function statusTone(status: ForecastStatus) {
-  switch (status) {
-    case 'DRAFT':
-      return 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400';
-    case 'READY':
-      return 'border-transparent bg-success-100 text-success-700 dark:bg-success-950 dark:text-success-400';
-    case 'RUNNING':
-      return 'border-transparent bg-brand-teal-100 text-brand-teal-700 dark:bg-brand-cyan/15 dark:text-brand-cyan';
-    case 'FAILED':
-      return 'border-transparent bg-danger-100 text-danger-700 dark:bg-danger-950 dark:text-danger-400';
-  }
-}
 
 function parseHorizon(value: string) {
   const horizon = Number(value);
@@ -87,7 +74,6 @@ function parseOptionalInt(value: string) {
   }
   return parsed;
 }
-
 function RunForecastButton({ forecast }: { forecast: ForecastListItem }) {
   const queryClient = useQueryClient();
 
@@ -172,10 +158,9 @@ export function ForecastsTable() {
     queryKey: FORECASTS_QUERY_KEY,
     queryFn: async () => fetchJson<ForecastsResponse>('/api/v1/forecasts'),
     refetchInterval: (query) => {
-      const data = query.state.data as ForecastsResponse | undefined;
-      return data?.forecasts?.some((forecast) => forecast.status === 'RUNNING') ? 2000 : false;
+      const hasRunning = query.state.data?.forecasts?.some((f) => f.status === 'RUNNING');
+      return hasRunning ? 5000 : false;
     },
-    refetchIntervalInBackground: true,
   });
 
   const selectedSeries = useMemo(() => {
@@ -303,11 +288,7 @@ export function ForecastsTable() {
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-          <Badge variant="outline" className={cn('capitalize', statusTone(row.original.status))}>
-            {row.original.status.toLowerCase()}
-          </Badge>
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
         id: 'actions',
@@ -572,11 +553,7 @@ export function ForecastsTable() {
             </TableHeader>
             <TableBody>
               {forecastsQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                    Loading…
-                  </TableCell>
-                </TableRow>
+                <SkeletonTable rows={5} columns={columns.length} />
               ) : table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>

@@ -339,25 +339,25 @@ export function StrategiesWorkspace({
           <Table className="table-fixed border-collapse">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Strategy
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Region
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-56 border-b border-r bg-muted px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-56 border-b border-r bg-muted px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Assignee
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-44 border-b border-r bg-muted px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-44 border-b border-r bg-muted px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Last edited
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Products
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Orders
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Actions
                 </TableHead>
               </TableRow>
@@ -576,7 +576,7 @@ export function StrategiesWorkspace({
                               {renderAssigneeLabel(strategy)}
                             </span>
                             {!canAssign && strategy.createdByEmail ? (
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-xs text-muted-foreground">
                                 Creator: {strategy.createdByEmail}
                               </span>
                             ) : null}

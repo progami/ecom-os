@@ -72,7 +72,7 @@ function FormattedTooltipText({ value }: { value: string }) {
                       key={`${blockKey}:${lineIndex}`}
                       className="flex flex-wrap items-baseline gap-x-2 gap-y-1"
                     >
-                      <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                      <span className="text-2xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                         {label}
                       </span>
                       <span className="font-semibold text-popover-foreground">{rest}</span>
@@ -122,7 +122,7 @@ function Tooltip({
       </TooltipTrigger>
       <TooltipContent
         side={sideMap[position]}
-        className="max-w-sm break-words rounded-xl border border-border/70 bg-popover/95 px-3 py-2 text-[13px] leading-relaxed text-popover-foreground shadow-xl backdrop-blur"
+        className="max-w-sm break-words rounded-xl border border-border/70 bg-popover/95 px-3 py-2 text-sm leading-relaxed text-popover-foreground shadow-xl backdrop-blur"
       >
         {typeof content === 'string' ? <FormattedTooltipText value={content} /> : content}
       </TooltipContent>

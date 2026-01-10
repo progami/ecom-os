@@ -973,7 +973,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                   <TableHead
                     key={config.key}
                     className={cn(
-                      'sticky top-0 z-20 h-10 whitespace-nowrap border-b border-r px-2 text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80',
+                      'sticky top-0 z-20 h-10 whitespace-nowrap border-b border-r px-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80',
                       config.editable ? 'bg-cyan-100/90 dark:bg-cyan-900/50' : 'bg-muted',
                       config.sticky && 'z-30',
                     )}

@@ -410,7 +410,7 @@ export function POProfitabilitySection({
                   dataKey="name"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 12 }}
                   className="text-slate-500 dark:text-slate-400"
                   interval="preserveStartEnd"
                   dy={10}
@@ -418,7 +418,7 @@ export function POProfitabilitySection({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 12 }}
                   className="text-slate-500 dark:text-slate-400"
                   tickFormatter={(value) => `${value.toFixed(0)}%`}
                   width={50}
@@ -597,7 +597,7 @@ export function POProfitabilitySection({
           <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[180px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[180px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton
                     field="orderCode"
                     current={sortField}
@@ -607,13 +607,13 @@ export function POProfitabilitySection({
                     PO Code
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[90px] h-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[90px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   Status
                 </TableHead>
-                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   Units
                 </TableHead>
-                <TableHead className="w-[100px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[100px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton
                     field="grossRevenue"
                     current={sortField}
@@ -624,16 +624,16 @@ export function POProfitabilitySection({
                     Revenue
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[90px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   COGS
                 </TableHead>
-                <TableHead className="w-[90px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[90px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   Amz Fees
                 </TableHead>
-                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   PPC
                 </TableHead>
-                <TableHead className="w-[100px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[100px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton
                     field="netProfit"
                     current={sortField}
@@ -644,7 +644,7 @@ export function POProfitabilitySection({
                     Net Profit
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[80px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton
                     field="netMarginPercent"
                     current={sortField}
@@ -655,7 +655,7 @@ export function POProfitabilitySection({
                     Margin
                   </SortButton>
                 </TableHead>
-                <TableHead className="w-[70px] h-10 text-right text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                <TableHead className="w-[70px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                   <SortButton
                     field="roi"
                     current={sortField}
