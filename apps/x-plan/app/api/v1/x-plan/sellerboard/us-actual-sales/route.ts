@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient as WmsPrismaClient } from '@ecom-os/prisma-wms';
 import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar';
@@ -9,6 +10,26 @@ import {
 } from '@/lib/integrations/sellerboard-orders';
 
 export const runtime = 'nodejs';
+
+type GlobalWithWmsPrisma = typeof globalThis & {
+  __xplanWmsUsPrisma?: WmsPrismaClient;
+};
+
+function getWmsUsPrisma(): WmsPrismaClient | null {
+  const url = process.env.WMS_DATABASE_URL_US?.trim();
+  if (!url) return null;
+
+  const globalForPrisma = globalThis as GlobalWithWmsPrisma;
+  if (globalForPrisma.__xplanWmsUsPrisma) return globalForPrisma.__xplanWmsUsPrisma;
+
+  const client = new WmsPrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    datasources: { db: { url } },
+  });
+
+  globalForPrisma.__xplanWmsUsPrisma = client;
+  return client;
+}
 
 function extractBearerToken(header: string | null): string | null {
   if (!header) return null;
@@ -77,7 +98,7 @@ export const POST = async (request: Request) => {
     });
   }
 
-  const matchedProducts = await prisma.product.findMany({
+  const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
       strategy: { region: 'US' },
@@ -90,11 +111,64 @@ export const POST = async (request: Request) => {
   });
 
   const productsByCode = new Map<string, Array<{ id: string; strategyId: string }>>();
-  for (const product of matchedProducts) {
+  const directProductIds = new Set<string>();
+  for (const product of directProducts) {
     if (!product.strategyId) continue;
+    directProductIds.add(product.id);
     const list = productsByCode.get(product.sku) ?? [];
     list.push({ id: product.id, strategyId: product.strategyId });
     productsByCode.set(product.sku, list);
+  }
+
+  const unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  let asinMappingsFound = 0;
+  let asinProductsMatched = 0;
+
+  if (unmatchedCodes.length) {
+    const wms = getWmsUsPrisma();
+    if (wms) {
+      const mappings = await wms.sku.findMany({
+        where: { asin: { in: unmatchedCodes } },
+        select: { asin: true, skuCode: true },
+      });
+      asinMappingsFound = mappings.length;
+
+      const mappedSkuCodes = Array.from(
+        new Set(
+          mappings
+            .map((row) => row.skuCode?.trim())
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      if (mappedSkuCodes.length) {
+        const mappedProducts = await prisma.product.findMany({
+          where: {
+            sku: { in: mappedSkuCodes },
+            strategy: { region: 'US' },
+          },
+          select: { id: true, sku: true, strategyId: true },
+        });
+
+        const productsBySku = new Map<string, Array<{ id: string; strategyId: string }>>();
+        for (const product of mappedProducts) {
+          if (!product.strategyId) continue;
+          const list = productsBySku.get(product.sku) ?? [];
+          list.push({ id: product.id, strategyId: product.strategyId });
+          productsBySku.set(product.sku, list);
+        }
+
+        for (const mapping of mappings) {
+          const asin = mapping.asin?.trim();
+          const skuCode = mapping.skuCode?.trim();
+          if (!asin || !skuCode) continue;
+          const products = productsBySku.get(skuCode);
+          if (!products?.length) continue;
+          asinProductsMatched += products.length;
+          productsByCode.set(asin, products);
+        }
+      }
+    }
   }
 
   const upserts: ReturnType<(typeof prisma.salesWeek)['upsert']>[] = [];
@@ -136,11 +210,20 @@ export const POST = async (request: Request) => {
     await prisma.$transaction(upserts);
   }
 
+  const uniqueProductsMatched = new Set<string>(directProductIds);
+  for (const products of productsByCode.values()) {
+    for (const product of products) {
+      uniqueProductsMatched.add(product.id);
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
-    productsMatched: matchedProducts.length,
+    productsMatched: uniqueProductsMatched.size,
+    asinMappingsFound,
+    asinProductsMatched,
     updates: upserts.length,
     csvSha256: parsed.csvSha256,
     oldestPurchaseDateUtc: parsed.oldestPurchaseDateUtc?.toISOString() ?? null,
