@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss"
-import { brandColors, brandFontFamilies } from "@ecom-os/theme"
+import { brandColors, brandFontFamilies } from "@targon/theme"
 
 const config: Config = {
   darkMode: ["class"],

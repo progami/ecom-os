@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
@@ -60,6 +61,88 @@ type PortalUserRecord = {
   passwordHash: string
   roles: Array<{ role: { name: string } }>
   appAccess: Array<{ departments: unknown; app: { slug: string } }>
+}
+
+function parseEmailSet(raw: string | undefined) {
+  return new Set(
+    (raw ?? '')
+      .split(/[,\s]+/)
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  )
+}
+
+const DEFAULT_PORTAL_BOOTSTRAP_ADMINS = new Set(['jarrar@targonglobal.com'])
+
+function portalBootstrapAdminEmailSet() {
+  const configured = parseEmailSet(process.env.PORTAL_BOOTSTRAP_ADMIN_EMAILS)
+  return configured.size > 0 ? configured : DEFAULT_PORTAL_BOOTSTRAP_ADMINS
+}
+
+function defaultPortalAdminApps() {
+  return [
+    { slug: 'talos', name: 'Talos', departments: ['Ops'] },
+    { slug: 'atlas', name: 'Atlas', departments: ['People Ops'] },
+    { slug: 'website', name: 'Website', departments: [] },
+    { slug: 'kairos', name: 'Kairos', departments: ['Product'] },
+    { slug: 'x-plan', name: 'X-Plan', departments: ['Product'] },
+  ]
+}
+
+async function ensureBootstrapPortalAdminUser(normalizedEmail: string) {
+  const prisma = getPortalAuthPrisma()
+
+  await prisma.$transaction(async (tx) => {
+    const role = await tx.role.upsert({
+      where: { name: 'admin' },
+      update: {},
+      create: { name: 'admin', description: 'Bootstrap admin role' },
+    })
+
+    const usernameBase = (normalizedEmail.split('@')[0] || 'admin')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'admin'
+
+    const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 10)
+
+    const user = await tx.user.upsert({
+      where: { email: normalizedEmail },
+      update: { isActive: true },
+      create: {
+        email: normalizedEmail,
+        username: usernameBase,
+        passwordHash,
+        firstName: null,
+        lastName: null,
+        isActive: true,
+        isDemo: false,
+      },
+      select: { id: true },
+    })
+
+    await tx.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: role.id } },
+      update: {},
+      create: { userId: user.id, roleId: role.id },
+    })
+
+    for (const app of defaultPortalAdminApps()) {
+      const appRecord = await tx.app.upsert({
+        where: { slug: app.slug },
+        update: {},
+        create: { slug: app.slug, name: app.name, description: null },
+        select: { id: true },
+      })
+
+      await tx.userApp.upsert({
+        where: { userId_appId: { userId: user.id, appId: appRecord.id } },
+        update: { departments: app.departments },
+        create: { userId: user.id, appId: appRecord.id, departments: app.departments },
+      })
+    }
+  })
 }
 
 export async function authenticateWithPortalDirectory(input: unknown): Promise<AuthenticatedUser | null> {
@@ -175,13 +258,23 @@ export async function getUserByEmail(email: string): Promise<AuthenticatedUser |
   }
 
   const prisma = getPortalAuthPrisma()
-  const user = await prisma.user.findFirst({
-    where: {
-      email: normalizedEmail,
-      isActive: true,
-    },
-    select: userSelect,
-  }) as (PortalUserRecord | null)
+
+  const fetchUser = async () =>
+    prisma.user.findFirst({
+      where: {
+        email: normalizedEmail,
+        isActive: true,
+      },
+      select: userSelect,
+    }) as Promise<PortalUserRecord | null>
+
+  let user = await fetchUser()
+
+  if (!user && portalBootstrapAdminEmailSet().has(normalizedEmail)) {
+    await ensureBootstrapPortalAdminUser(normalizedEmail)
+    user = await fetchUser()
+  }
+
   if (!user) return null
   return mapPortalUser(user)
 }

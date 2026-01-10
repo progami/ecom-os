@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { KairosShell } from '@/components/kairos-shell';
 import { auth } from '@/lib/auth';
-import { getAppEntitlement } from '@ecom-os/auth';
+import { getAppEntitlement } from '@targon/auth';
 
 export const dynamic = 'force-dynamic';
 

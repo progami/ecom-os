@@ -1,6 +1,6 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma, type Sku, type SkuBatch } from '@ecom-os/prisma-talos'
+import { Prisma, type Sku, type SkuBatch } from '@targon/prisma-talos'
 import {
   sanitizeForDisplay,
   sanitizeSearchQuery,

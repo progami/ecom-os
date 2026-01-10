@@ -85,7 +85,7 @@ jobs:
         NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
         NODE_ENV: ${{ secrets.NODE_ENV || 'production' }}
         PORT: ${{ secrets.PORT || '3001' }}
-        LOG_DIR: ${{ secrets.LOG_DIR || '/home/ubuntu/wms-ecomos/logs' }}
+        LOG_DIR: ${{ secrets.LOG_DIR || '/home/ubuntu/wms-targon/logs' }}
         S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
         S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION || 'us-east-1' }}
         AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -103,7 +103,7 @@ jobs:
           set -e
           
           echo "📁 Navigating to application directory..."
-          cd /home/ubuntu/wms-ecomos
+          cd /home/ubuntu/wms-targon
           
           # Use environment variables from GitHub Secrets (passed via envs parameter)
           echo "🔐 Using environment variables from GitHub Secrets..."

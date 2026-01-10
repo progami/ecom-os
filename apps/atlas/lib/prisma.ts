@@ -1,4 +1,4 @@
-import { PrismaClient } from '@ecom-os/prisma-atlas'
+import { PrismaClient } from '@targon/prisma-atlas'
 
 const MAX_BROADCAST_EMAIL_DISPATCHES = 2000
 
@@ -57,5 +57,5 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }
 
-export type { PrismaClient } from '@ecom-os/prisma-atlas'
+export type { PrismaClient } from '@targon/prisma-atlas'
 export default prisma

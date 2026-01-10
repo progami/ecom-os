@@ -1,4 +1,4 @@
-import { brandColors } from "@ecom-os/theme"
+import { brandColors } from "@targon/theme"
 
 export default function MarketingBg({ children }: { children: React.ReactNode }) {
   return (

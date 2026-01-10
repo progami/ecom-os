@@ -6,7 +6,7 @@ export default function JasonAIPage() {
     process.env.NEXT_PUBLIC_TALOS_BASE_URL ||
     process.env.WMS_BASE_URL ||
     process.env.NEXT_PUBLIC_WMS_BASE_URL ||
-    'https://ecomos.targonglobal.com/talos'
+    'https://targon.targonglobal.com/talos'
 
   redirect(targetUrl)
 }

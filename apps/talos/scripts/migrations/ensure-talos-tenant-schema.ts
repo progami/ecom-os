@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { PrismaClient } from '@ecom-os/prisma-talos'
+import type { PrismaClient } from '@targon/prisma-talos'
 import { getTenantPrismaClient } from '../../src/lib/tenant/prisma-factory'
 import type { TenantCode } from '../../src/lib/tenant/constants'
 
@@ -73,7 +73,7 @@ This is an idempotent migration intended for deployments on long-lived schemas
 where Prisma migrate deploy is not used.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/ensure-talos-tenant-schema.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/ensure-talos-tenant-schema.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

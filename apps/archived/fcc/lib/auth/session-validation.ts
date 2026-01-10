@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
 import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
 import { auth } from '@/lib/auth';
-import { getAppEntitlement } from '@ecom-os/auth';
+import { getAppEntitlement } from '@targon/auth';
 
 export interface SessionUser {
   userId: string;

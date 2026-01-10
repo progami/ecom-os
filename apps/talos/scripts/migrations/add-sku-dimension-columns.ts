@@ -69,7 +69,7 @@ Adds unit/carton dimension columns (L/W/H) to skus and backfills from the legacy
 unit_dimensions_cm / carton_dimensions_cm strings when possible.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/add-sku-dimension-columns.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/add-sku-dimension-columns.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Session } from 'next-auth'
-import type { PrismaClient } from '@ecom-os/prisma-talos'
+import type { PrismaClient } from '@targon/prisma-talos'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/lib/auth'
 import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
-import { UserRole } from '@ecom-os/prisma-talos'
+import { UserRole } from '@targon/prisma-talos'
 export const dynamic = 'force-dynamic'
 
 const PLACEHOLDER_PASSWORD =

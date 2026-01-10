@@ -1,5 +1,5 @@
 {
-  "host": "https://dev-ecomos.targonglobal.com",
+  "host": "https://dev-targon.targonglobal.com",
   "apps": {
     "talos": "/talos",
     "kairos": "/kairos/forecasts",

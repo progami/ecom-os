@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
-import { PurchaseOrderStatus } from '@ecom-os/prisma-talos'
+import { PurchaseOrderStatus } from '@targon/prisma-talos'
 import {
   transitionPurchaseOrderStage,
   serializePurchaseOrder,

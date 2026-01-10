@@ -142,7 +142,7 @@ function buildFilterArgs(appIds, rootDir) {
       continue
     }
 
-    filters.push(`--filter=!@ecom-os/${appId}...`)
+    filters.push(`--filter=!@targon/${appId}...`)
     appliedAppIds.push(appId)
   }
   return { filters, appliedAppIds }

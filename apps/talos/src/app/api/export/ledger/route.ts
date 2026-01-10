@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma, TransactionType } from '@ecom-os/prisma-talos'
+import { Prisma, TransactionType } from '@targon/prisma-talos'
 import * as XLSX from 'xlsx'
 import { generateExportConfig, applyExportConfig } from '@/lib/dynamic-export'
 import { inventoryTransactionConfig } from '@/lib/export-configurations'

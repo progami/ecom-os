@@ -2,8 +2,8 @@ import { ArrowRight } from 'lucide-react'
 import MarketingBg from '@/components/marketing-bg'
 
 export const metadata = {
-  title: 'Ecom OS – Targon Global',
-  description: 'EcomOS: Unified platform for modern e‑commerce operations.',
+  title: 'Targon – Targon Global',
+  description: 'Targon: Unified platform for modern e‑commerce operations.',
 }
 
 export default function Home() {
@@ -11,11 +11,11 @@ export default function Home() {
     <div className="relative min-h-screen text-white">
       <MarketingBg>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-center">ECOM OS</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-center">TARGON</h1>
 
-        {/* ECOMOS Intro */}
+        {/* TARGON Intro */}
         <div className="mt-10">
-          <h2 className="text-3xl font-extrabold text-brand-accent">ECOMOS</h2>
+          <h2 className="text-3xl font-extrabold text-brand-accent">TARGON</h2>
           <p className="mt-3 max-w-3xl text-white/80">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus semper vitae orci sit amet finibus. Aliquam placerat, erat vitae egestas placerat, orci purus dapibus augue.
           </p>

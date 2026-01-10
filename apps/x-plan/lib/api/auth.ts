@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { Session } from 'next-auth';
-import { getAppEntitlement } from '@ecom-os/auth';
+import { getAppEntitlement } from '@targon/auth';
 import { auth } from '@/lib/auth';
 
 export type XPlanAuthedHandler = (request: Request, session: Session) => Promise<Response>;

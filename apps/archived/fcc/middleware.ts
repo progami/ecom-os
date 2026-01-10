@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { hasPortalSession } from '@ecom-os/auth';
+import { hasPortalSession } from '@targon/auth';
 import { portalUrl } from '@/lib/portal';
 
 // Content Security Policy
@@ -119,7 +119,7 @@ export async function middleware(request: NextRequest) {
     
     const cookieNames = process.env.NODE_ENV === 'production'
       ? ['__Secure-next-auth.session-token', '__Secure-fcc.next-auth.session-token']
-      : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'fcc.next-auth.session-token'];
+      : ['next-auth.session-token', 'targon.next-auth.session-token', 'fcc.next-auth.session-token'];
 
     const hasSession = devBypassSession ? true : await hasPortalSession({
       request: request as any,

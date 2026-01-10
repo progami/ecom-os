@@ -6,7 +6,7 @@ import {
   PurchaseOrderLineStatus,
   PurchaseOrderStatus,
   TransactionType,
-} from '@ecom-os/prisma-talos'
+} from '@targon/prisma-talos'
 import { ValidationError, ConflictError, NotFoundError } from '@/lib/api'
 import {
   resolveBatchLot,

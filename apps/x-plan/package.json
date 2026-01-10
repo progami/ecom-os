@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/x-plan",
+  "name": "@targon/x-plan",
   "version": "1.1.0",
   "private": true,
   "scripts": {
@@ -19,11 +19,11 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma"
   },
   "dependencies": {
-    "@ecom-os/auth": "workspace:*",
-    "@ecom-os/config": "workspace:*",
-    "@ecom-os/logger": "workspace:*",
-    "@ecom-os/prisma-talos": "workspace:*",
-    "@ecom-os/prisma-x-plan": "workspace:*",
+    "@targon/auth": "workspace:*",
+    "@targon/config": "workspace:*",
+    "@targon/logger": "workspace:*",
+    "@targon/prisma-talos": "workspace:*",
+    "@targon/prisma-x-plan": "workspace:*",
     "@prisma/client": "6.19.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",

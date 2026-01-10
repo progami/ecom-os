@@ -4,7 +4,7 @@ import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
 import { auditLog } from '@/lib/security/audit-logger'
-import { PurchaseOrderDocumentStage, Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-talos'
+import { PurchaseOrderDocumentStage, Prisma, PurchaseOrderStatus } from '@targon/prisma-talos'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 
 export const dynamic = 'force-dynamic'

@@ -1,4 +1,4 @@
-import type { Policy } from '@ecom-os/prisma-atlas'
+import type { Policy } from '@targon/prisma-atlas'
 import type { WorkflowRecordDTO, WorkflowStageStatus } from '@/lib/contracts/workflow-record'
 import { timelineFromAudit } from '@/lib/domain/workflow/timeline-from-audit'
 import { toneForStatus } from '@/lib/domain/workflow/tone'

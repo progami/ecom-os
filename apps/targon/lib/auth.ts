@@ -1,8 +1,8 @@
 import NextAuth from 'next-auth'
 import type { NextAuthConfig } from 'next-auth'
 import Google from 'next-auth/providers/google'
-import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
-import { getUserByEmail } from '@ecom-os/auth/server'
+import { applyDevAuthDefaults, withSharedAuth } from '@targon/auth'
+import { getUserByEmail } from '@targon/auth/server'
 
 if (!process.env.NEXTAUTH_URL) {
   throw new Error('NEXTAUTH_URL must be defined for portal authentication.')
@@ -17,7 +17,7 @@ if (!process.env.COOKIE_DOMAIN) {
   throw new Error('COOKIE_DOMAIN must be defined for portal authentication.')
 }
 applyDevAuthDefaults({
-  appId: 'ecomos',
+  appId: 'targon',
 })
 
 function sanitizeBaseUrl(raw?: string | null): string | undefined {
@@ -85,7 +85,7 @@ const hasGoogleOAuth = Boolean(googleClientId && googleClientSecret)
 const isProd = process.env.NODE_ENV === 'production'
 
 if (!hasGoogleOAuth) {
-  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured for EcomOS auth.')
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured for Targon auth.')
 }
 
 const allowedEmails = parseAllowedEmails(process.env.GOOGLE_ALLOWED_EMAILS || process.env.ALLOWED_GOOGLE_EMAILS)
@@ -186,7 +186,7 @@ const baseAuthOptions: NextAuthConfig = {
 
         const hostMismatch = target.hostname !== base.hostname
         const bothPortalHosts =
-          target.hostname.endsWith('.ecomos.targonglobal.com') &&
+          target.hostname.endsWith('.targon.targonglobal.com') &&
           base.hostname.endsWith('.targonglobal.com')
         if (hostMismatch && bothPortalHosts) {
           const loginOrigin = `${target.protocol}//${target.hostname}`
@@ -218,7 +218,7 @@ const baseAuthOptions: NextAuthConfig = {
 
 export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: resolvedCookieDomain,
-  appId: 'ecomos',
+  appId: 'targon',
 })
 
 // Initialize NextAuth with config and export handlers + auth function

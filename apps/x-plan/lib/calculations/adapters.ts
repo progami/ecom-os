@@ -10,7 +10,7 @@ import type {
   ProfitAndLossWeek,
   CashFlowWeek,
   PurchaseOrderStatus,
-} from '@ecom-os/prisma-x-plan';
+} from '@targon/prisma-x-plan';
 import { coerceNumber, parseNumber } from '@/lib/utils/numbers';
 import {
   BusinessParameterInput,

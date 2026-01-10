@@ -13,7 +13,7 @@ on:
         type: choice
         options:
           - ''
-          - ecomos
+          - targon
           - talos
           - website
           - xplan
@@ -28,8 +28,8 @@ on:
           - main
 
 env:
-  ECOM_OS_DEV_DIR: /Users/jarraramjad/ecom-os-dev
-  ECOM_OS_MAIN_DIR: /Users/jarraramjad/ecom-os-main
+  TARGON_DEV_DIR: /Users/jarraramjad/targon-dev
+  TARGON_MAIN_DIR: /Users/jarraramjad/targon-main
 
 permissions:
   contents: read
@@ -42,7 +42,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      ecomos: ${{ steps.changes.outputs.ecomos }}
+      targon: ${{ steps.changes.outputs.targon }}
       talos: ${{ steps.changes.outputs.talos }}
       website: ${{ steps.changes.outputs.website }}
       xplan: ${{ steps.changes.outputs.xplan }}
@@ -83,8 +83,8 @@ jobs:
 
             ANY_APP=false
 
-            if echo "$CHANGED_FILES" | grep -q "^apps/ecomos/"; then
-              echo "ecomos=true" >> "$GITHUB_OUTPUT"
+            if echo "$CHANGED_FILES" | grep -q "^apps/targon/"; then
+              echo "targon=true" >> "$GITHUB_OUTPUT"
               ANY_APP=true
             fi
             if echo "$CHANGED_FILES" | grep -q "^apps/talos/"; then
@@ -326,11 +326,11 @@ jobs:
 
           declare -a apps=()
           if [[ "$TARGET_ENV" == "main" ]]; then
-            apps=(ecomos talos website xplan kairos atlas)
+            apps=(targon talos website xplan kairos atlas)
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(ecomos talos website xplan kairos atlas)
+            apps=(targon talos website xplan kairos atlas)
           else
-            [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
+            [[ "${{ needs.detect-changes.outputs.targon }}" == "true" ]] && apps+=(targon)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
             [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
@@ -393,13 +393,13 @@ jobs:
 
           declare -a apps=()
           if [[ "$target_env" == "main" ]]; then
-            apps=(ecomos talos website xplan kairos atlas)
+            apps=(targon talos website xplan kairos atlas)
           elif [[ -n "$requested_app" ]]; then
             apps=("$requested_app")
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(ecomos talos website xplan kairos atlas)
+            apps=(targon talos website xplan kairos atlas)
           else
-            [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
+            [[ "${{ needs.detect-changes.outputs.targon }}" == "true" ]] && apps+=(targon)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
             [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)

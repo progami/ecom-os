@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../../lib/prisma'
-import { DisciplinaryStatus } from '@ecom-os/prisma-atlas'
+import { DisciplinaryStatus } from '@targon/prisma-atlas'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { SubmitAppealSchema, ResolveAppealSchema } from '@/lib/validations'

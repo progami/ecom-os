@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const AUTH_COOKIE_PATTERNS = ['authjs', 'next-auth', '__Secure-', '__Host-', 'csrf', 'pkce', 'callback', 'ecomos', 'session']
+const AUTH_COOKIE_PATTERNS = ['authjs', 'next-auth', '__Secure-', '__Host-', 'csrf', 'pkce', 'callback', 'targon', 'session']
 
 export async function GET(request: NextRequest) {
   const cookieDomain = process.env.COOKIE_DOMAIN || '.targonglobal.com'
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://ecomos.targonglobal.com'
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://targon.targonglobal.com'
 
   // Get provider and callbackUrl for direct signin flow
   const provider = request.nextUrl.searchParams.get('provider')
@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
     'next-auth.session-token',
     'next-auth.callback-url',
     'next-auth.csrf-token',
-    'ecomos.next-auth.session-token',
-    'ecomos.next-auth.callback-url',
-    'ecomos.next-auth.csrf-token',
+    'targon.next-auth.session-token',
+    'targon.next-auth.callback-url',
+    'targon.next-auth.csrf-token',
     '__Secure-authjs.session-token',
     '__Secure-authjs.callback-url',
     '__Secure-authjs.csrf-token',

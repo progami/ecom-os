@@ -1,4 +1,4 @@
-import type { LeaveRequest } from '@ecom-os/prisma-atlas'
+import type { LeaveRequest } from '@targon/prisma-atlas'
 import prisma from '@/lib/prisma'
 import { getHREmployees, getSuperAdminEmployees, isHR, isHROrAbove, isManagerOf, isSuperAdmin } from '@/lib/permissions'
 

@@ -3,7 +3,7 @@ import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
-import { FulfillmentOrderDocumentStage, Prisma } from '@ecom-os/prisma-talos'
+import { FulfillmentOrderDocumentStage, Prisma } from '@targon/prisma-talos'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60

@@ -8,7 +8,7 @@
 
 import { getTenantPrismaClient } from '../src/lib/tenant/prisma-factory'
 import { DEFAULT_TENANT, TENANTS, isValidTenantCode, type TenantCode } from '../src/lib/tenant/constants'
-import { CostCategory } from '@ecom-os/prisma-talos'
+import { CostCategory } from '@targon/prisma-talos'
 
 const resolveTenantCode = (): TenantCode => {
   const candidate =

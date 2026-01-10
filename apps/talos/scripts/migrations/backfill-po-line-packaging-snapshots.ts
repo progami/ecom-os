@@ -87,7 +87,7 @@ into purchase_order_lines snapshot columns so POs stop depending on live SKU/bat
 Also backfills purchase_orders.counterparty_address from suppliers where missing.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/backfill-po-line-packaging-snapshots.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/backfill-po-line-packaging-snapshots.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

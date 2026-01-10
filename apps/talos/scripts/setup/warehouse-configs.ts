@@ -7,10 +7,10 @@
  * - Seeds baseline storage / handling cost rates
  *
  * Usage:
- *   pnpm --filter @ecom-os/talos exec tsx scripts/setup/warehouse-configs.ts [--skip-clean] [--verbose]
+ *   pnpm --filter @targon/talos exec tsx scripts/setup/warehouse-configs.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient, UserRole, CostCategory, Prisma } from '@ecom-os/prisma-talos'
+import { PrismaClient, UserRole, CostCategory, Prisma } from '@targon/prisma-talos'
 import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()

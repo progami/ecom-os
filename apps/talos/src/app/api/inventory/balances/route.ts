@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import {
   getPaginationParams,
   getPaginationSkipTake,
@@ -8,7 +8,7 @@ import {
 } from '@/lib/database/pagination'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 import { sanitizeSearchQuery } from '@/lib/security/input-sanitization'
-import { aggregateInventoryTransactions } from '@ecom-os/ledger'
+import { aggregateInventoryTransactions } from '@targon/ledger'
 import { withAuth } from '@/lib/api/auth-wrapper'
 
 export const dynamic = 'force-dynamic'

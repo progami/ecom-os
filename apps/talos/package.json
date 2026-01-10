@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/talos",
+  "name": "@targon/talos",
   "version": "1.1.0",
   "private": true,
   "scripts": {
@@ -64,9 +64,9 @@
     "@aws-sdk/client-s3": "^3.943.0",
     "@aws-sdk/lib-storage": "^3.943.0",
     "@aws-sdk/s3-request-presigner": "^3.943.0",
-    "@ecom-os/auth": "workspace:*",
-    "@ecom-os/aws-s3": "workspace:*",
-    "@ecom-os/prisma-talos": "workspace:*",
+    "@targon/auth": "workspace:*",
+    "@targon/aws-s3": "workspace:*",
+    "@targon/prisma-talos": "workspace:*",
     "@hookform/resolvers": "^3.10.0",
     "@prisma/client": "6.19.0",
     "@radix-ui/react-accordion": "^1.2.12",

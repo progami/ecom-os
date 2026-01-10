@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
+import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@targon/auth'
 import { portalUrl } from '@/lib/portal'
 
 function resolveAppOrigin(request: NextRequest): string {
@@ -68,7 +68,7 @@ export async function middleware(request: NextRequest) {
   if (!isPublic) {
     const debug = process.env.NODE_ENV !== 'production'
     const cookieNames = Array.from(new Set([
-      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('targon'),
       ...getCandidateSessionCookieNames('atlas'),
       ...getCandidateSessionCookieNames('hrms'),
     ]))

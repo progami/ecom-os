@@ -7,7 +7,7 @@ import {
   FulfillmentOrderStatus,
   Prisma,
   TransactionType,
-} from '@ecom-os/prisma-talos'
+} from '@targon/prisma-talos'
 import { calculatePalletValues } from '@/lib/utils/pallet-calculations'
 
 export interface FulfillmentUserContext {

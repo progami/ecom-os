@@ -3,7 +3,7 @@ import { getProductFees } from '@/lib/amazon/client'
 import { getMarketplaceCurrencyCode, parseAmazonProductFees } from '@/lib/amazon/fees'
 import { escapeRegex, sanitizeSearchQuery } from '@/lib/security/input-sanitization'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 
 export const dynamic = 'force-dynamic'
 

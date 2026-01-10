@@ -5,7 +5,7 @@ const EMAIL_FROM = process.env.EMAIL_FROM || 'Atlas <noreply@targonglobal.com>'
 const ATLAS_URL =
   process.env.NEXT_PUBLIC_ATLAS_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
-  'https://ecomos.targonglobal.com/atlas'
+  'https://targon.targonglobal.com/atlas'
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null
 

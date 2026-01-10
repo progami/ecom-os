@@ -1,4 +1,4 @@
-import { CostCategory, type Prisma } from '@ecom-os/prisma-talos'
+import { CostCategory, type Prisma } from '@targon/prisma-talos'
 
 type CostRateSnapshot = {
   costName: string

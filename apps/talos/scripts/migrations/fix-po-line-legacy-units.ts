@@ -119,7 +119,7 @@ This script repairs legacy rows by:
 The script uses the applied timestamp of Prisma migration "${UNITS_FIRST_MIGRATION}" as the cutover per schema.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/fix-po-line-legacy-units.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/fix-po-line-legacy-units.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

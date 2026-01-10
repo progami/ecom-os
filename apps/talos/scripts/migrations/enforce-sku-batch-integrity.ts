@@ -85,7 +85,7 @@ Applies constraints so each SKU has at least one batch and cartons-per-pallet
 is required and positive. Cleans invalid batches and batchless SKUs.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/enforce-sku-batch-integrity.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/enforce-sku-batch-integrity.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

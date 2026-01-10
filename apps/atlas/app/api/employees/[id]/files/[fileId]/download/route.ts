@@ -3,7 +3,7 @@ import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove } from '@/lib/permissions'
-import { S3Service } from '@ecom-os/aws-s3'
+import { S3Service } from '@targon/aws-s3'
 
 type RouteContext = { params: Promise<{ id: string; fileId: string }> }
 
