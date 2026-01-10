@@ -333,8 +333,16 @@ if [[ -n "$migrate_cmd" ]]; then
   log "Step 3b: Applying Prisma migrations"
   if ensure_database_url; then
     cd "$REPO_DIR"
-    eval "$migrate_cmd"
-    log "Migrations applied"
+    if [[ "$app_key" == "atlas" && "$environment" == "dev" ]]; then
+      if eval "$migrate_cmd"; then
+        log "Migrations applied"
+      else
+        warn "Prisma migrations failed for atlas dev; continuing without blocking deployment"
+      fi
+    else
+      eval "$migrate_cmd"
+      log "Migrations applied"
+    fi
   else
     error "DATABASE_URL is not set and no env file found; cannot apply migrations"
     exit 1
