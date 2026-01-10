@@ -14,6 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { withAppBasePath } from '@/lib/base-path';
+import { ProductSetupAmazonImport } from '@/components/sheets/product-setup-amazon-import';
 
 interface ProductSetupGridProps {
   strategyId: string;
@@ -175,7 +176,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
 
   return (
     <section className={cn('space-y-2', className)}>
-      <div className="flex justify-start">
+      <div className="flex flex-wrap items-center gap-2">
         {!isAdding ? (
           <button type="button" onClick={() => setIsAdding(true)} className={primaryActionClass}>
             <span className="inline-flex items-center gap-1.5">
@@ -184,6 +185,12 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
             </span>
           </button>
         ) : null}
+
+        <ProductSetupAmazonImport
+          strategyId={strategyId}
+          existingSkus={rows.map((row) => row.sku)}
+          buttonClassName={primaryActionClass}
+        />
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">

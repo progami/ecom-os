@@ -1,11 +1,11 @@
 import 'server-only';
 
-import { PrismaClient as WmsPrismaClient } from '@ecom-os/prisma-wms';
 import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
 import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard-orders';
+import { getWmsPrisma } from '@/lib/integrations/wms-client';
 
 export type SellerboardUsActualSalesSyncResult = {
   rowsParsed: number;
@@ -18,26 +18,6 @@ export type SellerboardUsActualSalesSyncResult = {
   oldestPurchaseDateUtc: Date | null;
   newestPurchaseDateUtc: Date | null;
 };
-
-type GlobalWithWmsPrisma = typeof globalThis & {
-  __xplanWmsUsPrisma?: WmsPrismaClient;
-};
-
-function getWmsUsPrisma(): WmsPrismaClient | null {
-  const url = process.env.WMS_DATABASE_URL_US?.trim();
-  if (!url) return null;
-
-  const globalForPrisma = globalThis as GlobalWithWmsPrisma;
-  if (globalForPrisma.__xplanWmsUsPrisma) return globalForPrisma.__xplanWmsUsPrisma;
-
-  const client = new WmsPrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    datasources: { db: { url } },
-  });
-
-  globalForPrisma.__xplanWmsUsPrisma = client;
-  return client;
-}
 
 export async function syncSellerboardUsActualSales(options: {
   reportUrl: string;
@@ -104,7 +84,7 @@ export async function syncSellerboardUsActualSales(options: {
   let asinProductsMatched = 0;
 
   if (unmatchedCodes.length) {
-    const wms = getWmsUsPrisma();
+    const wms = getWmsPrisma('US');
     if (wms) {
       const mappings = await wms.sku.findMany({
         where: { asin: { in: unmatchedCodes } },
@@ -208,4 +188,3 @@ export async function syncSellerboardUsActualSales(options: {
     newestPurchaseDateUtc: parsed.newestPurchaseDateUtc,
   };
 }
-
