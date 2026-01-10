@@ -8,7 +8,7 @@ export default function ForecastsPage() {
         <div className="text-section-header">Workspace</div>
         <h1 className="text-h1">Forecasts</h1>
         <p className="text-body max-w-2xl">
-          Create Prophet forecasts from imported time series. Run predictions with configurable horizons and view confidence intervals.
+          Create forecasts from imported time series. Choose a model, configure horizons, and view prediction intervals.
         </p>
       </div>
 

@@ -17,6 +17,7 @@ import {
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { withAppBasePath } from '@/lib/base-path';
 import { fetchJson } from '@/lib/api/client';
 import type { TimeSeriesListItem } from '@/types/kairos';
 import { Badge } from '@/components/ui/badge';
@@ -52,8 +53,8 @@ const GOOGLE_TRENDS_TIME_RANGE_OPTIONS: Array<{ value: GoogleTrendsTimeRange; la
   { value: 'ALL_TIME', label: 'All time (2004–present)' },
 ];
 
-function toDateInput(date: Date) {
-  return date.toISOString().slice(0, 10);
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function resolveStartDate(timeRange: GoogleTrendsTimeRange, now: Date) {
@@ -75,7 +76,7 @@ function resolveStartDate(timeRange: GoogleTrendsTimeRange, now: Date) {
     default:
       break;
   }
-  return start;
+  return startOfDay(start);
 }
 
 export function GoogleTrendsPanel() {
@@ -97,7 +98,8 @@ export function GoogleTrendsPanel() {
   const importMutation = useMutation({
     mutationFn: async (payload: GoogleTrendsImportInput) => {
       const now = new Date();
-      const startDate = toDateInput(resolveStartDate(payload.timeRange, now));
+      const startDate = resolveStartDate(payload.timeRange, now).toISOString();
+      const endDate = startOfDay(now).toISOString();
 
       return fetchJson<GoogleTrendsImportResponse>('/api/v1/time-series/google-trends', {
         method: 'POST',
@@ -106,7 +108,7 @@ export function GoogleTrendsPanel() {
           keyword: payload.keyword,
           geo: payload.geo || null,
           startDate,
-          endDate: null,
+          endDate,
           name: payload.name || undefined,
         }),
       });
@@ -198,6 +200,15 @@ export function GoogleTrendsPanel() {
         header: '',
         cell: ({ row }) => (
           <div className="flex justify-end gap-2">
+            <Button asChild size="sm" variant="outline">
+              <a
+                href={withAppBasePath(`/api/v1/time-series/${encodeURIComponent(row.original.id)}/export`)}
+                download
+              >
+                <Download className="mr-2 h-4 w-4" aria-hidden />
+                CSV
+              </a>
+            </Button>
             <Button asChild size="sm" variant="outline">
               <Link href={`/forecasts?seriesId=${encodeURIComponent(row.original.id)}`}>
                 Create forecast
@@ -331,7 +342,7 @@ export function GoogleTrendsPanel() {
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="text-base">Imported Series</CardTitle>
-            <CardDescription>Use an imported series to create a Prophet forecast.</CardDescription>
+            <CardDescription>Use an imported series to create a forecast.</CardDescription>
           </div>
           <div className="relative w-full sm:w-72">
             <Input

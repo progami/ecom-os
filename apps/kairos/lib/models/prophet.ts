@@ -1,6 +1,6 @@
 import 'server-only';
 
-import initProphet, { Prophet } from '@bsull/augurs/prophet';
+import initProphet, { Prophet, type ProphetSeasonalityOption } from '@bsull/augurs/prophet';
 import initTransforms, { Pipeline } from '@bsull/augurs/transforms';
 import { optimizer } from '@bsull/augurs-prophet-wasmstan';
 import { readFile } from 'node:fs/promises';
@@ -21,7 +21,26 @@ export type ProphetRunResult = {
     horizon: number;
     historyCount: number;
     intervalLevel: number | null;
+    metrics: ForecastMetrics;
   };
+};
+
+export type ProphetSeasonalityToggle = 'auto' | 'on' | 'off';
+
+export type ProphetRunConfig = {
+  intervalWidth?: number;
+  uncertaintySamples?: number;
+  seasonalityMode?: 'additive' | 'multiplicative';
+  yearlySeasonality?: ProphetSeasonalityToggle;
+  weeklySeasonality?: ProphetSeasonalityToggle;
+  dailySeasonality?: ProphetSeasonalityToggle;
+};
+
+type ForecastMetrics = {
+  sampleCount: number;
+  mae: number | null;
+  rmse: number | null;
+  mape: number | null;
 };
 
 let initPromise: Promise<void> | null = null;
@@ -58,7 +77,46 @@ function toIsoFromSeconds(seconds: number) {
   return new Date(seconds * 1000).toISOString();
 }
 
-export async function runProphetForecast(args: { ds: number[]; y: number[]; horizon: number }): Promise<ProphetRunResult> {
+function seasonalityOption(toggle: ProphetSeasonalityToggle | undefined): ProphetSeasonalityOption | undefined {
+  if (!toggle) return undefined;
+  if (toggle === 'auto') return { type: 'auto' };
+  return { type: 'manual', enabled: toggle === 'on' };
+}
+
+function computeMetrics(actual: number[], predicted: number[]): ForecastMetrics {
+  const errors: number[] = [];
+  const mapeTerms: number[] = [];
+
+  for (let index = 0; index < actual.length && index < predicted.length; index += 1) {
+    const y = actual[index];
+    const yhat = predicted[index];
+
+    if (!Number.isFinite(y) || !Number.isFinite(yhat)) {
+      continue;
+    }
+
+    const error = yhat - y;
+    errors.push(error);
+
+    if (y !== 0) {
+      mapeTerms.push(Math.abs(error / y));
+    }
+  }
+
+  if (errors.length === 0) {
+    return { sampleCount: 0, mae: null, rmse: null, mape: null };
+  }
+
+  const mae = errors.reduce((sum, value) => sum + Math.abs(value), 0) / errors.length;
+  const rmse = Math.sqrt(errors.reduce((sum, value) => sum + value * value, 0) / errors.length);
+
+  const mape =
+    mapeTerms.length > 0 ? mapeTerms.reduce((sum, value) => sum + value, 0) / mapeTerms.length : null;
+
+  return { sampleCount: errors.length, mae, rmse, mape };
+}
+
+export async function runProphetForecast(args: { ds: number[]; y: number[]; horizon: number; config?: ProphetRunConfig }): Promise<ProphetRunResult> {
   await ensureAugursReady();
 
   if (args.ds.length !== args.y.length) {
@@ -74,7 +132,15 @@ export async function runProphetForecast(args: { ds: number[]; y: number[]; hori
   const pipeline = new Pipeline([{ type: 'yeoJohnson' }, { type: 'standardScaler' }]);
   const yTransformed = pipeline.fitTransform(args.y);
 
-  const model = new Prophet({ optimizer });
+  const model = new Prophet({
+    optimizer,
+    intervalWidth: args.config?.intervalWidth,
+    uncertaintySamples: args.config?.uncertaintySamples,
+    seasonalityMode: args.config?.seasonalityMode,
+    yearlySeasonality: seasonalityOption(args.config?.yearlySeasonality),
+    weeklySeasonality: seasonalityOption(args.config?.weeklySeasonality),
+    dailySeasonality: seasonalityOption(args.config?.dailySeasonality),
+  });
   model.fit({ ds: args.ds, y: yTransformed });
 
   const predictionData = model.makeFutureDataframe(args.horizon, { includeHistory: true });
@@ -91,6 +157,7 @@ export async function runProphetForecast(args: { ds: number[]; y: number[]; hori
     : null;
 
   const historyCount = args.ds.length;
+  const metrics = computeMetrics(args.y, yhatPoint.slice(0, historyCount));
   const points: ForecastPoint[] = preds.ds.map((dsSeconds, index) => ({
     t: toIsoFromSeconds(dsSeconds),
     yhat: yhatPoint[index] ?? NaN,
@@ -105,6 +172,7 @@ export async function runProphetForecast(args: { ds: number[]; y: number[]; hori
       horizon: args.horizon,
       historyCount,
       intervalLevel,
+      metrics,
     },
   };
 }
