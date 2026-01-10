@@ -43,9 +43,7 @@ interface SkuRow {
   description: string
   asin: string | null
   amazonCategory?: string | null
-  amazonSizeTier?: string | null
   amazonReferralFeePercent?: number | string | null
-  amazonFbaFulfillmentFee?: number | string | null
   packSize: number | null
   defaultSupplierId?: string | null
   secondarySupplierId?: string | null
@@ -63,9 +61,7 @@ interface SkuFormState {
   description: string
   asin: string
   amazonCategory: string
-  amazonSizeTier: string
   amazonReferralFeePercent: string
-  amazonFbaFulfillmentFee: string
   defaultSupplierId: string
   secondarySupplierId: string
   initialBatch: {
@@ -83,9 +79,7 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
     amazonCategory: sku?.amazonCategory ?? '',
-    amazonSizeTier: sku?.amazonSizeTier ?? '',
     amazonReferralFeePercent: sku?.amazonReferralFeePercent?.toString?.() ?? '',
-    amazonFbaFulfillmentFee: sku?.amazonFbaFulfillmentFee?.toString?.() ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
     initialBatch: {
@@ -237,9 +231,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     const amazonCategory = formState.amazonCategory.trim()
       ? formState.amazonCategory.trim()
       : null
-    const amazonSizeTier = formState.amazonSizeTier.trim()
-      ? formState.amazonSizeTier.trim()
-      : null
 
     const amazonReferralFeePercent = formState.amazonReferralFeePercent.trim()
       ? Number.parseFloat(formState.amazonReferralFeePercent.trim())
@@ -251,17 +242,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         amazonReferralFeePercent > 100)
     ) {
       toast.error('Amazon referral fee must be between 0 and 100')
-      return
-    }
-
-    const amazonFbaFulfillmentFee = formState.amazonFbaFulfillmentFee.trim()
-      ? Number.parseFloat(formState.amazonFbaFulfillmentFee.trim())
-      : null
-    if (
-      amazonFbaFulfillmentFee !== null &&
-      (!Number.isFinite(amazonFbaFulfillmentFee) || amazonFbaFulfillmentFee < 0)
-    ) {
-      toast.error('Amazon FBA fulfillment fee must be a non-negative number')
       return
     }
 
@@ -319,9 +299,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         asin: asinValue,
         description,
         amazonCategory,
-        amazonSizeTier,
         amazonReferralFeePercent,
-        amazonFbaFulfillmentFee,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
       }
@@ -618,10 +596,11 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
                         <div className="md:col-span-2 pt-2">
                           <h3 className="text-sm font-semibold text-slate-900">
-                            Amazon Defaults <span className="text-slate-400 font-normal">(optional)</span>
+                            Amazon Listing Defaults{' '}
+                            <span className="text-slate-400 font-normal">(optional)</span>
                           </h3>
                           <p className="mt-1 text-xs text-slate-500">
-                            Used by Amazon → FBA Fee Discrepancies to compare your reference values against Amazon charges.
+                            Used by Amazon → FBA Fee Discrepancies (size tier/fees are set per batch).
                           </p>
                         </div>
 
@@ -634,18 +613,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                               setFormState(prev => ({ ...prev, amazonCategory: event.target.value }))
                             }
                             placeholder="e.g. Home & Kitchen"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label htmlFor="amazonSizeTier">Size Tier</Label>
-                          <Input
-                            id="amazonSizeTier"
-                            value={formState.amazonSizeTier}
-                            onChange={event =>
-                              setFormState(prev => ({ ...prev, amazonSizeTier: event.target.value }))
-                            }
-                            placeholder="e.g. Large Standard"
                           />
                         </div>
 
@@ -665,24 +632,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                               }))
                             }
                             placeholder="e.g. 15"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
-                          <Input
-                            id="amazonFbaFulfillmentFee"
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            value={formState.amazonFbaFulfillmentFee}
-                            onChange={event =>
-                              setFormState(prev => ({
-                                ...prev,
-                                amazonFbaFulfillmentFee: event.target.value,
-                              }))
-                            }
-                            placeholder="Marketplace currency"
                           />
                         </div>
 

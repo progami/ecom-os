@@ -28,6 +28,24 @@ type AlertStatus =
   | 'MISSING_REFERENCE'
   | 'ERROR'
 
+function parseDecimalNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === 'object' && value !== null && 'toString' in value) {
+    try {
+      const parsed = Number.parseFloat(String(value))
+      return Number.isFinite(parsed) ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 function toAlertStatus(value: string | null): AlertStatus | null {
   if (!value) return null
   const normalized = value.trim().toUpperCase()
@@ -79,6 +97,18 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
       amazonSizeTier: true,
       amazonReferralFeePercent: true,
       amazonFbaFulfillmentFee: true,
+      batches: {
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          batchCode: true,
+          amazonSizeTier: true,
+          amazonFbaFulfillmentFee: true,
+          amazonReferenceWeightKg: true,
+          unitWeightKg: true,
+        },
+      },
       amazonFbaFeeAlert: {
         select: {
           status: true,
@@ -94,7 +124,20 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
     },
   })
 
-  return ApiResponses.success({ currencyCode, skus })
+  const resolvedSkus = skus.map(({ batches, ...sku }) => {
+    const latestBatch = batches[0] ?? null
+    return {
+      ...sku,
+      latestBatchCode: latestBatch?.batchCode ?? null,
+      amazonSizeTier: latestBatch?.amazonSizeTier ?? sku.amazonSizeTier ?? null,
+      amazonFbaFulfillmentFee:
+        latestBatch?.amazonFbaFulfillmentFee ?? sku.amazonFbaFulfillmentFee ?? null,
+      amazonReferenceWeightKg:
+        latestBatch?.amazonReferenceWeightKg ?? latestBatch?.unitWeightKg ?? null,
+    }
+  })
+
+  return ApiResponses.success({ currencyCode, skus: resolvedSkus })
 })
 
 export const POST = withRole(['admin', 'staff'], async (request, session) => {
@@ -112,19 +155,25 @@ export const POST = withRole(['admin', 'staff'], async (request, session) => {
       asin: true,
       amazonSizeTier: true,
       amazonFbaFulfillmentFee: true,
+      batches: {
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          batchCode: true,
+          amazonSizeTier: true,
+          amazonFbaFulfillmentFee: true,
+        },
+      },
     },
   })
 
   if (!sku) return ApiResponses.notFound('SKU not found')
 
-  const referenceSizeTier = sku.amazonSizeTier ?? null
-  const referenceFeeRaw = sku.amazonFbaFulfillmentFee
-  const referenceFbaFulfillmentFee =
-    typeof referenceFeeRaw === 'number'
-      ? referenceFeeRaw
-      : typeof referenceFeeRaw === 'string'
-        ? Number.parseFloat(referenceFeeRaw)
-        : null
+  const latestBatch = sku.batches[0] ?? null
+  const referenceSizeTier = latestBatch?.amazonSizeTier ?? sku.amazonSizeTier ?? null
+  const referenceFeeRaw = latestBatch?.amazonFbaFulfillmentFee ?? sku.amazonFbaFulfillmentFee
+  const referenceFbaFulfillmentFee = parseDecimalNumber(referenceFeeRaw)
 
   const checkedAt = new Date()
   let status: AlertStatus = 'UNKNOWN'
