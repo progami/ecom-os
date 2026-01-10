@@ -186,7 +186,7 @@ const baseAuthOptions: NextAuthConfig = {
 
         const hostMismatch = target.hostname !== base.hostname
         const bothPortalHosts =
-          target.hostname.endsWith('.targon.targonglobal.com') &&
+          target.hostname.endsWith('.targonos.targonglobal.com') &&
           base.hostname.endsWith('.targonglobal.com')
         if (hostMismatch && bothPortalHosts) {
           const loginOrigin = `${target.protocol}//${target.hostname}`

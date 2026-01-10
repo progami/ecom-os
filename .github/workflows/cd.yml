@@ -28,8 +28,8 @@ on:
           - main
 
 env:
-  TARGON_DEV_DIR: /Users/jarraramjad/targon-dev
-  TARGON_MAIN_DIR: /Users/jarraramjad/targon-main
+  TARGONOS_DEV_DIR: /Users/jarraramjad/targonos-dev
+  TARGONOS_MAIN_DIR: /Users/jarraramjad/targonos-main
 
 permissions:
   contents: read

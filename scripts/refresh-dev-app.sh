@@ -19,7 +19,7 @@ case "$app_key" in
   targon)
     workspace="@targon/targon"
     app_dir="$repo_root/apps/targon"
-    pm2_name="dev-targon"
+    pm2_name="dev-targonos"
     ;;
   website)
     workspace="@targon/website"

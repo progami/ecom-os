@@ -15,11 +15,11 @@ import { portalUrl, redirectToPortal } from '@/lib/portal'
 
 export default function LandingPage() {
  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
- const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
- const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
- const commitUrl = commitSha ? `https://github.com/progami/targon/commit/${commitSha}` : undefined
- const inferredReleaseUrl = `https://github.com/progami/targon/releases/tag/v${version}`
- const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+	 const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
+	 const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
+	 const commitUrl = commitSha ? `https://github.com/progami/targonos/commit/${commitSha}` : undefined
+	 const inferredReleaseUrl = `https://github.com/progami/targonos/releases/tag/v${version}`
+	 const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
 
  const features = [
  {
