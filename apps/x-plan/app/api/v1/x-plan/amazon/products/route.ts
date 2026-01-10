@@ -9,12 +9,16 @@ export const runtime = 'nodejs';
 
 const querySchema = z.object({
   strategyId: z.string().min(1),
+  q: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
 });
 
 export const GET = withXPlanAuth(async (request: Request, session) => {
   const { searchParams } = new URL(request.url);
   const parsed = querySchema.safeParse({
     strategyId: searchParams.get('strategyId'),
+    q: searchParams.get('q') ?? undefined,
+    limit: searchParams.get('limit') ?? undefined,
   });
 
   if (!parsed.success) {
@@ -43,14 +47,29 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
     );
   }
 
+  const query = parsed.data.q?.trim();
+  const limit = parsed.data.limit ?? 500;
+
   const skus = await wms.sku.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      ...(query
+        ? {
+            OR: [
+              { skuCode: { contains: query, mode: 'insensitive' } },
+              { description: { contains: query, mode: 'insensitive' } },
+              { asin: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
     select: {
       skuCode: true,
       asin: true,
       description: true,
     },
     orderBy: { skuCode: 'asc' },
+    take: limit,
   });
 
   return NextResponse.json({
@@ -61,4 +80,3 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
     })),
   });
 });
-
