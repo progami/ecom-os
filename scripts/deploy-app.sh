@@ -146,19 +146,121 @@ load_env_file() {
   return 0
 }
 
+set_env_var_in_file() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+
+  local tmp
+  tmp="$(mktemp)"
+
+  local found=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == "${key}="* || "$line" == "export ${key}="* ]]; then
+      printf '%s=%s\n' "$key" "$value" >> "$tmp"
+      found=1
+    else
+      printf '%s\n' "$line" >> "$tmp"
+    fi
+  done < "$file"
+
+  if [[ "$found" -eq 0 ]]; then
+    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+  fi
+
+  mv "$tmp" "$file"
+}
+
+update_database_url_schema_to_atlas() {
+  local url="$1"
+
+  if [[ -z "$url" ]]; then
+    printf '%s' "$url"
+    return 0
+  fi
+
+  local schema_regex='(.*)([?&]schema=)[^&]*(.*)'
+  if [[ "$url" =~ $schema_regex ]]; then
+    printf '%s%satlas%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    return 0
+  fi
+
+  if [[ "$url" == *"?"* ]]; then
+    printf '%s&schema=atlas' "$url"
+    return 0
+  fi
+
+  printf '%s?schema=atlas' "$url"
+}
+
+bootstrap_atlas_env_local_if_missing() {
+  if [[ "$app_key" != "atlas" ]]; then
+    return 0
+  fi
+
+  local target_file="$app_dir/.env.local"
+  if [[ -f "$target_file" ]]; then
+    return 0
+  fi
+
+  local expected_port=""
+  if [[ "$environment" == "dev" ]]; then
+    expected_port="3106"
+  elif [[ "$environment" == "main" ]]; then
+    expected_port="3006"
+  fi
+
+  if [[ -z "$expected_port" ]]; then
+    return 0
+  fi
+
+  local candidate=""
+  for candidate in "$REPO_DIR"/apps/*/.env.local; do
+    [[ -f "$candidate" ]] || continue
+    if grep -Eq "^PORT=${expected_port}$" "$candidate"; then
+      cp "$candidate" "$target_file"
+      break
+    fi
+  done
+
+  if [[ ! -f "$target_file" ]]; then
+    return 0
+  fi
+
+  local public_host=""
+  if [[ "$environment" == "dev" ]]; then
+    public_host="https://dev-ecomos.targonglobal.com"
+  elif [[ "$environment" == "main" ]]; then
+    public_host="https://ecomos.targonglobal.com"
+  fi
+
+  set_env_var_in_file "$target_file" "BASE_PATH" "/atlas"
+  set_env_var_in_file "$target_file" "NEXT_PUBLIC_BASE_PATH" "/atlas"
+  set_env_var_in_file "$target_file" "NEXT_PUBLIC_API_BASE" "/atlas"
+
+  if [[ -n "$public_host" ]]; then
+    set_env_var_in_file "$target_file" "NEXT_PUBLIC_APP_URL" "${public_host}/atlas"
+    set_env_var_in_file "$target_file" "NEXTAUTH_URL" "${public_host}/atlas/api/auth"
+  fi
+
+  if load_env_file "$target_file" && [[ -n "${DATABASE_URL:-}" ]]; then
+    local updated_url
+    updated_url="$(update_database_url_schema_to_atlas "$DATABASE_URL")"
+    set_env_var_in_file "$target_file" "DATABASE_URL" "$updated_url"
+  fi
+
+  unset DATABASE_URL DATABASE_URL_US DATABASE_URL_UK || true
+}
+
 ensure_database_url() {
   if [[ -n "${DATABASE_URL:-}" || -n "${DATABASE_URL_US:-}" || -n "${DATABASE_URL_UK:-}" ]]; then
     return 0
   fi
 
+  bootstrap_atlas_env_local_if_missing
+
   # Match Next.js env precedence: .env.local overrides everything in production.
   local candidates=("$app_dir/.env.local" "$app_dir/.env.production" "$app_dir/.env.dev" "$app_dir/.env")
-
-  # Atlas was renamed from HRMS; the self-hosted runner may still have the env file in the legacy directory.
-  if [[ "$app_key" == "atlas" ]]; then
-    local legacy_dir="$REPO_DIR/apps/hrms"
-    candidates+=("$legacy_dir/.env.local" "$legacy_dir/.env.production" "$legacy_dir/.env.dev" "$legacy_dir/.env")
-  fi
 
   for file in "${candidates[@]}"; do
     if load_env_file "$file" && [[ -n "${DATABASE_URL:-}" || -n "${DATABASE_URL_US:-}" || -n "${DATABASE_URL_UK:-}" ]]; then
@@ -171,11 +273,11 @@ ensure_database_url() {
     fi
   done
 
-  # Atlas deployments run against a local Postgres instance on the self-hosted runner.
-  # Defaulting here prevents CD from failing when no env file is present.
-  if [[ "$app_key" == "atlas" ]]; then
-    export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/hrms}"
-    warn "DATABASE_URL not set; defaulting to $DATABASE_URL for atlas deployment"
+  # Default dev Atlas deployments to a local Postgres instance on the self-hosted runner.
+  # Keep main deployments strict so missing env does not accidentally run against the wrong database.
+  if [[ "$app_key" == "atlas" && "$environment" == "dev" ]]; then
+    export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/atlas}"
+    warn "DATABASE_URL not set; defaulting to local atlas database for dev deployment"
     return 0
   fi
 
