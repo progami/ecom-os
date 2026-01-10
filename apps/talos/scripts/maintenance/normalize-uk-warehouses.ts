@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { PrismaClient } from '@ecom-os/prisma-talos'
+import { PrismaClient } from '@targon/prisma-talos'
 
 type ScriptOptions = {
   apply: boolean
@@ -53,7 +53,7 @@ Ensures the UK tenant has exactly these active warehouses (non-Amazon):
 Any other active, non-Amazon warehouses are deactivated (soft-delete) so they no longer appear in default lists.
 
 Usage:
-  pnpm --filter @ecom-os/talos warehouses:normalize-uk [--apply]
+  pnpm --filter @targon/talos warehouses:normalize-uk [--apply]
 
 Options:
   --apply      Apply changes (default: dry-run)

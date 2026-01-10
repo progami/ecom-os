@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/prisma-x-plan",
+  "name": "@targon/prisma-x-plan",
   "version": "0.0.0",
   "private": true,
   "sideEffects": false,

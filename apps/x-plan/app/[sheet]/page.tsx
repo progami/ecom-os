@@ -54,7 +54,7 @@ import {
   type PurchaseOrder,
   type PurchaseOrderPayment,
   type SalesWeek,
-} from '@ecom-os/prisma-x-plan';
+} from '@targon/prisma-x-plan';
 import { getCanonicalSheetSlug, getSheetConfig } from '@/lib/sheets';
 import { getWorkbookStatus } from '@/lib/workbook';
 import { WorkbookLayout } from '@/components/workbook-layout';
@@ -1053,7 +1053,7 @@ async function createPurchaseOrderPayment(
       void dueWeekNumber;
       void dueWeekNumberDefault;
       console.warn(
-        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns',
+        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @targon/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns',
       );
       const legacyData: Record<string, unknown> = {
         ...fallback,
@@ -1099,7 +1099,7 @@ async function updatePurchaseOrderPayment(
       void dueWeekNumber;
       void dueWeekNumberDefault;
       console.warn(
-        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns',
+        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @targon/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns',
       );
       const legacyData: Record<string, unknown> = {
         ...fallback,

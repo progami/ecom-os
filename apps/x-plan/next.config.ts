@@ -18,12 +18,12 @@ const nextConfig: NextConfig = {
   },
 
   transpilePackages: [
-    "@ecom-os/auth",
-    "@ecom-os/config",
-    "@ecom-os/logger",
+    "@targon/auth",
+    "@targon/config",
+    "@targon/logger",
   ],
 
-  serverExternalPackages: ['@ecom-os/prisma-x-plan'],
+  serverExternalPackages: ['@targon/prisma-x-plan'],
 };
 
 export default nextConfig;

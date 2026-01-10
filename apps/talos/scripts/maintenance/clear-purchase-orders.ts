@@ -68,7 +68,7 @@ Clear Purchase Orders
 Deletes all purchase orders and PO-linked inventory transactions in the target tenant(s).
 
 Usage:
-  pnpm --filter @ecom-os/talos exec tsx scripts/maintenance/clear-purchase-orders.ts [options]
+  pnpm --filter @targon/talos exec tsx scripts/maintenance/clear-purchase-orders.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

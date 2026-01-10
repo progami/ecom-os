@@ -92,7 +92,7 @@ batch_lot references (inventory transactions, purchase order lines, goods receip
 so there are no remaining DEFAULT batches in the schema.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/remove-default-sku-batches.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/remove-default-sku-batches.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

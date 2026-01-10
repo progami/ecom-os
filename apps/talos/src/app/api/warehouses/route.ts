@@ -1,6 +1,6 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma, WarehouseKind } from '@ecom-os/prisma-talos'
+import { Prisma, WarehouseKind } from '@targon/prisma-talos'
 import { sanitizeForDisplay, validateAlphanumeric } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 

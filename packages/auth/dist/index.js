@@ -208,8 +208,8 @@ export function getCandidateSessionCookieNames(appId) {
         'next-auth.session-token',
     ]);
     const portalAppIdRaw = typeof process !== 'undefined' && process.env
-        ? (process.env.PORTAL_APP_ID ?? 'ecomos')
-        : 'ecomos';
+        ? (process.env.PORTAL_APP_ID ?? 'targon')
+        : 'targon';
     const normalizedPortalAppId = portalAppIdRaw.trim();
     const addNamesFor = (id) => {
         const normalized = id?.trim();
@@ -425,7 +425,7 @@ export async function hasPortalSession(options) {
             headers: {
                 cookie: cookieHeader,
                 accept: 'application/json',
-                'x-ecomos-session-probe': '1',
+                'x-targon-session-probe': '1',
             },
             cache: 'no-store',
         });

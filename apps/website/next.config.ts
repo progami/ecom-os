@@ -6,7 +6,7 @@ const { version } = require("./package.json") as { version: string }
 const resolvedVersion = process.env.NEXT_PUBLIC_VERSION || version
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@ecom-os/theme"],
+  transpilePackages: ["@targon/theme"],
   env: {
     NEXT_PUBLIC_VERSION: resolvedVersion,
   },
@@ -27,10 +27,10 @@ const nextConfig: NextConfig = {
           {
             type: "header",
             key: "host",
-            value: "ecomos\\..*",
+            value: "targon\\..*",
           },
         ],
-        destination: "/ecomos",
+        destination: "/targon",
       },
     ]
   },

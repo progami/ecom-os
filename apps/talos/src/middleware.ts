@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { applyDevAuthDefaults, decodePortalSession, getAppEntitlement, getCandidateSessionCookieNames } from '@ecom-os/auth'
+import { applyDevAuthDefaults, decodePortalSession, getAppEntitlement, getCandidateSessionCookieNames } from '@targon/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
 import { TENANT_COOKIE_NAME, isValidTenantCode } from '@/lib/tenant/constants'
 
 applyDevAuthDefaults({
   // Align with portal default secret in local dev when ALLOW_DEV_AUTH_DEFAULTS=true.
-  appId: 'ecomos',
+  appId: 'targon',
 })
 
 export async function middleware(request: NextRequest) {
@@ -60,7 +60,7 @@ export async function middleware(request: NextRequest) {
   // Check for session and app entitlement
   const cookieNames = Array.from(
     new Set([
-      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('targon'),
       ...getCandidateSessionCookieNames('talos'),
     ])
   )

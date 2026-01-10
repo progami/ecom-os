@@ -6,9 +6,9 @@ Use the correct port based on your branch/environment:
 
 | Branch/Environment | Port | Command |
 |-------------------|------|---------|
-| main | 3006 | `PORT=3006 pnpm -F @ecom-os/atlas dev` |
-| dev | 3106 | `PORT=3106 pnpm -F @ecom-os/atlas dev` |
-| worktree | 3206 | `PORT=3206 pnpm -F @ecom-os/atlas dev` |
+| main | 3006 | `PORT=3006 pnpm -F @targon/atlas dev` |
+| dev | 3106 | `PORT=3106 pnpm -F @targon/atlas dev` |
+| worktree | 3206 | `PORT=3206 pnpm -F @targon/atlas dev` |
 
 If you are in a git worktree, always use port 3206 to avoid conflicts with dev (3106) or main (3006).
 

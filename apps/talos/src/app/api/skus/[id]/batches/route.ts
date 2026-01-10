@@ -1,6 +1,6 @@
 import { withAuthAndParams, ApiResponses, requireRole, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 

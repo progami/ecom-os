@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPortalAuthPrisma } from '@ecom-os/auth/server';
+import { getPortalAuthPrisma } from '@targon/auth/server';
 
 export const dynamic = 'force-dynamic';
 

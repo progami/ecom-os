@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { buildPortalUrl, resolvePortalAuthOrigin } from '@ecom-os/auth'
+import { buildPortalUrl, resolvePortalAuthOrigin } from '@targon/auth'
 
 export default async function XPlanRedirect() {
   const headerList = await headers()

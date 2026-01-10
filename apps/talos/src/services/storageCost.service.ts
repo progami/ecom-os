@@ -1,5 +1,5 @@
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma, TransactionType } from '@ecom-os/prisma-talos'
+import { Prisma, TransactionType } from '@targon/prisma-talos'
 import { addMonths, eachDayOfInterval, endOfWeek, format, startOfWeek } from 'date-fns'
 import { randomUUID } from 'crypto'
 import {

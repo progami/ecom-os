@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { PageLoading } from '@/components/ui/loading-spinner'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
-import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
+import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@targon/ledger'
 import { redirectToPortal } from '@/lib/portal'
 import { usePageState } from '@/lib/store'
 

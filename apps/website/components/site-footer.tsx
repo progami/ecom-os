@@ -10,7 +10,7 @@ const footerSections = [
     title: "Quick Links",
     links: [
       { href: "/policy", label: "Policy" },
-      { href: "/ecomos", label: "EcomOS" },
+      { href: "/targon", label: "Targon" },
       { href: "/coelum-star", label: "Coelum Star" },
     ],
   },
@@ -43,8 +43,8 @@ export default function SiteFooter() {
   const version = process.env.NEXT_PUBLIC_VERSION ?? "0.0.0"
   const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
-  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
-  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
+  const commitUrl = commitSha ? `https://github.com/progami/targon/commit/${commitSha}` : undefined
+  const inferredReleaseUrl = `https://github.com/progami/targon/releases/tag/v${version}`
   const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
 
   return (

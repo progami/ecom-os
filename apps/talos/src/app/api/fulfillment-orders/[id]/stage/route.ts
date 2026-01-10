@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
-import { FulfillmentOrderStatus } from '@ecom-os/prisma-talos'
+import { FulfillmentOrderStatus } from '@targon/prisma-talos'
 import {
   transitionFulfillmentOrderStage,
   getValidNextFulfillmentStages,

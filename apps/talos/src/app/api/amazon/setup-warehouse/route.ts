@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
-import { WarehouseKind } from '@ecom-os/prisma-talos'
+import { WarehouseKind } from '@targon/prisma-talos'
 export const dynamic = 'force-dynamic'
 
 export const POST = withAuth(async (_request, session) => {

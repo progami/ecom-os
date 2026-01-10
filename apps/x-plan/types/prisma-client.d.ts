@@ -1,4 +1,4 @@
-declare module '@ecom-os/prisma-x-plan' {
+declare module '@targon/prisma-x-plan' {
   export type PrismaClientOptions = Record<string, unknown>;
   export type DefaultArgs = Record<string, unknown>;
 

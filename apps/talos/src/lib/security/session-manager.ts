@@ -1,4 +1,4 @@
-import { PrismaClient } from '@ecom-os/prisma-talos';
+import { PrismaClient } from '@targon/prisma-talos';
 
 const prisma = new PrismaClient();
 

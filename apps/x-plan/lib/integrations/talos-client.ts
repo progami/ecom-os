@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { PrismaClient as TalosPrismaClient } from '@ecom-os/prisma-talos';
+import { PrismaClient as TalosPrismaClient } from '@targon/prisma-talos';
 import type { StrategyRegion } from '@/lib/strategy-region';
 
 type TalosRegion = Extract<StrategyRegion, 'US' | 'UK'>;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
 

@@ -1,9 +1,9 @@
 import 'server-only';
 
 import type { Session } from 'next-auth';
-import { buildPortalUrl } from '@ecom-os/auth';
-import { getPortalAuthPrisma } from '@ecom-os/auth/server';
-import { Prisma } from '@ecom-os/prisma-x-plan';
+import { buildPortalUrl } from '@targon/auth';
+import { getPortalAuthPrisma } from '@targon/auth/server';
+import { Prisma } from '@targon/prisma-x-plan';
 import prisma from '@/lib/prisma';
 
 type StrategyActor = {

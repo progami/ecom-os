@@ -1,4 +1,4 @@
-import { buildPortalUrl, resolvePortalAuthOrigin } from '@ecom-os/auth'
+import { buildPortalUrl, resolvePortalAuthOrigin } from '@targon/auth'
 
 type RequestLike = {
   headers: Headers

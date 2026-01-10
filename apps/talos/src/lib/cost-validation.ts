@@ -1,5 +1,5 @@
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { CostCategory } from '@ecom-os/prisma-talos'
+import { CostCategory } from '@targon/prisma-talos'
 
 /**
  * Validates that cost entries match defined cost rates for a warehouse

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@ecom-os/prisma-kairos';
+import { PrismaClient } from '@targon/prisma-kairos';
 
 type GlobalWithPrisma = typeof globalThis & {
   __kairosPrisma?: PrismaClient;

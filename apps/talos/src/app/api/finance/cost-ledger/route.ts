@@ -1,7 +1,7 @@
 import { withAuth, ApiResponses } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
-import { aggregateCostLedger } from '@ecom-os/ledger'
+import { Prisma } from '@targon/prisma-talos'
+import { aggregateCostLedger } from '@targon/ledger'
 
 export const dynamic = 'force-dynamic'
 

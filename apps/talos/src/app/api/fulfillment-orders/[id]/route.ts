@@ -2,7 +2,7 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getFulfillmentOrderById } from '@/lib/services/fulfillment-order-service'
 import { hasPermission } from '@/lib/services/permission-service'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 
 const emptyToNull = (value: unknown) => {
   if (value === undefined) return undefined

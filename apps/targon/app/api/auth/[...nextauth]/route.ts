@@ -14,7 +14,7 @@ async function clearAuthCookies() {
     'next-auth',
     '__Secure-authjs',
     '__Host-authjs',
-    'ecomos',
+    'targon',
   ]
 
   for (const cookie of allCookies) {

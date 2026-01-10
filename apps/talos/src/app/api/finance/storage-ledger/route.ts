@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 
 export const dynamic = 'force-dynamic'
 

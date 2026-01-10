@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/fcc",
+  "name": "@targon/fcc",
   "version": "1.1.0",
   "private": true,
   "scripts": {
@@ -56,7 +56,7 @@
     "refresh:balance-sheet": "tsx scripts/refresh-all-balance-sheet-data.ts"
   },
   "dependencies": {
-    "@ecom-os/auth": "workspace:*",
+    "@targon/auth": "workspace:*",
     "@hookform/resolvers": "^3.10.0",
     "@prisma/client": "6.19.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",

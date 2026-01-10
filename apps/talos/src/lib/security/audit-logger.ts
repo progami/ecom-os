@@ -1,5 +1,5 @@
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import { sanitizeForAudit } from './input-sanitization'
 
 export interface AuditLogEntry {

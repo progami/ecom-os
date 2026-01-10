@@ -1,15 +1,15 @@
 const path = require('path');
-const DEV_DIR = process.env.ECOM_OS_DEV_DIR || '/Users/jarraramjad/ecom-os-dev';
-const MAIN_DIR = process.env.ECOM_OS_MAIN_DIR || '/Users/jarraramjad/ecom-os-main';
+const DEV_DIR = process.env.TARGON_DEV_DIR || '/Users/jarraramjad/targon-dev';
+const MAIN_DIR = process.env.TARGON_MAIN_DIR || '/Users/jarraramjad/targon-main';
 
 module.exports = {
   apps: [
     // ===========================================
-    // DEV ENVIRONMENT (31xx ports) - dev-ecomos.targonglobal.com
+    // DEV ENVIRONMENT (31xx ports) - dev-targon.targonglobal.com
     // ===========================================
     {
-      name: 'dev-ecomos',
-      cwd: path.join(DEV_DIR, 'apps/ecomos'),
+      name: 'dev-targon',
+      cwd: path.join(DEV_DIR, 'apps/targon'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3100',
       interpreter: 'node',
@@ -79,11 +79,11 @@ module.exports = {
     },
 
     // ===========================================
-    // MAIN ENVIRONMENT (30xx ports) - ecomos.targonglobal.com
+    // MAIN ENVIRONMENT (30xx ports) - targon.targonglobal.com
     // ===========================================
     {
-      name: 'main-ecomos',
-      cwd: path.join(MAIN_DIR, 'apps/ecomos'),
+      name: 'main-targon',
+      cwd: path.join(MAIN_DIR, 'apps/targon'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',
       interpreter: 'node',

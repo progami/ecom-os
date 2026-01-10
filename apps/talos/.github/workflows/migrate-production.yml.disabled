@@ -88,7 +88,7 @@ EOF
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 22
           script: |
-            cd /home/ubuntu/wms-ecomos
+            cd /home/ubuntu/wms-targon
             git pull origin main
             npm ci
             npx prisma generate

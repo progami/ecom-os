@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/auth-wrapper';
 import { getTenantPrisma } from '@/lib/tenant/server'
-import type { TransactionType } from '@ecom-os/prisma-talos';
+import type { TransactionType } from '@targon/prisma-talos';
 export const dynamic = 'force-dynamic'
 
 export const GET = withAuth(async (_request, session) => {

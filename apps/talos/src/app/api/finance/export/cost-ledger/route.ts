@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/api/auth-wrapper'
 import * as XLSX from 'xlsx'
 import { getS3Service } from '@/services/s3.service'
 import { formatDateGMT } from '@/lib/date-utils'
-import type { CostLedgerGroupResult, CostLedgerBucketTotals } from '@ecom-os/ledger'
+import type { CostLedgerGroupResult, CostLedgerBucketTotals } from '@targon/ledger'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for large exports
 

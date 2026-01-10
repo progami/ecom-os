@@ -19,7 +19,7 @@ This repository uses shared workflows from [progami/shared-workflows](https://gi
 - **Shared Workflow**: `deploy-ssh.yml`
 - **Configuration**:
   - PM2 app name: `targon-frontend`
-  - Deployment path: `/home/ecom-os`
+  - Deployment path: `/home/targon`
   - Health check: https://targonglobal.com
   - Node.js 18
 

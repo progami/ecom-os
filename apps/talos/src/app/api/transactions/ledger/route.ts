@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma, TransactionType } from '@ecom-os/prisma-talos'
+import { Prisma, TransactionType } from '@targon/prisma-talos'
 import { parseLocalDate } from '@/lib/utils/date-helpers'
-import { aggregateInventoryTransactions } from '@ecom-os/ledger'
+import { aggregateInventoryTransactions } from '@targon/ledger'
 export const dynamic = 'force-dynamic'
 
 export const GET = withAuth(async (request, session) => {

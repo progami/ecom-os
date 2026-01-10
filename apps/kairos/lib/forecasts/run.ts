@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type { Session } from 'next-auth';
-import { Prisma } from '@ecom-os/prisma-kairos';
+import { Prisma } from '@targon/prisma-kairos';
 import { ZodError } from 'zod';
 
 import prisma from '@/lib/prisma';

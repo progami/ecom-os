@@ -10,7 +10,7 @@ const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH |
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'X-Plan | Ecom OS',
+  title: 'X-Plan | Targon',
   description:
     'Collaborative demand, supply, and finance planning that mirrors the X-Plan workbook experience while staying web-first.',
   icons: {
@@ -27,9 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined;
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined;
   const commitUrl = commitSha
-    ? `https://github.com/progami/ecom-os/commit/${commitSha}`
+    ? `https://github.com/progami/targon/commit/${commitSha}`
     : undefined;
-  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`;
+  const inferredReleaseUrl = `https://github.com/progami/targon/releases/tag/v${version}`;
   const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl;
 
   return (

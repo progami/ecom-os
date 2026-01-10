@@ -70,7 +70,7 @@ Adds supplier-level defaults used by PO creation autofill:
   - suppliers.default_incoterms
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/add-supplier-default-columns.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/add-supplier-default-columns.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

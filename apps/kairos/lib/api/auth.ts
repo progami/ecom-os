@@ -1,6 +1,6 @@
 import type { Session } from 'next-auth';
 import { NextResponse } from 'next/server';
-import { getAppEntitlement } from '@ecom-os/auth';
+import { getAppEntitlement } from '@targon/auth';
 
 import { auth } from '@/lib/auth';
 

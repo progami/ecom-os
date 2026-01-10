@@ -1,17 +1,17 @@
-# @ecom-os/talos
+# @targon/talos
 
-Talos powering inventory, billing, and operations for Ecom OS.
+Talos powering inventory, billing, and operations for Targon.
 
 ## Local Development
 - Install dependencies from the monorepo root with `pnpm install`.
-- Launch the app with `pnpm --filter @ecom-os/talos dev` (default port 3001).
-- Keep Prisma in sync using `pnpm --filter @ecom-os/talos db:push` and regenerate the client with `pnpm --filter @ecom-os/talos db:generate`.
-- Run end-to-end tests through `pnpm --filter @ecom-os/talos test`.
+- Launch the app with `pnpm --filter @targon/talos dev` (default port 3001).
+- Keep Prisma in sync using `pnpm --filter @targon/talos db:push` and regenerate the client with `pnpm --filter @targon/talos db:generate`.
+- Run end-to-end tests through `pnpm --filter @targon/talos test`.
 
 ## Production Workflow
 - Deployments happen manually on the EC2 host—no Terraform or Ansible flows remain.
-- From the host, pull the latest code, run `pnpm install`, and build with `pnpm --filter @ecom-os/talos build`.
-- Start the production server via `pnpm --filter @ecom-os/talos start` (wrap with pm2/systemd if you need process management).
+- From the host, pull the latest code, run `pnpm install`, and build with `pnpm --filter @targon/talos build`.
+- Start the production server via `pnpm --filter @targon/talos start` (wrap with pm2/systemd if you need process management).
 
 ## Environment
 Configuration is supplied through `.env` files stored on the host. Update env values before rebuilding when secrets or service endpoints change.
@@ -55,7 +55,7 @@ Optional per-tenant overrides (defaults exist for US/UK):
 
 ### Authentication & Authorization
 - **NextAuth.js** `5.0.0-beta.30` - Authentication solution for Next.js
-  - Shared auth via `@ecom-os/auth` workspace package
+  - Shared auth via `@targon/auth` workspace package
   - Session-based auth with JWT support
   - OAuth provider integrations
 

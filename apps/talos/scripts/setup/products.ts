@@ -4,10 +4,10 @@
  * Setup script: core product catalogue
  * --------------------------------------------------
  * Usage:
- *   pnpm --filter @ecom-os/talos exec tsx scripts/setup/products.ts [--skip-clean] [--verbose]
+ *   pnpm --filter @targon/talos exec tsx scripts/setup/products.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient } from '@ecom-os/prisma-talos'
+import { PrismaClient } from '@targon/prisma-talos'
 
 const prisma = new PrismaClient()
 

@@ -11,7 +11,7 @@ const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH |
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Kairos | Ecom OS',
+  title: 'Kairos | Targon',
   description:
     'Forecasting workspace that blends marketplace signals and statistical models.',
   icons: {
@@ -27,8 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
   const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined;
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined;
-  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined;
-  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`;
+  const commitUrl = commitSha ? `https://github.com/progami/targon/commit/${commitSha}` : undefined;
+  const inferredReleaseUrl = `https://github.com/progami/targon/releases/tag/v${version}`;
   const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl;
 
   return (

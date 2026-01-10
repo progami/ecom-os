@@ -27,7 +27,7 @@
       "@/*": [
         "./*"
       ],
-      "@ecom-os/theme": [
+      "@targon/theme": [
         "../../packages/theme/src"
       ]
     },

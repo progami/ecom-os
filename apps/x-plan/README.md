@@ -57,8 +57,8 @@ export DATABASE_URL='postgresql://postgres:postgres@localhost:6543/portal_db?sch
 Always regenerate Prisma after pulling schema changes, then apply migrations so the new supplier payment metadata columns exist:
 
 ```bash
-pnpm --filter @ecom-os/x-plan prisma:generate
-pnpm --filter @ecom-os/x-plan prisma:migrate:deploy
+pnpm --filter @targon/x-plan prisma:generate
+pnpm --filter @targon/x-plan prisma:migrate:deploy
 ```
 
 ### 6. Seed comprehensive demo data
@@ -68,17 +68,17 @@ X-Plan seeds required week rows as you create strategies, products, and purchase
 ### 7. Run the dev server
 
 ```bash
-pnpm --filter @ecom-os/x-plan dev
+pnpm --filter @targon/x-plan dev
 ```
 
-The app serves at http://localhost:3008 and reuses the shared `@ecom-os/auth` flow for sign-in.
+The app serves at http://localhost:3008 and reuses the shared `@targon/auth` flow for sign-in.
 
 ## Test & Quality Gates
 
 ```bash
-pnpm --filter @ecom-os/x-plan test        # Vitest unit & UI smoke tests
-pnpm --filter @ecom-os/x-plan lint        # ESLint (Next.js config)
-pnpm --filter @ecom-os/x-plan type-check  # tsc in noEmit mode
+pnpm --filter @targon/x-plan test        # Vitest unit & UI smoke tests
+pnpm --filter @targon/x-plan lint        # ESLint (Next.js config)
+pnpm --filter @targon/x-plan type-check  # tsc in noEmit mode
 ```
 
 ## Key Features

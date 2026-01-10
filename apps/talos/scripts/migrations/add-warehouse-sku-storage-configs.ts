@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { PrismaClient } from '@ecom-os/prisma-talos'
+import type { PrismaClient } from '@targon/prisma-talos'
 import { getTenantPrismaClient } from '../../src/lib/tenant/prisma-factory'
 import type { TenantCode } from '../../src/lib/tenant/constants'
 
@@ -70,7 +70,7 @@ Creates the warehouse_sku_storage_configs table (if missing) and backfills a
 row for each (warehouse, sku) pair to support per-warehouse pallet conversions.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/add-warehouse-sku-storage-configs.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/add-warehouse-sku-storage-configs.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

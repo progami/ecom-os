@@ -1,6 +1,6 @@
 import NextAuth from 'next-auth'
 import type { NextAuthConfig } from 'next-auth'
-import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@targon/auth'
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
   throw new Error('NEXT_PUBLIC_APP_URL must be defined for FCC auth configuration.')
@@ -12,7 +12,7 @@ if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
   throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for FCC auth configuration.')
 }
 applyDevAuthDefaults({
-  appId: 'ecomos',
+  appId: 'targon',
 })
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
@@ -45,13 +45,13 @@ const baseAuthOptions: NextAuthConfig = {
       return session
     },
   },
-  // No signIn page here; sign-in happens at the portal (ecomos)
+  // No signIn page here; sign-in happens at the portal (targon)
 }
 
 export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
   // Read portal cookie in dev
-  appId: 'ecomos',
+  appId: 'targon',
 })
 
 // Initialize NextAuth with config and export handlers + auth function

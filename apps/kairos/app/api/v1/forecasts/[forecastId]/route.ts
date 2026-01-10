@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { Prisma } from '@ecom-os/prisma-kairos';
+import { Prisma } from '@targon/prisma-kairos';
 
 import { withKairosAuth } from '@/lib/api/auth';
 import prisma from '@/lib/prisma';

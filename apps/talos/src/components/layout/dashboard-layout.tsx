@@ -21,8 +21,8 @@ const appName = 'Talos'
  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
- const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
- const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
+ const commitUrl = commitSha ? `https://github.com/progami/targon/commit/${commitSha}` : undefined
+ const inferredReleaseUrl = `https://github.com/progami/targon/releases/tag/v${version}`
  const href = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
  
  return (

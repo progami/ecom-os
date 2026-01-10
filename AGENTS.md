@@ -2,7 +2,7 @@
 
 ## Testing
 
-All testing should be done via Chrome browser directly to `https://ecomos.targonglobal.com/<app>` (e.g., `https://ecomos.targonglobal.com/x-plan`). Do not test on localhost.
+All testing should be done via Chrome browser directly to `https://targon.targonglobal.com/<app>` (e.g., `https://targon.targonglobal.com/x-plan`). Do not test on localhost.
 
 ## Git Workflow
 

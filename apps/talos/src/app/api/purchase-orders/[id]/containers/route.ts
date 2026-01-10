@@ -4,7 +4,7 @@ import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 
 const CONTAINER_SIZES = ['20FT', '40FT', '40HC', '45HC'] as const
 
