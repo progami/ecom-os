@@ -36,8 +36,8 @@ jobs:
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.local
           cp apps/kairos/.env.dev.ci apps/kairos/.env.dev
           cp apps/kairos/.env.dev.ci apps/kairos/.env.local
-          cp apps/hrms/.env.dev.ci apps/hrms/.env.dev
-          cp apps/hrms/.env.dev.ci apps/hrms/.env.local
+          cp apps/atlas/.env.dev.ci apps/atlas/.env.dev
+          cp apps/atlas/.env.dev.ci apps/atlas/.env.local
       - name: Verify dev environment configuration
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma clients (parallel)
@@ -45,7 +45,7 @@ jobs:
           pnpm --filter @ecom-os/wms db:generate &
           pnpm --filter @ecom-os/x-plan prisma:generate &
           pnpm --filter @ecom-os/kairos prisma:generate &
-          cd apps/hrms && npx prisma generate &
+          pnpm --filter @ecom-os/atlas db:generate &
           wait
       - name: Determine base ref
         id: changes

@@ -117,7 +117,7 @@ function buildDemoUser(): AuthenticatedUser {
   const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase()
   const entitlements: AppEntitlementMap = {
     wms: { departments: ['Ops'] },
-    hrms: { departments: ['People Ops'] },
+    atlas: { departments: ['People Ops'] },
     website: { departments: [] },
     kairos: { departments: ['Product'] },
     'x-plan': { departments: ['Product'] },

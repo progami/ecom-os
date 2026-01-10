@@ -90,11 +90,11 @@ const BASE_APPS: AppBase[] = [
     category: 'Ops',
   },
   {
-    id: 'hrms',
+    id: 'atlas',
     name: 'Atlas',
     description: 'HR, payroll and people operations.',
-    url: joinBaseUrl(PORTAL_BASE_URL, '/hrms'),
-    devPath: '/hrms',
+    url: joinBaseUrl(PORTAL_BASE_URL, '/atlas'),
+    devPath: '/atlas',
     category: 'HR / Admin',
   },
   {
@@ -187,7 +187,7 @@ function getEnvLifecycle(appId: string): AppLifecycle | undefined {
 }
 
 function resolveLifecycle(appId: string): AppLifecycle {
-  if (appId.toLowerCase() === 'hrms') {
+  if (appId.toLowerCase() === 'atlas') {
     return 'active'
   }
 

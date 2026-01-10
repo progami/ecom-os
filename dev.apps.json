@@ -3,7 +3,7 @@
   "apps": {
     "wms": "/wms",
     "kairos": "/kairos/forecasts",
-    "hrms": "/hrms",
+    "atlas": "/atlas",
     "website": "https://dev.targonglobal.com",
     "x-plan": "/x-plan"
   }

@@ -25,7 +25,7 @@ const APPS_TO_SYNC = [
   'apps/website',
   'apps/ecomos',
   'apps/x-plan',
-  'apps/hrms',
+  'apps/atlas',
 ]
 
 function readJSON(filePath) {
