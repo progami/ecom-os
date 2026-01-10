@@ -313,15 +313,6 @@
     0 8px 16px rgba(0, 194, 185, 0.16);
 }
 
-.iconBoxTalos {
-  border-color: rgba(249, 115, 22, 0.32);
-  background: rgba(249, 115, 22, 0.16);
-  color: rgba(249, 115, 22, 0.9);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 16px rgba(249, 115, 22, 0.18);
-}
-
 .cardDisabled .iconBox {
   border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(148, 163, 184, 0.12);
@@ -335,14 +326,6 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.12),
     0 14px 24px rgba(0, 194, 185, 0.22);
-}
-
-.card:hover .iconBoxTalos,
-.card:focus-visible .iconBoxTalos {
-  border-color: rgba(249, 115, 22, 0.6);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 14px 24px rgba(249, 115, 22, 0.22);
 }
 
 .arrow {
