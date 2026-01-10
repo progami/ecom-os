@@ -22,7 +22,7 @@
     "@ecom-os/auth": "workspace:*",
     "@ecom-os/config": "workspace:*",
     "@ecom-os/logger": "workspace:*",
-    "@ecom-os/prisma-wms": "workspace:*",
+    "@ecom-os/prisma-talos": "workspace:*",
     "@ecom-os/prisma-x-plan": "workspace:*",
     "@prisma/client": "6.19.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",

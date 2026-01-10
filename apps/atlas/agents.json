@@ -30,7 +30,7 @@
           "docs/STYLE_GUIDE.md",
           "docs/TECH_STACK.md",
           "apps/website/README.md",
-          "apps/wms/README.md (if present)",
+          "apps/talos/README.md (if present)",
           "docs/SHARED_WORKFLOWS_MIGRATION.md"
         ]
       }

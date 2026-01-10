@@ -45,7 +45,7 @@ Dev
   ```bash
   ssh -f -N \
     -L 6543:ecomos-prod.cyx0i8s6srto.us-east-1.rds.amazonaws.com:5432 \
-    -i ~/.ssh/wms-deploy-key.pem ec2-user@100.77.97.60
+    -i ~/.ssh/talos-deploy-key.pem ec2-user@100.77.97.60
   ```
   With the tunnel running, set `PORTAL_DB_URL=postgresql://portal_auth:portal_auth_password_2024@localhost:6543/portal_db?schema=auth_dev` in `.env.local`. No local Postgres install is required—the tunnel proxies every request to the shared dev database.
 
@@ -65,9 +65,9 @@ Files
 ## Dev app URLs (local ports)
 
 - In development, app links shown on the portal home will prefer localhost ports instead of production domains.
-- The resolution order for an app id like `wms` is:
-  1. `process.env.DEV_APP_URL_WMS` if set (e.g., `http://localhost:3001`)
-  2. `process.env.DEV_WMS_PORT` or `process.env.WMS_PORT` (builds `http://localhost:<port>`; host overridable via `DEV_APPS_HOST`)
+- The resolution order for an app id like `talos` is:
+  1. `process.env.DEV_APP_URL_TALOS` if set (e.g., `http://localhost:3001`)
+  2. `process.env.DEV_TALOS_PORT` or `process.env.TALOS_PORT` (builds `http://localhost:<port>`; host overridable via `DEV_APPS_HOST`)
   3. `dev.apps.json` at the repo root (example added with common defaults)
   4. Fallback to the production URL defined in `lib/apps.ts`
 

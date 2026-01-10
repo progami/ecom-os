@@ -263,7 +263,15 @@ export async function decodePortalSession(options = {}) {
                     salt: name, // Use the cookie name as salt
                 });
                 if (decoded && typeof decoded === 'object') {
-                    return decoded;
+                    const payload = decoded;
+                    const roles = payload.roles;
+                    if (roles && typeof roles === 'object') {
+                        const roleMap = roles;
+                        if (!roleMap.talos && roleMap.wms) {
+                            roleMap.talos = roleMap.wms;
+                        }
+                    }
+                    return payload;
                 }
             }
             catch (error) {

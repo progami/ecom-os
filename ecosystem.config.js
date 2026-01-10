@@ -20,8 +20,8 @@ module.exports = {
       max_memory_restart: '500M'
     },
     {
-      name: 'dev-wms',
-      cwd: path.join(DEV_DIR, 'apps/wms'),
+      name: 'dev-talos',
+      cwd: path.join(DEV_DIR, 'apps/talos'),
       script: 'server.js',
       exec_mode: 'fork',
       env: { NODE_ENV: 'production', PORT: 3101 },
@@ -94,8 +94,8 @@ module.exports = {
       max_memory_restart: '500M'
     },
     {
-      name: 'main-wms',
-      cwd: path.join(MAIN_DIR, 'apps/wms'),
+      name: 'main-talos',
+      cwd: path.join(MAIN_DIR, 'apps/talos'),
       script: 'server.js',
       exec_mode: 'fork',
       env: { NODE_ENV: 'production', PORT: 3001 },

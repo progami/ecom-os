@@ -38,6 +38,11 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
       normalized = { ...normalized, atlas: (normalized as any).hrms }
     }
 
+    // Backwards-compat: Talos was previously keyed as WMS in entitlements.
+    if ('wms' in normalized && !('talos' in normalized)) {
+      normalized = { ...normalized, talos: (normalized as any).wms }
+    }
+
     return normalized
   })()
   const allowedAppIds = normalizedRolesClaim ? Object.keys(normalizedRolesClaim) : []

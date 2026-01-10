@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: refresh-dev-app.sh <app-key>" >&2
-  echo "Known apps: wms, ecomos, website, xplan, atlas, kairos" >&2
+  echo "Known apps: talos, ecomos, website, xplan, atlas, kairos" >&2
   exit 1
 fi
 
@@ -11,10 +11,10 @@ app_key="$1"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 case "$app_key" in
-  wms)
-    workspace="@ecom-os/wms"
-    app_dir="$repo_root/apps/wms"
-    pm2_name="dev-wms"
+  talos)
+    workspace="@ecom-os/talos"
+    app_dir="$repo_root/apps/talos"
+    pm2_name="dev-talos"
     ;;
   ecomos)
     workspace="@ecom-os/ecomos"

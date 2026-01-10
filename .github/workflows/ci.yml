@@ -30,8 +30,8 @@ jobs:
         run: |
           cp apps/ecomos/.env.dev.ci apps/ecomos/.env.dev
           cp apps/ecomos/.env.dev.ci apps/ecomos/.env.local
-          cp apps/wms/.env.dev.ci apps/wms/.env.dev
-          cp apps/wms/.env.dev.ci apps/wms/.env.local
+          cp apps/talos/.env.dev.ci apps/talos/.env.dev
+          cp apps/talos/.env.dev.ci apps/talos/.env.local
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.dev
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.local
           cp apps/kairos/.env.dev.ci apps/kairos/.env.dev
@@ -42,7 +42,7 @@ jobs:
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma clients (parallel)
         run: |
-          pnpm --filter @ecom-os/wms db:generate &
+          pnpm --filter @ecom-os/talos db:generate &
           pnpm --filter @ecom-os/x-plan prisma:generate &
           pnpm --filter @ecom-os/kairos prisma:generate &
           pnpm --filter @ecom-os/atlas db:generate &

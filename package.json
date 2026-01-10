@@ -11,7 +11,7 @@
     "lint": "node scripts/run-turbo-task.js lint",
     "typecheck": "node scripts/run-turbo-task.js type-check",
     "format": "node scripts/run-turbo-task.js format",
-    "refresh:wms-dev": "bash scripts/refresh-dev-app.sh wms",
+    "refresh:talos-dev": "bash scripts/refresh-dev-app.sh talos",
     "refresh:ecomos-dev": "bash scripts/refresh-dev-app.sh ecomos",
     "refresh:website-dev": "bash scripts/refresh-dev-app.sh website",
     "refresh:kairos-dev": "bash scripts/refresh-dev-app.sh kairos",

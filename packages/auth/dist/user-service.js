@@ -77,9 +77,10 @@ function handleDevFallback(emailOrUsername, password) {
 function buildDemoUser() {
     const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
     const entitlements = {
-        wms: { departments: ['Ops'] },
+        talos: { departments: ['Ops'] },
         atlas: { departments: ['People Ops'] },
         website: { departments: [] },
+        kairos: { departments: ['Product'] },
         'x-plan': { departments: ['Product'] },
     };
     return {
