@@ -35,20 +35,14 @@ const APP_ICONS: Record<string, ReactNode> = {
   wms: (
     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
       <path
-        d="M3 9l9-6.5L21 9v9.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 5 18.5V9"
+        d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path
-        d="M9 11.5h6v8.5H9z"
-        fill="rgba(0,194,185,0.35)"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
-      />
+      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   ),
   hrms: (
@@ -278,12 +272,15 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
                   </span>
                 </div>
                 <div className={styles.grid}>
-                  {appsByCategory[category]?.map((app) => {
-                    const isDevLifecycle = app.lifecycle === 'dev'
-                    const isDisabled = isDevLifecycle && !allowDevApps
-                    const cardClassName = isDisabled
-                      ? `${styles.card} ${styles.cardDisabled}`
-                      : styles.card
+	                  {appsByCategory[category]?.map((app) => {
+	                    const isDevLifecycle = app.lifecycle === 'dev'
+	                    const isDisabled = isDevLifecycle && !allowDevApps
+	                    const cardClassName = isDisabled
+	                      ? `${styles.card} ${styles.cardDisabled}`
+	                      : styles.card
+	                    const iconBoxClassName = app.id === 'wms'
+	                      ? `${styles.iconBox} ${styles.iconBoxTalos}`
+	                      : styles.iconBox
 
                     const linkProps = isDisabled
                       ? {}
@@ -300,14 +297,14 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
                         aria-disabled={isDisabled}
                         tabIndex={isDisabled ? -1 : undefined}
                         {...linkProps}
-                      >
-                        <div className={styles.iconWrap}>
-                          <div className={styles.iconBox}>{getAppIcon(app.id)}</div>
-                          <svg className={styles.arrow} viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
-                            <path
-                              d="M8 5h6.59L7.3 12.29A1 1 0 0 0 8.7 13.7L16 6.41V13a1 1 0 1 0 2 0V4a1 1 0 0 0-1-1H8a1 1 0 0 0 0 2Z"
-                              fill="currentColor"
-                            />
+	                      >
+	                        <div className={styles.iconWrap}>
+	                          <div className={iconBoxClassName}>{getAppIcon(app.id)}</div>
+	                          <svg className={styles.arrow} viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+	                            <path
+	                              d="M8 5h6.59L7.3 12.29A1 1 0 0 0 8.7 13.7L16 6.41V13a1 1 0 1 0 2 0V4a1 1 0 0 0-1-1H8a1 1 0 0 0 0 2Z"
+	                              fill="currentColor"
+	                            />
                           </svg>
                         </div>
                         {isDevLifecycle && <span className={styles.lifecycleBadge}>In development</span>}
