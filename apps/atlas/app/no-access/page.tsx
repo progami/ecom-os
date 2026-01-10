@@ -87,7 +87,7 @@ export default function NoAccessPage() {
             <Link className="text-muted-foreground hover:text-foreground" href="/">
               Go back
             </Link>
-            <a className="text-accent hover:text-primary font-medium" href="https://ecomos.targonglobal.com">
+            <a className="text-accent hover:text-primary font-medium" href="https://targon.targonglobal.com">
               Back to portal
             </a>
           </div>

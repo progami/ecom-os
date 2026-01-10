@@ -52,23 +52,23 @@ Key variables:
 
 ### Prisma
 
-Atlas uses `@ecom-os/prisma-atlas` workspace package for the Prisma client.
+Atlas uses `@targon/prisma-atlas` workspace package for the Prisma client.
 
 ```bash
 # Generate client
-pnpm -F @ecom-os/atlas db:generate
+pnpm -F @targon/atlas db:generate
 
 # Run migrations
-pnpm -F @ecom-os/atlas db:migrate:dev
+pnpm -F @targon/atlas db:migrate:dev
 
 # Open Prisma Studio
-pnpm -F @ecom-os/atlas db:studio
+pnpm -F @targon/atlas db:studio
 ```
 
 ### Run
 
 ```bash
-pnpm -F @ecom-os/atlas dev
+pnpm -F @targon/atlas dev
 ```
 
 Default port: 3006 (main), 3106 (dev branch)
@@ -83,7 +83,7 @@ Place JSON files in `prisma/seed/`:
 See `*.sample.json` files for schema.
 
 ```bash
-pnpm -F @ecom-os/atlas db:seed
+pnpm -F @targon/atlas db:seed
 ```
 
 ## Google Workspace Integration
@@ -110,10 +110,10 @@ For calendar integration:
 ## Production Deployment
 
 ```bash
-pnpm -F @ecom-os/atlas db:generate
-pnpm -F @ecom-os/atlas db:migrate:deploy
-pnpm -F @ecom-os/atlas build
-pnpm -F @ecom-os/atlas start
+pnpm -F @targon/atlas db:generate
+pnpm -F @targon/atlas db:migrate:deploy
+pnpm -F @targon/atlas build
+pnpm -F @targon/atlas start
 ```
 
 Provide `DATABASE_URL` and auth secrets via environment variables.

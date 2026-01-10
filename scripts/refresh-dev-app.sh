@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: refresh-dev-app.sh <app-key>" >&2
-  echo "Known apps: talos, ecomos, website, xplan, atlas, kairos" >&2
+  echo "Known apps: talos, targon, website, xplan, atlas, kairos" >&2
   exit 1
 fi
 
@@ -12,32 +12,32 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 case "$app_key" in
   talos)
-    workspace="@ecom-os/talos"
+    workspace="@targon/talos"
     app_dir="$repo_root/apps/talos"
     pm2_name="dev-talos"
     ;;
-  ecomos)
-    workspace="@ecom-os/ecomos"
-    app_dir="$repo_root/apps/ecomos"
-    pm2_name="dev-ecomos"
+  targon)
+    workspace="@targon/targon"
+    app_dir="$repo_root/apps/targon"
+    pm2_name="dev-targon"
     ;;
   website)
-    workspace="@ecom-os/website"
+    workspace="@targon/website"
     app_dir="$repo_root/apps/website"
     pm2_name="dev-website"
     ;;
   xplan|x-plan)
-    workspace="@ecom-os/x-plan"
+    workspace="@targon/x-plan"
     app_dir="$repo_root/apps/x-plan"
     pm2_name="dev-x-plan"
     ;;
   kairos)
-    workspace="@ecom-os/kairos"
+    workspace="@targon/kairos"
     app_dir="$repo_root/apps/kairos"
     pm2_name="dev-kairos"
     ;;
   atlas)
-    workspace="@ecom-os/atlas"
+    workspace="@targon/atlas"
     app_dir="$repo_root/apps/atlas"
     pm2_name="dev-atlas"
     ;;

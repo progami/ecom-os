@@ -28,8 +28,8 @@ jobs:
         run: node scripts/sync-versions.js --check
       - name: Populate dev env files
         run: |
-          cp apps/ecomos/.env.dev.ci apps/ecomos/.env.dev
-          cp apps/ecomos/.env.dev.ci apps/ecomos/.env.local
+          cp apps/targon/.env.dev.ci apps/targon/.env.dev
+          cp apps/targon/.env.dev.ci apps/targon/.env.local
           cp apps/talos/.env.dev.ci apps/talos/.env.dev
           cp apps/talos/.env.dev.ci apps/talos/.env.local
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.dev
@@ -42,10 +42,10 @@ jobs:
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma clients (parallel)
         run: |
-          pnpm --filter @ecom-os/talos db:generate &
-          pnpm --filter @ecom-os/x-plan prisma:generate &
-          pnpm --filter @ecom-os/kairos prisma:generate &
-          pnpm --filter @ecom-os/atlas db:generate &
+          pnpm --filter @targon/talos db:generate &
+          pnpm --filter @targon/x-plan prisma:generate &
+          pnpm --filter @targon/kairos prisma:generate &
+          pnpm --filter @targon/atlas db:generate &
           wait
       - name: Determine base ref
         id: changes

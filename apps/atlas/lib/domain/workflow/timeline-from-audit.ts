@@ -1,4 +1,4 @@
-import type { AuditAction, AuditEntityType } from '@ecom-os/prisma-atlas'
+import type { AuditAction, AuditEntityType } from '@targon/prisma-atlas'
 import { prisma } from '@/lib/prisma'
 import type { WorkflowTimelineEntry } from '@/lib/contracts/workflow-record'
 

@@ -1,5 +1,5 @@
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Permission, UserPermission, User, UserRole } from '@ecom-os/prisma-talos'
+import { Permission, UserPermission, User, UserRole } from '@targon/prisma-talos'
 import { NotFoundError, ValidationError } from '@/lib/api'
 
 // Super admin emails - these users have all permissions automatically

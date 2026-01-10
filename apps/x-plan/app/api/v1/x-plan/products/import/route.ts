@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Prisma } from '@ecom-os/prisma-x-plan';
+import { Prisma } from '@targon/prisma-x-plan';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';

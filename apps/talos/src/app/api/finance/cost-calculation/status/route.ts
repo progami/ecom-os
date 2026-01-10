@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 
 export const GET = withAuth(async (request, session) => {

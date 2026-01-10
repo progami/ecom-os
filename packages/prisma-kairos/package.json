@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/prisma-kairos",
+  "name": "@targon/prisma-kairos",
   "version": "0.0.0",
   "private": true,
   "sideEffects": false,

@@ -4,10 +4,10 @@
  * Setup script: sample purchase orders
  * --------------------------------------------------
  * Usage:
- *   pnpm --filter @ecom-os/talos exec tsx scripts/setup/purchase-orders.ts [--skip-clean] [--verbose]
+ *   pnpm --filter @targon/talos exec tsx scripts/setup/purchase-orders.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient, PurchaseOrderType, PurchaseOrderStatus, Prisma } from '@ecom-os/prisma-talos'
+import { PrismaClient, PurchaseOrderType, PurchaseOrderStatus, Prisma } from '@targon/prisma-talos'
 
 const prisma = new PrismaClient()
 

@@ -3,7 +3,7 @@ import { withAuth } from '@/lib/api/auth-wrapper'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import type { Prisma } from '@ecom-os/prisma-talos'
+import type { Prisma } from '@targon/prisma-talos'
 
 interface StorageLedgerEntryRow {
  warehouseCode: string

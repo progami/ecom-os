@@ -1,6 +1,6 @@
 {
   "apps": {
-    "ecomos": { "lifecycle": "active" },
+    "targon": { "lifecycle": "active" },
     "talos": { "lifecycle": "active" },
     "website": { "lifecycle": "active" },
     "kairos": { "lifecycle": "active" },

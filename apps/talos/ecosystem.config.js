@@ -19,7 +19,7 @@ module.exports = {
     env_production: {
       NODE_ENV: 'production',
       PORT: 3001,
-      NEXTAUTH_URL: 'https://ecomos.targonglobal.com/talos'
+      NEXTAUTH_URL: 'https://targon.targonglobal.com/talos'
     }
   }]
 }

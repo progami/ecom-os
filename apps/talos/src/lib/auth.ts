@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth'
 import type { NextAuthConfig, Session } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
-import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@targon/auth'
 import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
 import type { TenantCode } from '@/lib/tenant/constants'
 
@@ -42,7 +42,7 @@ if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
 }
 
 applyDevAuthDefaults({
-  appId: 'ecomos',
+  appId: 'targon',
 })
 
 function sanitizeBaseUrl(raw?: string | null): string | undefined {
@@ -180,7 +180,7 @@ export const authOptions: NextAuthConfig = withSharedAuth(
   {
     cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
     // Use portal cookie prefix so NextAuth reads the same dev cookie as ecomOS
-    appId: 'ecomos',
+    appId: 'targon',
   }
 )
 

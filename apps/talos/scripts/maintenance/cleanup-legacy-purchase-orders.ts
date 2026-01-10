@@ -8,7 +8,7 @@ import {
   PurchaseOrderLineStatus,
   PurchaseOrderStatus,
   TenantCode,
-} from '@ecom-os/prisma-talos'
+} from '@targon/prisma-talos'
 import { getTenantPrismaClient } from '../../src/lib/tenant/prisma-factory'
 
 type CleanupMode = 'void' | 'hard-delete'
@@ -112,7 +112,7 @@ Legacy criteria:
   - OR purchase_orders.status in: ${LEGACY_STATUSES.join(', ')}
 
 Usage:
-  pnpm --filter @ecom-os/talos po:cleanup-legacy [options]
+  pnpm --filter @targon/talos po:cleanup-legacy [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

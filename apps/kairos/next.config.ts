@@ -16,10 +16,10 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BASE_PATH: appBasePath,
   },
 
-  transpilePackages: ['@ecom-os/auth', '@ecom-os/config', '@ecom-os/logger'],
+  transpilePackages: ['@targon/auth', '@targon/config', '@targon/logger'],
 
   serverExternalPackages: [
-    '@ecom-os/prisma-kairos',
+    '@targon/prisma-kairos',
     '@bsull/augurs',
     '@bsull/augurs-prophet-wasmstan',
   ],

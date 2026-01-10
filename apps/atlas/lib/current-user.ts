@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
-import { decodePortalSession, getCandidateSessionCookieNames, type PortalJwtPayload } from '@ecom-os/auth'
-import { Prisma } from '@ecom-os/prisma-atlas'
+import { decodePortalSession, getCandidateSessionCookieNames, type PortalJwtPayload } from '@targon/auth'
+import { Prisma } from '@targon/prisma-atlas'
 import { prisma } from './prisma'
 import { createTemporaryEmployeeId, formatEmployeeId } from './employee-identifiers'
 
@@ -19,6 +19,22 @@ export type CurrentEmployee = {
 export type CurrentUser = {
   session: PortalJwtPayload
   employee: CurrentEmployee | null
+}
+
+function parseEmailSet(raw: string | undefined) {
+  return new Set(
+    (raw ?? '')
+      .split(/[,\s]+/)
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean),
+  )
+}
+
+const DEFAULT_ATLAS_SUPER_ADMINS = new Set(['jarrar@targonglobal.com'])
+
+function atlasSuperAdminEmailSet() {
+  const configured = parseEmailSet(process.env.ATLAS_SUPER_ADMIN_EMAILS)
+  return configured.size > 0 ? configured : DEFAULT_ATLAS_SUPER_ADMINS
 }
 
 function splitNameFromSession(sessionName: string | undefined, email: string): { firstName: string; lastName: string } {
@@ -40,6 +56,8 @@ async function ensureEmployeeProfile(session: PortalJwtPayload): Promise<Current
   const email = session.email?.trim().toLowerCase()
   if (!email) return null
 
+  const ensureSuperAdmin = atlasSuperAdminEmailSet().has(email)
+
   const existing = await prisma.employee.findUnique({
     where: { email },
     select: {
@@ -52,13 +70,49 @@ async function ensureEmployeeProfile(session: PortalJwtPayload): Promise<Current
       position: true,
       reportsToId: true,
       avatar: true,
+      permissionLevel: true,
+      isSuperAdmin: true,
     },
   })
 
-  if (existing) return existing
+  if (existing) {
+    const permissionLevel = existing.permissionLevel ?? 0
+    const needsElevation = ensureSuperAdmin && (!existing.isSuperAdmin || permissionLevel < 100)
+
+    if (!needsElevation) {
+      const { permissionLevel: _permissionLevel, isSuperAdmin: _isSuperAdmin, ...employee } = existing
+      return employee
+    }
+
+    const elevated = await prisma.employee.update({
+      where: { id: existing.id },
+      data: {
+        isSuperAdmin: true,
+        permissionLevel: 100,
+        position: 'Super Admin',
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        department: true,
+        position: true,
+        reportsToId: true,
+        avatar: true,
+        permissionLevel: true,
+        isSuperAdmin: true,
+      },
+    })
+
+    const { permissionLevel: _permissionLevel, isSuperAdmin: _isSuperAdmin, ...employee } = elevated
+    return employee
+  }
 
   const employeeCount = await prisma.employee.count()
   const isBootstrap = employeeCount === 0
+  const shouldBeSuperAdmin = isBootstrap || ensureSuperAdmin
   const { firstName, lastName } = splitNameFromSession(session.name, email)
 
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -71,10 +125,10 @@ async function ensureEmployeeProfile(session: PortalJwtPayload): Promise<Current
             lastName,
             email,
             department: 'Unassigned',
-            position: isBootstrap ? 'Super Admin' : 'Employee',
+            position: shouldBeSuperAdmin ? 'Super Admin' : 'Employee',
             joinDate: new Date(),
-            permissionLevel: isBootstrap ? 100 : 0,
-            isSuperAdmin: isBootstrap,
+            permissionLevel: shouldBeSuperAdmin ? 100 : 0,
+            isSuperAdmin: shouldBeSuperAdmin,
           },
           select: { id: true, employeeNumber: true },
         })
@@ -127,7 +181,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const cookieNames = Array.from(
     new Set([
-      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('targon'),
       ...getCandidateSessionCookieNames('atlas'),
     ])
   )

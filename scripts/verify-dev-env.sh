@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 declare -a required_dev_host_files=(
-  "apps/ecomos/.env.dev"
+  "apps/targon/.env.dev"
   "apps/talos/.env.dev"
   "apps/x-plan/.env.dev"
 )
@@ -39,15 +39,15 @@ for file in "${required_dev_host_files[@]}"; do
     print_error "Missing expected env file: $file"
     continue
   fi
-  require_contains "$file" 'https://dev-ecomos\.targonglobal\.com' \
-    "Dev host https://dev-ecomos.targonglobal.com must appear in"
-  forbid_contains "$file" 'https://ecomos\.targonglobal\.com' \
-    "Prod host https://ecomos.targonglobal.com must not appear in"
+  require_contains "$file" 'https://dev-targon\.targonglobal\.com' \
+    "Dev host https://dev-targon.targonglobal.com must appear in"
+  forbid_contains "$file" 'https://targon\.targonglobal\.com' \
+    "Prod host https://targon.targonglobal.com must not appear in"
 done
 
-require_contains "apps/ecomos/.env.dev" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
+require_contains "apps/targon/.env.dev" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
   "PORTAL_APPS_CONFIG must point at dev.apps.json in"
-require_contains "apps/ecomos/.env.local" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
+require_contains "apps/targon/.env.local" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
   "PORTAL_APPS_CONFIG must point at dev.apps.json in"
 
 if [[ $has_error -eq 1 ]]; then

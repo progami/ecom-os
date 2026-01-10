@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: deploy-app.sh <app-key> <environment>" >&2
-  echo "  app-key: talos, ecomos, website, xplan, kairos, atlas" >&2
+  echo "  app-key: talos, targon, website, xplan, kairos, atlas" >&2
   echo "  environment: dev, main" >&2
   exit 1
 fi
@@ -27,11 +27,11 @@ migrate_cmd=""
 
 # Determine directories based on environment
 if [[ "$environment" == "dev" ]]; then
-  REPO_DIR="${ECOM_OS_DEV_DIR:-/Users/jarraramjad/ecom-os-dev}"
+  REPO_DIR="${TARGON_DEV_DIR:-/Users/jarraramjad/targon-dev}"
   PM2_PREFIX="dev"
   BRANCH="dev"
 elif [[ "$environment" == "main" ]]; then
-  REPO_DIR="${ECOM_OS_MAIN_DIR:-/Users/jarraramjad/ecom-os-main}"
+  REPO_DIR="${TARGON_MAIN_DIR:-/Users/jarraramjad/targon-main}"
   PM2_PREFIX="main"
   BRANCH="main"
 else
@@ -42,7 +42,7 @@ fi
 # Map app keys to workspace names and directories
 case "$app_key" in
   talos)
-    workspace="@ecom-os/talos"
+    workspace="@targon/talos"
     app_dir="$REPO_DIR/apps/talos"
     pm2_name="${PM2_PREFIX}-talos"
     legacy_app_dir="$REPO_DIR/apps/wms"
@@ -51,22 +51,22 @@ case "$app_key" in
     migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions && pnpm --filter $workspace db:migrate:sku-batch-attributes && pnpm --filter $workspace db:migrate:sku-batch-amazon-defaults && pnpm --filter $workspace db:migrate:supplier-defaults && pnpm --filter $workspace db:migrate:warehouse-sku-storage-configs && pnpm --filter $workspace db:migrate:purchase-order-documents && pnpm --filter $workspace db:migrate:fulfillment-orders-foundation"
     build_cmd="pnpm --filter $workspace build"
     ;;
-  ecomos)
-    workspace="@ecom-os/ecomos"
-    app_dir="$REPO_DIR/apps/ecomos"
-    pm2_name="${PM2_PREFIX}-ecomos"
+  targon)
+    workspace="@targon/targon"
+    app_dir="$REPO_DIR/apps/targon"
+    pm2_name="${PM2_PREFIX}-targon"
     prisma_cmd=""
     build_cmd="pnpm --filter $workspace build"
     ;;
   website)
-    workspace="@ecom-os/website"
+    workspace="@targon/website"
     app_dir="$REPO_DIR/apps/website"
     pm2_name="${PM2_PREFIX}-website"
     prisma_cmd=""
     build_cmd="pnpm --filter $workspace build"
     ;;
   xplan|x-plan)
-    workspace="@ecom-os/x-plan"
+    workspace="@targon/x-plan"
     app_dir="$REPO_DIR/apps/x-plan"
     pm2_name="${PM2_PREFIX}-x-plan"
     prisma_cmd="pnpm --filter $workspace prisma:generate"
@@ -74,7 +74,7 @@ case "$app_key" in
     build_cmd="pnpm --filter $workspace build"
     ;;
   kairos)
-    workspace="@ecom-os/kairos"
+    workspace="@targon/kairos"
     app_dir="$REPO_DIR/apps/kairos"
     pm2_name="${PM2_PREFIX}-kairos"
     prisma_cmd="pnpm --filter $workspace prisma:generate"
@@ -82,7 +82,7 @@ case "$app_key" in
     build_cmd="pnpm --filter $workspace build"
     ;;
   atlas)
-    workspace="@ecom-os/atlas"
+    workspace="@targon/atlas"
     app_dir="$REPO_DIR/apps/atlas"
     pm2_name="${PM2_PREFIX}-atlas"
     prisma_cmd="cd $app_dir && npx prisma generate"
@@ -203,9 +203,9 @@ bootstrap_talos_env_local_if_missing() {
     local desired_app_url=""
 
     if [[ "$environment" == "dev" ]]; then
-      desired_app_url="https://dev-ecomos.targonglobal.com/talos"
+      desired_app_url="https://dev-targon.targonglobal.com/talos"
     else
-      desired_app_url="https://ecomos.targonglobal.com/talos"
+      desired_app_url="https://targon.targonglobal.com/talos"
     fi
 
     set_env_var_in_file "$env_file" "BASE_PATH" "$desired_base_path"
@@ -273,9 +273,9 @@ bootstrap_atlas_env_local_if_missing() {
 
   local public_host=""
   if [[ "$environment" == "dev" ]]; then
-    public_host="https://dev-ecomos.targonglobal.com"
+    public_host="https://dev-targon.targonglobal.com"
   elif [[ "$environment" == "main" ]]; then
-    public_host="https://ecomos.targonglobal.com"
+    public_host="https://targon.targonglobal.com"
   fi
 
   set_env_var_in_file "$target_file" "BASE_PATH" "/atlas"

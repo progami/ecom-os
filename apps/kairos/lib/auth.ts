@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth';
 import type { NextAuthConfig } from 'next-auth';
 import type { NextRequest } from 'next/server';
-import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth';
+import { applyDevAuthDefaults, withSharedAuth } from '@targon/auth';
 
 applyDevAuthDefaults({
   appId: 'kairos',
@@ -73,7 +73,7 @@ function resolveAuthOptions(): NextAuthConfig {
 
   return withSharedAuth(baseAuthOptions, {
     cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
-    appId: 'ecomos',
+    appId: 'targon',
   });
 }
 

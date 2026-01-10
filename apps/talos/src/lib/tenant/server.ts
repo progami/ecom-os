@@ -8,7 +8,7 @@ import {
   TenantConfig,
 } from './constants'
 import { getTenantPrismaClient } from './prisma-factory'
-import { PrismaClient } from '@ecom-os/prisma-talos'
+import { PrismaClient } from '@targon/prisma-talos'
 
 /**
  * Get the current tenant code from cookies or headers (server-side)

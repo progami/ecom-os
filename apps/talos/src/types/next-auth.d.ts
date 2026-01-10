@@ -1,4 +1,4 @@
-import { UserRole, TenantCode } from '@ecom-os/prisma-talos'
+import { UserRole, TenantCode } from '@targon/prisma-talos'
 import { DefaultSession } from 'next-auth'
 
 declare module 'next-auth' {

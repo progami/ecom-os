@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Prisma } from '@ecom-os/prisma-x-plan';
+import { Prisma } from '@targon/prisma-x-plan';
 import prisma from '@/lib/prisma';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';

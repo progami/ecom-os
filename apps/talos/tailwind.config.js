@@ -58,7 +58,7 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Ecom OS Brand Colors
+        // Targon Brand Colors
         brand: {
           dark: "#002C51",
           navy: {

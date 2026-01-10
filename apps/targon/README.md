@@ -7,7 +7,7 @@ Goals
 -----
 
 - Single sign-on across `*.targonglobal.com` subdomains
-- One login page at `https://ecomos.targonglobal.com/login`
+- One login page at `https://targon.targonglobal.com/login`
 - Show a per-user app catalog with deep links
 - Issue a secure, httpOnly, domain-scoped NextAuth session cookie
 
@@ -25,7 +25,7 @@ Environment
 
 - NEXTAUTH_SECRET: strong secret shared by all apps (required)
 - COOKIE_DOMAIN: `.targonglobal.com`
-- NEXTAUTH_URL: `https://ecomos.targonglobal.com`
+- NEXTAUTH_URL: `https://targon.targonglobal.com`
 - PORTAL_DB_URL: `postgresql://portal_auth:***@localhost:5432/portal_db?schema=auth`
 - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: OAuth credentials from the Google Cloud console
 - GOOGLE_ALLOWED_EMAILS: comma or whitespace separated list of permitted Google accounts (e.g. `jarrar@targonglobal.com, mehdi@targonglobal.com`)
@@ -33,18 +33,18 @@ Environment
 Dev
 ---
 
-- In dev, cookie name becomes `ecomos.next-auth.session-token` to avoid collisions.
-- Apps attempt `next-auth.session-token`, `ecomos.next-auth.session-token`, and their legacy cookie name.
+- In dev, cookie name becomes `targon.next-auth.session-token` to avoid collisions.
+- Apps attempt `next-auth.session-token`, `targon.next-auth.session-token`, and their legacy cookie name.
 - When `GOOGLE_ALLOWED_EMAILS` is omitted locally, any Google account may sign in (handy for smoke tests).
-- To test Google SSO locally, create `apps/ecomos/.env.local` (gitignored) with:
-  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` copied from the Google Cloud project (`ecomos-sso`).
+- To test Google SSO locally, create `apps/targon/.env.local` (gitignored) with:
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` copied from the Google Cloud project (`targon-sso`).
   - `GOOGLE_ALLOWED_EMAILS` set to the Workspace accounts you want exercising the flow.
   - `NEXTAUTH_SECRET` (and optionally `NEXTAUTH_URL=http://localhost:3000`) so the NextAuth session behavior matches production.
 - Auth bootstrap now fails immediately when required env vars are missing. Ensure `NEXTAUTH_SECRET`, `COOKIE_DOMAIN`, `PORTAL_AUTH_URL`, `NEXT_PUBLIC_PORTAL_AUTH_URL`, and `NEXT_PUBLIC_APP_URL` are defined before running dev servers. For ad-hoc local runs you can export `ALLOW_DEV_AUTH_DEFAULTS=true` to re-enable localhost fallbacks.
-- The portal now connects to the shared `auth_dev` schema on the `ecomos-prod` RDS instance. Before launching the dev server, open a tunnel to the bastion:
+- The portal now connects to the shared `auth_dev` schema on the `targon-prod` RDS instance. Before launching the dev server, open a tunnel to the bastion:
   ```bash
   ssh -f -N \
-    -L 6543:ecomos-prod.cyx0i8s6srto.us-east-1.rds.amazonaws.com:5432 \
+    -L 6543:targon-prod.cyx0i8s6srto.us-east-1.rds.amazonaws.com:5432 \
     -i ~/.ssh/talos-deploy-key.pem ec2-user@100.77.97.60
   ```
   With the tunnel running, set `PORTAL_DB_URL=postgresql://portal_auth:portal_auth_password_2024@localhost:6543/portal_db?schema=auth_dev` in `.env.local`. No local Postgres install is required—the tunnel proxies every request to the shared dev database.

@@ -3,7 +3,7 @@ module.exports = {
     name: 'targon-frontend',
     script: 'npm',
     args: 'start',
-    cwd: '/home/ecom-os',
+    cwd: '/home/targon',
     instances: 1,
     exec_mode: 'fork',
     autorestart: true,

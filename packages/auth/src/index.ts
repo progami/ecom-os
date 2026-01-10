@@ -275,8 +275,8 @@ export function getCandidateSessionCookieNames(appId?: string): string[] {
 
   const portalAppIdRaw =
     typeof process !== 'undefined' && process.env
-      ? (process.env.PORTAL_APP_ID ?? 'ecomos')
-      : 'ecomos';
+      ? (process.env.PORTAL_APP_ID ?? 'targon')
+      : 'targon';
   const normalizedPortalAppId = portalAppIdRaw.trim();
 
   const addNamesFor = (id?: string) => {
@@ -573,7 +573,7 @@ export async function hasPortalSession(options: PortalSessionProbeOptions): Prom
       headers: {
         cookie: cookieHeader,
         accept: 'application/json',
-        'x-ecomos-session-probe': '1',
+        'x-targon-session-probe': '1',
       },
       cache: 'no-store',
     });

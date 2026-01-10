@@ -1,6 +1,6 @@
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError, ConflictError, ValidationError } from '@/lib/api'
-import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-talos'
+import { Prisma, PurchaseOrderStatus } from '@targon/prisma-talos'
 import { auditLog } from '@/lib/security/audit-logger'
 import { toPublicOrderNumber } from './purchase-order-utils'
 

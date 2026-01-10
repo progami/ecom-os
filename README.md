@@ -1,6 +1,6 @@
-# Ecom OS
+# Targon
 
-Ecom OS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, Talos, X‑Plan, Atlas, Website) with shared authentication and shared libraries.
+Targon is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, Talos, X‑Plan, Atlas, Website) with shared authentication and shared libraries.
 
 This repo is currently hosted from a macOS laptop for development and “live” environments (main + dev). The hosting setup is documented here so it’s reproducible and debuggable.
 
@@ -28,13 +28,13 @@ Cloudflared routes hostnames to local nginx listener ports (`~/.cloudflared/conf
 
 | Hostname | Purpose | Origin |
 | --- | --- | --- |
-| `ecomos.targonglobal.com` | Main Portal (+ `/talos`, `/x-plan`, `/atlas`) | `http://localhost:8080` |
-| `dev-ecomos.targonglobal.com` | Dev Portal (+ `/talos`, `/x-plan`, `/atlas`) | `http://localhost:8081` |
+| `targon.targonglobal.com` | Main Portal (+ `/talos`, `/x-plan`, `/atlas`) | `http://localhost:8080` |
+| `dev-targon.targonglobal.com` | Dev Portal (+ `/talos`, `/x-plan`, `/atlas`) | `http://localhost:8081` |
 | `www.targonglobal.com` / `targonglobal.com` | Main Website | `http://localhost:8082` |
 | `dev.targonglobal.com` | Dev Website | `http://localhost:8083` |
 | `db.targonglobal.com` | PostgreSQL (TCP) | `tcp://localhost:5432` |
 
-nginx then routes paths to the correct app ports (macOS/Homebrew default path: `/opt/homebrew/etc/nginx/servers/ecom-os.conf`):
+nginx then routes paths to the correct app ports (macOS/Homebrew default path: `/opt/homebrew/etc/nginx/servers/targon.conf`):
 
 - Main: `3000` (portal), `3001` (talos), `3006` (atlas), `3008` (x-plan), `3005` (website)
 - Dev: `3100` (portal), `3101` (talos), `3106` (atlas), `3108` (x-plan), `3105` (website)
@@ -45,16 +45,16 @@ The laptop keeps two long-lived working directories (“worktrees”) so `dev` a
 
 | Directory | Branch | Environment | App ports |
 | --- | --- | --- | --- |
-| `~/ecom-os-dev` | `dev` | Dev | `31xx` |
-| `~/ecom-os-main` | `main` | Main | `30xx` |
+| `~/targon-dev` | `dev` | Dev | `31xx` |
+| `~/targon-main` | `main` | Main | `30xx` |
 
-PM2 process definitions live in `ecosystem.config.js` and reference these directories via `ECOM_OS_DEV_DIR` / `ECOM_OS_MAIN_DIR`.
+PM2 process definitions live in `ecosystem.config.js` and reference these directories via `TARGON_DEV_DIR` / `TARGON_MAIN_DIR`.
 
 ## Monorepo layout
 
 ```text
 apps/
-  ecomos/       # Portal (auth + navigation hub)
+  targon/       # Portal (auth + navigation hub)
   talos/        # Warehouse Management (custom server.js)
   x-plan/       # X‑Plan (Next.js app)
   atlas/         # Atlas (Next.js app)
@@ -76,25 +76,25 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 
 | App | Workspace | Base path | Notes |
 | --- | --- | --- | --- |
-| Portal | `@ecom-os/ecomos` | `/` | Central auth (NextAuth v5) + app navigation |
-| Talos | `@ecom-os/talos` | `/talos` | Uses `apps/talos/server.js`, Redis, and S3 presigned uploads |
-| X‑Plan | `@ecom-os/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
-| Atlas | `@ecom-os/atlas` | `/atlas` | Prisma schema `atlas`; Playwright tests |
-| Website | `@ecom-os/website` | `/` | Separate hostname (`targonglobal.com`) |
+| Portal | `@targon/targon` | `/` | Central auth (NextAuth v5) + app navigation |
+| Talos | `@targon/talos` | `/talos` | Uses `apps/talos/server.js`, Redis, and S3 presigned uploads |
+| X‑Plan | `@targon/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
+| Atlas | `@targon/atlas` | `/atlas` | Prisma schema `atlas`; Playwright tests |
+| Website | `@targon/website` | `/` | Separate hostname (`targonglobal.com`) |
 
 ## Authentication model (Portal as the source of truth)
 
-- The portal (`apps/ecomos`) is the canonical NextAuth app; other apps validate the portal session.
+- The portal (`apps/targon`) is the canonical NextAuth app; other apps validate the portal session.
 - Cookie domain is shared (`COOKIE_DOMAIN=.targonglobal.com`) so a user signs in once and can use multiple apps.
 - Shared secret: `PORTAL_AUTH_SECRET` (and/or `NEXTAUTH_SECRET`) must match across apps.
 - Reverse proxy support: nginx forwards `X-Forwarded-Host` / `X-Forwarded-Proto`; NextAuth v5 requires `AUTH_TRUST_HOST=true` behind a proxy.
-- The shared library `@ecom-os/auth` includes helpers for consistent cookie naming and session checks (JWT decode + portal `/api/auth/session` probe).
+- The shared library `@targon/auth` includes helpers for consistent cookie naming and session checks (JWT decode + portal `/api/auth/session` probe).
 
 ## Data/services
 
 - PostgreSQL runs locally (Homebrew `postgresql@14`), exposed on `localhost:5432` and optionally via `db.targonglobal.com` through the tunnel.
 - Schemas are per-app (and per-environment): `auth`, `talos`, `xplan`, `atlas` (dev schemas may be prefixed `dev_*` depending on env).
-- Prisma clients are generated into `packages/prisma-*` and imported by apps (e.g., `@ecom-os/prisma-talos`).
+- Prisma clients are generated into `packages/prisma-*` and imported by apps (e.g., `@targon/prisma-talos`).
 - Redis runs locally (Homebrew `redis`) and is used by Talos.
 
 ## Environment configuration (high level)
@@ -136,11 +136,11 @@ pnpm install
 pnpm dev
 
 # Single app
-pnpm --filter @ecom-os/ecomos dev
-pnpm --filter @ecom-os/talos dev
-pnpm --filter @ecom-os/x-plan dev
-pnpm --filter @ecom-os/atlas dev
-pnpm --filter @ecom-os/website dev
+pnpm --filter @targon/targon dev
+pnpm --filter @targon/talos dev
+pnpm --filter @targon/x-plan dev
+pnpm --filter @targon/atlas dev
+pnpm --filter @targon/website dev
 ```
 
 For local-only URL wiring, set `PORTAL_APPS_CONFIG=dev.local.apps.json` so the portal can link to other apps running on localhost.
@@ -164,7 +164,7 @@ Workflow: `.github/workflows/cd.yml`
 - Triggers on `push` to `dev` or `main` and runs deploy steps on a `self-hosted` GitHub Actions runner on the laptop (`~/actions-runner`).
 - Detects which apps/packages changed and deploys only what’s necessary.
 - Uses `scripts/deploy-app.sh` to:
-  - sync the correct worktree (`~/ecom-os-dev` or `~/ecom-os-main`)
+  - sync the correct worktree (`~/targon-dev` or `~/targon-main`)
   - run `pnpm install` (once per deploy run)
   - build the app(s)
   - restart the matching PM2 process(es)
@@ -184,9 +184,9 @@ Workflow: `.github/workflows/cd.yml`
 
 ```bash
 pm2 status
-pm2 logs main-ecomos --lines 100
-pm2 restart dev-ecomos dev-talos dev-x-plan dev-atlas dev-website --update-env
-pm2 restart main-ecomos main-talos main-x-plan main-atlas main-website --update-env
+pm2 logs main-targon --lines 100
+pm2 restart dev-targon dev-talos dev-x-plan dev-atlas dev-website --update-env
+pm2 restart main-targon main-talos main-x-plan main-atlas main-website --update-env
 pm2 save
 ```
 

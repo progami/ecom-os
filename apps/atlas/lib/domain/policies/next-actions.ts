@@ -1,4 +1,4 @@
-import type { Policy } from '@ecom-os/prisma-atlas'
+import type { Policy } from '@targon/prisma-atlas'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 
 export type PolicyViewerContext = {

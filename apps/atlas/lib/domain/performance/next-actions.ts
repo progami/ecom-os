@@ -1,4 +1,4 @@
-import type { PerformanceReview } from '@ecom-os/prisma-atlas';
+import type { PerformanceReview } from '@targon/prisma-atlas';
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record';
 
 export type PerformanceWorkflowRecordInput = PerformanceReview & {

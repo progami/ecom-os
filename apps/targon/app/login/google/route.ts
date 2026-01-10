@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server'
 
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || '.targonglobal.com'
 
-const AUTH_COOKIE_PATTERNS = ['authjs', 'next-auth', '__Secure-', '__Host-', 'csrf', 'pkce', 'callback', 'ecomos', 'session']
+const AUTH_COOKIE_PATTERNS = ['authjs', 'next-auth', '__Secure-', '__Host-', 'csrf', 'pkce', 'callback', 'targon', 'session']
 const KNOWN_COOKIES = [
   '__Secure-next-auth.session-token',
   '__Secure-next-auth.callback-url',
@@ -14,9 +14,9 @@ const KNOWN_COOKIES = [
   'next-auth.session-token',
   'next-auth.callback-url',
   'next-auth.csrf-token',
-  'ecomos.next-auth.session-token',
-  'ecomos.next-auth.callback-url',
-  'ecomos.next-auth.csrf-token',
+  'targon.next-auth.session-token',
+  'targon.next-auth.callback-url',
+  'targon.next-auth.csrf-token',
   '__Secure-authjs.session-token',
   '__Secure-authjs.callback-url',
   '__Secure-authjs.csrf-token',

@@ -7,7 +7,7 @@ import {
   type FulfillmentUserContext,
 } from '@/lib/services/fulfillment-order-service'
 import { hasPermission } from '@/lib/services/permission-service'
-import { FulfillmentDestinationType } from '@ecom-os/prisma-talos'
+import { FulfillmentDestinationType } from '@targon/prisma-talos'
 
 export const GET = withAuth(async (_request: NextRequest, _session) => {
   const orders = await listFulfillmentOrders()

@@ -1,4 +1,4 @@
-import type { Prisma as PrismaNamespace } from '@ecom-os/prisma-atlas'
+import type { Prisma as PrismaNamespace } from '@targon/prisma-atlas'
 
 // Re-export all Prisma types from the generated package
 export {
@@ -29,7 +29,7 @@ export {
   AuditAction,
   AuditEntityType,
   EmployeeFileVisibility,
-} from '@ecom-os/prisma-atlas'
+} from '@targon/prisma-atlas'
 
 // Transaction client type for $transaction callbacks
 export type TransactionClient = PrismaNamespace.TransactionClient

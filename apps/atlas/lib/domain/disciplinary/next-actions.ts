@@ -1,4 +1,4 @@
-import type { DisciplinaryAction } from '@ecom-os/prisma-atlas'
+import type { DisciplinaryAction } from '@targon/prisma-atlas'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 
 export type DisciplinaryWorkflowRecordInput = DisciplinaryAction & {

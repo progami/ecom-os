@@ -24,7 +24,7 @@ jobs:
     with:
       environment: ${{ github.event.inputs.environment || 'production' }}
       app-name: 'targon-frontend'
-      app-path: '/home/ecom-os'
+      app-path: '/home/targon'
       branch: 'main'
       health-check-url: 'https://targonglobal.com'
       health-check-port: '443'

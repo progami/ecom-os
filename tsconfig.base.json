@@ -11,11 +11,11 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@ecom-os/ui": ["packages/ui/src"],
-      "@ecom-os/theme": ["packages/theme/src"],
-      "@ecom-os/config": ["packages/config/src"],
-      "@ecom-os/logger": ["packages/logger/src"],
-      "@ecom-os/ledger": ["packages/ledger/src"]
+      "@targon/ui": ["packages/ui/src"],
+      "@targon/theme": ["packages/theme/src"],
+      "@targon/config": ["packages/config/src"],
+      "@targon/logger": ["packages/logger/src"],
+      "@targon/ledger": ["packages/ledger/src"]
     }
   }
 }

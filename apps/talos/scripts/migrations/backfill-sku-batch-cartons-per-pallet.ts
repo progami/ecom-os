@@ -92,7 +92,7 @@ Resolution order (per batch):
   3) Fall back to ${DEFAULT_CARTONS_PER_PALLET}
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/backfill-sku-batch-cartons-per-pallet.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/backfill-sku-batch-cartons-per-pallet.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

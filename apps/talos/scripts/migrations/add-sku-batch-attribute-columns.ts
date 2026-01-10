@@ -68,7 +68,7 @@ Add SKU Batch Attribute Columns
 Adds packaging/measurement columns to sku_batches and backfills from skus when possible.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/add-sku-batch-attribute-columns.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/add-sku-batch-attribute-columns.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

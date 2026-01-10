@@ -1,4 +1,4 @@
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 
 // Utility to inspect and document all fields in a Prisma model
 export function inspectModel(modelName: string): void {

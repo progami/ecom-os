@@ -100,7 +100,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
     return NextResponse.json(
       {
         error:
-          'Purchase order batches are not available yet. Regenerate the Prisma client (pnpm --filter @ecom-os/x-plan prisma:generate) and ensure the database migration has been applied.',
+          'Purchase order batches are not available yet. Regenerate the Prisma client (pnpm --filter @targon/x-plan prisma:generate) and ensure the database migration has been applied.',
       },
       { status: 503 },
     );
@@ -180,7 +180,7 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
     return NextResponse.json(
       {
         error:
-          'Purchase order batches are not available yet. Regenerate the Prisma client (pnpm --filter @ecom-os/x-plan prisma:generate) and ensure the database migration has been applied.',
+          'Purchase order batches are not available yet. Regenerate the Prisma client (pnpm --filter @targon/x-plan prisma:generate) and ensure the database migration has been applied.',
       },
       { status: 503 },
     );
@@ -306,7 +306,7 @@ export const DELETE = withXPlanAuth(async (request: Request, session) => {
     return NextResponse.json(
       {
         error:
-          'Purchase order batches are not available yet. Regenerate the Prisma client (pnpm --filter @ecom-os/x-plan prisma:generate) and ensure the database migration has been applied.',
+          'Purchase order batches are not available yet. Regenerate the Prisma client (pnpm --filter @targon/x-plan prisma:generate) and ensure the database migration has been applied.',
       },
       { status: 503 },
     );

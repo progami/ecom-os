@@ -3,7 +3,7 @@
  * Each tenant has its own isolated database with a separate Prisma client instance.
  */
 
-import { PrismaClient } from '@ecom-os/prisma-talos'
+import { PrismaClient } from '@targon/prisma-talos'
 import { Client } from 'pg'
 import { logger } from '@/lib/logger'
 import { TenantCode, TENANTS, isValidTenantCode } from './constants'

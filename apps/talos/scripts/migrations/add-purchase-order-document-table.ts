@@ -69,7 +69,7 @@ Creates the purchase_order_documents table + PurchaseOrderDocumentStage enum
 in each tenant schema, used for PO stage-backed document uploads.
 
 Usage:
-  pnpm --filter @ecom-os/talos tsx scripts/migrations/add-purchase-order-document-table.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/add-purchase-order-document-table.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)

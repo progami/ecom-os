@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/ui",
+  "name": "@targon/ui",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",

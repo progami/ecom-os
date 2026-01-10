@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import type { PrismaClient } from '@ecom-os/prisma-talos'
+import type { PrismaClient } from '@targon/prisma-talos'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import * as XLSX from 'xlsx'
 import { getImportConfig, mapExcelRowToEntity } from '@/lib/import-config'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
 export const dynamic = 'force-dynamic'

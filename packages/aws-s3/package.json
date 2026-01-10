@@ -1,5 +1,5 @@
 {
-  "name": "@ecom-os/aws-s3",
+  "name": "@targon/aws-s3",
   "version": "0.1.0",
   "private": true,
   "type": "module",

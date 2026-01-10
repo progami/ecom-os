@@ -1,4 +1,4 @@
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 
 export type ExportFieldValue = string | number | boolean | Date | null
 

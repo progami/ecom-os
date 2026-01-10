@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-talos'
+import { Prisma } from '@targon/prisma-talos'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { parseLocalDate } from '@/lib/utils/date-helpers'
 

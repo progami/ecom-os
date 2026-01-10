@@ -8,7 +8,7 @@ import {
   TransactionType,
   InboundReceiveType,
   Prisma,
-} from '@ecom-os/prisma-talos'
+} from '@targon/prisma-talos'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
 import { canApproveStageTransition, hasPermission, isSuperAdmin } from './permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
