@@ -51,6 +51,7 @@ type ApiSkuRow = {
   amazonSizeTier: string | null
   amazonReferralFeePercent: number | string | null
   amazonFbaFulfillmentFee: number | string | null
+  latestBatchCode?: string | null
   amazonFbaFeeAlert: ApiAlert | null
 }
 
@@ -310,9 +311,9 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
               </select>
             </div>
             <div className="text-xs text-slate-500">
-              Reference values from{' '}
+              Reference values from latest batch ·{' '}
               <Link href="/config/products" className="text-cyan-600 hover:underline">
-                Products
+                Products → Batches
               </Link>
             </div>
           </div>
@@ -359,7 +360,14 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                         className={`transition-colors hover:bg-slate-50/50 ${isMismatch ? 'bg-rose-50/30' : ''}`}
                       >
                         <td className="px-4 py-3">
-                          <span className="font-medium text-slate-900">{row.skuCode}</span>
+                          <div className="space-y-0.5">
+                            <div className="font-medium text-slate-900">{row.skuCode}</div>
+                            {row.latestBatchCode ? (
+                              <div className="text-xs text-slate-500">
+                                Batch: {row.latestBatchCode}
+                              </div>
+                            ) : null}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {row.asin ? (

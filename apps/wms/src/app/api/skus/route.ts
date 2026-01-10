@@ -75,20 +75,7 @@ const skuSchemaBase = z.object({
       const sanitized = sanitizeForDisplay(val)
       return sanitized ? sanitized : null
     }),
-  amazonSizeTier: z
-    .string()
-    .trim()
-    .max(80)
-    .optional()
-    .nullable()
-    .transform(val => {
-      if (val === undefined) return undefined
-      if (val === null) return null
-      const sanitized = sanitizeForDisplay(val)
-      return sanitized ? sanitized : null
-    }),
   amazonReferralFeePercent: z.number().min(0).max(100).optional().nullable(),
-  amazonFbaFulfillmentFee: z.number().min(0).optional().nullable(),
   packSize: z.number().int().positive().optional().nullable(),
   defaultSupplierId: supplierIdSchema,
   secondarySupplierId: supplierIdSchema,
@@ -322,9 +309,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         skuCode: validatedData.skuCode,
         asin: validatedData.asin ?? null,
         amazonCategory: validatedData.amazonCategory ?? null,
-        amazonSizeTier: validatedData.amazonSizeTier ?? null,
         amazonReferralFeePercent: validatedData.amazonReferralFeePercent ?? null,
-        amazonFbaFulfillmentFee: validatedData.amazonFbaFulfillmentFee ?? null,
         description: validatedData.description,
         packSize: validatedData.initialBatch.packSize,
         defaultSupplierId: validatedData.defaultSupplierId ?? null,
@@ -365,6 +350,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         cartonHeightCm: null,
         cartonWeightKg: null,
         packagingType: validatedData.initialBatch.packagingType ?? null,
+        amazonSizeTier: null,
+        amazonFbaFulfillmentFee: null,
+        amazonReferenceWeightKg: validatedData.initialBatch.unitWeightKg,
         storageCartonsPerPallet: validatedData.initialBatch.storageCartonsPerPallet,
         shippingCartonsPerPallet: validatedData.initialBatch.shippingCartonsPerPallet,
         isActive: true,
