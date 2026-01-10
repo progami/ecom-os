@@ -83,6 +83,10 @@ h4,
   @apply text-xs text-slate-500 dark:text-slate-500;
 }
 
+.text-body-muted {
+  @apply text-sm text-slate-500 dark:text-slate-400;
+}
+
 /* Focus states with brand cyan */
 .focus-ring {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background;

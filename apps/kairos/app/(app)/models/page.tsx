@@ -1,23 +1,17 @@
 import Link from 'next/link';
 import { ArrowRight, Sparkles, Zap } from 'lucide-react';
 
-import { GettingStartedCard } from '@/components/getting-started-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ModelsPage() {
   return (
-    <div className="space-y-8 animate-in">
-      <div className="space-y-2">
-        <div className="text-section-header">Library</div>
+    <div className="space-y-6 animate-in">
+      <div className="space-y-1">
         <h1 className="text-h1">Models</h1>
-        <p className="text-body max-w-2xl">
-          Models are applied per forecast. Use this page as a reference for what Kairos supports today (Prophet) and what’s coming next.
-        </p>
+        <p className="text-body-muted">Forecasting models available in Kairos</p>
       </div>
-
-      <GettingStartedCard active="models" />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Prophet Card - Available */}
