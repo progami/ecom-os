@@ -3,7 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';
-import { getWmsPrisma } from '@/lib/integrations/wms-client';
+import { getTalosPrisma } from '@/lib/integrations/talos-client';
 
 export const runtime = 'nodejs';
 
@@ -34,14 +34,14 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
   });
   const region = strategyRow?.region === 'UK' ? 'UK' : 'US';
 
-  const wms = getWmsPrisma(region);
-  if (!wms) {
+  const talos = getTalosPrisma(region);
+  if (!talos) {
     return NextResponse.json(
       {
         error:
           region === 'UK'
-            ? 'WMS_DATABASE_URL_UK is not configured'
-            : 'WMS_DATABASE_URL_US is not configured',
+            ? 'TALOS_DATABASE_URL_UK (or legacy WMS_DATABASE_URL_UK) is not configured'
+            : 'TALOS_DATABASE_URL_US (or legacy WMS_DATABASE_URL_US) is not configured',
       },
       { status: 501 },
     );
@@ -50,7 +50,7 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
   const query = parsed.data.q?.trim();
   const limit = parsed.data.limit ?? 500;
 
-  const skus = await wms.sku.findMany({
+  const skus = await talos.sku.findMany({
     where: {
       isActive: true,
       ...(query
