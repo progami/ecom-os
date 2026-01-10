@@ -296,7 +296,7 @@ export function FinancialTrendsSection({
                   dataKey="label"
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   interval={granularity === 'weekly' ? 3 : 0}
                   label={{
                     value:
@@ -314,7 +314,7 @@ export function FinancialTrendsSection({
                 <YAxis
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={formatAxisValue}
                   width={60}
                 />

@@ -238,11 +238,11 @@ export function PurchaseTimeline({
           <div className="text-xs font-medium">{order.quantity.toLocaleString('en-US')} units</div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-2xs font-medium uppercase tracking-wide">
             {order.status.replace(/_/g, ' ')}
           </span>
           {order.availableDate && (
-            <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-200">
+            <span className="text-2xs font-medium text-emerald-600 dark:text-emerald-200">
               ETA {format(order.availableDate, 'MMM d')}
             </span>
           )}
@@ -254,7 +254,7 @@ export function PurchaseTimeline({
           </div>
         )}
         <div className="border-t border-border pt-2 space-y-1.5">
-          <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
             Timeline ({totalDays} days)
           </div>
           {order.segments.map((segment) => {
@@ -384,7 +384,7 @@ export function PurchaseTimeline({
                     style={{ backgroundColor: getStageColor(key) }}
                   />
                 </div>
-                <span className="text-[10px] font-medium text-slate-700 dark:text-slate-200">
+                <span className="text-2xs font-medium text-slate-700 dark:text-slate-200">
                   {stagePalette[key].label}
                 </span>
               </div>
@@ -404,7 +404,7 @@ export function PurchaseTimeline({
             return (
               <span
                 key={`${month.label}-${month.start.toISOString()}-header`}
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-[10px] font-medium text-muted-foreground"
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-2xs font-medium text-muted-foreground"
                 style={{ left: `${Math.min(Math.max(position, 3), 97)}%` }}
               >
                 {month.label}
