@@ -1,8 +1,14 @@
 import * as xlsx from 'xlsx';
 import * as fs from 'fs';
 import { structuredLogger } from '../lib/logger';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const filePath = '/Users/jarraramjad/Documents/ecom_os/FCC/data/balance sheet.xlsx';
+const filePath = path.join(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
+  'data',
+  'balance sheet.xlsx'
+);
 
 // Read Excel
 const buffer = fs.readFileSync(filePath);

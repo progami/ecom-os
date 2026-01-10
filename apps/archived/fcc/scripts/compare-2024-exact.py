@@ -1,8 +1,11 @@
 import pandas as pd
 import json
+from pathlib import Path
 
 # Read Excel data
-excel_file = "/Users/jarraramjad/Documents/ecom_os/FCC/data/TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT_DIR / "data"
+excel_file = str(DATA_DIR / "TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx")
 df = pd.read_excel(excel_file, header=None)
 
 print("=== EXACT COMPARISON: Excel vs API ===\n")

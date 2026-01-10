@@ -1,14 +1,16 @@
 const path = require('path');
-const DEV_DIR = process.env.TARGON_DEV_DIR || '/Users/jarraramjad/targon-dev';
-const MAIN_DIR = process.env.TARGON_MAIN_DIR || '/Users/jarraramjad/targon-main';
+const DEV_DIR =
+  process.env.TARGONOS_DEV_DIR || process.env.TARGON_DEV_DIR || '/Users/jarraramjad/targonos-dev';
+const MAIN_DIR =
+  process.env.TARGONOS_MAIN_DIR || process.env.TARGON_MAIN_DIR || '/Users/jarraramjad/targonos-main';
 
 module.exports = {
   apps: [
     // ===========================================
-    // DEV ENVIRONMENT (31xx ports) - dev-targon.targonglobal.com
+    // DEV ENVIRONMENT (31xx ports) - dev-targonos.targonglobal.com
     // ===========================================
     {
-      name: 'dev-targon',
+      name: 'dev-targonos',
       cwd: path.join(DEV_DIR, 'apps/targon'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3100',
@@ -79,10 +81,10 @@ module.exports = {
     },
 
     // ===========================================
-    // MAIN ENVIRONMENT (30xx ports) - targon.targonglobal.com
+    // MAIN ENVIRONMENT (30xx ports) - targonos.targonglobal.com
     // ===========================================
     {
-      name: 'main-targon',
+      name: 'main-targonos',
       cwd: path.join(MAIN_DIR, 'apps/targon'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',

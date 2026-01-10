@@ -1,14 +1,20 @@
 import { promises as fs } from 'fs';
 import * as XLSX from 'xlsx';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 async function compareDecemberData() {
   console.log('=== EXACT COMPARISON: December 2024 P&L ===\n');
+
+  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   
   // Read API response
   const apiData = JSON.parse(await fs.readFile('/tmp/pl-response.json', 'utf-8'));
   
   // Read Excel file
-  const workbook = XLSX.readFile('/Users/jarraramjad/Documents/ecom_os/FCC/data/TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx');
+  const workbook = XLSX.readFile(
+    path.join(projectRoot, 'data', 'TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx')
+  );
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
   const excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
   

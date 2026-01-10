@@ -1,7 +1,10 @@
 import pandas as pd
+from pathlib import Path
 
 # Check the other P&L file
-file_path = "/Users/jarraramjad/Documents/ecom_os/FCC/data/TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT_DIR / "data"
+file_path = str(DATA_DIR / "TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx")
 df = pd.read_excel(file_path, header=None)
 
 # Print the first 15 rows to see the structure
@@ -14,7 +17,7 @@ print("\n=== Checking all Excel files for 2024 year-end data ===")
 import os
 import glob
 
-data_dir = "/Users/jarraramjad/Documents/ecom_os/FCC/data"
+data_dir = str(DATA_DIR)
 excel_files = glob.glob(os.path.join(data_dir, "*.xlsx"))
 
 for file in excel_files:
