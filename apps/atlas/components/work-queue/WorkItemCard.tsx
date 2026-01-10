@@ -1,8 +1,6 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
 import type { WorkItemDTO } from '@/lib/contracts/work-items'
-import { getWorkItemDueLabel } from './work-item-utils'
 
 type WorkItemCardProps = {
   item: WorkItemDTO
@@ -14,62 +12,43 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ')
 }
 
-function getPriorityBadge(priority: WorkItemDTO['priority']): { label: string; variant: 'default' | 'info' | 'warning' | 'error' } {
-  switch (priority) {
-    case 'URGENT':
-      return { label: 'Urgent', variant: 'error' }
-    case 'HIGH':
-      return { label: 'High', variant: 'warning' }
-    case 'NORMAL':
-      return { label: 'Normal', variant: 'info' }
-    case 'LOW':
-    default:
-      return { label: 'Low', variant: 'default' }
-  }
-}
-
 export function WorkItemCard({ item, selected = false, onSelect }: WorkItemCardProps) {
-  const dueLabel = getWorkItemDueLabel(item)
-  const priorityBadge = getPriorityBadge(item.priority)
-
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        'w-full text-left rounded-xl border shadow-sm bg-card px-4 py-4 transition-colors',
-        selected ? 'border-accent ring-2 ring-accent/20' : 'border-border hover:border-input'
+        'w-full text-left rounded-lg border bg-card px-3 py-3 transition-all duration-150',
+        selected
+          ? 'border-brand-teal-500 bg-brand-teal-50/50 shadow-sm'
+          : 'border-border hover:border-brand-gray-300 hover:bg-muted/30'
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold text-muted-foreground">{item.typeLabel}</p>
-            <span className="text-xs text-muted-foreground">•</span>
-            <p className="text-xs text-muted-foreground">{item.stageLabel}</p>
-          </div>
+      {/* Top row: type + priority indicator */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={cn(
+            'shrink-0 w-1.5 h-1.5 rounded-full',
+            item.isOverdue ? 'bg-danger-500' : item.isActionRequired ? 'bg-brand-teal-500' : 'bg-brand-gray-400'
+          )} />
+          <span className="text-xs font-medium text-muted-foreground truncate">{item.typeLabel}</span>
+          <span className="text-xs text-muted-foreground/60">·</span>
+          <span className="text-xs text-muted-foreground/80 truncate">{item.stageLabel}</span>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Badge variant={priorityBadge.variant}>{priorityBadge.label}</Badge>
-          {item.isOverdue ? <Badge variant="error">Overdue</Badge> : null}
-        </div>
-      </div>
-
-      <div className="mt-2">
-        <p className="text-sm font-semibold text-foreground line-clamp-2">{item.title}</p>
-        {item.description ? (
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+        {item.isOverdue ? (
+          <span className="shrink-0 text-2xs font-semibold text-danger-600 uppercase">Overdue</span>
+        ) : item.priority === 'URGENT' || item.priority === 'HIGH' ? (
+          <span className="shrink-0 text-2xs font-medium text-warning-600 uppercase">{item.priority === 'URGENT' ? 'Urgent' : 'High'}</span>
         ) : null}
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <p className={cn('text-xs', item.isOverdue ? 'text-danger-700 font-medium' : 'text-muted-foreground')}>{dueLabel}</p>
-        {item.isActionRequired ? (
-          <span className="text-xs font-semibold text-accent">Action required</span>
-        ) : (
-          <span className="text-xs text-muted-foreground">FYI</span>
-        )}
-      </div>
+      {/* Title */}
+      <p className="mt-1.5 text-sm font-medium text-foreground line-clamp-1">{item.title}</p>
+
+      {/* Description - only show first line */}
+      {item.description ? (
+        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{item.description}</p>
+      ) : null}
     </button>
   )
 }
