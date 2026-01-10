@@ -8,7 +8,7 @@ module.exports = {
     env: {
       NODE_ENV: 'production',
       PORT: 3000,
-      BASE_PATH: '/WMS',
+      BASE_PATH: '/wms',
       HOSTNAME: '0.0.0.0'
     },
     error_file: '/home/wms/logs/wms-error.log',

@@ -1,6 +1,6 @@
 # Talos Test Suites
 
-This directory contains comprehensive test suites for the Warehouse Management System as recommended in the senior review.
+This directory contains comprehensive test suites for Talos as recommended in the senior review.
 
 ## Test Structure
 
