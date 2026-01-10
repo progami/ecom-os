@@ -9,6 +9,7 @@ import {
   SalesPlanningFocusProvider,
 } from '@/components/sheets/sales-planning-grid';
 import { SalesPlanningVisual } from '@/components/sheets/sales-planning-visual';
+import { SellerboardUsSyncControl } from '@/components/sheets/sellerboard-us-sync-control';
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid';
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid';
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle';
@@ -2277,6 +2278,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const view = getSalesPlanningView(data, planningCalendar, activeSegment);
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
+      );
+      controls.push(
+        <SellerboardUsSyncControl
+          key="sellerboard-us-sync"
+          isSuperAdmin={viewer.isSuperAdmin}
+          strategyRegion={strategyRegion}
+        />,
       );
       wrapLayout = (node) => (
         <SalesPlanningFocusProvider key={activeStrategyId} strategyId={activeStrategyId}>
