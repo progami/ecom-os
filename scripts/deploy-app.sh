@@ -27,11 +27,11 @@ migrate_cmd=""
 
 # Determine directories based on environment
 if [[ "$environment" == "dev" ]]; then
-  REPO_DIR="${TARGON_DEV_DIR:-/Users/jarraramjad/targon-dev}"
+  REPO_DIR="${TARGONOS_DEV_DIR:-${TARGON_DEV_DIR:-/Users/jarraramjad/targonos-dev}}"
   PM2_PREFIX="dev"
   BRANCH="dev"
 elif [[ "$environment" == "main" ]]; then
-  REPO_DIR="${TARGON_MAIN_DIR:-/Users/jarraramjad/targon-main}"
+  REPO_DIR="${TARGONOS_MAIN_DIR:-${TARGON_MAIN_DIR:-/Users/jarraramjad/targonos-main}}"
   PM2_PREFIX="main"
   BRANCH="main"
 else
@@ -51,10 +51,10 @@ case "$app_key" in
     migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions && pnpm --filter $workspace db:migrate:sku-batch-attributes && pnpm --filter $workspace db:migrate:sku-batch-amazon-defaults && pnpm --filter $workspace db:migrate:supplier-defaults && pnpm --filter $workspace db:migrate:warehouse-sku-storage-configs && pnpm --filter $workspace db:migrate:purchase-order-documents && pnpm --filter $workspace db:migrate:fulfillment-orders-foundation"
     build_cmd="pnpm --filter $workspace build"
     ;;
-  targon)
+  targon|targonos)
     workspace="@targon/targon"
     app_dir="$REPO_DIR/apps/targon"
-    pm2_name="${PM2_PREFIX}-targon"
+    pm2_name="${PM2_PREFIX}-targonos"
     prisma_cmd=""
     build_cmd="pnpm --filter $workspace build"
     ;;
@@ -203,9 +203,9 @@ bootstrap_talos_env_local_if_missing() {
     local desired_app_url=""
 
     if [[ "$environment" == "dev" ]]; then
-      desired_app_url="https://dev-targon.targonglobal.com/talos"
+      desired_app_url="https://dev-targonos.targonglobal.com/talos"
     else
-      desired_app_url="https://targon.targonglobal.com/talos"
+      desired_app_url="https://targonos.targonglobal.com/talos"
     fi
 
     set_env_var_in_file "$env_file" "BASE_PATH" "$desired_base_path"
@@ -273,9 +273,9 @@ bootstrap_atlas_env_local_if_missing() {
 
   local public_host=""
   if [[ "$environment" == "dev" ]]; then
-    public_host="https://dev-targon.targonglobal.com"
+    public_host="https://dev-targonos.targonglobal.com"
   elif [[ "$environment" == "main" ]]; then
-    public_host="https://targon.targonglobal.com"
+    public_host="https://targonos.targonglobal.com"
   fi
 
   set_env_var_in_file "$target_file" "BASE_PATH" "/atlas"

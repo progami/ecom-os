@@ -1,6 +1,14 @@
 import * as XLSX from 'xlsx';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const workbook = XLSX.readFile('/Users/jarraramjad/Documents/ecom_os/FCC/data/TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx');
+const workbook = XLSX.readFile(
+  path.join(
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'),
+    'data',
+    'TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss (1).xlsx'
+  )
+);
 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 

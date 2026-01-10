@@ -1,8 +1,11 @@
 import pandas as pd
 import json
+from pathlib import Path
 
 # Read the Excel file
-file_path = "/Users/jarraramjad/Documents/ecom_os/FCC/data/TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss.xlsx"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT_DIR / "data"
+file_path = str(DATA_DIR / "TRADEMAN_ENTERPRISE_LTD_-_Profit_and_Loss.xlsx")
 df = pd.read_excel(file_path, header=None)
 
 # Print the first 15 rows to see the structure

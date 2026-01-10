@@ -2,10 +2,14 @@
 
 import { readFileSync } from 'fs';
 import { glob } from 'glob';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Find all TypeScript/JavaScript files in the reports directory
 const reportFiles = glob.sync('app/reports/**/*.{ts,tsx,js,jsx}', {
-  cwd: '/Users/jarraramjad/Documents/ecom_os/FCC'
+  cwd: projectRoot
 });
 
 console.log(`Found ${reportFiles.length} report files to analyze\n`);
@@ -37,7 +41,7 @@ interface UnsafeAccess {
 const findings: UnsafeAccess[] = [];
 
 reportFiles.forEach(file => {
-  const fullPath = `/Users/jarraramjad/Documents/ecom_os/FCC/${file}`;
+  const fullPath = path.join(projectRoot, file);
   const content = readFileSync(fullPath, 'utf-8');
   const lines = content.split('\n');
   
