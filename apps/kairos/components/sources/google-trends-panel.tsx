@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ArrowUpDown, Download, Loader2, Plus } from 'lucide-react';
+import { ArrowUpDown, ChevronUp, Download, Loader2, Plus } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -89,6 +89,7 @@ export function GoogleTrendsPanel() {
   const [geo, setGeo] = useState('');
   const [timeRange, setTimeRange] = useState<GoogleTrendsTimeRange>('PAST_2_YEARS');
   const [name, setName] = useState('');
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const seriesQuery = useQuery({
     queryKey: SERIES_QUERY_KEY,
@@ -239,118 +240,39 @@ export function GoogleTrendsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal-500/10 to-brand-teal-600/10 dark:from-brand-cyan/10 dark:to-brand-teal-600/10">
-              <Download className="h-5 w-5 text-brand-teal-600 dark:text-brand-cyan" aria-hidden />
-            </div>
-            <div className="space-y-1">
-              <CardTitle className="text-base">Google Trends</CardTitle>
-              <CardDescription>
-                Import interest-over-time data for a keyword. Kairos stores the resulting time series in its own database.
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Keyword
-              </label>
-              <Input
-                value={keyword}
-                onChange={(event) => setKeyword(event.target.value)}
-                placeholder="e.g. collagen peptides"
-                aria-label="Google Trends keyword"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Geo <span className="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span>
-              </label>
-              <Input
-                value={geo}
-                onChange={(event) => setGeo(event.target.value)}
-                placeholder="e.g. US"
-                aria-label="Google Trends geo"
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Time range
-              </label>
-              <Select value={timeRange} onValueChange={(value) => setTimeRange(value as GoogleTrendsTimeRange)}>
-                <SelectTrigger aria-label="Google Trends time range">
-                  <SelectValue placeholder="Select time range" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GOOGLE_TRENDS_TIME_RANGE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Name <span className="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span>
-              </label>
-              <Input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Leave blank to auto-name"
-                aria-label="Time series name"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4 dark:border-white/5">
-            <Button
-              variant="outline"
-              onClick={() => {
-                void seriesQuery.refetch();
-              }}
-              disabled={isBusy}
-              className="gap-2"
-            >
-              {seriesQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}
-              Refresh
-            </Button>
-            <Button
-              onClick={() => {
-                void importMutation.mutateAsync({
-                  keyword,
-                  geo,
-                  timeRange,
-                  name,
-                });
-              }}
-              disabled={!keyword.trim() || importMutation.isPending}
-              className="gap-2"
-            >
-              {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-              Import
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Imported Series - Primary content */}
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <CardTitle className="text-base">Imported Series</CardTitle>
             <CardDescription>Use an imported series to create a forecast.</CardDescription>
           </div>
-          <div className="relative w-full sm:w-72">
+          <div className="flex items-center gap-3">
             <Input
               value={globalFilter ?? ''}
               onChange={(event) => setGlobalFilter(event.target.value)}
               placeholder="Search series…"
               aria-label="Search time series"
+              className="w-48"
             />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void seriesQuery.refetch();
+              }}
+              disabled={isBusy}
+            >
+              {seriesQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setIsImportOpen(!isImportOpen)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              Import
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -389,7 +311,7 @@ export function GoogleTrendsPanel() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                      No Google Trends series yet.
+                      No series imported yet. Click Import to add Google Trends data.
                     </TableCell>
                   </TableRow>
                 )}
@@ -422,6 +344,106 @@ export function GoogleTrendsPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Google Trends Import - Collapsible */}
+      {isImportOpen && (
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-teal-500/10 dark:bg-brand-cyan/10">
+                  <Download className="h-4 w-4 text-brand-teal-600 dark:text-brand-cyan" aria-hidden />
+                </div>
+                <CardTitle className="text-sm">Import from Google Trends</CardTitle>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsImportOpen(false)}
+                className="h-8 w-8 p-0"
+              >
+                <ChevronUp className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Keyword
+                </label>
+                <Input
+                  value={keyword}
+                  onChange={(event) => setKeyword(event.target.value)}
+                  placeholder="e.g. collagen peptides"
+                  aria-label="Google Trends keyword"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Geo <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <Input
+                  value={geo}
+                  onChange={(event) => setGeo(event.target.value)}
+                  placeholder="e.g. US"
+                  aria-label="Google Trends geo"
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Time range
+                </label>
+                <Select value={timeRange} onValueChange={(value) => setTimeRange(value as GoogleTrendsTimeRange)}>
+                  <SelectTrigger aria-label="Google Trends time range" className="h-9">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GOOGLE_TRENDS_TIME_RANGE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                  Name <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <Input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Auto-generated if blank"
+                  aria-label="Time series name"
+                  className="h-9"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                onClick={() => {
+                  void importMutation.mutateAsync({
+                    keyword,
+                    geo,
+                    timeRange,
+                    name,
+                  });
+                }}
+                disabled={!keyword.trim() || importMutation.isPending}
+                className="gap-2"
+                size="sm"
+              >
+                {importMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
+                Import Series
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
