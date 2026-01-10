@@ -5,7 +5,7 @@ import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
 import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard-orders';
-import { getWmsPrisma } from '@/lib/integrations/wms-client';
+import { getTalosPrisma } from '@/lib/integrations/talos-client';
 
 export type SellerboardUsActualSalesSyncResult = {
   rowsParsed: number;
@@ -84,9 +84,9 @@ export async function syncSellerboardUsActualSales(options: {
   let asinProductsMatched = 0;
 
   if (unmatchedCodes.length) {
-    const wms = getWmsPrisma('US');
-    if (wms) {
-      const mappings = await wms.sku.findMany({
+    const talos = getTalosPrisma('US');
+    if (talos) {
+      const mappings = await talos.sku.findMany({
         where: { asin: { in: unmatchedCodes } },
         select: { asin: true, skuCode: true },
       });

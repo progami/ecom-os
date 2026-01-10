@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: deploy-app.sh <app-key> <environment>" >&2
-  echo "  app-key: wms, ecomos, website, xplan, kairos, atlas" >&2
+  echo "  app-key: talos, ecomos, website, xplan, kairos, atlas" >&2
   echo "  environment: dev, main" >&2
   exit 1
 fi
@@ -41,10 +41,12 @@ fi
 
 # Map app keys to workspace names and directories
 case "$app_key" in
-  wms)
-    workspace="@ecom-os/wms"
-    app_dir="$REPO_DIR/apps/wms"
-    pm2_name="${PM2_PREFIX}-wms"
+  talos)
+    workspace="@ecom-os/talos"
+    app_dir="$REPO_DIR/apps/talos"
+    pm2_name="${PM2_PREFIX}-talos"
+    legacy_app_dir="$REPO_DIR/apps/wms"
+    legacy_pm2_name="${PM2_PREFIX}-wms"
     prisma_cmd="pnpm --filter $workspace db:generate"
     migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions && pnpm --filter $workspace db:migrate:sku-batch-attributes && pnpm --filter $workspace db:migrate:sku-batch-amazon-defaults && pnpm --filter $workspace db:migrate:supplier-defaults && pnpm --filter $workspace db:migrate:warehouse-sku-storage-configs && pnpm --filter $workspace db:migrate:purchase-order-documents && pnpm --filter $workspace db:migrate:fulfillment-orders-foundation"
     build_cmd="pnpm --filter $workspace build"
@@ -171,6 +173,48 @@ set_env_var_in_file() {
   mv "$tmp" "$file"
 }
 
+bootstrap_talos_env_local_if_missing() {
+  if [[ "$app_key" != "talos" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${legacy_app_dir:-}" || -z "${app_dir:-}" ]]; then
+    return 0
+  fi
+
+  if [[ ! -d "$legacy_app_dir" ]]; then
+    return 0
+  fi
+
+  local candidates=(".env.local" ".env.production" ".env.dev" ".env")
+  local file=""
+
+  for file in "${candidates[@]}"; do
+    if [[ ! -f "$app_dir/$file" && -f "$legacy_app_dir/$file" ]]; then
+      warn "Migrating ${file} from legacy Talos directory"
+      mkdir -p "$app_dir"
+      cp "$legacy_app_dir/$file" "$app_dir/$file"
+    fi
+  done
+
+  local env_file="$app_dir/.env.local"
+  if [[ -f "$env_file" ]]; then
+    local desired_base_path="/talos"
+    local desired_app_url=""
+
+    if [[ "$environment" == "dev" ]]; then
+      desired_app_url="https://dev-ecomos.targonglobal.com/talos"
+    else
+      desired_app_url="https://ecomos.targonglobal.com/talos"
+    fi
+
+    set_env_var_in_file "$env_file" "BASE_PATH" "$desired_base_path"
+    set_env_var_in_file "$env_file" "NEXT_PUBLIC_BASE_PATH" "$desired_base_path"
+    set_env_var_in_file "$env_file" "NEXT_PUBLIC_APP_URL" "$desired_app_url"
+    set_env_var_in_file "$env_file" "NEXTAUTH_URL" "$desired_app_url"
+  fi
+}
+
 update_database_url_schema_to_atlas() {
   local url="$1"
 
@@ -258,6 +302,7 @@ ensure_database_url() {
   fi
 
   bootstrap_atlas_env_local_if_missing
+  bootstrap_talos_env_local_if_missing
 
   # Match Next.js env precedence: .env.local overrides everything in production.
   local candidates=("$app_dir/.env.local" "$app_dir/.env.production" "$app_dir/.env.dev" "$app_dir/.env")
@@ -354,6 +399,12 @@ fi
 # Step 4: Stop PM2 app
 log "Step 4: Stopping $pm2_name"
 pm2 stop "$pm2_name" 2>/dev/null || warn "$pm2_name was not running"
+
+if [[ "$app_key" == "talos" && -n "${legacy_pm2_name:-}" ]]; then
+  log "Step 4: Stopping legacy $legacy_pm2_name"
+  pm2 stop "$legacy_pm2_name" 2>/dev/null || warn "$legacy_pm2_name was not running"
+  pm2 delete "$legacy_pm2_name" 2>/dev/null || true
+fi
 
 # Step 5: Clear build caches (keep .next for incremental builds)
 log "Step 5: Clearing build caches (preserving Next.js cache)"

@@ -1,7 +1,7 @@
 {
   "host": "https://worktree.ecomos.targonglobal.com",
   "apps": {
-    "wms": "/wms",
+    "talos": "/talos",
     "kairos": "/kairos/forecasts",
     "atlas": "/atlas",
     "fcc": "/fcc",

@@ -28,16 +28,16 @@ Cloudflared routes hostnames to local nginx listener ports (`~/.cloudflared/conf
 
 | Hostname | Purpose | Origin |
 | --- | --- | --- |
-| `ecomos.targonglobal.com` | Main Portal (+ `/wms`, `/x-plan`, `/atlas`) | `http://localhost:8080` |
-| `dev-ecomos.targonglobal.com` | Dev Portal (+ `/wms`, `/x-plan`, `/atlas`) | `http://localhost:8081` |
+| `ecomos.targonglobal.com` | Main Portal (+ `/talos`, `/x-plan`, `/atlas`) | `http://localhost:8080` |
+| `dev-ecomos.targonglobal.com` | Dev Portal (+ `/talos`, `/x-plan`, `/atlas`) | `http://localhost:8081` |
 | `www.targonglobal.com` / `targonglobal.com` | Main Website | `http://localhost:8082` |
 | `dev.targonglobal.com` | Dev Website | `http://localhost:8083` |
 | `db.targonglobal.com` | PostgreSQL (TCP) | `tcp://localhost:5432` |
 
 nginx then routes paths to the correct app ports (macOS/Homebrew default path: `/opt/homebrew/etc/nginx/servers/ecom-os.conf`):
 
-- Main: `3000` (portal), `3001` (wms), `3006` (atlas), `3008` (x-plan), `3005` (website)
-- Dev: `3100` (portal), `3101` (wms), `3106` (atlas), `3108` (x-plan), `3105` (website)
+- Main: `3000` (portal), `3001` (talos), `3006` (atlas), `3008` (x-plan), `3005` (website)
+- Dev: `3100` (portal), `3101` (talos), `3106` (atlas), `3108` (x-plan), `3105` (website)
 
 ### “Two environments” on one host
 
@@ -55,7 +55,7 @@ PM2 process definitions live in `ecosystem.config.js` and reference these direct
 ```text
 apps/
   ecomos/       # Portal (auth + navigation hub)
-  wms/          # Warehouse Management (custom server.js)
+  talos/        # Warehouse Management (custom server.js)
   x-plan/       # X‑Plan (Next.js app)
   atlas/         # Atlas (Next.js app)
   website/      # Marketing site
@@ -77,7 +77,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 | App | Workspace | Base path | Notes |
 | --- | --- | --- | --- |
 | Portal | `@ecom-os/ecomos` | `/` | Central auth (NextAuth v5) + app navigation |
-| Talos | `@ecom-os/wms` | `/wms` | Uses `apps/wms/server.js`, Redis, and S3 presigned uploads |
+| Talos | `@ecom-os/talos` | `/talos` | Uses `apps/talos/server.js`, Redis, and S3 presigned uploads |
 | X‑Plan | `@ecom-os/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
 | Atlas | `@ecom-os/atlas` | `/atlas` | Prisma schema `atlas`; Playwright tests |
 | Website | `@ecom-os/website` | `/` | Separate hostname (`targonglobal.com`) |
@@ -93,8 +93,8 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 ## Data/services
 
 - PostgreSQL runs locally (Homebrew `postgresql@14`), exposed on `localhost:5432` and optionally via `db.targonglobal.com` through the tunnel.
-- Schemas are per-app (and per-environment): `auth`, `wms`, `xplan`, `atlas` (dev schemas may be prefixed `dev_*` depending on env).
-- Prisma clients are generated into `packages/prisma-*` and imported by apps (e.g., `@ecom-os/prisma-wms`).
+- Schemas are per-app (and per-environment): `auth`, `talos`, `xplan`, `atlas` (dev schemas may be prefixed `dev_*` depending on env).
+- Prisma clients are generated into `packages/prisma-*` and imported by apps (e.g., `@ecom-os/prisma-talos`).
 - Redis runs locally (Homebrew `redis`) and is used by Talos.
 
 ## Environment configuration (high level)
@@ -104,7 +104,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 Common variables across apps:
 
 - `PORT`, `HOST`
-- `BASE_PATH`, `NEXT_PUBLIC_BASE_PATH` (for path-based apps like `/wms`, `/x-plan`, `/atlas`)
+- `BASE_PATH`, `NEXT_PUBLIC_BASE_PATH` (for path-based apps like `/talos`, `/x-plan`, `/atlas`)
 - `NEXTAUTH_URL`, `NEXTAUTH_SECRET`
 - `PORTAL_AUTH_URL`, `NEXT_PUBLIC_PORTAL_AUTH_URL`, `PORTAL_AUTH_SECRET`
 - `COOKIE_DOMAIN`
@@ -137,7 +137,7 @@ pnpm dev
 
 # Single app
 pnpm --filter @ecom-os/ecomos dev
-pnpm --filter @ecom-os/wms dev
+pnpm --filter @ecom-os/talos dev
 pnpm --filter @ecom-os/x-plan dev
 pnpm --filter @ecom-os/atlas dev
 pnpm --filter @ecom-os/website dev
@@ -185,8 +185,8 @@ Workflow: `.github/workflows/cd.yml`
 ```bash
 pm2 status
 pm2 logs main-ecomos --lines 100
-pm2 restart dev-ecomos dev-wms dev-x-plan dev-atlas dev-website --update-env
-pm2 restart main-ecomos main-wms main-x-plan main-atlas main-website --update-env
+pm2 restart dev-ecomos dev-talos dev-x-plan dev-atlas dev-website --update-env
+pm2 restart main-ecomos main-talos main-x-plan main-atlas main-website --update-env
 pm2 save
 ```
 
