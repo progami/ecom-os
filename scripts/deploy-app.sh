@@ -154,6 +154,12 @@ ensure_database_url() {
   # Match Next.js env precedence: .env.local overrides everything in production.
   local candidates=("$app_dir/.env.local" "$app_dir/.env.production" "$app_dir/.env.dev" "$app_dir/.env")
 
+  # Atlas was renamed from HRMS; the self-hosted runner may still have the env file in the legacy directory.
+  if [[ "$app_key" == "atlas" ]]; then
+    local legacy_dir="$REPO_DIR/apps/hrms"
+    candidates+=("$legacy_dir/.env.local" "$legacy_dir/.env.production" "$legacy_dir/.env.dev" "$legacy_dir/.env")
+  fi
+
   for file in "${candidates[@]}"; do
     if load_env_file "$file" && [[ -n "${DATABASE_URL:-}" || -n "${DATABASE_URL_US:-}" || -n "${DATABASE_URL_UK:-}" ]]; then
       if [[ -n "${DATABASE_URL:-}" ]]; then
@@ -168,7 +174,7 @@ ensure_database_url() {
   # Atlas deployments run against a local Postgres instance on the self-hosted runner.
   # Defaulting here prevents CD from failing when no env file is present.
   if [[ "$app_key" == "atlas" ]]; then
-    export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/atlas}"
+    export DATABASE_URL="${DATABASE_URL:-postgresql://localhost:5432/hrms}"
     warn "DATABASE_URL not set; defaulting to $DATABASE_URL for atlas deployment"
     return 0
   fi
