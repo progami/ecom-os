@@ -3,9 +3,8 @@ import 'server-only';
 import initProphet, { Prophet, type ProphetSeasonalityOption } from '@bsull/augurs/prophet';
 import initTransforms, { Pipeline } from '@bsull/augurs/transforms';
 import { optimizer } from '@bsull/augurs-prophet-wasmstan';
-import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import path from 'node:path';
+
+import { withFileUrlFetch } from './wasm';
 
 type ForecastPoint = {
   t: string;
@@ -45,30 +44,11 @@ type ForecastMetrics = {
 
 let initPromise: Promise<void> | null = null;
 
-const require = createRequire(import.meta.url);
-
 async function ensureAugursReady() {
   if (!initPromise) {
-    initPromise = (async () => {
-      const prophetWasmPath = path.join(
-        path.dirname(require.resolve('@bsull/augurs/prophet')),
-        'prophet_bg.wasm',
-      );
-      const transformsWasmPath = path.join(
-        path.dirname(require.resolve('@bsull/augurs/transforms')),
-        'transforms_bg.wasm',
-      );
-
-      const [prophetWasm, transformsWasm] = await Promise.all([
-        readFile(prophetWasmPath),
-        readFile(transformsWasmPath),
-      ]);
-
-      await Promise.all([
-        initProphet({ module_or_path: prophetWasm }),
-        initTransforms({ module_or_path: transformsWasm }),
-      ]);
-    })();
+    initPromise = withFileUrlFetch(async () => {
+      await Promise.all([initProphet(), initTransforms()]);
+    });
   }
   await initPromise;
 }
