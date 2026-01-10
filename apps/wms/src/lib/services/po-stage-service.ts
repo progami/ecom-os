@@ -1236,12 +1236,12 @@ export async function transitionPurchaseOrderStage(
   }
   if (filteredStageData.totalWeightKg !== undefined) {
     updateData.totalWeightKg = filteredStageData.totalWeightKg
-  } else if (derivedManufacturingTotals?.totalWeightKg !== null) {
+  } else if (derivedManufacturingTotals?.totalWeightKg != null) {
     updateData.totalWeightKg = derivedManufacturingTotals.totalWeightKg
   }
   if (filteredStageData.totalVolumeCbm !== undefined) {
     updateData.totalVolumeCbm = filteredStageData.totalVolumeCbm
-  } else if (derivedManufacturingTotals?.totalVolumeCbm !== null) {
+  } else if (derivedManufacturingTotals?.totalVolumeCbm != null) {
     updateData.totalVolumeCbm = derivedManufacturingTotals.totalVolumeCbm
   }
   if (filteredStageData.totalCartons !== undefined) {
@@ -1251,7 +1251,7 @@ export async function transitionPurchaseOrderStage(
   }
   if (filteredStageData.totalPallets !== undefined) {
     updateData.totalPallets = filteredStageData.totalPallets
-  } else if (derivedManufacturingTotals?.totalPallets !== null) {
+  } else if (derivedManufacturingTotals?.totalPallets != null) {
     updateData.totalPallets = derivedManufacturingTotals.totalPallets
   }
   if (filteredStageData.packagingNotes !== undefined) {

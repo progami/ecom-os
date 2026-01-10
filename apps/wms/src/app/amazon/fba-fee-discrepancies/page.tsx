@@ -7,13 +7,21 @@ import { toast } from 'react-hot-toast'
 import { useSession } from '@/hooks/usePortalSession'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageContainer, PageContent, PageHeaderSection } from '@/components/layout/page-container'
-import { DollarSign, Loader2, Search } from '@/lib/lucide-icons'
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  Loader2,
+  RefreshCw,
+  Search,
+  XCircle,
+} from '@/lib/lucide-icons'
 
 type AlertStatus =
   | 'UNKNOWN'
@@ -48,31 +56,73 @@ type ApiSkuRow = {
 
 const ALLOWED_ROLES = ['admin', 'staff'] as const
 
-function formatMoney(value: number | string | null | undefined, currencyCode: string | null) {
+function formatFee(value: number | string | null | undefined, currency: string) {
   if (value === null || value === undefined || value === '') return '—'
   const amount = typeof value === 'number' ? value : Number.parseFloat(value)
   if (!Number.isFinite(amount)) return '—'
-  return `${currencyCode ?? ''}${currencyCode ? ' ' : ''}${amount.toFixed(2)}`
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2,
+  }).format(amount)
 }
 
-function statusBadge(status: AlertStatus) {
+function StatusIcon({ status }: { status: AlertStatus }) {
   switch (status) {
     case 'MATCH':
-      return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">Match</Badge>
+      return <CheckCircle2 className="h-4 w-4 text-emerald-500" />
     case 'MISMATCH':
-      return <Badge className="bg-rose-50 text-rose-700 border-rose-200">Mismatch</Badge>
+      return <XCircle className="h-4 w-4 text-rose-500" />
     case 'NO_ASIN':
-      return <Badge className="bg-amber-50 text-amber-700 border-amber-200">Missing ASIN</Badge>
     case 'MISSING_REFERENCE':
-      return (
-        <Badge className="bg-amber-50 text-amber-700 border-amber-200">Missing reference</Badge>
-      )
+      return <AlertTriangle className="h-4 w-4 text-amber-500" />
     case 'ERROR':
-      return <Badge className="bg-slate-100 text-slate-700 border-slate-200">Error</Badge>
-    case 'UNKNOWN':
+      return <XCircle className="h-4 w-4 text-slate-400" />
     default:
-      return <Badge className="bg-slate-50 text-slate-700 border-slate-200">Not checked</Badge>
+      return <Clock className="h-4 w-4 text-slate-300" />
   }
+}
+
+function StatusBadge({ status }: { status: AlertStatus }) {
+  const config = {
+    MATCH: { label: 'Match', className: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' },
+    MISMATCH: { label: 'Mismatch', className: 'bg-rose-500/10 text-rose-700 border-rose-500/20' },
+    NO_ASIN: { label: 'No ASIN', className: 'bg-amber-500/10 text-amber-700 border-amber-500/20' },
+    MISSING_REFERENCE: { label: 'No Ref', className: 'bg-amber-500/10 text-amber-700 border-amber-500/20' },
+    ERROR: { label: 'Error', className: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
+    UNKNOWN: { label: 'Pending', className: 'bg-slate-100 text-slate-500 border-slate-200' },
+  }[status]
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.className}`}>
+      <StatusIcon status={status} />
+      {config.label}
+    </span>
+  )
+}
+
+function SummaryCard({
+  label,
+  count,
+  variant,
+}: {
+  label: string
+  count: number
+  variant: 'danger' | 'success' | 'warning' | 'neutral'
+}) {
+  const styles = {
+    danger: 'bg-rose-50 border-rose-100 text-rose-900',
+    success: 'bg-emerald-50 border-emerald-100 text-emerald-900',
+    warning: 'bg-amber-50 border-amber-100 text-amber-900',
+    neutral: 'bg-slate-50 border-slate-100 text-slate-900',
+  }[variant]
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 ${styles}`}>
+      <div className="text-2xl font-semibold tabular-nums">{count}</div>
+      <div className="text-xs font-medium opacity-70">{label}</div>
+    </div>
+  )
 }
 
 export default function AmazonFbaFeeDiscrepanciesPage() {
@@ -84,7 +134,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
   const [currencyCode, setCurrencyCode] = useState<string>('USD')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<AlertStatus | 'ALL'>('ALL')
-  const [listingPrice, setListingPrice] = useState('10')
+  const [listingPrice] = useState('10')
   const [checkingSkuId, setCheckingSkuId] = useState<string | null>(null)
 
   const isAllowed = useMemo(() => {
@@ -141,24 +191,14 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
   }, [fetchRows, isAllowed, session, status])
 
   const summary = useMemo(() => {
-    const counts: Record<string, number> = {
-      total: skus.length,
-      mismatch: 0,
-      match: 0,
-      missingReference: 0,
-      missingAsin: 0,
-      error: 0,
-      notChecked: 0,
-    }
+    const counts = { total: skus.length, mismatch: 0, match: 0, warning: 0, pending: 0 }
 
     for (const sku of skus) {
-      const status = sku.amazonFbaFeeAlert?.status ?? 'UNKNOWN'
-      if (status === 'MISMATCH') counts.mismatch += 1
-      else if (status === 'MATCH') counts.match += 1
-      else if (status === 'MISSING_REFERENCE') counts.missingReference += 1
-      else if (status === 'NO_ASIN') counts.missingAsin += 1
-      else if (status === 'ERROR') counts.error += 1
-      else counts.notChecked += 1
+      const s = sku.amazonFbaFeeAlert?.status ?? 'UNKNOWN'
+      if (s === 'MISMATCH') counts.mismatch += 1
+      else if (s === 'MATCH') counts.match += 1
+      else if (s === 'NO_ASIN' || s === 'MISSING_REFERENCE' || s === 'ERROR') counts.warning += 1
+      else counts.pending += 1
     }
 
     return counts
@@ -196,6 +236,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
             row.id === sku.id ? { ...row, amazonFbaFeeAlert: updatedAlert } : row
           )
         )
+        toast.success(`Checked ${sku.skuCode}`)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Fee check failed')
       } finally {
@@ -208,9 +249,9 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
   if (status === 'loading') {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
-          <span>Loading…</span>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+          <span className="text-sm text-slate-500">Loading...</span>
         </div>
       </div>
     )
@@ -222,108 +263,67 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
     <PageContainer>
       <PageHeaderSection
         title="FBA Fee Discrepancies"
-        description="Amazon"
+        description="Compare reference fees against Amazon"
         icon={DollarSign}
-        metadata={
-          <>
-            <Badge className="bg-slate-50 text-slate-700 border-slate-200">
-              Currency: {currencyCode}
-            </Badge>
-            <Badge className="bg-rose-50 text-rose-700 border-rose-200">
-              {summary.mismatch} mismatches
-            </Badge>
-            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-              {summary.match} matches
-            </Badge>
-          </>
-        }
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => fetchRows()} disabled={loading}>
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading…
-                </span>
-              ) : (
-                'Reload'
-              )}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => fetchRows()} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         }
       />
 
       <PageContent className="space-y-6">
-        <div className="rounded-xl border bg-white shadow-soft">
-          <div className="border-b border-slate-100 px-6 py-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="space-y-1.5">
-                <h2 className="text-lg font-semibold text-slate-900">Reference vs Amazon</h2>
-                <p className="text-sm text-slate-600">
-                  Reference values come from SKU defaults. Edit them in{' '}
-                  <Link href="/config/products" className="text-cyan-700 hover:underline">
-                    Products
-                  </Link>
-                  .
-                </p>
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <SummaryCard label="Mismatches" count={summary.mismatch} variant="danger" />
+          <SummaryCard label="Matches" count={summary.match} variant="success" />
+          <SummaryCard label="Warnings" count={summary.warning} variant="warning" />
+          <SummaryCard label="Pending" count={summary.pending} variant="neutral" />
+        </div>
+
+        {/* Main Content */}
+        <div className="rounded-xl border bg-white shadow-soft overflow-hidden">
+          {/* Filters */}
+          <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={search}
+                  onChange={event => setSearch(event.target.value)}
+                  placeholder="Search SKU or ASIN..."
+                  className="w-64 pl-9 h-9 text-sm"
+                />
               </div>
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-1">
-                  <Label htmlFor="search">Search</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      id="search"
-                      value={search}
-                      onChange={event => setSearch(event.target.value)}
-                      placeholder="SKU, ASIN, description…"
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="statusFilter">Status</Label>
-                  <select
-                    id="statusFilter"
-                    value={statusFilter}
-                    onChange={event => setStatusFilter(event.target.value as AlertStatus | 'ALL')}
-                    className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    <option value="ALL">All</option>
-                    <option value="MISMATCH">Mismatch</option>
-                    <option value="MATCH">Match</option>
-                    <option value="MISSING_REFERENCE">Missing reference</option>
-                    <option value="NO_ASIN">Missing ASIN</option>
-                    <option value="ERROR">Error</option>
-                    <option value="UNKNOWN">Not checked</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="listingPrice">Listing Price</Label>
-                  <Input
-                    id="listingPrice"
-                    value={listingPrice}
-                    onChange={event => setListingPrice(event.target.value)}
-                    placeholder="Used for Amazon fee estimate"
-                    inputMode="decimal"
-                  />
-                  <p className="text-[11px] text-slate-500">
-                    Used only to query Amazon. FBA fulfillment fee should be price-independent.
-                  </p>
-                </div>
-              </div>
+              <select
+                value={statusFilter}
+                onChange={event => setStatusFilter(event.target.value as AlertStatus | 'ALL')}
+                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+              >
+                <option value="ALL">All statuses</option>
+                <option value="MISMATCH">Mismatch</option>
+                <option value="MATCH">Match</option>
+                <option value="MISSING_REFERENCE">Missing reference</option>
+                <option value="NO_ASIN">No ASIN</option>
+                <option value="UNKNOWN">Pending</option>
+              </select>
+            </div>
+            <div className="text-xs text-slate-500">
+              Reference values from{' '}
+              <Link href="/config/products" className="text-cyan-600 hover:underline">
+                Products
+              </Link>
             </div>
           </div>
 
+          {/* Table */}
           {loading ? (
-            <div className="flex h-48 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           ) : skus.length === 0 ? (
-            <div className="px-6 py-12">
+            <div className="px-6 py-16">
               <EmptyState
                 title="No SKUs found"
                 description="Try adjusting your search or filter."
@@ -332,83 +332,68 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full table-auto text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold">SKU</th>
-                    <th className="px-4 py-3 text-left font-semibold">Reference</th>
-                    <th className="px-4 py-3 text-left font-semibold">Amazon</th>
-                    <th className="px-4 py-3 text-left font-semibold">Status</th>
-                    <th className="px-4 py-3 text-right font-semibold">Action</th>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3">SKU</th>
+                    <th className="px-4 py-3">ASIN</th>
+                    <th className="px-4 py-3 text-right">Reference</th>
+                    <th className="px-4 py-3 text-center w-8"></th>
+                    <th className="px-4 py-3 text-right">Amazon</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {skus.map(row => {
                     const alert = row.amazonFbaFeeAlert
-                    const status: AlertStatus = alert?.status ?? 'UNKNOWN'
+                    const alertStatus: AlertStatus = alert?.status ?? 'UNKNOWN'
                     const resolvedCurrency = alert?.currencyCode ?? currencyCode
-
                     const referenceFee = row.amazonFbaFulfillmentFee
-                    const referenceSize = row.amazonSizeTier
+                    const amazonFee = alert?.amazonFbaFulfillmentFee ?? null
+                    const isMismatch = alertStatus === 'MISMATCH'
 
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                      <tr
+                        key={row.id}
+                        className={`transition-colors hover:bg-slate-50/50 ${isMismatch ? 'bg-rose-50/30' : ''}`}
+                      >
                         <td className="px-4 py-3">
-                          <div className="space-y-0.5">
-                            <div className="font-medium text-slate-900">{row.skuCode}</div>
-                            <div className="text-xs text-slate-500">
-                              {row.description}
-                              {row.asin ? (
-                                <>
-                                  {' '}
-                                  • <span className="font-mono">{row.asin}</span>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
+                          <span className="font-medium text-slate-900">{row.skuCode}</span>
                         </td>
-
-                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                          <div className="space-y-0.5">
-                            <div className="font-medium">
-                              {formatMoney(referenceFee, resolvedCurrency)}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {referenceSize ? `Size tier: ${referenceSize}` : 'Size tier: —'}
-                            </div>
-                          </div>
+                        <td className="px-4 py-3">
+                          {row.asin ? (
+                            <span className="font-mono text-xs text-slate-600">{row.asin}</span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
                         </td>
-
-                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
-                          <div className="space-y-0.5">
-                            <div className="font-medium">
-                              {formatMoney(alert?.amazonFbaFulfillmentFee ?? null, resolvedCurrency)}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {alert?.checkedAt
-                                ? `Checked ${new Date(alert.checkedAt).toLocaleString()}`
-                                : 'Not checked yet'}
-                            </div>
-                            {alert?.message ? (
-                              <div className="text-[11px] text-slate-500">{alert.message}</div>
-                            ) : null}
-                          </div>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`font-medium tabular-nums ${referenceFee ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {formatFee(referenceFee, resolvedCurrency)}
+                          </span>
                         </td>
-
-                        <td className="px-4 py-3 whitespace-nowrap">{statusBadge(status)}</td>
-
-                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <td className="px-4 py-3 text-center">
+                          <ArrowRight className="h-3.5 w-3.5 text-slate-300 mx-auto" />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={`font-medium tabular-nums ${isMismatch ? 'text-rose-600' : amazonFee ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {formatFee(amazonFee, resolvedCurrency)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <StatusBadge status={alertStatus} />
+                        </td>
+                        <td className="px-4 py-3 text-right">
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => checkSku(row)}
                             disabled={checkingSkuId !== null}
+                            className="h-8 px-3 text-xs"
                           >
                             {checkingSkuId === row.id ? (
-                              <span className="inline-flex items-center gap-2">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Checking…
-                              </span>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
                               'Check'
                             )}
@@ -422,6 +407,11 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
             </div>
           )}
         </div>
+
+        {/* Footer info */}
+        <p className="text-center text-xs text-slate-400">
+          Currency: {currencyCode} · {skus.length} SKUs loaded
+        </p>
       </PageContent>
     </PageContainer>
   )
