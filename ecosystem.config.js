@@ -42,8 +42,8 @@ module.exports = {
       max_memory_restart: '300M'
     },
     {
-      name: 'dev-hrms',
-      cwd: path.join(DEV_DIR, 'apps/hrms'),
+      name: 'dev-atlas',
+      cwd: path.join(DEV_DIR, 'apps/atlas'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3106',
       interpreter: 'node',
@@ -116,8 +116,8 @@ module.exports = {
       max_memory_restart: '300M'
     },
     {
-      name: 'main-hrms',
-      cwd: path.join(MAIN_DIR, 'apps/hrms'),
+      name: 'main-atlas',
+      cwd: path.join(MAIN_DIR, 'apps/atlas'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3006',
       interpreter: 'node',

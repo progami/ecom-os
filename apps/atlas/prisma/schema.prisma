@@ -1,0 +1,1248 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../packages/prisma-atlas/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id               String         @id @default(cuid())
+  employeeId       String         @unique
+  employeeNumber   Int            @unique @default(autoincrement())
+  googleId         String?        @unique  // Google Workspace user ID for sync
+  firstName        String
+  lastName         String
+  email            String         @unique
+  phone            String?
+  avatar           String?
+
+  dateOfBirth      DateTime?
+  gender           String?
+  maritalStatus    String?
+  nationality      String?
+  address          String?
+  city             String?
+  country          String?
+  postalCode       String?
+
+  // Primary department (backward compatible)
+  department       String
+  departmentId     String?
+  dept             Department?    @relation(fields: [departmentId], references: [id])
+
+  // Additional departments (many-to-many)
+  departments      EmployeeDepartment[]
+
+  position         String
+  employmentType   EmploymentType  @default(FULL_TIME)
+  joinDate         DateTime
+  status           EmployeeStatus  @default(ACTIVE)
+
+  // Reporting hierarchy (self-referential)
+  reportsToId      String?
+  manager          Employee?      @relation("EmployeeHierarchy", fields: [reportsToId], references: [id])
+  directReports    Employee[]     @relation("EmployeeHierarchy")
+
+  // Local override flags for Google sync
+  nameLocalOverride        Boolean @default(false)
+  departmentLocalOverride  Boolean @default(false)
+  positionLocalOverride    Boolean @default(false)
+
+  // Permission level: 0=regular, 50=manager, 100=super admin (root)
+  permissionLevel  Int             @default(0)
+  // Whether this employee is the super admin (root of the tree)
+  isSuperAdmin     Boolean         @default(false)
+
+  salary           Float?
+  currency         String          @default("USD")
+
+  emergencyContact String?
+  emergencyPhone   String?
+
+  // Region for leave policy determination
+  region           EmployeeRegion  @default(PAKISTAN)
+
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  files            EmployeeFile[]
+  filesUploaded    EmployeeFile[]   @relation("EmployeeFilesUploaded")
+  roles            Role[]
+  performanceReviews PerformanceReview[]
+  disciplinaryActions DisciplinaryAction[]
+  violationsCreated   DisciplinaryAction[] @relation("ViolationsCreated")
+  notifications    Notification[]
+  notificationReadReceipts NotificationReadReceipt[]
+  notificationEmailDispatches NotificationEmailDispatch[]
+  departmentsLed   Department[]    @relation("DepartmentHead")
+  projectsLed      Project[]       @relation("ProjectLead")
+  projectMemberships ProjectMember[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
+  policyAcknowledgements PolicyAcknowledgement[]
+
+  casesCreated     Case[]          @relation("CasesCreated")
+  casesAssigned    Case[]          @relation("CasesAssigned")
+  casesSubjectEmployee Case[]      @relation("CasesSubjectEmployee")
+  caseParticipants CaseParticipant[]
+  caseNotesAuthored CaseNote[]     @relation("CaseNotesAuthored")
+  caseAttachmentsUploaded CaseAttachment[] @relation("CaseAttachmentsUploaded")
+
+  tasksCreated     Task[]          @relation("TasksCreated")
+  tasksAssigned    Task[]          @relation("TasksAssigned")
+  tasksSubject     Task[]          @relation("TasksSubjectEmployee")
+
+  auditLogs        AuditLog[]      @relation("AuditLogsActor")
+
+  @@index([email])
+  @@index([employeeId])
+  @@index([department])
+  @@index([departmentId])
+  @@index([status])
+  @@index([reportsToId])
+  @@index([isSuperAdmin])
+}
+
+model EmployeeFile {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  title       String
+  fileUrl     String
+  fileName    String?
+  contentType String?
+  size        Int?
+  visibility  EmployeeFileVisibility @default(HR_ONLY)
+
+  uploadedById String?
+  uploadedBy   Employee? @relation("EmployeeFilesUploaded", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedAt  DateTime @default(now())
+
+  @@index([employeeId])
+  @@index([uploadedById])
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  code        String?    @unique
+  kpi         String?    // Key performance indicator for this department
+
+  // Department head (who leads this department)
+  headId      String?
+  head        Employee?  @relation("DepartmentHead", fields: [headId], references: [id])
+
+  // Nested department hierarchy
+  parentId    String?
+  parent      Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DepartmentHierarchy")
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]                // Primary department relationship
+  members     EmployeeDepartment[]      // Additional department memberships
+
+  @@index([headId])
+  @@index([parentId])
+}
+
+// Many-to-many: Employee can belong to multiple departments
+model EmployeeDepartment {
+  id           String     @id @default(cuid())
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  isPrimary    Boolean    @default(false)  // Is this the primary department?
+  joinedAt     DateTime   @default(now())
+
+  @@unique([employeeId, departmentId])
+  @@index([employeeId])
+  @@index([departmentId])
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  code        String?       @unique
+  description String?
+  status      ProjectStatus @default(ACTIVE)
+
+  // Project lead
+  leadId      String?
+  lead        Employee?     @relation("ProjectLead", fields: [leadId], references: [id])
+
+  // Team members
+  members     ProjectMember[]
+
+  startDate   DateTime?
+  endDate     DateTime?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+}
+
+model ProjectMember {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  role       String?  // Role within the project (e.g., "Developer", "Designer")
+  joinedAt   DateTime @default(now())
+
+  @@unique([projectId, employeeId])
+  @@index([projectId])
+  @@index([employeeId])
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+}
+
+model Resource {
+  id           String            @id @default(cuid())
+  name         String
+  category     ResourceCategory
+  subcategory  String?
+  description  String?
+  contactName  String?
+  email        String?
+  phone        String?
+  website      String?
+  address      String?
+  city         String?
+  country      String?
+  tags         String[]
+  rating       Float?
+  notes        String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([category])
+  @@index([category, subcategory])
+  @@index([name])
+}
+
+model Policy {
+  id            String        @id @default(cuid())
+  title         String
+  category      PolicyCategory
+  region        Region
+  summary       String?
+  content       String?
+  fileUrl       String?
+  version       String        @default("1.0")
+  effectiveDate DateTime?
+  status        PolicyStatus  @default(ACTIVE)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  acknowledgements PolicyAcknowledgement[]
+
+  @@unique([category, region])
+  @@unique([effectiveDate])
+  @@index([category])
+  @@index([region])
+  @@index([status])
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  type          NotificationType
+  title         String
+  message       String
+  link          String?          // Optional link to related resource (e.g., /policies/xyz)
+
+  // Target specific employee (null = broadcast to all)
+  employeeId    String?
+  employee      Employee?        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // For tracking which record triggered the notification
+  relatedId     String?
+  relatedType   String?          // "POLICY", "REVIEW", etc.
+
+  // Per-employee read receipts for broadcast notifications (employeeId = null)
+  readReceipts  NotificationReadReceipt[]
+  emailDispatches NotificationEmailDispatch[]
+
+  isRead        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([employeeId])
+}
+
+model NotificationReadReceipt {
+  id             String        @id @default(cuid())
+  notificationId String
+  notification   Notification  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  readAt         DateTime      @default(now())
+
+  @@unique([notificationId, employeeId])
+  @@index([employeeId])
+  @@index([notificationId])
+}
+
+enum NotificationEmailDispatchStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+model NotificationEmailDispatch {
+  id             String                        @id @default(cuid())
+  notificationId String
+  notification   Notification                  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  employeeId     String
+  employee       Employee                      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  status         NotificationEmailDispatchStatus @default(PENDING)
+  attempts       Int                           @default(0)
+  lastError      String?
+  lastAttemptAt  DateTime?
+  nextAttemptAt  DateTime                      @default(now())
+  sentAt         DateTime?
+
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+
+  @@unique([notificationId, employeeId])
+  @@index([status, nextAttemptAt])
+  @@index([employeeId])
+  @@index([notificationId])
+}
+
+// ============ WORKFLOW + COMPLIANCE ============
+
+model PolicyAcknowledgement {
+  id             String    @id @default(cuid())
+  policyId        String
+  policy          Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  policyVersion   String
+  acknowledgedAt  DateTime  @default(now())
+
+  @@unique([policyId, employeeId, policyVersion])
+  @@index([employeeId])
+  @@index([policyId])
+}
+
+model Task {
+  id               String      @id @default(cuid())
+  title            String
+  description      String?
+  status           TaskStatus  @default(OPEN)
+  category         TaskCategory @default(GENERAL)
+
+  dueDate          DateTime?
+  completedAt      DateTime?
+
+  createdById      String
+  createdBy        Employee    @relation("TasksCreated", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assignedToId     String?
+  assignedTo       Employee?   @relation("TasksAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  subjectEmployeeId String?
+  subjectEmployee  Employee?   @relation("TasksSubjectEmployee", fields: [subjectEmployeeId], references: [id], onDelete: SetNull)
+
+  caseId           String?
+  case             Case?       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([subjectEmployeeId])
+  @@index([caseId])
+  @@index([dueDate])
+}
+
+model Case {
+  id               String      @id @default(cuid())
+  caseNumber       Int         @unique @default(autoincrement())
+  caseType         CaseType
+  title            String
+  description      String?
+  status           CaseStatus  @default(OPEN)
+  severity         CaseSeverity @default(MEDIUM)
+
+  subjectEmployeeId String?
+  subjectEmployee  Employee?   @relation("CasesSubjectEmployee", fields: [subjectEmployeeId], references: [id], onDelete: SetNull)
+
+  createdById      String
+  createdBy        Employee    @relation("CasesCreated", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assignedToId     String?
+  assignedTo       Employee?   @relation("CasesAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  openedAt         DateTime    @default(now())
+  closedAt         DateTime?
+
+  participants     CaseParticipant[]
+  notes            CaseNote[]
+  attachments      CaseAttachment[]
+  tasks            Task[]
+
+  // Optional link to the underlying disciplinary workflow (for violation cases)
+  disciplinaryAction DisciplinaryAction?
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([caseType])
+  @@index([status])
+  @@index([severity])
+  @@index([subjectEmployeeId])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([openedAt])
+  @@index([closedAt])
+}
+
+model CaseParticipant {
+  id            String              @id @default(cuid())
+  caseId        String
+  case          Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  employeeId    String
+  employee      Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  role          CaseParticipantRole @default(OTHER)
+  addedAt       DateTime            @default(now())
+
+  @@unique([caseId, employeeId])
+  @@index([caseId])
+  @@index([employeeId])
+  @@index([role])
+}
+
+model CaseNote {
+  id          String             @id @default(cuid())
+  caseId      String
+  case        Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  authorId    String
+  author      Employee           @relation("CaseNotesAuthored", fields: [authorId], references: [id], onDelete: Restrict)
+
+  visibility  CaseNoteVisibility @default(INTERNAL_HR)
+  body        String
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([caseId])
+  @@index([authorId])
+  @@index([visibility])
+  @@index([createdAt])
+}
+
+model CaseAttachment {
+  id           String    @id @default(cuid())
+  caseId       String
+  case         Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   Employee  @relation("CaseAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  title        String?
+  fileUrl      String
+  fileName     String?
+  contentType  String?
+  size         Int?
+  visibility   CaseNoteVisibility @default(INTERNAL_HR)
+
+  createdAt    DateTime  @default(now())
+
+  @@index([caseId])
+  @@index([uploadedById])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  actorId     String?
+  actor       Employee?      @relation("AuditLogsActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  action      AuditAction
+  entityType  AuditEntityType
+  entityId    String
+  summary     String?
+  metadata    Json?
+
+  ip          String?
+  userAgent   String?
+
+  createdAt   DateTime       @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model CronLock {
+  key         String   @id
+  lockedUntil DateTime
+  lockedBy    String?
+  updatedAt   DateTime @updatedAt
+}
+
+// Single-row ATLAS settings (single org; multi-tenant later)
+enum NotificationType {
+  POLICY_CREATED
+  POLICY_UPDATED
+  POLICY_ARCHIVED
+  ANNOUNCEMENT
+  SYSTEM
+  PROFILE_INCOMPLETE
+  REVIEW_SUBMITTED
+  REVIEW_ACKNOWLEDGED
+  DISCIPLINARY_CREATED
+  DISCIPLINARY_UPDATED
+  HIERARCHY_CHANGED
+  STANDING_CHANGED
+
+  // Approval chain notifications
+  VIOLATION_PENDING_HR        // Notify HR of new violation to review
+  VIOLATION_PENDING_ADMIN     // Notify Super Admin of violation to approve
+  VIOLATION_APPROVED          // Notify manager/employee of approval
+  VIOLATION_REJECTED          // Notify manager of rejection
+  VIOLATION_ACKNOWLEDGED      // Notify HR/manager when employee acknowledges
+  REVIEW_PENDING_HR           // Notify HR of new review to review
+  REVIEW_PENDING_ADMIN        // Notify Super Admin of review to approve
+  REVIEW_APPROVED             // Notify manager/employee of approval
+  REVIEW_REJECTED             // Notify manager of rejection
+  APPEAL_PENDING_HR           // Notify HR of appeal to review
+  APPEAL_PENDING_ADMIN        // Notify Super Admin of appeal to decide
+  APPEAL_DECIDED              // Notify employee of appeal decision
+
+  // Leave notifications
+  LEAVE_REQUESTED             // Notify manager when employee requests leave
+  LEAVE_PENDING_HR            // Notify HR of leave pending HR approval
+  LEAVE_PENDING_SUPER_ADMIN   // Notify Super Admin of leave pending final approval
+  LEAVE_APPROVED              // Notify employee when leave is approved
+  LEAVE_REJECTED              // Notify employee when leave is rejected
+  LEAVE_CANCELLED             // Notify manager when employee cancels leave
+
+  // Resource notifications
+  RESOURCE_CREATED            // Notify relevant employees of new resource
+
+  // Quarterly review notifications
+  QUARTERLY_REVIEW_CREATED    // Notify manager: draft review assigned
+  QUARTERLY_REVIEW_REMINDER   // Notify manager: deadline approaching
+  QUARTERLY_REVIEW_OVERDUE    // Notify manager: past deadline
+  QUARTERLY_REVIEW_ESCALATED  // Notify HR: review needs attention
+}
+
+// ============ CORE VALUES SYSTEM ============
+
+enum CoreValue {
+  ATTENTION_TO_DETAIL  // Quality & Precision (40%)
+  HONESTY              // Communication & Transparency (20%)
+  INTEGRITY            // Reliability & Ethics (20%)
+  COURAGE              // Ownership & Initiative (20%)
+}
+
+enum ValueBreach {
+  BREACH_OF_DETAIL     // Recurring mistakes, sloppy work - Training issue
+  BREACH_OF_HONESTY    // Lying, falsifying records - Character issue
+  BREACH_OF_INTEGRITY  // Theft, harassment, toxic behavior - Zero tolerance
+  BREACH_OF_COURAGE    // Avoiding difficult tasks, hiding bad news - Coaching issue
+}
+
+enum EmployeeStanding {
+  GREEN   // Role Model - No violations, review > 3.5, Honesty/Integrity > 3
+  YELLOW  // Misaligned/Coaching - Minor violation or review 2.5-3.5
+  RED     // Cultural Mismatch - Honesty/Integrity violation or review < 2.5
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  WORKING_PARTNER
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+}
+
+enum ResourceCategory {
+  ACCOUNTING
+  LEGAL
+  DESIGN
+  MARKETING
+  IT
+  HR
+  OTHER
+}
+
+enum PolicyCategory {
+  LEAVE
+  PERFORMANCE
+  CONDUCT
+  SECURITY
+  COMPENSATION
+  OTHER
+}
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum Region {
+  ALL
+  KANSAS_US
+  PAKISTAN
+}
+
+enum EmployeeRegion {
+  PAKISTAN
+  KANSAS_USA
+}
+
+// ============ LEAVE MANAGEMENT ============
+
+model LeavePolicy {
+  id              String         @id @default(cuid())
+  region          EmployeeRegion
+  leaveType       LeaveType
+  daysPerYear     Int
+  isPaid          Boolean        @default(true)
+  requiresApproval Boolean       @default(true)
+  maxCarryover    Int            @default(0)  // Max days that can roll over to next year
+  description     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([region, leaveType])
+  @@index([region])
+}
+
+model LeaveBalance {
+  id              String         @id @default(cuid())
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  leaveType       LeaveType
+  year            Int
+  allocated       Int            // Total days allocated for the year
+  used            Int            @default(0)  // Days used (approved requests)
+  pending         Int            @default(0)  // Days in pending requests
+  carriedOver     Int            @default(0)  // Days carried from previous year
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([employeeId, leaveType, year])
+  @@index([employeeId])
+  @@index([year])
+}
+
+model LeaveRequest {
+  id              String         @id @default(cuid())
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  leaveType       LeaveType
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Float          // Can be 0.5 for half days
+  reason          String?
+  status          LeaveStatus    @default(PENDING_MANAGER)
+
+  // Legacy approval tracking (kept for backwards compatibility)
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+
+  // Manager approval (Level 1)
+  managerApprovedById   String?
+  managerApprovedAt     DateTime?
+  managerNotes          String?
+
+  // HR approval (Level 2)
+  hrApprovedById        String?
+  hrApprovedAt          DateTime?
+  hrNotes               String?
+
+  // Super Admin approval (Level 3)
+  superAdminApprovedById String?
+  superAdminApprovedAt   DateTime?
+  superAdminNotes        String?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+enum LeaveType {
+  PTO              // Vacation + Personal + Sick combined
+  MATERNITY
+  PATERNITY
+  PARENTAL         // Generic parental (for Kansas)
+  BEREAVEMENT_IMMEDIATE
+  BEREAVEMENT_EXTENDED
+  JURY_DUTY
+  UNPAID
+}
+
+enum LeaveStatus {
+  // Approval chain statuses
+  PENDING_MANAGER       // Employee requested, waiting for manager
+  PENDING_HR            // Manager approved, waiting for HR
+  PENDING_SUPER_ADMIN   // HR approved, waiting for Super Admin
+
+  // Legacy status (kept for backwards compatibility)
+  PENDING               // Maps to PENDING_MANAGER for new requests
+
+  // Final statuses
+  APPROVED              // Super Admin approved
+  REJECTED              // Rejected at any stage
+  CANCELLED             // Employee cancelled
+}
+
+// ============ PERFORMANCE MANAGEMENT ============
+
+// Quarterly review cycle tracking
+model QuarterlyReviewCycle {
+  id              String       @id @default(cuid())
+  year            Int
+  quarter         Int          // 1, 2, 3, 4
+  reviewPeriod    String       // "Q1 2025", "Q2 2025", etc.
+  quarterEndDate  DateTime     // Mar 31, Jun 30, Sep 30, Dec 31
+  deadline        DateTime     // 14 days after quarterEndDate
+  status          CycleStatus  @default(ACTIVE)
+  totalReviews    Int          @default(0)
+  completedCount  Int          @default(0)
+  overdueCount    Int          @default(0)
+  createdAt       DateTime     @default(now())
+
+  reviews         PerformanceReview[]
+
+  @@unique([year, quarter])
+  @@index([status])
+  @@index([deadline])
+}
+
+enum CycleStatus {
+  ACTIVE      // Reviews being completed
+  COMPLETED   // All reviews done
+  CLOSED      // Cycle finalized
+}
+
+model PerformanceReview {
+  id              String              @id @default(cuid())
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  reviewType      ReviewType
+
+  // Structured period data (new)
+  periodType      ReviewPeriodType?   // Q1, Q2, Q3, Q4, H1, H2, ANNUAL, etc.
+  periodYear      Int?                // 2025, 2026, etc.
+
+  // Legacy period string (kept for backwards compatibility, auto-generated from periodType+periodYear)
+  reviewPeriod    String              // e.g., "Q1 2025", "Annual 2024"
+
+  reviewDate      DateTime
+  reviewerName    String
+  roleTitle       String              // Employee role/job title at time of review
+
+  // Ratings (1-10 scale)
+  overallRating   Int                 // 1-10
+  qualityOfWork   Int?                // 1-10
+  productivity    Int?                // 1-10
+  communication   Int?                // 1-10
+  teamwork        Int?                // 1-10
+  initiative      Int?                // 1-10
+  attendance      Int?                // 1-10
+
+  // Values-based ratings (1-10 scale) - Core Values System
+  ratingPrecision     Int?            // Attention to Detail (40% weight)
+  ratingTransparency  Int?            // Honesty - Communication & Transparency (20% weight)
+  ratingReliability   Int?            // Integrity - Reliability & Ethics (20% weight)
+  ratingInitiative    Int?            // Courage - Ownership & Initiative (20% weight)
+
+  // Self-assessment ratings (employee fills these)
+  selfRatingPrecision     Int?
+  selfRatingTransparency  Int?
+  selfRatingReliability   Int?
+  selfRatingInitiative    Int?
+
+  // Computed values score (weighted average, may be capped by Values Veto)
+  valuesScore         Float?
+  // Whether the Values Veto was applied (Honesty/Integrity < 6)
+  valuesVetoApplied   Boolean         @default(false)
+  valuesVetoReason    String?         // Explanation if veto applied
+
+  // Required justification for low core values scores
+  lowHonestyJustification    String?  // Required if ratingTransparency < 6
+  lowIntegrityJustification  String?  // Required if ratingReliability < 6
+
+  strengths       String?
+  areasToImprove  String?
+  goals           String?
+  comments        String?
+
+  status          ReviewStatus        @default(NOT_STARTED)
+
+  // ============ WORKFLOW TIMESTAMPS ============
+  startedAt       DateTime?           // When manager first opened/started the review
+  submittedAt     DateTime?           // When manager submitted the review
+
+  // ============ APPROVAL CHAIN TRACKING ============
+  // HR Review stage
+  hrReviewedAt             DateTime?
+  hrReviewedById           String?
+  hrReviewNotes            String?
+  hrApproved               Boolean?  // true=approved, false=rejected
+
+  // Super Admin Approval stage
+  superAdminApprovedAt     DateTime?
+  superAdminApprovedById   String?
+  superAdminNotes          String?
+  superAdminApproved       Boolean?  // true=approved, false=rejected
+
+  // Employee acknowledgment
+  acknowledgedAt           DateTime?
+
+  // ============ QUARTERLY CYCLE TRACKING ============
+  // Link to quarterly cycle (nullable for non-automated reviews)
+  quarterlyCycleId         String?
+  quarterlyCycle           QuarterlyReviewCycle? @relation(fields: [quarterlyCycleId], references: [id])
+
+  // Assigned reviewer (manager at time of cron) - immutable once set
+  assignedReviewerId       String?
+
+  // Deadline tracking for automated reviews
+  deadline                 DateTime?
+
+  // Escalation tracking
+  remindersSent            Int       @default(0)  // Count of reminders sent
+  lastReminderAt           DateTime?
+  escalatedToHR            Boolean   @default(false)
+  escalatedAt              DateTime?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([employeeId])
+  @@index([reviewType])
+  @@index([reviewDate])
+  @@index([status])
+  @@index([hrReviewedById])
+  @@index([superAdminApprovedById])
+  @@index([quarterlyCycleId])
+  @@index([assignedReviewerId])
+  @@index([deadline])
+  @@index([escalatedToHR])
+  @@index([roleTitle])
+  @@index([periodType])
+  @@index([periodYear])
+  @@index([periodType, periodYear])
+  @@index([employeeId, roleTitle, periodType, periodYear])
+}
+
+model DisciplinaryAction {
+  id              String              @id @default(cuid())
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+
+  // Optional parent Case (Cases is the parent IA; this links disciplinary workflow to case management)
+  caseId          String?             @unique
+  case            Case?               @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  violationType   ViolationType
+  violationReason ViolationReason
+  severity        ViolationSeverity
+
+  // Core Values breach tracking
+  valuesBreached          ValueBreach[]       // Which core values were breached
+  employeeTookOwnership   Boolean?            // Did the employee take ownership of the issue?
+  // Auto-escalation: If ownership=false AND value=HONESTY, severity escalates
+  severityEscalated       Boolean             @default(false)
+  originalSeverity        ViolationSeverity?  // Original severity before escalation
+
+  incidentDate    DateTime
+  reportedDate    DateTime            @default(now())
+  reportedBy      String
+
+  // Who created this violation record (proper FK for querying)
+  createdById     String?
+  createdBy       Employee?           @relation("ViolationsCreated", fields: [createdById], references: [id])
+
+  description     String
+  witnesses       String?
+  evidence        String?             // file URLs or references
+
+  actionTaken     DisciplinaryActionType
+  actionDate      DateTime?
+  actionDetails   String?
+
+  followUpDate    DateTime?
+  followUpNotes   String?
+
+  status          DisciplinaryStatus  @default(OPEN)
+  resolution      String?
+
+  // Acknowledgment tracking - both employee and manager must acknowledge
+  employeeAcknowledged     Boolean   @default(false)
+  employeeAcknowledgedAt   DateTime?
+  managerAcknowledged      Boolean   @default(false)
+  managerAcknowledgedAt    DateTime?
+  managerAcknowledgerId    String?   // Which manager acknowledged
+
+  // Appeal workflow - employee can appeal instead of acknowledging
+  appealReason             String?   // Employee's appeal explanation
+  appealedAt               DateTime? // When appeal was submitted
+  appealStatus             AppealStatus? // PENDING, UPHELD, OVERTURNED, MODIFIED
+  appealResolution         String?   // HR's response to appeal
+  appealResolvedAt         DateTime? // When appeal was resolved
+  appealResolvedById       String?   // Which HR person resolved the appeal
+
+  // ============ APPROVAL CHAIN TRACKING ============
+  // HR Review stage
+  hrReviewedAt             DateTime?
+  hrReviewedById           String?
+  hrReviewNotes            String?
+  hrApproved               Boolean?  // true=approved, false=rejected
+
+  // Super Admin Approval stage
+  superAdminApprovedAt     DateTime?
+  superAdminApprovedById   String?
+  superAdminNotes          String?
+  superAdminApproved       Boolean?  // true=approved, false=rejected
+
+  // Appeal HR Review stage (separate from initial HR review)
+  appealHrReviewedAt       DateTime?
+  appealHrReviewedById     String?
+  appealHrNotes            String?
+
+  // Appeal Super Admin Decision stage
+  appealSuperAdminDecidedAt    DateTime?
+  appealSuperAdminDecidedById  String?
+  appealSuperAdminNotes        String?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([employeeId])
+  @@index([violationType])
+  @@index([severity])
+  @@index([status])
+  @@index([incidentDate])
+  @@index([valuesBreached])
+  @@index([hrReviewedById])
+  @@index([superAdminApprovedById])
+  @@index([createdById])
+}
+
+model HRCalendarEvent {
+  id              String              @id @default(cuid())
+  title           String
+  description     String?
+  eventType       HREventType
+
+  startDate       DateTime
+  endDate         DateTime?
+  allDay          Boolean             @default(true)
+
+  // Optional link to related records
+  employeeId      String?
+  relatedRecordId String?             // ID of review, disciplinary action, etc.
+  relatedRecordType String?           // "PERFORMANCE_REVIEW", "DISCIPLINARY", etc.
+
+  googleEventId   String?             // For Google Calendar sync
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([eventType])
+  @@index([startDate])
+  @@index([employeeId])
+}
+
+enum ReviewType {
+  PROBATION       // 90-day review
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+  PROMOTION
+  PIP             // Performance Improvement Plan
+}
+
+// Review period type for structured period data
+enum ReviewPeriodType {
+  Q1              // Quarter 1 (Jan-Mar)
+  Q2              // Quarter 2 (Apr-Jun)
+  Q3              // Quarter 3 (Jul-Sep)
+  Q4              // Quarter 4 (Oct-Dec)
+  H1              // First half (Jan-Jun)
+  H2              // Second half (Jul-Dec)
+  ANNUAL          // Full year
+  PROBATION       // Probation period (custom dates)
+  CUSTOM          // Custom period
+}
+
+enum ReviewStatus {
+  // Workflow states
+  NOT_STARTED             // Auto-created, manager hasn't touched it yet
+  IN_PROGRESS             // Manager is actively working on it
+
+  // Legacy states (kept for backwards compatibility)
+  DRAFT                   // Alias for IN_PROGRESS
+  PENDING_REVIEW          // Legacy: kept for backwards compatibility
+
+  // Approval chain states
+  PENDING_HR_REVIEW       // Manager submitted, waiting for HR
+  PENDING_SUPER_ADMIN     // HR approved, waiting for Super Admin
+  PENDING_ACKNOWLEDGMENT  // Super Admin approved, waiting for employee
+
+  // Final states
+  ACKNOWLEDGED
+  COMPLETED
+}
+
+enum ViolationType {
+  ATTENDANCE
+  CONDUCT
+  PERFORMANCE
+  POLICY_VIOLATION
+  SAFETY
+  HARASSMENT
+  INSUBORDINATION
+  THEFT_FRAUD
+  SUBSTANCE_ABUSE
+  OTHER
+}
+
+enum ViolationReason {
+  // Attendance
+  EXCESSIVE_ABSENCES
+  TARDINESS
+  UNAUTHORIZED_LEAVE
+  NO_CALL_NO_SHOW
+
+  // Conduct
+  UNPROFESSIONAL_BEHAVIOR
+  DISRUPTIVE_CONDUCT
+  INAPPROPRIATE_LANGUAGE
+  DRESS_CODE_VIOLATION
+
+  // Performance
+  POOR_QUALITY_WORK
+  MISSED_DEADLINES
+  FAILURE_TO_FOLLOW_INSTRUCTIONS
+  NEGLIGENCE
+
+  // Policy
+  CONFIDENTIALITY_BREACH
+  DATA_SECURITY_VIOLATION
+  EXPENSE_POLICY_VIOLATION
+  IT_POLICY_VIOLATION
+
+  // Safety
+  SAFETY_PROTOCOL_VIOLATION
+  EQUIPMENT_MISUSE
+
+  // Serious
+  HARASSMENT_DISCRIMINATION
+  WORKPLACE_VIOLENCE
+  THEFT
+  FRAUD
+  FALSIFICATION
+  SUBSTANCE_USE_AT_WORK
+
+  OTHER
+}
+
+enum ViolationSeverity {
+  MINOR           // Verbal warning
+  MODERATE        // Written warning
+  MAJOR           // Final warning / Suspension
+  CRITICAL        // Termination consideration
+}
+
+enum DisciplinaryActionType {
+  VERBAL_WARNING
+  WRITTEN_WARNING
+  FINAL_WARNING
+  SUSPENSION
+  DEMOTION
+  TERMINATION
+  PIP             // Performance Improvement Plan
+  TRAINING_REQUIRED
+  NO_ACTION       // Investigation found no violation
+}
+
+enum DisciplinaryStatus {
+  // Approval chain statuses
+  PENDING_HR_REVIEW       // Manager raised, waiting for HR
+  PENDING_SUPER_ADMIN     // HR approved, waiting for Super Admin
+  PENDING_ACKNOWLEDGMENT  // Super Admin approved, waiting for acks
+
+  // Legacy statuses (kept for backwards compatibility)
+  OPEN
+  UNDER_INVESTIGATION
+  ACTION_TAKEN
+
+  // Active and resolution statuses
+  ACTIVE                  // Fully acknowledged
+  APPEALED
+  APPEAL_PENDING_HR       // Employee appealed, waiting for HR
+  APPEAL_PENDING_SUPER_ADMIN // HR reviewed appeal, waiting for Super Admin
+  CLOSED
+  DISMISSED
+}
+
+enum AppealStatus {
+  PENDING     // Appeal submitted, awaiting review
+  UPHELD      // Original decision stands
+  OVERTURNED  // Violation dismissed/removed
+  MODIFIED    // Action/severity reduced
+}
+
+enum HREventType {
+  PERFORMANCE_REVIEW
+  PROBATION_END
+  PIP_REVIEW
+  DISCIPLINARY_HEARING
+  INTERVIEW
+  TRAINING
+  COMPANY_EVENT
+  HOLIDAY
+  OTHER
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskCategory {
+  GENERAL
+  CASE
+  POLICY
+}
+
+enum EmployeeFileVisibility {
+  HR_ONLY
+  EMPLOYEE_AND_HR
+}
+
+enum CaseType {
+  VIOLATION
+  GRIEVANCE
+  INVESTIGATION
+  INCIDENT
+  REQUEST
+  OTHER
+}
+
+enum CaseStatus {
+  OPEN
+  IN_REVIEW
+  ON_HOLD
+  RESOLVED
+  CLOSED
+  DISMISSED
+}
+
+enum CaseSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CaseParticipantRole {
+  SUBJECT
+  REPORTER
+  WITNESS
+  ASSIGNEE
+  HR
+  LEGAL
+  OTHER
+}
+
+enum CaseNoteVisibility {
+  INTERNAL_HR
+  MANAGER_VISIBLE
+  EMPLOYEE_VISIBLE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SUBMIT
+  APPROVE
+  REJECT
+  ACKNOWLEDGE
+  ASSIGN
+  COMMENT
+  ATTACH
+  COMPLETE
+  EXPORT
+}
+
+enum AuditEntityType {
+  EMPLOYEE
+  POLICY
+  POLICY_ACKNOWLEDGEMENT
+  LEAVE_REQUEST
+  PERFORMANCE_REVIEW
+  DISCIPLINARY_ACTION
+  CASE
+  CASE_NOTE
+  CASE_ATTACHMENT
+  EMPLOYEE_FILE
+  TASK
+  NOTIFICATION
+  EXPORT
+}
