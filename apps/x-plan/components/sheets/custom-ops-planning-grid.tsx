@@ -342,8 +342,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'sourceWeeks',
     header: 'Ocean Departure',
-    headerWeeks: 'Ocean Dep. (wk)',
-    headerDates: 'Ocean Dep.',
+    headerWeeks: 'Depart (wk)',
+    headerDates: 'Depart',
     width: 130,
     type: 'stage',
     editable: true,
@@ -352,8 +352,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'oceanWeeks',
     header: 'Ocean',
-    headerWeeks: 'Port ETA (wk)',
-    headerDates: 'Port ETA',
+    headerWeeks: 'ETA (wk)',
+    headerDates: 'ETA',
     width: 130,
     type: 'stage',
     editable: true,
@@ -362,8 +362,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'finalWeeks',
     header: 'Warehouse Arrival',
-    headerWeeks: 'Warehouse (wk)',
-    headerDates: 'Warehouse',
+    headerWeeks: 'WH (wk)',
+    headerDates: 'WH',
     width: 130,
     type: 'stage',
     editable: true,
@@ -544,7 +544,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         });
 
         const cellClassName = cn(
-          'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
+          'h-8 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
           colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
           isNumericCell && 'text-right',
           isEditable
@@ -558,7 +558,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         );
 
         const inputClassName = cn(
-          'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+          'h-8 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
           isNumericCell && 'text-right',
         );
 
@@ -580,7 +580,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                   onBlur={() => onCommitEdit()}
                   onClick={(event) => event.stopPropagation()}
                   onMouseDown={(event) => event.stopPropagation()}
-                  className="h-9 w-full bg-transparent px-3 text-sm font-medium text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
+                  className="h-8 w-full bg-transparent px-3 text-sm font-medium text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
                 >
                   {column.options?.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -663,7 +663,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             }}
           >
             <div
-              className={cn('flex h-9 min-w-0 items-center px-3', isNumericCell && 'justify-end')}
+              className={cn('flex h-8 min-w-0 items-center px-3', isNumericCell && 'justify-end')}
             >
               {showPlaceholder ? (
                 <span className="px-3 text-xs italic text-muted-foreground">

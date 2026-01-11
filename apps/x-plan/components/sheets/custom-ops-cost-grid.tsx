@@ -1157,7 +1157,7 @@ export function CustomOpsCostGrid({
     const isRowSelected = isRowActive(row);
 
     const cellClassName = cn(
-      'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
+      'h-8 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
       colIndex === 0 && isRowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
       isNumericCell && 'text-right',
       column.editable
@@ -1171,7 +1171,7 @@ export function CustomOpsCostGrid({
     );
 
     const inputClassName = cn(
-      'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+      'h-8 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
       isNumericCell && 'text-right',
     );
 
@@ -1192,7 +1192,7 @@ export function CustomOpsCostGrid({
               onBlur={handleCellBlur}
               onClick={(event) => event.stopPropagation()}
               onMouseDown={(event) => event.stopPropagation()}
-              className="h-9 w-full bg-transparent px-3 text-sm font-medium text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
+              className="h-8 w-full bg-transparent px-3 text-sm font-medium text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring"
             >
               <option value="">Select product...</option>
               {products.map((product) => (
@@ -1244,7 +1244,7 @@ export function CustomOpsCostGrid({
           startEditing(row.id, column.key, row[column.key] ?? '');
         }}
       >
-        <div className={cn('flex h-9 min-w-0 items-center px-3', isNumericCell && 'justify-end')}>
+        <div className={cn('flex h-8 min-w-0 items-center px-3', isNumericCell && 'justify-end')}>
           <span className={cn('block min-w-0 truncate', isNumericCell && 'tabular-nums')}>
             {displayValue}
           </span>

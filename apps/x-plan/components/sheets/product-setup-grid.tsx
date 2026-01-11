@@ -212,7 +212,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
             <TableBody>
               {isAdding && (
                 <TableRow className="bg-cyan-50/70 hover:bg-cyan-50/70 dark:bg-cyan-900/20 dark:hover:bg-cyan-900/20">
-                  <TableCell className="border-r px-3 py-2">
+                  <TableCell className="h-8 border-r px-3 py-2">
                     <Input
                       value={creatingSku}
                       onChange={(event) => setCreatingSku(event.target.value)}
@@ -221,7 +221,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                       className="h-8"
                     />
                   </TableCell>
-                  <TableCell className="border-r px-3 py-2">
+                  <TableCell className="h-8 border-r px-3 py-2">
                     <Input
                       value={creatingName}
                       onChange={(event) => setCreatingName(event.target.value)}
@@ -233,7 +233,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                       className="h-8"
                     />
                   </TableCell>
-                  <TableCell className="px-3 py-2">
+                  <TableCell className="h-8 px-3 py-2">
                     <div className="flex justify-end gap-0.5">
                       <button
                         type="button"
@@ -269,7 +269,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
 
                   return (
                     <TableRow key={row.id} className="hover:bg-muted/50">
-                      <TableCell className="border-r px-3 py-2">
+                      <TableCell className="h-8 border-r px-3 py-2">
                         {isEditing ? (
                           <Input
                             value={editDraftSku}
@@ -280,7 +280,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                           <span className="text-sm font-medium">{row.sku}</span>
                         )}
                       </TableCell>
-                      <TableCell className="border-r px-3 py-2">
+                      <TableCell className="h-8 border-r px-3 py-2">
                         {isEditing ? (
                           <Input
                             value={editDraftName}
@@ -295,7 +295,7 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                           <span className="text-sm text-muted-foreground">{row.name}</span>
                         )}
                       </TableCell>
-                      <TableCell className="px-3 py-2">
+                      <TableCell className="h-8 px-3 py-2">
                         <div className="flex justify-end gap-0.5">
                           {isEditing ? (
                             <>
