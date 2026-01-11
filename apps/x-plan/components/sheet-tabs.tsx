@@ -68,9 +68,9 @@ export function SheetTabs({
   }
 
   return (
-    <div className="flex w-full items-center justify-between gap-1 py-0.5">
+    <div className="flex w-full items-center justify-between gap-2 py-1">
       <nav className="flex items-center overflow-x-auto">
-        <ol className="flex items-center">
+        <ol className="flex items-center gap-0.5">
           {sheets.map((sheet, index) => {
             const href = sheet.href ?? `/${sheet.slug}`;
             const isActive = activeSlug === sheet.slug || pathname === href;
@@ -84,9 +84,9 @@ export function SheetTabs({
                   onClick={onSheetSelect ? (event) => handleClick(sheet.slug, event) : undefined}
                   title={sheet.label}
                   className={clsx(
-                    'group flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                    'group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                     isActive
-                      ? 'bg-cyan-600 text-white dark:bg-cyan-500 dark:text-white'
+                      ? 'bg-cyan-600 text-white shadow-md dark:bg-cyan-500 dark:text-white'
                       : isCompleted
                         ? 'text-cyan-700 hover:bg-cyan-50 dark:text-cyan-300 dark:hover:bg-cyan-900/20'
                         : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5',
@@ -94,7 +94,7 @@ export function SheetTabs({
                 >
                   <span
                     className={clsx(
-                      'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition-all',
+                      'flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition-all',
                       isActive
                         ? 'bg-white text-cyan-600 dark:bg-white dark:text-cyan-600'
                         : isCompleted
@@ -109,7 +109,7 @@ export function SheetTabs({
                 {index < sheets.length - 1 && (
                   <ChevronRight
                     className={clsx(
-                      'mx-0.5 h-3.5 w-3.5 flex-shrink-0',
+                      'mx-1 h-4 w-4 flex-shrink-0',
                       isCompleted
                         ? 'text-cyan-600 dark:text-cyan-400'
                         : 'text-slate-300 dark:text-slate-600',

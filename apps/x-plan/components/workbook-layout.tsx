@@ -396,10 +396,10 @@ export function WorkbookLayout({
         <section className="flex flex-1 overflow-hidden">
           <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
             <header
-              className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-2 py-0.5 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-3 lg:px-4"
+              className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-2.5 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-4 lg:px-5"
               role="banner"
             >
-              <div className="flex flex-wrap items-center justify-between gap-1">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-1 items-center">
                   <SheetTabs
                     sheets={sheetTabs}
@@ -408,15 +408,15 @@ export function WorkbookLayout({
                     onSheetSelect={goToSheet}
                   />
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-3">
                   {/* Active strategy indicator */}
                   {ribbon}
 
                   {/* Loading state */}
                   {showLoadingIndicator && (
-                    <div className="flex items-center gap-0.5">
-                      <div className="h-2 w-2 animate-spin rounded-full border border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
-                      <span className="text-[9px] font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">
                         Loading
                       </span>
                     </div>
@@ -426,11 +426,11 @@ export function WorkbookLayout({
                   <ThemeToggle />
 
                   {/* X-Plan branding */}
-                  <div className="flex items-center gap-0.5">
-                    <div className="flex h-4 w-4 items-center justify-center rounded bg-brand-dark">
-                      <span className="text-[9px] font-bold text-white">X</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-dark shadow-md">
+                      <span className="text-base font-bold text-white">X</span>
                     </div>
-                    <h1 className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                    <h1 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       {activeSheet?.label ?? 'Workbook'}
                     </h1>
                   </div>
@@ -438,7 +438,7 @@ export function WorkbookLayout({
               </div>
 
               {hasControls && (
-                <div className="mt-0.5 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-0.5 dark:border-slate-800">
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-2 dark:border-slate-800">
                   {headerControls}
                   {yearSwitcher}
                 </div>
@@ -464,7 +464,7 @@ export function WorkbookLayout({
       </main>
 
       <footer
-        className="space-y-1.5 border-t border-slate-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] lg:hidden"
+        className="space-y-2 border-t border-slate-200 bg-white/95 px-3 py-2.5 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] lg:hidden"
         role="navigation"
         aria-label="Sheet navigation"
       >
@@ -475,7 +475,7 @@ export function WorkbookLayout({
           onSheetSelect={goToSheet}
         />
         {hasControls && (
-          <div className="flex items-center justify-end gap-1.5 border-t border-slate-200 pt-1.5 dark:border-[#0b3a52]">
+          <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-2 dark:border-[#0b3a52]">
             {headerControls}
             {yearSwitcher}
           </div>
