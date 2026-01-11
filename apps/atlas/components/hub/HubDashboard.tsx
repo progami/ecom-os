@@ -1,16 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  DashboardApi,
   EmployeesApi,
   LeavesApi,
-  type DashboardData,
   type Employee,
   type LeaveBalance,
 } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
+import { ActivityTimeline } from './ActivityTimeline'
+
+type HubTab = 'overview' | 'activity'
 
 type HubDashboardProps = {
   employeeId: string
@@ -435,7 +436,33 @@ function QuickLinksCard() {
   )
 }
 
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'px-4 py-2 text-sm font-semibold rounded-lg transition-all',
+        active
+          ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-md'
+          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 export function HubDashboard({ employeeId }: HubDashboardProps) {
+  const [activeTab, setActiveTab] = useState<HubTab>('overview')
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
   const [loading, setLoading] = useState(true)
@@ -486,21 +513,34 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Bento grid */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Row 1 */}
-        <QuickProfileCard employee={employee} />
-        <TimeOffCard balances={leaveBalances} />
-
-        {/* Row 2 */}
-        <ContactCard employee={employee} />
-        <EmploymentCard employee={employee} />
-        <DocumentsCard employeeId={employeeId} />
-
-        {/* Row 3 */}
-        <QuickLinksCard />
+    <div className="space-y-6">
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
+        <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
+          Overview
+        </TabButton>
+        <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')}>
+          Activity
+        </TabButton>
       </div>
+
+      {activeTab === 'overview' ? (
+        <div className="grid grid-cols-3 gap-4">
+          {/* Row 1 */}
+          <QuickProfileCard employee={employee} />
+          <TimeOffCard balances={leaveBalances} />
+
+          {/* Row 2 */}
+          <ContactCard employee={employee} />
+          <EmploymentCard employee={employee} />
+          <DocumentsCard employeeId={employeeId} />
+
+          {/* Row 3 */}
+          <QuickLinksCard />
+        </div>
+      ) : (
+        <ActivityTimeline employeeId={employeeId} />
+      )}
     </div>
   )
 }

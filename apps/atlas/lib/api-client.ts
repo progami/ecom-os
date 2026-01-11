@@ -1,7 +1,12 @@
 // Centralized, typed API client for ATLAS
 // Avoid direct fetch calls in UI components
 
-import type { WorkItemDTO, WorkItemsResponse } from '@/lib/contracts/work-items'
+import type {
+  CompletedWorkItemDTO,
+  CompletedWorkItemsResponse,
+  WorkItemDTO,
+  WorkItemsResponse,
+} from '@/lib/contracts/work-items'
 import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 
 export type Employee = {
@@ -1183,8 +1188,10 @@ export const MeApi = {
 
 // Work Items
 export type WorkItem = WorkItemDTO
+export type CompletedWorkItem = CompletedWorkItemDTO
 
 let workItemsCache: { at: number; value: WorkItemsResponse } | null = null
+let completedWorkItemsCache: { at: number; value: CompletedWorkItemsResponse } | null = null
 const WORK_ITEMS_CACHE_TTL_MS = 10_000
 
 export const WorkItemsApi = {
@@ -1199,8 +1206,20 @@ export const WorkItemsApi = {
     workItemsCache = { at: now, value }
     return value
   },
+  async listCompleted(options?: { force?: boolean }) {
+    const force = options?.force ?? false
+    const now = Date.now()
+    if (!force && completedWorkItemsCache && now - completedWorkItemsCache.at < WORK_ITEMS_CACHE_TTL_MS) {
+      return completedWorkItemsCache.value
+    }
+
+    const value = await request<CompletedWorkItemsResponse>('/api/work-items/completed')
+    completedWorkItemsCache = { at: now, value }
+    return value
+  },
   invalidate() {
     workItemsCache = null
+    completedWorkItemsCache = null
   },
 }
 

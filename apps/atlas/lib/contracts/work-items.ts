@@ -63,3 +63,23 @@ export type WorkItemsResponse = {
   }
 }
 
+export type CompletedWorkItemDTO = {
+  id: string
+  type: string
+  typeLabel: string
+  title: string
+  description: string | null
+  href: string
+  entity: WorkItemEntity
+  entityData?: WorkItemEntityData
+  completedAt: string
+  completedLabel: string
+}
+
+export type CompletedWorkItemsResponse = {
+  items: CompletedWorkItemDTO[]
+  meta: {
+    totalCount: number
+  }
+}
+
