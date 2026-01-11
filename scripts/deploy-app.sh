@@ -391,6 +391,9 @@ log "Build complete"
 
 # Step 7: Restart PM2 app
 if [[ "$app_key" == "kairos" ]]; then
+  export KAIROS_ML_URL="http://127.0.0.1:${kairos_ml_port}"
+  log "Step 7: Using KAIROS_ML_URL=${KAIROS_ML_URL}"
+
   log "Step 7: Starting $kairos_ml_pm2_name"
   CI= \
   GITHUB_ACTIONS= \
