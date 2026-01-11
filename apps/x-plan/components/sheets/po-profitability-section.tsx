@@ -174,7 +174,7 @@ export function POProfitabilityHeaderControls({
         <select
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-          className={`${SHEET_TOOLBAR_SELECT} min-w-[8.5rem]`}
+          className={SHEET_TOOLBAR_SELECT}
           aria-label="Filter by purchase order status"
         >
           {statusFilters.map((status) => (
@@ -187,14 +187,14 @@ export function POProfitabilityHeaderControls({
 
       {productOptions.length > 0 ? (
         <div className={SHEET_TOOLBAR_GROUP}>
-          <span className={SHEET_TOOLBAR_LABEL}>Focus SKU</span>
+          <span className={SHEET_TOOLBAR_LABEL}>SKU</span>
           <select
             value={focusSkuId}
             onChange={(event) => setFocusSkuId(event.target.value)}
-            className={`${SHEET_TOOLBAR_SELECT} min-w-[10rem]`}
+            className={`${SHEET_TOOLBAR_SELECT} max-w-[7rem]`}
             aria-label="Focus on a single SKU"
           >
-            <option value="ALL">Show all</option>
+            <option value="ALL">All</option>
             {productOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
