@@ -187,6 +187,75 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
       END $$;
     `,
 
+
+
+    // Amazon defaults on SKUs for fee tracking
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "amazon_category" text`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "amazon_size_tier" text`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "amazon_referral_fee_percent" numeric(5, 2)`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "amazon_fba_fulfillment_fee" numeric(12, 2)`,
+
+    // Track FBA fee mismatch alerts per SKU (one row per SKU)
+    `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_type t
+          JOIN pg_namespace n ON n.oid = t.typnamespace
+          WHERE t.typname = 'AmazonFbaFeeAlertStatus'
+            AND n.nspname = current_schema()
+        ) THEN
+          CREATE TYPE "AmazonFbaFeeAlertStatus" AS ENUM (
+            'UNKNOWN',
+            'MATCH',
+            'MISMATCH',
+            'NO_ASIN',
+            'MISSING_REFERENCE',
+            'ERROR'
+          );
+        END IF;
+      END $$;
+    `,
+    `
+      CREATE TABLE IF NOT EXISTS "amazon_fba_fee_alerts" (
+        "id" text NOT NULL,
+        "sku_id" text NOT NULL,
+        "reference_size_tier" text,
+        "reference_fba_fulfillment_fee" numeric(12, 2),
+        "amazon_fba_fulfillment_fee" numeric(12, 2),
+        "currency_code" text,
+        "listing_price" numeric(12, 2),
+        "status" "AmazonFbaFeeAlertStatus" NOT NULL DEFAULT 'UNKNOWN',
+        "message" text,
+        "checked_at" TIMESTAMP(3),
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT "amazon_fba_fee_alerts_pkey" PRIMARY KEY ("id")
+      )
+    `,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "amazon_fba_fee_alerts_sku_id_key" ON "amazon_fba_fee_alerts"("sku_id")`,
+    `CREATE INDEX IF NOT EXISTS "amazon_fba_fee_alerts_status_idx" ON "amazon_fba_fee_alerts"("status")`,
+    `CREATE INDEX IF NOT EXISTS "amazon_fba_fee_alerts_checked_at_idx" ON "amazon_fba_fee_alerts"("checked_at")`,
+    `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint c
+          JOIN pg_class t ON t.oid = c.conrelid
+          JOIN pg_namespace n ON n.oid = t.relnamespace
+          WHERE c.conname = 'amazon_fba_fee_alerts_sku_id_fkey'
+            AND n.nspname = current_schema()
+        ) THEN
+          ALTER TABLE "amazon_fba_fee_alerts"
+            ADD CONSTRAINT "amazon_fba_fee_alerts_sku_id_fkey"
+            FOREIGN KEY ("sku_id") REFERENCES "skus"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END $$;
+    `,
     // batch pallet configuration fields (missing in some schemas)
     `ALTER TABLE "sku_batches" ADD COLUMN IF NOT EXISTS "storage_cartons_per_pallet" integer`,
     `ALTER TABLE "sku_batches" ADD COLUMN IF NOT EXISTS "shipping_cartons_per_pallet" integer`,
