@@ -1,6 +1,6 @@
 # TargonOS
 
-TargonOS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, Talos, X‑Plan, Atlas, Website) with shared authentication and shared libraries.
+TargonOS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, Talos, X‑Plan, Atlas, Plutus, Website) with shared authentication and shared libraries.
 
 This repo is currently hosted from a macOS laptop for development and “live” environments (main + dev). The hosting setup is documented here so it’s reproducible and debuggable.
 
@@ -36,8 +36,8 @@ Cloudflared routes hostnames to local nginx listener ports (`~/.cloudflared/conf
 
 nginx then routes paths to the correct app ports (macOS/Homebrew default path: `/opt/homebrew/etc/nginx/servers/targonos.conf`):
 
-- Main: `3000` (portal), `3001` (talos), `3006` (atlas), `3008` (x-plan), `3005` (website)
-- Dev: `3100` (portal), `3101` (talos), `3106` (atlas), `3108` (x-plan), `3105` (website)
+- Main: `3000` (portal), `3001` (talos), `3005` (website), `3006` (atlas), `3008` (x-plan), `3010` (kairos), `3012` (plutus)
+- Dev: `3100` (portal), `3101` (talos), `3105` (website), `3106` (atlas), `3108` (x-plan), `3110` (kairos), `3112` (plutus)
 
 ### “Two environments” on one host
 
@@ -58,6 +58,7 @@ apps/
   talos/        # Warehouse Management (custom server.js)
   x-plan/       # X‑Plan (Next.js app)
   atlas/         # Atlas (Next.js app)
+  plutus/       # Plutus (Next.js app)
   website/      # Marketing site
   archived/     # Historical apps (excluded from pnpm workspace)
 packages/
@@ -80,6 +81,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 | Talos | `@targon/talos` | `/talos` | Uses `apps/talos/server.js`, Redis, and S3 presigned uploads |
 | X‑Plan | `@targon/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
 | Atlas | `@targon/atlas` | `/atlas` | Prisma schema `atlas`; Playwright tests |
+| Plutus | `@targon/plutus` | `/plutus` | Finance workspace (FCC rebrand); scaffold-only |
 | Website | `@targon/website` | `/` | Separate hostname (`targonglobal.com`) |
 
 ## Authentication model (Portal as the source of truth)

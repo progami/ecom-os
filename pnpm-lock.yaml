@@ -468,6 +468,40 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.3.3)(jiti@2.5.1)(jsdom@26.1.0)(tsx@4.21.0)(yaml@2.8.1)
 
+  apps/plutus:
+    dependencies:
+      next:
+        specifier: 16.0.8
+        version: 16.0.8(@playwright/test@1.57.0)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      react:
+        specifier: 19.2.1
+        version: 19.2.1
+      react-dom:
+        specifier: 19.2.1
+        version: 19.2.1(react@19.2.1)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.3.0
+        version: 24.3.3
+      '@types/react':
+        specifier: 19.1.10
+        version: 19.1.10
+      '@types/react-dom':
+        specifier: 19.1.6
+        version: 19.1.6(@types/react@19.1.10)
+      eslint:
+        specifier: ^8.57.0
+        version: 8.57.1
+      eslint-config-next:
+        specifier: 15.5.0
+        version: 15.5.0(eslint@8.57.1)(typescript@5.9.3)
+      eslint-config-prettier:
+        specifier: ^9.1.0
+        version: 9.1.2(eslint@8.57.1)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   apps/sso:
     dependencies:
       '@targon/auth':
