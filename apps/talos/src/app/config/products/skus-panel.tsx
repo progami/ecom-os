@@ -525,7 +525,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         )}
       </div>
 
-      <PortalModal open={isModalOpen} className="items-start">
+      <PortalModal open={isModalOpen} className="items-center">
         <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
           <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
             <h2 className="text-lg font-semibold text-slate-900">

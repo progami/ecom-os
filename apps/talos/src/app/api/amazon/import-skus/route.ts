@@ -10,14 +10,41 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+const previewQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(250).optional(),
+})
+
 const requestSchema = z.object({
   limit: z.number().int().positive().max(100).optional(),
+  skuCodes: z.array(z.string().trim().min(1).max(50)).max(100).optional(),
+  mode: z.enum(['import', 'validate']).default('import'),
 })
 
 const DEFAULT_BATCH_CODE = 'BATCH 01'
 const DEFAULT_PACK_SIZE = 1
 const DEFAULT_UNITS_PER_CARTON = 1
 const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
+
+function normalizeSkuCode(value: string): string | null {
+  const normalized = sanitizeForDisplay(value.trim().toUpperCase())
+  if (!normalized) return null
+  if (normalized.length > 50) return null
+  return normalized
+}
+
+function normalizeAsin(value: string | null): string | null {
+  if (!value) return null
+  const normalized = sanitizeForDisplay(value.trim().toUpperCase())
+  if (!normalized) return null
+  if (normalized.length > 64) return null
+  return normalized
+}
+
+function normalizeTitle(value: string | null): string | null {
+  if (!value) return null
+  const normalized = sanitizeForDisplay(value.trim())
+  return normalized ? normalized : null
+}
 
 function parseCatalogDimensions(attributes: {
   item_dimensions?: Array<{
@@ -47,6 +74,132 @@ function parseCatalogWeightKg(attributes: { item_weight?: Array<{ value?: number
   return Number((raw * 0.453592).toFixed(3))
 }
 
+export const GET = withRole(['admin', 'staff'], async (request, _session) => {
+  const parsed = previewQuerySchema.safeParse({
+    limit: request.nextUrl.searchParams.get('limit') ?? undefined,
+  })
+  if (!parsed.success) {
+    return ApiResponses.validationError(parsed.error.flatten().fieldErrors)
+  }
+
+  const previewLimit = parsed.data.limit ?? 250
+  const tenantCode = await getCurrentTenantCode()
+  const prisma = await getTenantPrisma()
+
+  const listingResponse = await getListingsItems(tenantCode, { limit: previewLimit })
+  const listings = listingResponse.items
+
+  const normalizedCodes = listings
+    .map(item => normalizeSkuCode(item.sellerSku))
+    .filter((code): code is string => Boolean(code))
+
+  const existingSkus = normalizedCodes.length
+    ? await prisma.sku.findMany({
+        where: { skuCode: { in: normalizedCodes } },
+        select: { skuCode: true },
+      })
+    : []
+
+  const existingSet = new Set(existingSkus.map(sku => sku.skuCode.toUpperCase()))
+  const duplicates = new Set<string>()
+  const seen = new Set<string>()
+
+  for (const code of normalizedCodes) {
+    const key = code.toUpperCase()
+    if (seen.has(key)) duplicates.add(key)
+    else seen.add(key)
+  }
+
+  const items = listings.map(listing => {
+    const skuCode = normalizeSkuCode(listing.sellerSku)
+    const asin = normalizeAsin(listing.asin)
+    const title = normalizeTitle(listing.title)
+
+    if (!skuCode) {
+      return {
+        sellerSku: listing.sellerSku,
+        skuCode: null,
+        asin,
+        title,
+        status: 'blocked' as const,
+        reason: 'Invalid SKU code (empty or too long)',
+        exists: false,
+      }
+    }
+
+    if (duplicates.has(skuCode.toUpperCase())) {
+      return {
+        sellerSku: listing.sellerSku,
+        skuCode,
+        asin,
+        title,
+        status: 'blocked' as const,
+        reason: 'Duplicate seller SKU after normalization',
+        exists: false,
+      }
+    }
+
+    if (existingSet.has(skuCode.toUpperCase())) {
+      return {
+        sellerSku: listing.sellerSku,
+        skuCode,
+        asin,
+        title,
+        status: 'existing' as const,
+        reason: 'Already exists in Talos (will not be updated)',
+        exists: true,
+      }
+    }
+
+    if (!asin) {
+      return {
+        sellerSku: listing.sellerSku,
+        skuCode,
+        asin,
+        title,
+        status: 'blocked' as const,
+        reason: 'Missing ASIN on Amazon listing',
+        exists: false,
+      }
+    }
+
+    return {
+      sellerSku: listing.sellerSku,
+      skuCode,
+      asin,
+      title,
+      status: 'new' as const,
+      reason: null as string | null,
+      exists: false,
+    }
+  })
+
+  const summary = items.reduce(
+    (acc, item) => {
+      if (item.status === 'new') acc.newCount += 1
+      if (item.status === 'existing') acc.existingCount += 1
+      if (item.status === 'blocked') acc.blockedCount += 1
+      return acc
+    },
+    { newCount: 0, existingCount: 0, blockedCount: 0 }
+  )
+
+  return ApiResponses.success({
+    preview: {
+      limit: previewLimit,
+      totalListings: listings.length,
+      hasMore: listingResponse.hasMore,
+      summary,
+      policy: {
+        updatesExistingSkus: false,
+        createsBatch: true,
+        defaultBatchCode: DEFAULT_BATCH_CODE,
+      },
+      items,
+    },
+  })
+})
+
 export const POST = withRole(['admin', 'staff'], async (request, _session) => {
   const parsed = requestSchema.safeParse(await request.json().catch(() => ({})))
   if (!parsed.success) {
@@ -54,19 +207,34 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
   }
 
   const importLimit = parsed.data.limit ?? 50
+  const mode = parsed.data.mode
   const tenantCode = await getCurrentTenantCode()
   const prisma = await getTenantPrisma()
 
   const listingResponse = await getListingsItems(tenantCode, { limit: 250 })
   const listings = listingResponse.items
 
+  const listingBySkuCode = new Map<string, (typeof listings)[number]>()
+  for (const listing of listings) {
+    const skuCode = normalizeSkuCode(listing.sellerSku)
+    if (!skuCode) continue
+    const key = skuCode.toUpperCase()
+    if (!listingBySkuCode.has(key)) {
+      listingBySkuCode.set(key, listing)
+    }
+  }
+
   const candidateSkus = listings
     .map(item => item.sellerSku.trim())
     .filter(Boolean)
-    .map(code => sanitizeForDisplay(code.toUpperCase()))
+    .map(code => normalizeSkuCode(code) ?? '')
     .filter(Boolean)
 
-  if (candidateSkus.length === 0) {
+  const selectedSkuCodes = parsed.data.skuCodes?.length
+    ? parsed.data.skuCodes.map(code => normalizeSkuCode(code) ?? '').filter(Boolean)
+    : null
+
+  if (candidateSkus.length === 0 || (selectedSkuCodes && selectedSkuCodes.length === 0)) {
     return ApiResponses.success({
       result: {
         imported: 0,
@@ -85,22 +253,73 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
   let imported = 0
   let skipped = 0
   const errors: string[] = []
+  const details: Array<{
+    skuCode: string
+    status: 'imported' | 'skipped' | 'blocked'
+    message?: string
+    unitWeightKg?: number | null
+    unitDimensionsCm?: string | null
+  }> = []
 
-  for (const listing of listings) {
-    if (imported >= importLimit) break
+  const targets: string[] = []
+  if (selectedSkuCodes) {
+    targets.push(...selectedSkuCodes)
+  } else {
+    for (const listing of listings) {
+      if (targets.length >= importLimit) break
+      const skuCode = normalizeSkuCode(listing.sellerSku)
+      if (!skuCode) continue
+      if (existingSet.has(skuCode.toUpperCase())) continue
+      targets.push(skuCode)
+    }
+  }
 
-    const skuCode = sanitizeForDisplay(listing.sellerSku.trim().toUpperCase())
+  if (targets.length === 0) {
+    return ApiResponses.success({
+      result: {
+        imported: 0,
+        skipped: 0,
+        errors: ['No new SKUs found to import'],
+      },
+    })
+  }
+
+  for (const targetSkuCode of targets) {
+    if (mode === 'import' && imported >= importLimit) break
+
+    const skuCode = normalizeSkuCode(targetSkuCode)
     if (!skuCode) continue
 
-    if (existingSet.has(skuCode.toUpperCase())) {
+    const listing = listingBySkuCode.get(skuCode.toUpperCase())
+    if (!listing) {
       skipped += 1
+      details.push({
+        skuCode,
+        status: 'blocked',
+        message: 'SKU not found in current Amazon listings preview',
+      })
       continue
     }
 
-    const asin = listing.asin ? sanitizeForDisplay(listing.asin.trim().toUpperCase()) : null
+    if (existingSet.has(skuCode.toUpperCase())) {
+      skipped += 1
+      details.push({
+        skuCode,
+        status: 'skipped',
+        message: 'Already exists in Talos (not updated)',
+      })
+      continue
+    }
+
+    const asin = normalizeAsin(listing.asin)
     if (!asin) {
       skipped += 1
       errors.push(`Skipping ${skuCode}: ASIN missing on Amazon listing`)
+      details.push({
+        skuCode,
+        status: 'blocked',
+        message: 'Missing ASIN on Amazon listing',
+      })
       continue
     }
 
@@ -113,7 +332,10 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       const attributes = catalog?.item?.attributes
       if (attributes) {
         if (attributes.title?.[0]?.value) {
-          description = sanitizeForDisplay(attributes.title[0].value) || description
+          const sanitizedTitle = sanitizeForDisplay(attributes.title[0].value)
+          if (sanitizedTitle) {
+            description = sanitizedTitle
+          }
         }
         unitWeightKg = parseCatalogWeightKg(attributes)
         unitTriplet = parseCatalogDimensions(attributes)
@@ -131,6 +353,24 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     if (!unitWeightKg) {
       skipped += 1
       errors.push(`Skipping ${skuCode}: Amazon did not provide a unit weight`)
+      details.push({
+        skuCode,
+        status: 'blocked',
+        message: 'Amazon did not provide a unit weight',
+      })
+      continue
+    }
+
+    const unitDimensionsCm = unitTriplet ? formatDimensionTripletCm(unitTriplet) : null
+
+    if (mode === 'validate') {
+      imported += 1
+      details.push({
+        skuCode,
+        status: 'imported',
+        unitWeightKg,
+        unitDimensionsCm,
+      })
       continue
     }
 
@@ -147,7 +387,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
             defaultSupplierId: null,
             secondarySupplierId: null,
             material: null,
-            unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
+            unitDimensionsCm,
             unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
             unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
             unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
@@ -173,7 +413,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
             packSize: DEFAULT_PACK_SIZE,
             unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
             material: null,
-            unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
+            unitDimensionsCm,
             unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
             unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
             unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
@@ -196,10 +436,23 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
       imported += 1
       existingSet.add(skuCode.toUpperCase())
+      details.push({
+        skuCode,
+        status: 'imported',
+        unitWeightKg,
+        unitDimensionsCm,
+      })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         skipped += 1
         existingSet.add(skuCode.toUpperCase())
+        details.push({
+          skuCode,
+          status: 'skipped',
+          message: 'Already exists in Talos (not updated)',
+          unitWeightKg,
+          unitDimensionsCm,
+        })
         continue
       }
 
@@ -207,10 +460,17 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       errors.push(
         `Failed to import ${skuCode}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
+      details.push({
+        skuCode,
+        status: 'blocked',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        unitWeightKg,
+        unitDimensionsCm,
+      })
     }
   }
 
-  if (listingResponse.hasMore && imported < importLimit) {
+  if (listingResponse.hasMore && imported < importLimit && !selectedSkuCodes) {
     errors.push('More Amazon listings exist. Run import again to continue.')
   }
 
@@ -219,7 +479,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       imported,
       skipped,
       errors,
+      details,
     },
   })
 })
-
