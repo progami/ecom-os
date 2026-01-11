@@ -7,82 +7,24 @@ import {
   CalendarIcon,
   UserCircleIcon,
   CheckCircleIcon,
+  HashtagIcon,
 } from '@/components/ui/Icons'
 import { EMPLOYMENT_TYPE_LABELS } from '@/lib/domain/employee/constants'
 import { formatDate } from '../utils'
 
-function InfoItem({
-  icon: Icon,
-  label,
-  value,
-  highlight,
-}: {
+function DetailItem({ icon: Icon, label, value }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
-  highlight?: boolean
 }) {
   return (
-    <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border/50 transition-all duration-200 hover:bg-muted/50 hover:border-border">
-      <div className="flex-shrink-0 mt-0.5">
-        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${highlight ? 'bg-brand-teal-100 ring-1 ring-brand-teal-200/50' : 'bg-white ring-1 ring-border'}`}>
-          <Icon className={`h-4 w-4 ${highlight ? 'text-brand-teal-600' : 'text-muted-foreground'}`} />
-        </div>
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+      <div className="h-9 w-9 rounded-lg bg-card flex items-center justify-center flex-shrink-0 ring-1 ring-border">
+        <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">{label}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">{label}</p>
         <p className="text-sm font-medium text-foreground">{value}</p>
-      </div>
-    </div>
-  )
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const isActive = status === 'ACTIVE'
-  return (
-    <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border/50 transition-all duration-200 hover:bg-muted/50 hover:border-border">
-      <div className="flex-shrink-0 mt-0.5">
-        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${isActive ? 'bg-emerald-100 ring-1 ring-emerald-200/50' : 'bg-amber-100 ring-1 ring-amber-200/50'}`}>
-          <CheckCircleIcon className={`h-4 w-4 ${isActive ? 'text-emerald-600' : 'text-amber-600'}`} />
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-0.5">Status</p>
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          <p className="text-sm font-medium text-foreground">{status}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ManagerInfo({ manager }: { manager: Employee['manager'] }) {
-  return (
-    <div className="flex items-start gap-3 p-4 rounded-xl bg-muted/30 border border-border/50 transition-all duration-200 hover:bg-muted/50 hover:border-border">
-      <div className="flex-shrink-0 mt-0.5">
-        <div className="h-8 w-8 rounded-lg bg-white ring-1 ring-border flex items-center justify-center">
-          <UserCircleIcon className="h-4 w-4 text-muted-foreground" />
-        </div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium mb-1">Manager</p>
-        {manager ? (
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-brand-navy-100 flex items-center justify-center ring-1 ring-brand-navy-200/50">
-              <span className="text-[10px] font-semibold text-brand-navy-600">
-                {manager.firstName.charAt(0)}{manager.lastName.charAt(0)}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {manager.firstName} {manager.lastName}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground/60 italic">No manager assigned</p>
-        )}
       </div>
     </div>
   )
@@ -94,34 +36,63 @@ export function EmployeeJobOrgTab({ employee }: { employee: Employee }) {
     employee.employmentType
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 md:p-6 stagger-children">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <InfoItem
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <DetailItem
           icon={BuildingIcon}
           label="Department"
           value={employee.department ?? 'Not assigned'}
-          highlight
         />
-        <InfoItem
+        <DetailItem
           icon={BriefcaseIcon}
-          label="Role / Title"
+          label="Position"
           value={employee.position}
-          highlight
         />
-        <InfoItem
+        <DetailItem
           icon={BriefcaseIcon}
           label="Employment Type"
           value={employmentTypeLabel}
         />
-        <InfoItem
+        <DetailItem
           icon={CalendarIcon}
           label="Join Date"
           value={formatDate(employee.joinDate)}
         />
-        <StatusBadge status={employee.status} />
-        <ManagerInfo manager={employee.manager} />
+        <DetailItem
+          icon={HashtagIcon}
+          label="Employee ID"
+          value={employee.employeeId}
+        />
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+          <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ring-1 ${employee.status === 'ACTIVE' ? 'bg-emerald-50 ring-emerald-200' : 'bg-amber-50 ring-amber-200'}`}>
+            <CheckCircleIcon className={`h-4 w-4 ${employee.status === 'ACTIVE' ? 'text-emerald-600' : 'text-amber-600'}`} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Status</p>
+            <p className="text-sm font-medium text-foreground">{employee.status}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Manager Section */}
+      <div className="mt-4 pt-4 border-t border-border">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+          <div className="h-9 w-9 rounded-lg bg-card flex items-center justify-center flex-shrink-0 ring-1 ring-border">
+            <UserCircleIcon className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Reports To</p>
+            {employee.manager ? (
+              <p className="text-sm font-medium text-foreground">
+                {employee.manager.firstName} {employee.manager.lastName}
+                <span className="text-muted-foreground font-normal"> &middot; {employee.manager.position}</span>
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No manager assigned</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
 }
-
