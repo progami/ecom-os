@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, Database, Menu, Sparkles, TrendingUp } from 'lucide-react';
+import { BarChart3, Database, Menu, Sparkles } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -37,17 +37,12 @@ export function KairosShell({ children }: { children: React.ReactNode }) {
               href="/forecasts"
               className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-dark shadow-sm">
-                <TrendingUp className="h-5 w-5 text-white" aria-hidden />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md">
+                <span className="text-lg font-bold text-white">K</span>
               </div>
-              <div className="hidden sm:block">
-                <div className="text-base font-semibold tracking-tight text-slate-900 dark:text-white">
-                  Kairos
-                </div>
-                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
-                  Forecasting
-                </div>
-              </div>
+              <span className="hidden text-lg font-semibold text-slate-900 dark:text-white sm:block">
+                Kairos
+              </span>
             </Link>
 
             {/* Desktop Navigation */}
