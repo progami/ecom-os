@@ -1316,7 +1316,7 @@ export function CustomPurchasePaymentsGrid({
     const rowSelected = isRowActive(row);
 
     const cellClassName = cn(
-      'h-9 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
+      'h-8 overflow-hidden whitespace-nowrap border-r p-0 align-middle text-sm',
       colIndex === 0 && rowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
       isNumericCell && 'text-right',
       isWeekLabel && 'text-center',
@@ -1329,7 +1329,7 @@ export function CustomPurchasePaymentsGrid({
     );
 
     const inputClassName = cn(
-      'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+      'h-8 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
       isNumericCell && 'text-right',
       isWeekLabel && 'text-center',
     );
@@ -1413,7 +1413,7 @@ export function CustomPurchasePaymentsGrid({
       >
         <div
           className={cn(
-            'flex h-9 min-w-0 items-center px-3',
+            'flex h-8 min-w-0 items-center px-3',
             isNumericCell && 'justify-end',
             isWeekLabel && 'justify-center',
           )}

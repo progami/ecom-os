@@ -339,25 +339,25 @@ export function StrategiesWorkspace({
           <Table className="table-fixed border-collapse">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Strategy
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Region
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-56 border-b border-r bg-muted px-4 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-56 border-b border-r bg-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Assignee
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-44 border-b border-r bg-muted px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-44 border-b border-r bg-muted px-3 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Last edited
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Products
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-24 border-b border-r bg-muted px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Orders
                 </TableHead>
-                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-3 py-2 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
                   Actions
                 </TableHead>
               </TableRow>
@@ -365,7 +365,7 @@ export function StrategiesWorkspace({
             <TableBody>
               {isAdding ? (
                 <TableRow className="bg-cyan-50/70 hover:bg-cyan-50/70 dark:bg-cyan-900/20 dark:hover:bg-cyan-900/20">
-                  <TableCell className="border-r px-4 py-3 align-top">
+                  <TableCell className="border-r px-3 py-2 align-top">
                     <div className="space-y-2">
                       <Input
                         value={newName}
@@ -386,7 +386,7 @@ export function StrategiesWorkspace({
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="border-r px-4 py-3 align-top">
+                  <TableCell className="border-r px-3 py-2 align-top">
                     <select
                       value={newRegion}
                       onChange={(e) => setNewRegion(e.target.value === 'UK' ? 'UK' : 'US')}
@@ -396,7 +396,7 @@ export function StrategiesWorkspace({
                       <option value="UK">UK</option>
                     </select>
                   </TableCell>
-                  <TableCell className="border-r px-4 py-3 align-top">
+                  <TableCell className="border-r px-3 py-2 align-top">
                     <select
                       value={newAssigneeId}
                       onChange={(e) => setNewAssigneeId(e.target.value)}
@@ -419,16 +419,16 @@ export function StrategiesWorkspace({
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell className="border-r px-4 py-3 text-right text-xs text-muted-foreground">
+                  <TableCell className="border-r px-3 py-2 text-right text-xs text-muted-foreground">
                     —
                   </TableCell>
-                  <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">
+                  <TableCell className="border-r px-3 py-2 text-center text-sm text-muted-foreground">
                     -
                   </TableCell>
-                  <TableCell className="border-r px-4 py-3 text-center text-sm text-muted-foreground">
+                  <TableCell className="border-r px-3 py-2 text-center text-sm text-muted-foreground">
                     -
                   </TableCell>
-                  <TableCell className="px-4 py-3">
+                  <TableCell className="px-3 py-2">
                     <div className="flex justify-end gap-1">
                       <button
                         type="button"
@@ -474,7 +474,7 @@ export function StrategiesWorkspace({
                           : 'hover:bg-muted/50',
                       )}
                     >
-                      <TableCell className="border-r px-4 py-3">
+                      <TableCell className="border-r px-3 py-2">
                         {isEditing ? (
                           <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                             <Input
@@ -522,7 +522,7 @@ export function StrategiesWorkspace({
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="border-r px-4 py-3 text-center">
+                      <TableCell className="border-r px-3 py-2 text-center">
                         {isEditing ? (
                           <select
                             value={editRegion}
@@ -540,7 +540,7 @@ export function StrategiesWorkspace({
                         )}
                       </TableCell>
                       <TableCell
-                        className="border-r px-4 py-3"
+                        className="border-r px-3 py-2"
                         onClick={(event) => {
                           if (isEditing || canAssign) {
                             event.stopPropagation();
@@ -583,7 +583,7 @@ export function StrategiesWorkspace({
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="border-r px-4 py-3 text-right">
+                      <TableCell className="border-r px-3 py-2 text-right">
                         <span
                           className={cn(
                             'text-xs tabular-nums',
@@ -595,7 +595,7 @@ export function StrategiesWorkspace({
                           {renderLastEditedLabel(strategy)}
                         </span>
                       </TableCell>
-                      <TableCell className="border-r px-4 py-3 text-center">
+                      <TableCell className="border-r px-3 py-2 text-center">
                         <span
                           className={cn(
                             'text-sm tabular-nums',
@@ -607,7 +607,7 @@ export function StrategiesWorkspace({
                           {strategy._count.products}
                         </span>
                       </TableCell>
-                      <TableCell className="border-r px-4 py-3 text-center">
+                      <TableCell className="border-r px-3 py-2 text-center">
                         <span
                           className={cn(
                             'text-sm tabular-nums',
@@ -619,7 +619,7 @@ export function StrategiesWorkspace({
                           {strategy._count.purchaseOrders}
                         </span>
                       </TableCell>
-                      <TableCell className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           {isEditing ? (
                             <>
