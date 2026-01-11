@@ -281,6 +281,65 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
     ],
   },
 
+  suppliers: {
+    entityName: 'supplier',
+    tableName: 'suppliers',
+    displayName: 'Suppliers',
+    uniqueFields: ['name'],
+    fieldMappings: [
+      {
+        dbField: 'name',
+        excelColumns: ['Name', 'name', 'Supplier Name', 'supplier_name'],
+        type: 'string',
+        required: true,
+      },
+      {
+        dbField: 'contactName',
+        excelColumns: ['Contact Name', 'contact_name', 'Contact'],
+        type: 'string',
+        required: false,
+      },
+      {
+        dbField: 'email',
+        excelColumns: ['Email', 'email', 'Contact Email'],
+        type: 'string',
+        required: false,
+        transform: transformers.toLowerCase,
+      },
+      {
+        dbField: 'phone',
+        excelColumns: ['Phone', 'phone', 'Contact Phone', 'Phone Number'],
+        type: 'string',
+        required: false,
+      },
+      {
+        dbField: 'address',
+        excelColumns: ['Address', 'address', 'Location'],
+        type: 'string',
+        required: false,
+      },
+      {
+        dbField: 'notes',
+        excelColumns: ['Notes', 'notes', 'Comments'],
+        type: 'string',
+        required: false,
+      },
+      {
+        dbField: 'defaultPaymentTerms',
+        excelColumns: ['Payment Terms', 'payment_terms', 'Default Payment Terms'],
+        type: 'string',
+        required: false,
+      },
+      {
+        dbField: 'defaultIncoterms',
+        excelColumns: ['Incoterms', 'incoterms', 'Default Incoterms'],
+        type: 'string',
+        required: false,
+        transform: transformers.toUpperCase,
+      },
+    ],
+  },
+
   inventoryTransactions: {
     entityName: 'inventoryTransaction',
     tableName: 'inventory_transactions',
