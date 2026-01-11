@@ -50,27 +50,27 @@ export default function PoliciesPage() {
     }
   }, [])
 
+  // Single effect that handles permissions check, consolidation, and data loading
   useEffect(() => {
-    load()
-  }, [load])
-
-  useEffect(() => {
-    async function loadPermissions() {
+    async function init() {
       try {
         const me = await MeApi.get()
         const canManage = Boolean(me.isSuperAdmin || me.isHR)
         setCanManagePolicies(canManage)
 
+        // Consolidate conduct policies if admin (only once)
         if (canManage && !didConsolidateConduct.current) {
           didConsolidateConduct.current = true
           await PoliciesAdminApi.consolidateConductCompanyWide().catch(() => null)
-          await load()
         }
       } catch {
         setCanManagePolicies(false)
       }
+
+      // Load policies once after permission check
+      await load()
     }
-    loadPermissions()
+    init()
   }, [load])
 
   // Get unique categories from items
