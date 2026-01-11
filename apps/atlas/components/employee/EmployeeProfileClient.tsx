@@ -429,47 +429,57 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       </div>
 
       {/* OVERVIEW TAB */}
-      {activeTab === 'overview' ? <EmployeeOverviewTab employee={employee} /> : null}
+      <div className={activeTab === 'overview' ? '' : 'hidden'}>
+        <EmployeeOverviewTab employee={employee} />
+      </div>
 
       {/* DOCUMENTS TAB */}
-      {activeTab === 'documents' && canViewDocuments ? (
-        <EmployeeDocumentsTab
-          canUpload={isHROrAbove || isSelf}
-          canManageVisibility={isHROrAbove}
-          isSelf={isSelf}
-          uploadReady={Boolean(uploadFile)}
-          uploadTitle={uploadTitle}
-          setUploadTitle={setUploadTitle}
-          uploadVisibility={uploadVisibility}
-          setUploadVisibility={setUploadVisibility}
-          setUploadFile={setUploadFile}
-          uploading={uploading}
-          uploadDocument={uploadDocument}
-          files={files}
-          filesLoading={filesLoading}
-          downloadFile={downloadFile}
-        />
+      {canViewDocuments ? (
+        <div className={activeTab === 'documents' ? '' : 'hidden'}>
+          <EmployeeDocumentsTab
+            canUpload={isHROrAbove || isSelf}
+            canManageVisibility={isHROrAbove}
+            isSelf={isSelf}
+            uploadReady={Boolean(uploadFile)}
+            uploadTitle={uploadTitle}
+            setUploadTitle={setUploadTitle}
+            uploadVisibility={uploadVisibility}
+            setUploadVisibility={setUploadVisibility}
+            setUploadFile={setUploadFile}
+            uploading={uploading}
+            uploadDocument={uploadDocument}
+            files={files}
+            filesLoading={filesLoading}
+            downloadFile={downloadFile}
+          />
+        </div>
       ) : null}
 
-      {/* PERFORMANCE TAB */}
-      {activeTab === 'performance' && canViewPerformance ? (
-        <EmployeePerformanceTab reviews={reviews} loading={reviewsLoading} />
+      {/* REVIEWS TAB */}
+      {canViewPerformance ? (
+        <div className={activeTab === 'performance' ? '' : 'hidden'}>
+          <EmployeePerformanceTab reviews={reviews} loading={reviewsLoading} />
+        </div>
       ) : null}
 
       {/* LEAVE TAB */}
-      {activeTab === 'leave' && canViewLeave ? (
-        <EmployeeLeaveTab
-          groupedBalances={groupedLeaveBalances}
-          leaveBalances={leaveBalances}
-          leaveRequests={leaveRequests}
-          loading={leaveLoading}
-          isSelf={isSelf}
-        />
+      {canViewLeave ? (
+        <div className={activeTab === 'leave' ? '' : 'hidden'}>
+          <EmployeeLeaveTab
+            groupedBalances={groupedLeaveBalances}
+            leaveBalances={leaveBalances}
+            leaveRequests={leaveRequests}
+            loading={leaveLoading}
+            isSelf={isSelf}
+          />
+        </div>
       ) : null}
 
       {/* VIOLATIONS TAB */}
-      {activeTab === 'violations' && canViewViolations ? (
-        <EmployeeViolationsTab violations={violations} loading={violationsLoading} />
+      {canViewViolations ? (
+        <div className={activeTab === 'violations' ? '' : 'hidden'}>
+          <EmployeeViolationsTab violations={violations} loading={violationsLoading} />
+        </div>
       ) : null}
     </>
   )
