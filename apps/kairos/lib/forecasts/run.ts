@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import { buildKairosOwnershipWhere, getKairosActor } from '@/lib/access';
 import { parseEtsConfig, parseProphetConfig } from '@/lib/forecasts/config';
 import { runEtsForecast } from '@/lib/models/ets';
+import { runMlForecast } from '@/lib/models/ml-service';
 import { runProphetForecast } from '@/lib/models/prophet';
 
 type RunResult = {
@@ -99,10 +100,14 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     const loadMs = Date.now() - loadStart;
 
     const modelStart = Date.now();
+    const useMlService = Boolean(process.env.KAIROS_ML_URL?.trim());
     const result = await (async () => {
       if (forecast.model === 'ETS') {
         try {
           const config = parseEtsConfig(forecast.config) ?? undefined;
+          if (useMlService) {
+            return await runMlForecast({ model: 'ETS', ds, y, horizon: forecast.horizon, config });
+          }
           return await runEtsForecast({ ds, y, horizon: forecast.horizon, config });
         } catch (error) {
           if (error instanceof ZodError) {
@@ -115,6 +120,9 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
       if (forecast.model === 'PROPHET') {
         try {
           const config = parseProphetConfig(forecast.config) ?? undefined;
+          if (useMlService) {
+            return await runMlForecast({ model: 'PROPHET', ds, y, horizon: forecast.horizon, config });
+          }
           return await runProphetForecast({ ds, y, horizon: forecast.horizon, config });
         } catch (error) {
           if (error instanceof ZodError) {
