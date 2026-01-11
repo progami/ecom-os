@@ -398,7 +398,7 @@ function DocumentsCard({ employeeId }: { employeeId: string }) {
 // Quick Links Card
 function QuickLinksCard() {
   const links = [
-    { href: '/work', label: 'Inbox', icon: '01', description: 'Pending tasks' },
+    { href: '/resources', label: 'Team Resources', icon: '01', description: 'Tools & shared logins' },
     { href: '/leave', label: 'Request Leave', icon: '02', description: 'Book time off' },
     { href: '/policies', label: 'Policies', icon: '03', description: 'Company guidelines' },
     { href: '/org-chart', label: 'Org Chart', icon: '04', description: 'Team structure' },

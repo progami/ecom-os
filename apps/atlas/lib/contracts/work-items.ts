@@ -16,6 +16,22 @@ export type WorkItemAction = {
   disabledReason?: string
 }
 
+export type WorkItemEntityData = {
+  // Policy
+  summary?: string
+  category?: string
+  // Leave Request
+  reason?: string
+  // Disciplinary Action
+  description?: string
+  violationType?: string
+  severity?: string
+  // Performance Review
+  reviewType?: string
+  overallRating?: number
+  strengths?: string
+}
+
 export type WorkItemDTO = {
   id: string
   type: string
@@ -24,6 +40,7 @@ export type WorkItemDTO = {
   description: string | null
   href: string
   entity: WorkItemEntity
+  entityData?: WorkItemEntityData
 
   stageLabel: string
   createdAt: string
