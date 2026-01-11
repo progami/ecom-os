@@ -120,6 +120,15 @@ const BASE_APPS: AppBase[] = [
     category: 'Product',
     devUrl: 'http://localhost:3008',
   },
+  {
+    id: 'plutus',
+    name: 'Plutus',
+    description: 'Finance workspace (FCC rebrand).',
+    url: joinBaseUrl(PORTAL_BASE_URL, '/plutus'),
+    category: 'Finance',
+    devPath: '/plutus',
+    devUrl: 'http://localhost:3012',
+  },
 ]
 
 let manifestCache: AppManifest | null | undefined

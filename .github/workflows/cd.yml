@@ -20,6 +20,7 @@ on:
           - xplan
           - kairos
           - atlas
+          - plutus
       environment:
         description: 'Environment to deploy to'
         required: true
@@ -49,6 +50,7 @@ jobs:
       xplan: ${{ steps.changes.outputs.xplan }}
       kairos: ${{ steps.changes.outputs.kairos }}
       atlas: ${{ steps.changes.outputs.atlas }}
+      plutus: ${{ steps.changes.outputs.plutus }}
       packages: ${{ steps.changes.outputs.packages }}
       any_app: ${{ steps.changes.outputs.any_app }}
     steps:
@@ -106,6 +108,10 @@ jobs:
             fi
             if echo "$CHANGED_FILES" | grep -q "^apps/atlas/"; then
               echo "atlas=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^apps/plutus/"; then
+              echo "plutus=true" >> "$GITHUB_OUTPUT"
               ANY_APP=true
             fi
             if echo "$CHANGED_FILES" | grep -q "^packages/"; then
@@ -327,9 +333,9 @@ jobs:
 
           declare -a apps=()
           if [[ "$TARGET_ENV" == "main" ]]; then
-            apps=(sso talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas plutus)
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(sso talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas plutus)
           else
             [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
@@ -337,6 +343,7 @@ jobs:
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
             [[ "${{ needs.detect-changes.outputs.kairos }}" == "true" ]] && apps+=(kairos)
             [[ "${{ needs.detect-changes.outputs.atlas }}" == "true" ]] && apps+=(atlas)
+            [[ "${{ needs.detect-changes.outputs.plutus }}" == "true" ]] && apps+=(plutus)
           fi
 
           if [[ ${#apps[@]} -eq 0 ]]; then
@@ -399,11 +406,11 @@ jobs:
 
           declare -a apps=()
           if [[ "$target_env" == "main" ]]; then
-            apps=(sso talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas plutus)
           elif [[ -n "$requested_app" ]]; then
             apps=("$requested_app")
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(sso talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas plutus)
           else
             [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
@@ -411,6 +418,7 @@ jobs:
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
             [[ "${{ needs.detect-changes.outputs.kairos }}" == "true" ]] && apps+=(kairos)
             [[ "${{ needs.detect-changes.outputs.atlas }}" == "true" ]] && apps+=(atlas)
+            [[ "${{ needs.detect-changes.outputs.plutus }}" == "true" ]] && apps+=(plutus)
           fi
 
           if [[ ${#apps[@]} -eq 0 ]]; then

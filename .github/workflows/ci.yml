@@ -38,6 +38,8 @@ jobs:
           cp apps/kairos/.env.dev.ci apps/kairos/.env.local
           cp apps/atlas/.env.dev.ci apps/atlas/.env.dev
           cp apps/atlas/.env.dev.ci apps/atlas/.env.local
+          cp apps/plutus/.env.dev.ci apps/plutus/.env.dev
+          cp apps/plutus/.env.dev.ci apps/plutus/.env.local
       - name: Verify dev environment configuration
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma clients (parallel)
