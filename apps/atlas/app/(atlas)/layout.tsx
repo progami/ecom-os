@@ -18,6 +18,7 @@ import {
   UsersIcon,
   LockClosedIcon,
   ClipboardIcon,
+  FolderIcon,
 } from '@/components/ui/Icons';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { Button } from '@/components/ui/button';
@@ -54,13 +55,14 @@ const navigation: NavSection[] = [
   {
     title: 'People',
     items: [
-      { name: 'Employees', href: '/employees', icon: UsersIcon },
       { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon },
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
+      { name: 'Employees', href: '/employees', icon: UsersIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
       { name: 'Violations', href: '/performance/violations', icon: ExclamationTriangleIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
+      { name: 'Resources', href: '/resources', icon: FolderIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     ],
   },
@@ -299,7 +301,12 @@ export default function ATLASLayout({ children }: { children: ReactNode }) {
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
         <main className="flex-1">
-          <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">{children}</div>
+          <div
+            key={pathname}
+            className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto animate-in fade-in duration-150"
+          >
+            {children}
+          </div>
         </main>
 
         <footer className="border-t border-border bg-card mt-auto">
