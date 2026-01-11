@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { WorkItemsApi } from '@/lib/api-client'
-import { BellIcon } from '@/components/ui/Icons'
-import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/alert'
-import { WorkQueueDashboard } from '@/components/work-queue/WorkQueueDashboard'
+import { InboxDashboard } from '@/components/inbox'
 import type { WorkItemsResponse, WorkItemDTO } from '@/lib/contracts/work-items'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import { executeAction } from '@/lib/actions/execute-action'
@@ -54,11 +52,24 @@ export default function WorkQueuePage() {
 
   return (
     <>
-      <ListPageHeader
-        title="Work Queue"
-        description="Your pending actions across Atlas"
-        icon={<BellIcon className="h-6 w-6 text-white" />}
-      />
+      {/* Hero header for Inbox */}
+      <div className="mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 flex items-center justify-center shadow-lg">
+            <svg className="w-7 h-7 text-white dark:text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
+              Inbox
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Clear your pending tasks and approvals
+            </p>
+          </div>
+        </div>
+      </div>
 
       {error ? (
         <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
@@ -66,7 +77,7 @@ export default function WorkQueuePage() {
         </Alert>
       ) : null}
 
-      <WorkQueueDashboard
+      <InboxDashboard
         data={data}
         loading={loading}
         error={null}

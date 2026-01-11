@@ -47,8 +47,8 @@ const navigation: NavSection[] = [
   {
     title: 'Home',
     items: [
-      { name: 'Work Queue', href: '/work', icon: BellIcon },
       { name: 'My Hub', href: '/hub', icon: HomeIcon },
+      { name: 'Inbox', href: '/work', icon: BellIcon },
       { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
     ],
   },
