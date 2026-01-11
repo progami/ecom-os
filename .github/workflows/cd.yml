@@ -310,19 +310,58 @@ jobs:
             exit 0
           fi
 
-          echo "Deploying to $TARGET_ENV: ${apps[*]}"
+          BASE_SHA="${{ github.event.before }}"
+          HEAD_SHA="${{ github.sha }}"
 
-          first=true
-          for app in "${apps[@]}"; do
-            if [[ "$first" == "true" ]]; then
-              DEPLOY_GIT_SHA="${{ github.sha }}" DEPLOY_SKIP_GIT=false DEPLOY_SKIP_INSTALL=false DEPLOY_SKIP_PM2_SAVE=true \
-                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$TARGET_ENV"
-              first=false
-            else
-              DEPLOY_SKIP_GIT=true DEPLOY_SKIP_INSTALL=true DEPLOY_SKIP_PM2_SAVE=true \
-                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$TARGET_ENV"
-            fi
-          done
+          # Default to a small fanout; fall back to sequential when needed.
+          DEPLOY_CONCURRENCY="${DEPLOY_CONCURRENCY:-2}"
+
+          first_app="${apps[0]}"
+
+          # Prep once: update repo + install deps (or auto-skip install) before fanning out.
+          DEPLOY_GIT_SHA="$HEAD_SHA" DEPLOY_BASE_SHA="$BASE_SHA" DEPLOY_HEAD_SHA="$HEAD_SHA" DEPLOY_SKIP_GIT=false DEPLOY_SKIP_INSTALL=false DEPLOY_SKIP_PM2_SAVE=true DEPLOY_PREP_ONLY=true \
+            bash "${{ github.workspace }}/scripts/deploy-app.sh" "$first_app" "$TARGET_ENV"
+
+          # Use the deployed repo clone (full history) for safety checks.
+          if [[ "$TARGET_ENV" == "dev" ]]; then
+            DEPLOY_REPO_DIR="${TARGONOS_DEV_DIR}"
+          else
+            DEPLOY_REPO_DIR="${TARGONOS_MAIN_DIR}"
+          fi
+
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            CHANGED_FILES="$(cd "$DEPLOY_REPO_DIR" && git ls-files)"
+          else
+            CHANGED_FILES="$(cd "$DEPLOY_REPO_DIR" && git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)"
+          fi
+
+          unsafe_parallel="false"
+          if grep -qx 'apps/talos/prisma/schema.prisma' <<< "$CHANGED_FILES" && ! grep -q '^packages/prisma-talos/generated/' <<< "$CHANGED_FILES"; then
+            unsafe_parallel="true"
+          fi
+          if grep -qx 'apps/x-plan/prisma/schema.prisma' <<< "$CHANGED_FILES" && ! grep -q '^packages/prisma-x-plan/generated/' <<< "$CHANGED_FILES"; then
+            unsafe_parallel="true"
+          fi
+          if grep -qx 'apps/kairos/prisma/schema.prisma' <<< "$CHANGED_FILES" && ! grep -q '^packages/prisma-kairos/generated/' <<< "$CHANGED_FILES"; then
+            unsafe_parallel="true"
+          fi
+          if grep -qx 'apps/atlas/prisma/schema.prisma' <<< "$CHANGED_FILES" && ! grep -q '^packages/prisma-atlas/generated/' <<< "$CHANGED_FILES"; then
+            unsafe_parallel="true"
+          fi
+
+          if [[ ${#apps[@]} -le 1 || "$unsafe_parallel" == "true" ]]; then
+            DEPLOY_CONCURRENCY="1"
+          fi
+
+          echo "Deploying to $TARGET_ENV: ${apps[*]} (concurrency=$DEPLOY_CONCURRENCY)"
+
+          export DEPLOY_BASE_SHA="$BASE_SHA"
+          export DEPLOY_HEAD_SHA="$HEAD_SHA"
+          export DEPLOY_SKIP_GIT=true
+          export DEPLOY_SKIP_INSTALL=true
+          export DEPLOY_SKIP_PM2_SAVE=true
+
+          printf '%s\n' "${apps[@]}" | xargs -n 1 -P "$DEPLOY_CONCURRENCY" -I {} bash "${{ github.workspace }}/scripts/deploy-app.sh" {} "$TARGET_ENV"
 
           echo "Saving PM2 state once"
           pm2 save
@@ -383,17 +422,22 @@ jobs:
 
           echo "Manual deploy to $target_env: ${apps[*]}"
 
-          first=true
-          for app in "${apps[@]}"; do
-            if [[ "$first" == "true" ]]; then
-              DEPLOY_SKIP_GIT=false DEPLOY_SKIP_INSTALL=false DEPLOY_SKIP_PM2_SAVE=true \
-                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$target_env"
-              first=false
-            else
-              DEPLOY_SKIP_GIT=true DEPLOY_SKIP_INSTALL=true DEPLOY_SKIP_PM2_SAVE=true \
-                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$target_env"
-            fi
-          done
+          DEPLOY_CONCURRENCY="${DEPLOY_CONCURRENCY:-2}"
+          if [[ ${#apps[@]} -le 1 ]]; then
+            DEPLOY_CONCURRENCY="1"
+          fi
+
+          first_app="${apps[0]}"
+
+          # Prep once: update repo + install deps (or auto-skip install) before fanning out.
+          DEPLOY_SKIP_GIT=false DEPLOY_SKIP_INSTALL=false DEPLOY_SKIP_PM2_SAVE=true DEPLOY_PREP_ONLY=true \
+            bash "${{ github.workspace }}/scripts/deploy-app.sh" "$first_app" "$target_env"
+
+          export DEPLOY_SKIP_GIT=true
+          export DEPLOY_SKIP_INSTALL=true
+          export DEPLOY_SKIP_PM2_SAVE=true
+
+          printf '%s\n' "${apps[@]}" | xargs -n 1 -P "$DEPLOY_CONCURRENCY" -I {} bash "${{ github.workspace }}/scripts/deploy-app.sh" {} "$target_env"
 
           echo "Saving PM2 state once"
           pm2 save
