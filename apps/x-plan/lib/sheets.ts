@@ -30,6 +30,7 @@ export type LegacySheetSlug =
 export interface SheetConfig {
   slug: SheetSlug;
   label: string;
+  shortLabel: string;
   description: string;
   icon: LucideIcon;
 }
@@ -38,42 +39,49 @@ export const SHEETS: SheetConfig[] = [
   {
     slug: '1-strategies',
     label: 'Strategies',
+    shortLabel: 'Strat',
     description: '',
     icon: Target,
   },
   {
     slug: '2-product-setup',
     label: 'Product Setup',
+    shortLabel: 'Setup',
     description: '',
     icon: Package,
   },
   {
     slug: '3-ops-planning',
     label: 'Ops Planning',
+    shortLabel: 'Ops',
     description: '',
     icon: ClipboardList,
   },
   {
     slug: '4-sales-planning',
     label: 'Sales Planning',
+    shortLabel: 'Sales',
     description: '',
     icon: FileSpreadsheet,
   },
   {
     slug: '5-fin-planning-pl',
     label: 'P&L',
+    shortLabel: 'P&L',
     description: '',
     icon: LineChart,
   },
   {
     slug: '6-fin-planning-cash-flow',
     label: 'Cash Flow',
+    shortLabel: 'Cash',
     description: '',
     icon: Wallet2,
   },
   {
     slug: '7-po-profitability',
     label: 'PO Profitability',
+    shortLabel: 'PO Prof',
     description: '',
     icon: TrendingUp,
   },

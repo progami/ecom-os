@@ -11,7 +11,7 @@ export function ActiveStrategyIndicator({ strategyName, className }: ActiveStrat
   return (
     <div
       className={cn(
-        'flex items-center gap-1.5 rounded border border-slate-200/80 bg-white/90 px-2 py-0.5 shadow-sm backdrop-blur-sm dark:border-[#1a3a54]/80 dark:bg-[#0a1f33]/90',
+        'flex items-center gap-1 rounded border border-slate-200/80 bg-white/90 px-1.5 py-0.5 shadow-sm backdrop-blur-sm dark:border-[#1a3a54]/80 dark:bg-[#0a1f33]/90',
         className,
       )}
     >
@@ -22,7 +22,7 @@ export function ActiveStrategyIndicator({ strategyName, className }: ActiveStrat
       </div>
 
       {/* Strategy name */}
-      <span className="max-w-[180px] truncate text-[10px] font-medium text-slate-600 dark:text-slate-300">
+      <span className="max-w-[140px] truncate text-[11px] font-medium text-slate-600 dark:text-slate-300">
         {strategyName}
       </span>
     </div>
