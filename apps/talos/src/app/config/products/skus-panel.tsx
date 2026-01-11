@@ -527,7 +527,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       {isModalOpen ? (
         <div className="fixed inset-0 z-[100] bg-black/50">
           <div className="flex h-full w-full items-start justify-center overflow-y-auto p-4">
-            <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col isolate overflow-hidden rounded-lg bg-slate-50 shadow-xl [backface-visibility:hidden] [transform:translateZ(0)]">
+            <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-slate-50 shadow-xl ring-1 ring-slate-50">
               <div className="flex items-center justify-between rounded-t-lg border-b bg-slate-50 px-6 py-4">
                 <h2 className="text-lg font-semibold text-slate-900">
                   {editingSku ? 'Edit SKU' : 'New SKU'}
