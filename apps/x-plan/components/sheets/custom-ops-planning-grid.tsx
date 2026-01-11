@@ -214,6 +214,57 @@ function calculateWeeksFromDates(row: OpsInputRow, stageKey: StageWeeksKey): num
   return diffMs / MS_PER_WEEK;
 }
 
+function validateStageDates(row: OpsInputRow): string | null {
+  const poDate = parseIsoDate(row.poDate);
+  const productionStart = parseIsoDate(row.productionStart);
+  const productionComplete = parseIsoDate(row.productionComplete);
+  const sourceDeparture = parseIsoDate(row.sourceDeparture);
+  const portEta = parseIsoDate(row.portEta);
+  const warehouse = parseIsoDate(row.availableDate);
+
+  if (poDate) {
+    const checks = [
+      { label: 'Mfg Start', date: productionStart },
+      { label: 'Mfg Done', date: productionComplete },
+      { label: 'Departure', date: sourceDeparture },
+      { label: 'Port Arrival', date: portEta },
+      { label: 'Warehouse', date: warehouse },
+    ] as const;
+
+    for (const check of checks) {
+      if (check.date && check.date.getTime() <= poDate.getTime()) {
+        return `${check.label} must be after PO Date`;
+      }
+    }
+  }
+
+  if (
+    productionStart &&
+    productionComplete &&
+    productionComplete.getTime() <= productionStart.getTime()
+  ) {
+    return 'Mfg Done must be after Mfg Start';
+  }
+
+  if (
+    productionComplete &&
+    sourceDeparture &&
+    sourceDeparture.getTime() <= productionComplete.getTime()
+  ) {
+    return 'Departure must be after Mfg Done';
+  }
+
+  if (sourceDeparture && portEta && portEta.getTime() <= sourceDeparture.getTime()) {
+    return 'Port Arrival must be after Departure';
+  }
+
+  if (portEta && warehouse && warehouse.getTime() <= portEta.getTime()) {
+    return 'Warehouse must be after Port Arrival';
+  }
+
+  return null;
+}
+
 function recomputeStageDates(
   record: OpsInputRow,
   entry: { values: Record<string, string | null> },
@@ -445,6 +496,12 @@ function sanitizeDomId(value: string): string {
 
 function cellDomId(rowId: string, colKey: keyof OpsInputRow): string {
   return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`;
+}
+
+function isGridEditableColumn(column: ColumnDef, stageMode: StageMode): boolean {
+  if ((column.editable ?? true) === false) return false;
+  if (column.type === 'stage' && stageMode === 'weeks') return false;
+  return true;
 }
 
 function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
@@ -920,14 +977,18 @@ export function CustomOpsPlanningGrid({
         return;
       }
 
+      if (!isGridEditableColumn(column, stageMode)) {
+        cancelEditing();
+        return;
+      }
+
       let finalValue = nextValue ?? editValue;
 
       // Validate and normalize based on column type
-      if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
-        const isStageWeeks = column.type === 'stage' && stageMode === 'weeks';
-        const validator = isStageWeeks ? validatePositiveNumeric : validateNumeric;
+      if (column.type === 'numeric') {
+        const validator = validateNumeric;
         if (!validator(finalValue)) {
-          toast.error(isStageWeeks ? 'Weeks must be a positive number' : 'Invalid number');
+          toast.error('Invalid number');
           cancelEditing();
           return;
         }
@@ -1022,10 +1083,10 @@ export function CustomOpsPlanningGrid({
       }
 
       // Prepare mutation entry
-      if (!pendingRef.current.has(rowId)) {
-        pendingRef.current.set(rowId, { id: rowId, values: {} });
-      }
+      const entryExisted = pendingRef.current.has(rowId);
+      if (!entryExisted) pendingRef.current.set(rowId, { id: rowId, values: {} });
       const entry = pendingRef.current.get(rowId)!;
+      const previousEntryValues = { ...entry.values };
 
       // Handle stage columns in date mode (weeks mode is read-only)
       if (column.type === 'stage' && stageMode === 'dates') {
@@ -1055,15 +1116,15 @@ export function CustomOpsPlanningGrid({
               const prevStage = STAGE_CONFIG[stageIndex - 1];
               startDate = parseIsoDate(row[prevStage.overrideKey]);
             }
-          }
+	          }
+	
+	          if (startDate && endDate.getTime() <= startDate.getTime()) {
+	            toast.error('End date must be after the start date');
+	            cancelEditing();
+	            return;
+	          }
 
-          if (startDate && endDate.getTime() < startDate.getTime()) {
-            toast.error('End date cannot be before the start date');
-            cancelEditing();
-            return;
-          }
-
-          // Save the date
+	          // Save the date
           if ((row[overrideField] ?? '') !== iso) {
             entry.values[overrideField] = iso;
           }
@@ -1104,6 +1165,24 @@ export function CustomOpsPlanningGrid({
             entry.values.productionWeeks = normalized;
             updatedRow.productionWeeks = normalized;
           }
+        }
+      }
+
+      const shouldValidateStageOrder =
+        colKey === 'poDate' ||
+        colKey === 'productionStart' ||
+        (column.type === 'stage' && stageMode === 'dates');
+
+      if (shouldValidateStageOrder) {
+        const stageError = validateStageDates(updatedRow);
+        if (stageError) {
+          toast.error(stageError);
+          entry.values = previousEntryValues;
+          if (!entryExisted && Object.keys(previousEntryValues).length === 0) {
+            pendingRef.current.delete(rowId);
+          }
+          cancelEditing();
+          return;
         }
       }
 
@@ -1225,14 +1304,14 @@ export function CustomOpsPlanningGrid({
     const row = rows.find((r) => r.id === activeCell.rowId);
     const column = COLUMNS.find((c) => c.key === activeCell.colKey);
     if (!row || !column) return;
-    if ((column.editable ?? true) === false) return;
+    if (!isGridEditableColumn(column, stageMode)) return;
     startEditing(row.id, column.key, getCellEditValue(row, column, stageMode));
   }, [activeCell, rows, stageMode, startEditing]);
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction;
     while (idx >= 0 && idx < COLUMNS.length) {
-      if (COLUMNS[idx].editable !== false) return idx;
+      if (isGridEditableColumn(COLUMNS[idx]!, stageMode)) return idx;
       idx += direction;
     }
     return -1;
@@ -1242,7 +1321,7 @@ export function CustomOpsPlanningGrid({
     if (rowIndex < 0 || rowIndex >= rows.length) return;
     if (colIndex < 0 || colIndex >= COLUMNS.length) return;
     const column = COLUMNS[colIndex];
-    if (column.editable === false) return;
+    if (!isGridEditableColumn(column, stageMode)) return;
     const row = rows[rowIndex];
     startEditing(row.id, column.key, getCellEditValue(row, column, stageMode));
   };
@@ -1736,7 +1815,7 @@ export function CustomOpsPlanningGrid({
         const row = rows.find((r) => r.id === activeCell.rowId);
         const column = COLUMNS.find((c) => c.key === activeCell.colKey);
         if (!row || !column) return;
-        if ((column.editable ?? true) === false) return;
+        if (!isGridEditableColumn(column, stageMode)) return;
 
         event.preventDefault();
         startEditing(
