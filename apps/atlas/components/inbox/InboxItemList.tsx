@@ -48,16 +48,6 @@ function getPriorityConfig(item: WorkItemDTO): { ring: string; dot: string; bg: 
   }
 }
 
-function getTypeIcon(type: string): string {
-  const iconMap: Record<string, string> = {
-    'TASK': '01',
-    'POLICY': '02',
-    'LEAVE_REQUEST': '03',
-    'PERFORMANCE_REVIEW': '04',
-    'DISCIPLINARY_ACTION': '05',
-  }
-  return iconMap[type] || '00'
-}
 
 function InboxItem({
   item,
@@ -101,10 +91,6 @@ function InboxItem({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            {/* Type indicator */}
-            <span className="shrink-0 font-mono text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest">
-              {getTypeIcon(item.entity.type)}
-            </span>
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
               {item.typeLabel}
             </span>
@@ -137,12 +123,24 @@ function InboxItem({
 
         {/* Action indicator */}
         {item.primaryAction ? (
-          <div className="mt-2 flex items-center gap-1.5">
+          <div className="mt-2.5 flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={cn(
+                'absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping',
+                config.dot
+              )} />
+              <span className={cn(
+                'relative inline-flex h-2.5 w-2.5 rounded-full',
+                config.dot
+              )} />
+            </span>
             <span className={cn(
-              'w-1.5 h-1.5 rounded-full animate-pulse',
-              config.dot
-            )} />
-            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+              'text-xs font-semibold',
+              item.isOverdue ? 'text-red-600 dark:text-red-400' :
+              item.priority === 'URGENT' ? 'text-amber-600 dark:text-amber-400' :
+              item.isActionRequired ? 'text-cyan-600 dark:text-cyan-400' :
+              'text-slate-600 dark:text-slate-300'
+            )}>
               {item.primaryAction.label}
             </span>
           </div>

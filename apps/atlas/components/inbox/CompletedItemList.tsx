@@ -9,17 +9,6 @@ type CompletedItemListProps = {
   onSelect: (id: string) => void
 }
 
-function getTypeIcon(type: string): string {
-  const iconMap: Record<string, string> = {
-    'TASK': '01',
-    'POLICY': '02',
-    'LEAVE_REQUEST': '03',
-    'PERFORMANCE_REVIEW': '04',
-    'DISCIPLINARY_ACTION': '05',
-  }
-  return iconMap[type] || '00'
-}
-
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString('en-US', {
@@ -68,10 +57,6 @@ function CompletedItem({
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            {/* Type indicator */}
-            <span className="shrink-0 font-mono text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest">
-              {getTypeIcon(item.entity.type)}
-            </span>
             <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide truncate">
               {item.typeLabel}
             </span>

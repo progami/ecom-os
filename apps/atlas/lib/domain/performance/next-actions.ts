@@ -165,7 +165,7 @@ export function buildPerformanceReviewNextActions(
       } else {
         actions.primary = {
           id: 'review.acknowledge',
-          label: 'Waiting for acknowledgement',
+          label: 'Waiting for acknowledgment',
           variant: 'primary',
           disabled: true,
           disabledReason: 'Only the employee can acknowledge this review.',

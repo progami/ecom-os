@@ -108,7 +108,7 @@ export function buildDisciplinaryNextActions(
     const blockedBy = needsEmployeeAck ? 'employee' : needsManagerAck ? 'manager' : 'none'
     actions.primary = {
       id: 'disciplinary.acknowledge',
-      label: 'Waiting for acknowledgement',
+      label: 'Waiting for acknowledgment',
       variant: 'primary',
       disabled: true,
       disabledReason:

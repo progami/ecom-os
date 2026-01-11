@@ -100,17 +100,17 @@ function toStageLabel(type: WorkItemType, options?: { status?: string }): string
 
   const map: Record<WorkItemType, string> = {
     TASK_ASSIGNED: 'Assigned',
-    POLICY_ACK_REQUIRED: 'Acknowledgement required',
+    POLICY_ACK_REQUIRED: 'Acknowledgment required',
     LEAVE_PENDING_MANAGER: 'Manager approval required',
     LEAVE_PENDING_HR: 'HR approval required',
     LEAVE_PENDING_SUPER_ADMIN: 'Final approval required',
     REVIEW_DUE: 'Due',
     REVIEW_PENDING_HR: 'HR review required',
     REVIEW_PENDING_SUPER_ADMIN: 'Final approval required',
-    REVIEW_ACK_REQUIRED: 'Acknowledgement required',
+    REVIEW_ACK_REQUIRED: 'Acknowledgment required',
     VIOLATION_PENDING_HR: 'HR review required',
     VIOLATION_PENDING_SUPER_ADMIN: 'Final approval required',
-    VIOLATION_ACK_REQUIRED: 'Acknowledgement required',
+    VIOLATION_ACK_REQUIRED: 'Acknowledgment required',
   }
 
   return map[type] ?? type
@@ -248,8 +248,8 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         id: `POLICY_ACK_REQUIRED:${policy.id}`,
         type: 'POLICY_ACK_REQUIRED',
         typeLabel: toTypeLabel('POLICY_ACK_REQUIRED'),
-        title: 'Policy acknowledgment required',
-        description: `Acknowledge "${policy.title}" (v${policy.version})`,
+        title: policy.title,
+        description: `Version ${policy.version} requires your acknowledgment`,
         href: `/policies/${policy.id}`,
         entity: { type: 'POLICY', id: policy.id },
         entityData: {

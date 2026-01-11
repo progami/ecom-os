@@ -19,7 +19,7 @@ function statusLabel(status: string): string {
     DRAFT: 'Draft',
     PENDING_HR_REVIEW: 'Pending HR review',
     PENDING_SUPER_ADMIN: 'Pending final approval',
-    PENDING_ACKNOWLEDGMENT: 'Pending acknowledgement',
+    PENDING_ACKNOWLEDGMENT: 'Pending acknowledgment',
     ACKNOWLEDGED: 'Acknowledged',
     COMPLETED: 'Completed',
   }
@@ -72,7 +72,7 @@ function buildWorkflow(review: PerformanceWorkflowRecordInput): WorkflowRecordDT
             ? 'HR review'
             : currentStageId === 'admin'
               ? 'Final approval'
-            : 'Acknowledgement',
+            : 'Acknowledgment',
     stages: [
       { id: 'start', label: 'Start', status: stageStatus(order, currentStageId, 'start') },
       { id: 'submit', label: 'Manager', status: stageStatus(order, currentStageId, 'submit') },
