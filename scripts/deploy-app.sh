@@ -102,6 +102,20 @@ case "$app_key" in
     ;;
 esac
 
+kairos_ml_dir=""
+kairos_ml_pm2_name=""
+kairos_ml_port=""
+
+if [[ "$app_key" == "kairos" ]]; then
+  kairos_ml_dir="$REPO_DIR/services/kairos-ml"
+  kairos_ml_pm2_name="${PM2_PREFIX}-kairos-ml"
+  if [[ "$environment" == "dev" ]]; then
+    kairos_ml_port="3111"
+  else
+    kairos_ml_port="3011"
+  fi
+fi
+
 log() { printf '\033[36m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" "$*"; }
 warn() { printf '\033[33m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" "$*"; }
 error() { printf '\033[31m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" "$*" >&2; }
@@ -280,6 +294,32 @@ else
   log "Dependencies installed"
 fi
 
+if [[ "$app_key" == "kairos" ]]; then
+  log "Step 2b: Installing Kairos ML service dependencies (Python)"
+  if [[ ! -d "$kairos_ml_dir" ]]; then
+    error "Kairos ML service directory not found: $kairos_ml_dir"
+    exit 1
+  fi
+
+  cd "$kairos_ml_dir"
+
+  python_bin=""
+  if command -v python3 >/dev/null 2>&1; then
+    python_bin="python3"
+  elif command -v python >/dev/null 2>&1; then
+    python_bin="python"
+  else
+    error "python3 is required to run the Kairos ML service"
+    exit 1
+  fi
+
+  "$python_bin" -m venv .venv
+  .venv/bin/python -m pip install --upgrade pip
+  .venv/bin/python -m pip install -r requirements.txt
+
+  log "Kairos ML service dependencies installed (port ${kairos_ml_port})"
+fi
+
 # Step 3: Generate Prisma client if needed
 if [[ -n "$prisma_cmd" ]]; then
   log "Step 3: Generating Prisma client"
@@ -323,6 +363,11 @@ fi
 log "Step 4: Stopping $pm2_name"
 pm2 stop "$pm2_name" 2>/dev/null || warn "$pm2_name was not running"
 
+if [[ "$app_key" == "kairos" ]]; then
+  log "Step 4: Stopping $kairos_ml_pm2_name"
+  pm2 stop "$kairos_ml_pm2_name" 2>/dev/null || warn "$kairos_ml_pm2_name was not running"
+fi
+
 if [[ "$app_key" == "talos" && -n "${legacy_pm2_name:-}" ]]; then
   log "Step 4: Stopping legacy $legacy_pm2_name"
   pm2 stop "$legacy_pm2_name" 2>/dev/null || warn "$legacy_pm2_name was not running"
@@ -345,6 +390,41 @@ eval "$build_cmd"
 log "Build complete"
 
 # Step 7: Restart PM2 app
+if [[ "$app_key" == "kairos" ]]; then
+  log "Step 7: Starting $kairos_ml_pm2_name"
+  CI= \
+  GITHUB_ACTIONS= \
+  GITHUB_PERSONAL_ACCESS_TOKEN= \
+  GITHUB_TOKEN= \
+  GH_TOKEN= \
+  GEMINI_API_KEY= \
+  CLAUDECODE= \
+  CLAUDE_CODE_ENTRYPOINT= \
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
+  pm2 start "$kairos_ml_pm2_name" --update-env 2>/dev/null || \
+  CI= \
+  GITHUB_ACTIONS= \
+  GITHUB_PERSONAL_ACCESS_TOKEN= \
+  GITHUB_TOKEN= \
+  GH_TOKEN= \
+  GEMINI_API_KEY= \
+  CLAUDECODE= \
+  CLAUDE_CODE_ENTRYPOINT= \
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
+  pm2 restart "$kairos_ml_pm2_name" --update-env 2>/dev/null || \
+  CI= \
+  GITHUB_ACTIONS= \
+  GITHUB_PERSONAL_ACCESS_TOKEN= \
+  GITHUB_TOKEN= \
+  GH_TOKEN= \
+  GEMINI_API_KEY= \
+  CLAUDECODE= \
+  CLAUDE_CODE_ENTRYPOINT= \
+  CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
+  pm2 start "$REPO_DIR/ecosystem.config.js" --only "$kairos_ml_pm2_name" --update-env
+  log "$kairos_ml_pm2_name started"
+fi
+
 log "Step 7: Starting $pm2_name"
 CI= \
 GITHUB_ACTIONS= \

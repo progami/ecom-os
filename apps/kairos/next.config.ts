@@ -18,11 +18,7 @@ const nextConfig: NextConfig = {
 
   transpilePackages: ['@targon/auth', '@targon/config', '@targon/logger'],
 
-  serverExternalPackages: [
-    '@targon/prisma-kairos',
-    '@bsull/augurs',
-    '@bsull/augurs-prophet-wasmstan',
-  ],
+  serverExternalPackages: ['@targon/prisma-kairos'],
 };
 
 export default nextConfig;

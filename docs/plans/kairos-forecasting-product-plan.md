@@ -126,6 +126,20 @@ Prefer soft-delete:
 - Add restore flow.
 - Optional admin hard-delete that also deletes runs/outputs.
 
+### 4.6 Forecast compute architecture (Python backend, required)
+Kairos forecasting should run in a **Python ML service** (not in-browser / WASM) to avoid tech debt and unlock heavier ML workflows.
+
+- **Next.js Kairos app responsibilities:** auth, permissions, time series storage, run orchestration, UI/UX.
+- **Python service responsibilities:** model execution + evaluation, returning forecast points + metrics.
+
+**Interface (high-level):**
+- Kairos app sends `{ model, ds, y, horizon, config }` to the service.
+- Service returns `{ points, meta }` where `points` includes future predictions and `meta` includes horizon/history + metrics.
+
+**Deployment notes (current direction):**
+- Service runs via PM2 as `dev-kairos-ml` and `main-kairos-ml` on localhost-only ports.
+- Kairos app calls it via `KAIROS_ML_URL` configured per environment.
+
 ---
 
 ## 5) Data ingestion plan (Amazon + other)
@@ -193,4 +207,3 @@ Re-evaluate only if:
 
 5) **Amazon SP-API**
    - Implement full plan in `docs/plans/amazon-sp-api-integration.md` with the constraints above
-
