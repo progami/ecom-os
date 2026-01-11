@@ -23,7 +23,7 @@ const ROOT_PKG_PATH = path.join(ROOT, 'package.json')
 const APPS_TO_SYNC = [
   'apps/talos',
   'apps/website',
-  'apps/targon',
+  'apps/sso',
   'apps/x-plan',
   'apps/atlas',
 ]

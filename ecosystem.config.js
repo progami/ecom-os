@@ -11,7 +11,7 @@ module.exports = {
     // ===========================================
     {
       name: 'dev-targonos',
-      cwd: path.join(DEV_DIR, 'apps/targon'),
+      cwd: path.join(DEV_DIR, 'apps/sso'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3100',
       interpreter: 'node',
@@ -85,7 +85,7 @@ module.exports = {
     // ===========================================
     {
       name: 'main-targonos',
-      cwd: path.join(MAIN_DIR, 'apps/targon'),
+      cwd: path.join(MAIN_DIR, 'apps/sso'),
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',
       interpreter: 'node',
