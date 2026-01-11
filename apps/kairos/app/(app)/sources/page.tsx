@@ -5,7 +5,7 @@ export default function SourcesPage() {
     <div className="space-y-6 animate-in">
       <div className="space-y-1">
         <h1 className="text-h1">Sources</h1>
-        <p className="text-body-muted">Import time series from external data sources</p>
+        <p className="text-body-muted">Import time series signals to use in forecasts</p>
       </div>
       <DataSourcesPanel />
     </div>

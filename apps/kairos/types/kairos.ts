@@ -121,11 +121,20 @@ export type ForecastDetail = {
     updatedAt: string;
   };
   points: Array<{ t: string; value: number }>;
+  runs: Array<{
+    id: string;
+    status: ForecastRunStatus;
+    ranAt: string;
+    errorMessage: string | null;
+    params: unknown;
+    output: unknown;
+  }>;
   latestRun: {
     id: string;
     status: ForecastRunStatus;
     ranAt: string;
     errorMessage: string | null;
+    params: unknown;
     output: unknown;
   } | null;
   latestSuccessfulRun: {
@@ -133,6 +142,7 @@ export type ForecastDetail = {
     status: ForecastRunStatus;
     ranAt: string;
     errorMessage: string | null;
+    params: unknown;
     output: unknown;
   } | null;
 };

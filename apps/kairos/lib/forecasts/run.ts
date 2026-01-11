@@ -9,6 +9,8 @@ import { buildKairosOwnershipWhere, getKairosActor } from '@/lib/access';
 import { parseEtsConfig, parseProphetConfig } from '@/lib/forecasts/config';
 import { runMlForecast } from '@/lib/models/ml-service';
 
+type ForecastModel = 'ETS' | 'PROPHET';
+
 type RunResult = {
   forecast: {
     id: string;
@@ -55,12 +57,30 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
   try {
     const runState = await prisma.forecastRun.findUnique({
       where: { id: args.runId },
-      select: { status: true },
+      select: { status: true, params: true },
     });
 
     if (runState?.status !== 'RUNNING') {
       return;
     }
+
+    const params = runState.params;
+    if (!params || typeof params !== 'object') {
+      throw new Error('Forecast run parameters are missing.');
+    }
+
+    const paramsRec = params as Record<string, unknown>;
+    const model = paramsRec.model;
+    if (model !== 'ETS' && model !== 'PROPHET') {
+      throw new Error('Forecast run model is missing.');
+    }
+
+    const horizon = paramsRec.horizon;
+    if (typeof horizon !== 'number' || !Number.isFinite(horizon) || !Number.isInteger(horizon)) {
+      throw new Error('Forecast run horizon is missing.');
+    }
+
+    const config = paramsRec.config;
 
     const loadStart = Date.now();
     const forecast = await prisma.forecast.findUnique({
@@ -99,10 +119,10 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
 
     const modelStart = Date.now();
     const result = await (async () => {
-      if (forecast.model === 'ETS') {
+      if (model === 'ETS') {
         try {
-          const config = parseEtsConfig(forecast.config) ?? undefined;
-          return await runMlForecast({ model: 'ETS', ds, y, horizon: forecast.horizon, config });
+          const parsedConfig = parseEtsConfig(config) ?? undefined;
+          return await runMlForecast({ model: 'ETS', ds, y, horizon, config: parsedConfig });
         } catch (error) {
           if (error instanceof ZodError) {
             throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
@@ -111,10 +131,10 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
         }
       }
 
-      if (forecast.model === 'PROPHET') {
+      if (model === 'PROPHET') {
         try {
-          const config = parseProphetConfig(forecast.config) ?? undefined;
-          return await runMlForecast({ model: 'PROPHET', ds, y, horizon: forecast.horizon, config });
+          const parsedConfig = parseProphetConfig(config) ?? undefined;
+          return await runMlForecast({ model: 'PROPHET', ds, y, horizon, config: parsedConfig });
         } catch (error) {
           if (error instanceof ZodError) {
             throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
@@ -123,14 +143,14 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
         }
       }
 
-      throw new Error(`Unsupported model: ${forecast.model}`);
+      throw new Error(`Unsupported model: ${model}`);
     })();
 
     const modelMs = Date.now() - modelStart;
     const completedAt = new Date();
 
     const output = {
-      model: forecast.model,
+      model,
       series: {
         id: forecast.series.id,
         source: forecast.series.source,
@@ -152,9 +172,9 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     };
 
     const paramsJson = jsonSafe({
-      model: forecast.model,
-      horizon: forecast.horizon,
-      config: forecast.config ?? null,
+      model,
+      horizon,
+      config: config === undefined ? null : config,
     });
 
     const outputJson = jsonSafe(output);
@@ -263,7 +283,12 @@ function kickForecastRunWorker() {
     });
 }
 
-export async function runForecastNow(args: { forecastId: string; session: Session }): Promise<RunResult | null> {
+export async function runForecastNow(args: {
+  forecastId: string;
+  session: Session;
+  model?: ForecastModel;
+  config?: unknown;
+}): Promise<RunResult | null> {
   const actor = getKairosActor(args.session);
   if (!actor.id && !actor.email) {
     throw new Error('User identity is missing.');
@@ -309,15 +334,29 @@ export async function runForecastNow(args: { forecastId: string; session: Sessio
       throw new ForecastAlreadyRunningError();
     }
 
+    let runModel: ForecastModel = forecast.model;
+    let runConfig: unknown = forecast.config;
+
+    if (args.model) {
+      runModel = args.model;
+      if (args.config !== undefined) {
+        runConfig = args.config;
+      } else {
+        runConfig = null;
+      }
+    } else if (args.config !== undefined) {
+      runConfig = args.config;
+    }
+
     const run = await tx.forecastRun.create({
       data: {
         forecastId: forecast.id,
         status: 'RUNNING',
         ranAt: startedAt,
         params: jsonSafe({
-          model: forecast.model,
+          model: runModel,
           horizon: forecast.horizon,
-          config: forecast.config ?? null,
+          config: runConfig === undefined ? null : runConfig,
         }),
       },
       select: {
