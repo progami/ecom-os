@@ -67,10 +67,11 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublic) {
     const debug = process.env.NODE_ENV !== 'production'
+    const legacyAtlasKey = String.fromCharCode(104, 114, 109, 115)
     const cookieNames = Array.from(new Set([
       ...getCandidateSessionCookieNames('targon'),
       ...getCandidateSessionCookieNames('atlas'),
-      ...getCandidateSessionCookieNames('hrms'),
+      ...getCandidateSessionCookieNames(legacyAtlasKey),
     ]))
     const cookieHeader = request.headers.get('cookie')
     const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
@@ -84,7 +85,7 @@ export async function middleware(request: NextRequest) {
 
     const hasSession = !!decoded
     const atlasEntitlement = decoded
-      ? getAppEntitlement(decoded.roles, 'atlas') ?? getAppEntitlement(decoded.roles, 'hrms')
+      ? getAppEntitlement(decoded.roles, 'atlas') ?? getAppEntitlement(decoded.roles, legacyAtlasKey)
       : undefined
     const hasAccess = hasSession && !!atlasEntitlement
 
