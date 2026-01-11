@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { Download, Loader2, Play, RefreshCw, Trash2, TrendingUp, X } from 'lucide-react';
+import { BarChart3, Download, Loader2, Play, RefreshCw, Table as TableIcon, Trash2, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ForecastChart } from '@/components/charts/forecast-chart';
 import { cn } from '@/lib/utils';
 
@@ -94,20 +95,14 @@ function formatDurationMs(ms: number) {
 
 function parseInterval(value: string) {
   const interval = Number(value);
-  if (!Number.isFinite(interval)) {
-    return null;
-  }
-  if (interval <= 0 || interval >= 1) {
-    return null;
-  }
+  if (!Number.isFinite(interval)) return null;
+  if (interval <= 0 || interval >= 1) return null;
   return interval;
 }
 
 function parseOptionalInt(value: string) {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
-    return null;
-  }
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) return null;
   return parsed;
 }
 
@@ -115,6 +110,18 @@ function modelFromParams(value: unknown): ForecastModel | null {
   if (!value || typeof value !== 'object') return null;
   const rec = value as Record<string, unknown>;
   return rec.model === 'PROPHET' || rec.model === 'ETS' ? rec.model : null;
+}
+
+function MetricCard({ label, value, unit }: { label: string; value: string | number | null; unit?: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">
+        {value ?? '—'}
+        {unit && <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>}
+      </div>
+    </div>
+  );
 }
 
 export function ForecastDetailView({ forecastId }: { forecastId: string }) {
@@ -220,21 +227,15 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
       setSelectedRunId(null);
       return;
     }
-
-    if (selectedRunId && runs.some((run) => run.id === selectedRunId)) {
-      return;
-    }
-
+    if (selectedRunId && runs.some((run) => run.id === selectedRunId)) return;
     if (latestSuccessfulRun) {
       setSelectedRunId(latestSuccessfulRun.id);
       return;
     }
-
     if (latestRun) {
       setSelectedRunId(latestRun.id);
       return;
     }
-
     setSelectedRunId(null);
   }, [forecast, latestRun, latestSuccessfulRun, runs, selectedRunId]);
 
@@ -248,7 +249,6 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
 
   useEffect(() => {
     if (!forecast || !runAsOpen) return;
-
     setRunAsModel(forecast.model);
     setRunAsProphetIntervalWidth('0.8');
     setRunAsProphetUncertaintySamples('200');
@@ -259,33 +259,20 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
 
   const rows = useMemo<ForecastPointRow[]>(() => {
     if (!forecast) return [];
-
     const actualMap = new Map<string, number>();
-    for (const point of forecast.points) {
-      actualMap.set(point.t, point.value);
-    }
-
+    for (const point of forecast.points) actualMap.set(point.t, point.value);
     const outputMap = new Map<string, ForecastOutputPoint>();
     if (outputParsed) {
-      for (const point of outputParsed.points) {
-        outputMap.set(point.t, point);
-      }
+      for (const point of outputParsed.points) outputMap.set(point.t, point);
     }
-
     const timestamps = new Set<string>();
-    for (const point of forecast.points) {
-      timestamps.add(point.t);
-    }
-    for (const point of outputMap.values()) {
-      timestamps.add(point.t);
-    }
-
+    for (const point of forecast.points) timestamps.add(point.t);
+    for (const point of outputMap.values()) timestamps.add(point.t);
     return Array.from(timestamps)
       .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
       .map((t) => {
         const predicted = outputMap.get(t) ?? null;
         const actual = actualMap.get(t) ?? null;
-
         return {
           t,
           actual,
@@ -303,54 +290,38 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         accessorKey: 't',
         header: 'Date',
         cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {formatIsoDate(row.original.t)}
-          </span>
+          <span className="text-xs text-muted-foreground tabular-nums">{formatIsoDate(row.original.t)}</span>
         ),
       },
       {
         accessorKey: 'actual',
         header: 'Actual',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">{row.original.actual ?? '—'}</span>
-        ),
+        cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.actual ?? '—'}</span>,
       },
       {
         accessorKey: 'yhat',
         header: 'Forecast',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">{row.original.yhat ?? '—'}</span>
-        ),
+        cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.yhat ?? '—'}</span>,
       },
       {
         accessorKey: 'yhatLower',
         header: 'Lower',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">{row.original.yhatLower ?? '—'}</span>
-        ),
+        cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.yhatLower ?? '—'}</span>,
       },
       {
         accessorKey: 'yhatUpper',
         header: 'Upper',
-        cell: ({ row }) => (
-          <span className="text-sm tabular-nums">{row.original.yhatUpper ?? '—'}</span>
-        ),
+        cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.yhatUpper ?? '—'}</span>,
       },
       {
         accessorKey: 'isFuture',
         header: 'Window',
         cell: ({ row }) => {
-          if (row.original.isFuture === null) {
-            return <span className="text-xs text-muted-foreground">History</span>;
-          }
+          if (row.original.isFuture === null) return <span className="text-xs text-muted-foreground">History</span>;
           return row.original.isFuture ? (
-            <Badge variant="outline" className="text-[11px]">
-              Future
-            </Badge>
+            <Badge variant="outline" className="text-[11px]">Future</Badge>
           ) : (
-            <Badge variant="secondary" className="text-[11px]">
-              History
-            </Badge>
+            <Badge variant="secondary" className="text-[11px]">History</Badge>
           );
         },
         enableSorting: false,
@@ -374,18 +345,18 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
 
   if (forecastQuery.isLoading) {
     return (
-      <div className="space-y-8 animate-in">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-3">
-            <div className="h-3 w-24 rounded bg-slate-200 dark:bg-white/10" />
-            <div className="h-8 w-64 rounded bg-slate-200 dark:bg-white/10" />
+      <div className="space-y-6 animate-in">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <div className="h-7 w-64 rounded bg-slate-200 dark:bg-white/10" />
             <div className="h-4 w-48 rounded bg-slate-200 dark:bg-white/10" />
           </div>
+          <div className="flex gap-2">
+            <div className="h-9 w-20 rounded bg-slate-200 dark:bg-white/10" />
+            <div className="h-9 w-20 rounded bg-slate-200 dark:bg-white/10" />
+          </div>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <SkeletonCard className="lg:col-span-2" />
-          <SkeletonCard />
-        </div>
+        <SkeletonCard className="h-[400px]" />
       </div>
     );
   }
@@ -405,48 +376,47 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const lastRunLabel =
     lastRunDate && !Number.isNaN(lastRunDate.getTime())
       ? formatDistanceToNowStrict(lastRunDate, { addSuffix: true })
-      : '—';
-
-  const runDate = selectedRun?.ranAt ? new Date(selectedRun.ranAt) : null;
-  const selectedRunLabel =
-    runDate && !Number.isNaN(runDate.getTime())
-      ? formatDistanceToNowStrict(runDate, { addSuffix: true })
       : null;
 
   const outputMeta = outputParsed?.meta ?? null;
   const viewedModel = outputParsed?.model ?? modelFromParams(selectedRun?.params);
 
   return (
-    <div className="space-y-8 animate-in">
+    <div className="space-y-6 animate-in">
+      {/* Compact Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-3">
-          <div className="text-section-header">Forecast Detail</div>
+        <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-h1">{forecast.name}</h1>
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{forecast.name}</h1>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">Default: {forecast.model}</Badge>
+              <Badge variant="secondary">{forecast.model}</Badge>
               {viewedModel && viewedModel !== forecast.model ? (
                 <Badge variant="outline">Viewing: {viewedModel}</Badge>
               ) : null}
               <StatusBadge status={forecast.status} />
             </div>
           </div>
-          <p className="text-body">
-            <span className="font-medium text-slate-700 dark:text-slate-300">Horizon:</span> {forecast.horizon} periods
-            <span className="mx-2 text-slate-300 dark:text-slate-600">•</span>
-            <span className="font-medium text-slate-700 dark:text-slate-300">Series:</span> {forecast.series.name}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>
+              <span className="font-medium text-slate-600 dark:text-slate-400">Series:</span> {forecast.series.name}
+            </span>
+            <span>
+              <span className="font-medium text-slate-600 dark:text-slate-400">Horizon:</span> {forecast.horizon} periods
+            </span>
+            {lastRunLabel && (
+              <span>
+                <span className="font-medium text-slate-600 dark:text-slate-400">Last run:</span> {lastRunLabel}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm">
             <Link href="/forecasts">Back</Link>
           </Button>
-          <Button asChild variant="outline" className="gap-2">
-            <a
-              href={withAppBasePath(`/api/v1/forecasts/${encodeURIComponent(forecast.id)}/export`)}
-              download
-            >
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <a href={withAppBasePath(`/api/v1/forecasts/${encodeURIComponent(forecast.id)}/export`)} download>
               <Download className="h-4 w-4" aria-hidden />
               CSV
             </a>
@@ -454,11 +424,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
 
           <Dialog open={runAsOpen} onOpenChange={setRunAsOpen}>
             <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={forecast.status === 'RUNNING'}
-                className="gap-2"
-              >
+              <Button variant="outline" size="sm" disabled={forecast.status === 'RUNNING'} className="gap-2">
                 <Play className="h-4 w-4" aria-hidden />
                 Run model…
               </Button>
@@ -470,7 +436,6 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                   Run a different model on the same series + horizon. This does not change the default model.
                 </DialogDescription>
               </DialogHeader>
-
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Model</div>
@@ -484,182 +449,89 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                     </SelectContent>
                   </Select>
                 </div>
-
                 {runAsModel === 'PROPHET' ? (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval width</div>
-                      <Input
-                        value={runAsProphetIntervalWidth}
-                        onChange={(event) => setRunAsProphetIntervalWidth(event.target.value)}
-                        type="number"
-                        step="0.05"
-                        min={0.5}
-                        max={0.99}
-                        aria-label="Prophet interval width"
-                      />
+                      <Input value={runAsProphetIntervalWidth} onChange={(e) => setRunAsProphetIntervalWidth(e.target.value)} type="number" step="0.05" min={0.5} max={0.99} />
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Uncertainty samples</div>
-                      <Input
-                        value={runAsProphetUncertaintySamples}
-                        onChange={(event) => setRunAsProphetUncertaintySamples(event.target.value)}
-                        type="number"
-                        step={1}
-                        min={0}
-                        max={2000}
-                        aria-label="Prophet uncertainty samples"
-                      />
+                      <Input value={runAsProphetUncertaintySamples} onChange={(e) => setRunAsProphetUncertaintySamples(e.target.value)} type="number" step={1} min={0} max={2000} />
                     </div>
                   </div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Season length</div>
-                      <Input
-                        value={runAsEtsSeasonLength}
-                        onChange={(event) => setRunAsEtsSeasonLength(event.target.value)}
-                        type="number"
-                        step={1}
-                        min={1}
-                        max={365}
-                        aria-label="ETS season length"
-                      />
+                      <Input value={runAsEtsSeasonLength} onChange={(e) => setRunAsEtsSeasonLength(e.target.value)} type="number" step={1} min={1} max={365} />
                     </div>
                     <div className="space-y-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval level</div>
-                      <Input
-                        value={runAsEtsIntervalLevel}
-                        onChange={(event) => setRunAsEtsIntervalLevel(event.target.value)}
-                        type="number"
-                        step="0.05"
-                        min={0.5}
-                        max={0.99}
-                        aria-label="ETS interval level"
-                      />
+                      <Input value={runAsEtsIntervalLevel} onChange={(e) => setRunAsEtsIntervalLevel(e.target.value)} type="number" step="0.05" min={0.5} max={0.99} />
                     </div>
                     <div className="space-y-2 sm:col-span-2">
                       <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Spec</div>
-                      <Input value={runAsEtsSpec} onChange={(event) => setRunAsEtsSpec(event.target.value)} aria-label="ETS spec" />
+                      <Input value={runAsEtsSpec} onChange={(e) => setRunAsEtsSpec(e.target.value)} />
                     </div>
                   </div>
                 )}
               </div>
-
               <DialogFooter className="gap-2 sm:gap-2">
-                <Button variant="outline" onClick={() => setRunAsOpen(false)} disabled={runMutation.isPending}>
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setRunAsOpen(false)} disabled={runMutation.isPending}>Cancel</Button>
                 <Button
                   onClick={() => {
-                    const config =
-                      runAsModel === 'ETS'
-                        ? {
-                            seasonLength: parseOptionalInt(runAsEtsSeasonLength) ?? undefined,
-                            spec: runAsEtsSpec.trim() || undefined,
-                            intervalLevel:
-                              runAsEtsIntervalLevel.trim() === ''
-                                ? null
-                                : (parseInterval(runAsEtsIntervalLevel) ?? undefined),
-                          }
-                        : {
-                            intervalWidth: parseInterval(runAsProphetIntervalWidth) ?? undefined,
-                            uncertaintySamples: parseOptionalInt(runAsProphetUncertaintySamples) ?? undefined,
-                          };
-
-                    const configCleaned = Object.fromEntries(
-                      Object.entries(config).filter(([, value]) => value !== undefined),
-                    );
-
-                    void runMutation.mutateAsync({
-                      model: runAsModel,
-                      config: Object.keys(configCleaned).length > 0 ? configCleaned : undefined,
-                    });
+                    const config = runAsModel === 'ETS'
+                      ? {
+                          seasonLength: parseOptionalInt(runAsEtsSeasonLength) ?? undefined,
+                          spec: runAsEtsSpec.trim() || undefined,
+                          intervalLevel: runAsEtsIntervalLevel.trim() === '' ? null : (parseInterval(runAsEtsIntervalLevel) ?? undefined),
+                        }
+                      : {
+                          intervalWidth: parseInterval(runAsProphetIntervalWidth) ?? undefined,
+                          uncertaintySamples: parseOptionalInt(runAsProphetUncertaintySamples) ?? undefined,
+                        };
+                    const configCleaned = Object.fromEntries(Object.entries(config).filter(([, v]) => v !== undefined));
+                    void runMutation.mutateAsync({ model: runAsModel, config: Object.keys(configCleaned).length > 0 ? configCleaned : undefined });
                   }}
                   disabled={runMutation.isPending || forecast.status === 'RUNNING'}
                   className="gap-2"
                 >
-                  {runMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Play className="h-4 w-4" aria-hidden />
-                  )}
+                  {runMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
                   Run
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          <Button
-            onClick={() => void runMutation.mutateAsync({})}
-            disabled={runMutation.isPending || forecast.status === 'RUNNING'}
-            className="gap-2"
-          >
-            {runMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Play className="h-4 w-4" aria-hidden />
-            )}
-            Run default
-          </Button>
-
           {forecast.status === 'RUNNING' ? (
-            <Button
-              variant="destructive"
-              onClick={() => void cancelMutation.mutateAsync()}
-              disabled={cancelMutation.isPending}
-              className="gap-2"
-            >
-              {cancelMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <X className="h-4 w-4" aria-hidden />
-              )}
+            <Button variant="destructive" size="sm" onClick={() => void cancelMutation.mutateAsync()} disabled={cancelMutation.isPending} className="gap-2">
+              {cancelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <X className="h-4 w-4" aria-hidden />}
               Cancel
             </Button>
-          ) : null}
+          ) : (
+            <Button size="sm" onClick={() => void runMutation.mutateAsync({})} disabled={runMutation.isPending} className="gap-2">
+              {runMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
+              Run
+            </Button>
+          )}
 
           <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={deleteMutation.isPending || forecast.status === 'RUNNING'}
-                className="gap-2 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
-              >
-                {deleteMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                )}
+              <Button variant="outline" size="sm" disabled={deleteMutation.isPending || forecast.status === 'RUNNING'} className="gap-2 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300">
+                {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Trash2 className="h-4 w-4" aria-hidden />}
                 Delete
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Delete forecast?</DialogTitle>
-                <DialogDescription>
-                  This permanently deletes <span className="font-medium">{forecast.name}</span> and its run history.
-                </DialogDescription>
+                <DialogDescription>This permanently deletes <span className="font-medium">{forecast.name}</span> and its run history.</DialogDescription>
               </DialogHeader>
               <DialogFooter className="gap-2 sm:gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteOpen(false)}
-                  disabled={deleteMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => void deleteMutation.mutateAsync()}
-                  disabled={deleteMutation.isPending}
-                  className="gap-2"
-                >
-                  {deleteMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Trash2 className="h-4 w-4" aria-hidden />
-                  )}
+                <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>Cancel</Button>
+                <Button variant="destructive" onClick={() => void deleteMutation.mutateAsync()} disabled={deleteMutation.isPending} className="gap-2">
+                  {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Trash2 className="h-4 w-4" aria-hidden />}
                   Delete forecast
                 </Button>
               </DialogFooter>
@@ -668,293 +540,264 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Time Series</CardTitle>
-            <CardDescription>Source data powering this forecast.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{forecast.series.source}</Badge>
-              <Badge variant="outline">{forecast.series.granularity}</Badge>
-              {forecast.series.geo ? <Badge variant="outline">{forecast.series.geo}</Badge> : null}
-            </div>
-            <div className="text-muted-foreground">Query: {forecast.series.query}</div>
-            <div className="text-muted-foreground">Observations: {forecast.points.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Selected Run</CardTitle>
-            <CardDescription>Pick a run below to compare models.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <div className="text-muted-foreground">Latest run</div>
-              <div className="text-xs text-muted-foreground">{lastRunLabel}</div>
-            </div>
-            {selectedRun ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <div className="text-muted-foreground">Run status</div>
-                  <Badge variant={selectedRun.status === 'FAILED' ? 'destructive' : 'secondary'}>
-                    {selectedRun.status}
-                  </Badge>
-                </div>
-                {selectedRunLabel ? (
-                  <div className="flex items-center justify-between">
-                    <div className="text-muted-foreground">Ran</div>
-                    <div className="text-xs text-muted-foreground">{selectedRunLabel}</div>
-                  </div>
-                ) : null}
-                {selectedRun.errorMessage ? (
-                  <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100">
-                    {selectedRun.errorMessage}
-                  </div>
-                ) : null}
-                {outputMeta ? (
-                  <div className="space-y-1 text-xs text-muted-foreground">
-                    <div>
-                      Model meta: horizon {outputMeta.horizon}, history {outputMeta.historyCount}
-                      {outputMeta.intervalLevel ? `, interval ${(outputMeta.intervalLevel * 100).toFixed(0)}%` : ''}
-                    </div>
-                    {outputMeta.timings ? (
-                      <div>
-                        Timings: load {formatDurationMs(outputMeta.timings.loadMs)}, model{' '}
-                        {formatDurationMs(outputMeta.timings.modelMs)}, save {formatDurationMs(outputMeta.timings.saveMs)}, total{' '}
-                        {formatDurationMs(outputMeta.timings.totalMs)}
-                      </div>
-                    ) : null}
-                    {outputMeta.metrics?.sampleCount ? (
-                      <div>
-                        Metrics (history): MAE {outputMeta.metrics.mae?.toFixed(4) ?? '—'}, RMSE{' '}
-                        {outputMeta.metrics.rmse?.toFixed(4) ?? '—'}
-                        {outputMeta.metrics.mape !== null && outputMeta.metrics.mape !== undefined
-                          ? `, MAPE ${(outputMeta.metrics.mape * 100).toFixed(2)}%`
-                          : ''}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="text-xs text-muted-foreground">No runs yet.</div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Run History</CardTitle>
-          <CardDescription>Select a run to view its output and compare models.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {runs.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Model</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ran</TableHead>
-                    <TableHead className="w-24" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {runs.map((run) => {
-                    const model = modelFromParams(run.params);
-                    const ranAt = new Date(run.ranAt);
-                    const ranLabel = Number.isNaN(ranAt.getTime())
-                      ? formatIsoDate(run.ranAt)
-                      : formatDistanceToNowStrict(ranAt, { addSuffix: true });
-
-                    const statusVariant =
-                      run.status === 'SUCCESS' ? 'success' : run.status === 'FAILED' ? 'destructive' : 'secondary';
-
-                    return (
-                      <TableRow
-                        key={run.id}
-                        className={cn(
-                          selectedRunId === run.id && 'bg-slate-50/80 dark:bg-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5',
-                        )}
-                      >
-                        <TableCell className="font-medium">{model ?? '—'}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant}>{run.status}</Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{ranLabel}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelectedRunId(run.id)}
-                            disabled={selectedRunId === run.id}
-                          >
-                            View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">No runs yet.</div>
-          )}
-
-          {selectedRun && selectedRun.status !== 'SUCCESS' ? (
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-              Selected run has no forecast output yet.
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      {/* Forecast Visualization Chart */}
-      {rows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Forecast Visualization</CardTitle>
-            <CardDescription>
-              Time series with model predictions and{' '}
-              {outputMeta?.intervalLevel
-                ? `${(outputMeta.intervalLevel * 100).toFixed(0)}% prediction interval`
-                : 'no prediction interval'}
-              .
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ForecastChart
-              data={rows}
-              granularity={forecast.series.granularity}
-              intervalLevel={outputMeta?.intervalLevel ?? 0.8}
-            />
-          </CardContent>
-        </Card>
+      {/* Error Message */}
+      {selectedRun?.errorMessage && (
+        <div className="rounded-lg border border-danger-200 bg-danger-50 p-4 text-sm text-danger-900 dark:border-danger-800 dark:bg-danger-950 dark:text-danger-100">
+          <span className="font-medium">Run failed:</span> {selectedRun.errorMessage}
+        </div>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-base">Forecast Output</CardTitle>
-            <CardDescription>
-              Combined actuals and model predictions (including historical fit + future horizon when available).
-            </CardDescription>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-72">
-              <Input
-                value={globalFilter ?? ''}
-                onChange={(event) => setGlobalFilter(event.target.value)}
-                placeholder="Search dates…"
-                aria-label="Search forecast output"
-              />
+      {/* Run Selector */}
+      {runs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Run:</span>
+          {runs.map((run) => {
+            const model = modelFromParams(run.params);
+            const ranAt = new Date(run.ranAt);
+            const isSelected = selectedRunId === run.id;
+            return (
+              <Button
+                key={run.id}
+                variant={isSelected ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedRunId(run.id)}
+                className={cn('gap-1.5', run.status === 'FAILED' && 'border-danger-300 dark:border-danger-700')}
+              >
+                {model ?? '—'}
+                <Badge variant={run.status === 'SUCCESS' ? 'success' : run.status === 'FAILED' ? 'destructive' : 'secondary'} className="ml-1 text-[10px]">
+                  {run.status === 'RUNNING' ? <Loader2 className="h-3 w-3 animate-spin" /> : run.status}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">
+                  {Number.isNaN(ranAt.getTime()) ? '' : formatDistanceToNowStrict(ranAt, { addSuffix: false })}
+                </span>
+              </Button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <Tabs defaultValue="chart" className="w-full">
+        <TabsList>
+          <TabsTrigger value="chart" className="gap-2">
+            <TrendingUp className="h-4 w-4" aria-hidden />
+            Chart
+          </TabsTrigger>
+          <TabsTrigger value="table" className="gap-2">
+            <TableIcon className="h-4 w-4" aria-hidden />
+            Table
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="gap-2">
+            <BarChart3 className="h-4 w-4" aria-hidden />
+            Metrics
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Chart Tab */}
+        <TabsContent value="chart">
+          {rows.length > 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/[0.02]">
+              <ForecastChart data={rows} granularity={forecast.series.granularity} intervalLevel={outputMeta?.intervalLevel ?? 0.8} />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => void forecastQuery.refetch()}
-              disabled={forecastQuery.isFetching}
-              className="gap-2"
-            >
-              {forecastQuery.isFetching ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <RefreshCw className="h-4 w-4" aria-hidden />
-              )}
-              Refresh
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="overflow-hidden rounded-xl border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
+          ) : (
+            <div className="flex h-[400px] items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-white/10">
+              <div className="text-center text-sm text-muted-foreground">
+                <TrendingUp className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                <p>No forecast data yet.</p>
+                <p className="mt-1">Run the forecast to generate predictions.</p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Table Tab */}
+        <TabsContent value="table">
+          <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-base">Forecast Output</CardTitle>
+                <CardDescription>
+                  Actuals and predictions with {outputMeta?.intervalLevel ? `${(outputMeta.intervalLevel * 100).toFixed(0)}%` : '80%'} confidence interval.
+                </CardDescription>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative w-full sm:w-64">
+                  <Input value={globalFilter ?? ''} onChange={(e) => setGlobalFilter(e.target.value)} placeholder="Search dates…" aria-label="Search forecast output" />
+                </div>
+                <Button variant="outline" size="sm" onClick={() => void forecastQuery.refetch()} disabled={forecastQuery.isFetching} className="gap-2">
+                  {forecastQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <RefreshCw className="h-4 w-4" aria-hidden />}
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="overflow-hidden rounded-xl border">
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableHead>
+                        ))}
+                      </TableRow>
                     ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.length ? (
-                  table.getRowModel().rows.map((row, index) => {
-                    const isFuture = row.original.isFuture === true;
-                    const prevRow = table.getRowModel().rows[index - 1];
-                    const isFirstFuture = isFuture && prevRow && prevRow.original.isFuture !== true;
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows.length ? (
+                      table.getRowModel().rows.map((row, index) => {
+                        const isFuture = row.original.isFuture === true;
+                        const prevRow = table.getRowModel().rows[index - 1];
+                        const isFirstFuture = isFuture && prevRow && prevRow.original.isFuture !== true;
+                        return (
+                          <React.Fragment key={row.id}>
+                            {isFirstFuture && (
+                              <TableRow key={`divider-${row.id}`} className="bg-slate-50/80 dark:bg-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5">
+                                <TableCell colSpan={columns.length} className="py-2">
+                                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-teal-600 dark:text-brand-cyan">
+                                    <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                                    Forecast Horizon
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                            <TableRow className={cn(isFuture && 'bg-brand-teal-50/30 dark:bg-brand-cyan/5 border-l-2 border-l-brand-teal-500 dark:border-l-brand-cyan')}>
+                              {row.getVisibleCells().map((cell) => (
+                                <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                              ))}
+                            </TableRow>
+                          </React.Fragment>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">No rows.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+                <div className="text-xs text-muted-foreground">{table.getFilteredRowModel().rows.length} row(s)</div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
+                  <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                    return (
-                      <React.Fragment key={row.id}>
-                        {isFirstFuture && (
-                          <TableRow key={`divider-${row.id}`} className="bg-slate-50/80 dark:bg-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5">
-                            <TableCell colSpan={columns.length} className="py-2">
-                              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-teal-600 dark:text-brand-cyan">
-                                <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                                Forecast Horizon
-                              </div>
-                            </TableCell>
-                          </TableRow>
+        {/* Metrics Tab */}
+        <TabsContent value="metrics">
+          <div className="space-y-6">
+            {/* Model Performance */}
+            {outputMeta?.metrics?.sampleCount ? (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-slate-900 dark:text-white">Model Performance</h3>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <MetricCard label="MAE (Mean Absolute Error)" value={outputMeta.metrics.mae?.toFixed(2) ?? null} />
+                  <MetricCard label="RMSE (Root Mean Square Error)" value={outputMeta.metrics.rmse?.toFixed(2) ?? null} />
+                  <MetricCard label="MAPE (Mean Absolute % Error)" value={outputMeta.metrics.mape != null ? (outputMeta.metrics.mape * 100).toFixed(1) : null} unit="%" />
+                </div>
+                <p className="text-xs text-muted-foreground">Metrics computed on {outputMeta.metrics.sampleCount} historical data points.</p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center dark:border-white/10">
+                <BarChart3 className="mx-auto mb-2 h-8 w-8 text-muted-foreground opacity-50" />
+                <p className="text-sm text-muted-foreground">No metrics available yet.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Run the forecast to compute performance metrics.</p>
+              </div>
+            )}
+
+            {/* Run Details */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-slate-900 dark:text-white">Run Details</h3>
+              <Card>
+                <CardContent className="pt-6">
+                  <dl className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Status</dt>
+                      <dd className="mt-1">
+                        {selectedRun ? (
+                          <Badge variant={selectedRun.status === 'FAILED' ? 'destructive' : 'secondary'}>{selectedRun.status}</Badge>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No runs yet</span>
                         )}
-                        <TableRow
-                          key={row.id}
-                          className={cn(
-                            isFuture && 'bg-brand-teal-50/30 dark:bg-brand-cyan/5 border-l-2 border-l-brand-teal-500 dark:border-l-brand-cyan',
-                          )}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </React.Fragment>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center text-sm text-muted-foreground">
-                      No rows.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Last Run</dt>
+                      <dd className="mt-1 text-sm">{lastRunLabel ?? '—'}</dd>
+                    </div>
+                    {outputMeta && (
+                      <>
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Horizon</dt>
+                          <dd className="mt-1 text-sm">{outputMeta.horizon} periods</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">History Points</dt>
+                          <dd className="mt-1 text-sm">{outputMeta.historyCount}</dd>
+                        </div>
+                        {outputMeta.intervalLevel && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Confidence Interval</dt>
+                            <dd className="mt-1 text-sm">{(outputMeta.intervalLevel * 100).toFixed(0)}%</dd>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </dl>
+                  {outputMeta?.timings && (
+                    <div className="mt-4 border-t border-slate-200 pt-4 dark:border-white/10">
+                      <dt className="text-xs font-medium text-muted-foreground">Timing Breakdown</dt>
+                      <dd className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                        <span>Load: {formatDurationMs(outputMeta.timings.loadMs)}</span>
+                        <span>Model: {formatDurationMs(outputMeta.timings.modelMs)}</span>
+                        <span>Save: {formatDurationMs(outputMeta.timings.saveMs)}</span>
+                        <span className="font-medium text-slate-600 dark:text-slate-400">Total: {formatDurationMs(outputMeta.timings.totalMs)}</span>
+                      </dd>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-          <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-            <div className="text-xs text-muted-foreground">
-              {table.getFilteredRowModel().rows.length} row(s)
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                Next
-              </Button>
+            {/* Series Info */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-slate-900 dark:text-white">Data Source</h3>
+              <Card>
+                <CardContent className="pt-6">
+                  <dl className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Series Name</dt>
+                      <dd className="mt-1 text-sm">{forecast.series.name}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Source</dt>
+                      <dd className="mt-1"><Badge variant="outline">{forecast.series.source}</Badge></dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Granularity</dt>
+                      <dd className="mt-1"><Badge variant="outline">{forecast.series.granularity}</Badge></dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Observations</dt>
+                      <dd className="mt-1 text-sm">{forecast.points.length}</dd>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs font-medium text-muted-foreground">Query</dt>
+                      <dd className="mt-1 text-sm text-muted-foreground">{forecast.series.query}</dd>
+                    </div>
+                  </dl>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
