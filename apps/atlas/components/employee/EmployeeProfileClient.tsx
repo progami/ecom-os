@@ -186,78 +186,93 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     }
   }, [id])
 
+  // Preload all tab data when employee and permissions are ready
   useEffect(() => {
-    async function loadReviews() {
-      if (!employee || activeTab !== 'performance' || !canViewPerformance) return
-      try {
-        setReviewsLoading(true)
-        const data = await PerformanceReviewsApi.list({ employeeId: employee.id })
-        setReviews(data.items || [])
-      } catch (e) {
-        console.error('Failed to load reviews', e)
-        setReviews([])
-      } finally {
-        setReviewsLoading(false)
-      }
-    }
-    loadReviews()
-  }, [activeTab, canViewPerformance, employee])
+    if (!employee || !permissionsReady) return
+    const emp = employee // capture for closure
 
-  useEffect(() => {
-    async function loadLeave() {
-      if (!employee || activeTab !== 'leave' || !canViewLeave) return
-      try {
-        setLeaveLoading(true)
-        const [balanceData, requestsData] = await Promise.all([
-          LeavesApi.getBalance({ employeeId: employee.id }),
-          LeavesApi.list({ employeeId: employee.id }),
-        ])
-        setLeaveBalances(balanceData.balances || [])
-        setLeaveRequests(requestsData.items || [])
-      } catch (e) {
-        console.error('Failed to load leave data', e)
-        setLeaveBalances([])
-        setLeaveRequests([])
-      } finally {
-        setLeaveLoading(false)
-      }
-    }
-    loadLeave()
-  }, [activeTab, canViewLeave, employee])
+    async function loadAllTabData() {
+      // Load all tab data in parallel for instant tab switching
+      const promises: Promise<void>[] = []
 
-  useEffect(() => {
-    async function loadFiles() {
-      if (!employee || activeTab !== 'documents' || !canViewDocuments) return
-      try {
-        setFilesLoading(true)
-        const res = await EmployeeFilesApi.list(employee.id)
-        setFiles(res.items || [])
-      } catch (e) {
-        console.error('Failed to load employee files', e)
-        setFiles([])
-      } finally {
-        setFilesLoading(false)
+      if (canViewPerformance) {
+        promises.push(
+          (async () => {
+            try {
+              setReviewsLoading(true)
+              const data = await PerformanceReviewsApi.list({ employeeId: emp.id })
+              setReviews(data.items)
+            } catch (e) {
+              console.error('Failed to load reviews', e)
+              setReviews([])
+            } finally {
+              setReviewsLoading(false)
+            }
+          })()
+        )
       }
-    }
-    loadFiles()
-  }, [activeTab, canViewDocuments, employee])
 
-  useEffect(() => {
-    async function loadViolations() {
-      if (!employee || activeTab !== 'violations' || !canViewViolations) return
-      try {
-        setViolationsLoading(true)
-        const data = await DisciplinaryActionsApi.list({ employeeId: employee.id })
-        setViolations(data.items)
-      } catch (e) {
-        console.error('Failed to load violations', e)
-        setViolations([])
-      } finally {
-        setViolationsLoading(false)
+      if (canViewLeave) {
+        promises.push(
+          (async () => {
+            try {
+              setLeaveLoading(true)
+              const [balanceData, requestsData] = await Promise.all([
+                LeavesApi.getBalance({ employeeId: emp.id }),
+                LeavesApi.list({ employeeId: emp.id }),
+              ])
+              setLeaveBalances(balanceData.balances)
+              setLeaveRequests(requestsData.items)
+            } catch (e) {
+              console.error('Failed to load leave data', e)
+              setLeaveBalances([])
+              setLeaveRequests([])
+            } finally {
+              setLeaveLoading(false)
+            }
+          })()
+        )
       }
+
+      if (canViewDocuments) {
+        promises.push(
+          (async () => {
+            try {
+              setFilesLoading(true)
+              const res = await EmployeeFilesApi.list(emp.id)
+              setFiles(res.items)
+            } catch (e) {
+              console.error('Failed to load employee files', e)
+              setFiles([])
+            } finally {
+              setFilesLoading(false)
+            }
+          })()
+        )
+      }
+
+      if (canViewViolations) {
+        promises.push(
+          (async () => {
+            try {
+              setViolationsLoading(true)
+              const data = await DisciplinaryActionsApi.list({ employeeId: emp.id })
+              setViolations(data.items)
+            } catch (e) {
+              console.error('Failed to load violations', e)
+              setViolations([])
+            } finally {
+              setViolationsLoading(false)
+            }
+          })()
+        )
+      }
+
+      await Promise.all(promises)
     }
-    loadViolations()
-  }, [activeTab, canViewViolations, employee])
+
+    loadAllTabData()
+  }, [employee, permissionsReady, canViewPerformance, canViewLeave, canViewDocuments, canViewViolations])
 
   async function uploadDocument() {
     if (!employee || !uploadFile) return
