@@ -1253,6 +1253,7 @@ async function getOpsPlanningView(
     productId: input.productId,
     orderCode: input.orderCode,
     poDate: formatDate(input.poDate ?? null),
+    productionStart: toIsoDate(input.productionStart ?? null) ?? '',
     productionComplete: toIsoDate(input.productionComplete ?? null) ?? '',
     sourceDeparture: toIsoDate(input.sourceDeparture ?? null) ?? '',
     portEta: toIsoDate(input.portEta ?? null) ?? '',
@@ -1275,7 +1276,6 @@ async function getOpsPlanningView(
     referralRate: formatPercentDecimal(input.overrideReferralRate ?? null),
     storagePerMonth: formatNumeric(input.overrideStoragePerMonth ?? null),
     status: input.status,
-    notes: input.notes ?? '',
   }));
 
   const timelineRows: OpsTimelineRow[] = visibleOrders.map(({ derived, productName }) => ({
