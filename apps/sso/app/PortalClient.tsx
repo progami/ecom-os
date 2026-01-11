@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 
 import type { AppDef } from '@/lib/apps'
+import { getAppIcon } from '@/components/app-icons'
 
 import styles from './portal.module.css'
 
@@ -23,145 +24,6 @@ const CATEGORY_ORDER = [
 const OTHER_CATEGORY = 'Other'
 
 const envAllowDevFlag = (process.env.NEXT_PUBLIC_ALLOW_DEV_APPS ?? process.env.ALLOW_DEV_APPS ?? '').trim().toLowerCase() === 'true'
-
-const FALLBACK_ICON = (
-  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-    <rect x="3" y="3" width="18" height="18" rx="4" fill="rgba(0,194,185,0.15)" />
-    <path d="M9 9h6v6H9z" fill="#00c2b9" opacity="0.75" />
-  </svg>
-)
-
-const APP_ICONS: Record<string, ReactNode> = {
-  talos: (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <path
-        d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  ),
-  atlas: (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <circle
-        cx="9"
-        cy="7"
-        r="4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        fill="rgba(0,194,185,0.25)"
-      />
-      <path
-        d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M16 3.1a4 4 0 0 1 0 7.8"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.6"
-      />
-    </svg>
-  ),
-  fcc: (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <path
-        d="M12 3v18"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  website: (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.4" fill="none" />
-      <path
-        d="M3 12h18"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity="0.7"
-      />
-      <path
-        d="M12 3a18 18 0 0 1 4.5 9 18 18 0 0 1-4.5 9 18 18 0 0 1-4.5-9A18 18 0 0 1 12 3z"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity="0.7"
-        fill="none"
-      />
-    </svg>
-  ),
-  'x-plan': (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <rect
-        x="4"
-        y="4"
-        width="16"
-        height="16"
-        rx="4"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        fill="rgba(0,194,185,0.18)"
-      />
-      <path
-        d="M9 9l6 6m0-6l-6 6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  kairos: (
-    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        fill="rgba(0,194,185,0.14)"
-      />
-      <path
-        d="M12 7v5l3 2"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M12 3v2m0 14v2m9-9h-2M5 12H3"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-        opacity="0.65"
-      />
-    </svg>
-  ),
-}
-
-const getAppIcon = (appId: string): ReactNode => APP_ICONS[appId] ?? FALLBACK_ICON
 
 type PortalClientProps = {
   session: Session
