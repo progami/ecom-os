@@ -28,8 +28,8 @@ jobs:
         run: node scripts/sync-versions.js --check
       - name: Populate dev env files
         run: |
-          cp apps/targon/.env.dev.ci apps/targon/.env.dev
-          cp apps/targon/.env.dev.ci apps/targon/.env.local
+          cp apps/sso/.env.dev.ci apps/sso/.env.dev
+          cp apps/sso/.env.dev.ci apps/sso/.env.local
           cp apps/talos/.env.dev.ci apps/talos/.env.dev
           cp apps/talos/.env.dev.ci apps/talos/.env.local
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.dev

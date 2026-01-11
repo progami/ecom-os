@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: refresh-dev-app.sh <app-key>" >&2
-  echo "Known apps: talos, targon, website, xplan, atlas, kairos" >&2
+  echo "Known apps: talos, sso, website, xplan, atlas, kairos" >&2
   exit 1
 fi
 
@@ -16,9 +16,9 @@ case "$app_key" in
     app_dir="$repo_root/apps/talos"
     pm2_name="dev-talos"
     ;;
-  targon)
-    workspace="@targon/targon"
-    app_dir="$repo_root/apps/targon"
+  sso|targon)
+    workspace="@targon/sso"
+    app_dir="$repo_root/apps/sso"
     pm2_name="dev-targonos"
     ;;
   website)

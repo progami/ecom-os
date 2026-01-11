@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: deploy-app.sh <app-key> <environment>" >&2
-  echo "  app-key: talos, targon, website, xplan, kairos, atlas" >&2
+  echo "  app-key: talos, sso, website, xplan, kairos, atlas" >&2
   echo "  environment: dev, main" >&2
   exit 1
 fi
@@ -51,9 +51,9 @@ case "$app_key" in
     migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions && pnpm --filter $workspace db:migrate:sku-batch-attributes && pnpm --filter $workspace db:migrate:sku-batch-amazon-defaults && pnpm --filter $workspace db:migrate:supplier-defaults && pnpm --filter $workspace db:migrate:warehouse-sku-storage-configs && pnpm --filter $workspace db:migrate:purchase-order-documents && pnpm --filter $workspace db:migrate:fulfillment-orders-foundation"
     build_cmd="pnpm --filter $workspace build"
     ;;
-  targon|targonos)
-    workspace="@targon/targon"
-    app_dir="$REPO_DIR/apps/targon"
+  sso|targon|targonos)
+    workspace="@targon/sso"
+    app_dir="$REPO_DIR/apps/sso"
     pm2_name="${PM2_PREFIX}-targonos"
     prisma_cmd=""
     build_cmd="pnpm --filter $workspace build"
