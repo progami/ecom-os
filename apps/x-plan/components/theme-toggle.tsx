@@ -15,7 +15,7 @@ export function ThemeToggle() {
   }, []);
 
   if (!mounted) {
-    return <div className="h-6 w-6 rounded border border-input bg-background" />;
+    return <div className="h-5 w-5 rounded border border-input bg-background" />;
   }
 
   const isDark = theme === 'dark';
@@ -26,9 +26,9 @@ export function ThemeToggle() {
       size="icon"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="h-6 w-6"
+      className="h-5 w-5"
     >
-      {isDark ? <Sun className="h-3 w-3" aria-hidden /> : <Moon className="h-3 w-3" aria-hidden />}
+      {isDark ? <Sun className="h-2.5 w-2.5" aria-hidden /> : <Moon className="h-2.5 w-2.5" aria-hidden />}
     </Button>
   );
 }
