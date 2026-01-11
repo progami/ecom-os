@@ -42,7 +42,14 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
     return normalized
   })()
   const allowedAppIds = normalizedRolesClaim ? Object.keys(normalizedRolesClaim) : []
-  const apps = filterAppsForUser(allowedAppIds)
+  const assignedApps = filterAppsForUser(allowedAppIds)
+
+  const previewApps = ALL_APPS.filter((app) => {
+    if (app.lifecycle !== 'dev') return false
+    return !assignedApps.some((assigned) => assigned.id === app.id)
+  })
+
+  const apps = [...assignedApps, ...previewApps]
 
   // Resolve URLs on the server side so the client never sees placeholder slugs or stale hosts
   const appsWithUrls = apps.map(app => ({
@@ -50,10 +57,16 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
     url: resolveAppUrl(app)
   }))
 
+  const assignedAppsWithUrls = assignedApps.map((app) => ({
+    ...app,
+    url: resolveAppUrl(app),
+  }))
+
   return (
     <PortalClient
       session={session}
       apps={appsWithUrls}
+      accessApps={assignedAppsWithUrls}
       roles={normalizedRolesClaim}
       accessError={accessError}
     />

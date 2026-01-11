@@ -28,13 +28,16 @@ const envAllowDevFlag = (process.env.NEXT_PUBLIC_ALLOW_DEV_APPS ?? process.env.A
 type PortalClientProps = {
   session: Session
   apps: AppDef[]
+  accessApps?: AppDef[]
   roles?: PortalRoleMap
   accessError?: string
 }
 
-export default function PortalClient({ session, apps, roles, accessError }: PortalClientProps) {
+export default function PortalClient({ session, apps, accessApps, roles, accessError }: PortalClientProps) {
   const roleMap = roles ?? {}
   const hasApps = apps.length > 0
+  const accessSummaryApps = (accessApps ?? apps).filter((app) => app.lifecycle !== 'dev' || Boolean(roleMap[app.id]))
+  const hasAccessSummaryApps = accessSummaryApps.length > 0
   const [allowDevApps] = useState(envAllowDevFlag)
 
   const normalizeCategory = (value?: string | null) => {
@@ -167,7 +170,7 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
 	                            />
                           </svg>
                         </div>
-                        {isDevLifecycle && <span className={styles.lifecycleBadge}>In development</span>}
+                        {isDevLifecycle && <span className={styles.lifecycleBadge}>In Development</span>}
                         <div className={styles.name}>{app.name}</div>
                         <p className={styles.description}>{app.description}</p>
                       </a>
@@ -185,11 +188,11 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
             )}
           </section>
 
-          {hasApps && (
+          {hasAccessSummaryApps && (
             <section aria-label="Current access summary" className={styles.rolesSection}>
               <h2 className={styles.rolesHeading}>Access summary</h2>
               <ul className={styles.rolesList}>
-                {apps.map((app) => (
+                {accessSummaryApps.map((app) => (
                   <li key={app.id}>{app.name}</li>
                 ))}
               </ul>
