@@ -332,19 +332,13 @@ jobs:
           TARGET_ENV="${{ github.ref_name }}"
 
           declare -a apps=()
-          if [[ "$TARGET_ENV" == "main" ]]; then
-            apps=(sso talos website xplan kairos atlas plutus)
-          elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(sso talos website xplan kairos atlas plutus)
-          else
-            [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
-            [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
-            [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
-            [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
-            [[ "${{ needs.detect-changes.outputs.kairos }}" == "true" ]] && apps+=(kairos)
-            [[ "${{ needs.detect-changes.outputs.atlas }}" == "true" ]] && apps+=(atlas)
-            [[ "${{ needs.detect-changes.outputs.plutus }}" == "true" ]] && apps+=(plutus)
-          fi
+          [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
+          [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
+          [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
+          [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
+          [[ "${{ needs.detect-changes.outputs.kairos }}" == "true" ]] && apps+=(kairos)
+          [[ "${{ needs.detect-changes.outputs.atlas }}" == "true" ]] && apps+=(atlas)
+          [[ "${{ needs.detect-changes.outputs.plutus }}" == "true" ]] && apps+=(plutus)
 
           if [[ ${#apps[@]} -eq 0 ]]; then
             echo "No deployable apps detected; exiting."
@@ -405,12 +399,8 @@ jobs:
           fi
 
           declare -a apps=()
-          if [[ "$target_env" == "main" ]]; then
-            apps=(sso talos website xplan kairos atlas plutus)
-          elif [[ -n "$requested_app" ]]; then
+          if [[ -n "$requested_app" ]]; then
             apps=("$requested_app")
-          elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(sso talos website xplan kairos atlas plutus)
           else
             [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
