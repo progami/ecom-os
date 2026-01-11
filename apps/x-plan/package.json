@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "next dev -p 3008",
     "clean": "rm -rf .next out dist",
-    "build": "next build",
+    "build": "prisma generate --schema ../talos/prisma/schema.prisma && prisma generate --schema prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "eslint app components lib ",
-    "type-check": "prisma generate --schema prisma/schema.prisma && tsc --noEmit",
+    "type-check": "prisma generate --schema ../talos/prisma/schema.prisma && prisma generate --schema prisma/schema.prisma && tsc --noEmit",
     "format": "prettier --check \"{app,components,lib,styles}/**/*.{ts,tsx,mdx}\"",
     "format:write": "prettier --write \"{app,components,lib,styles}/**/*.{ts,tsx,mdx}\"",
     "test": "vitest run",
