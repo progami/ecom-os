@@ -11,6 +11,15 @@ export function getAmazonClient() {
 
 function getMockData(operation: string) {
  switch (operation) {
+ case 'getMarketplaceParticipations':
+ return {
+ payload: [
+ {
+ marketplaceId: 'ATVPDKIKX0DER',
+ sellerId: 'MOCK_SELLER',
+ },
+ ],
+ }
  case 'getInventorySummaries':
  return {
  inventorySummaries: [
@@ -23,6 +32,24 @@ function getMockData(operation: string) {
  { sellerSku: 'TEST-SKU-002', asin: 'B001TEST07', totalQuantity: 50, fnSku: 'X001TEST07' },
  { sellerSku: 'TEST-SKU-003', asin: 'B001TEST08', totalQuantity: 0, fnSku: 'X001TEST08' },
  ]
+ }
+ case 'searchListingsItems':
+ return {
+ items: [
+ {
+ sku: 'SKU001',
+ summaries: [{ asin: 'B001TEST01', itemName: 'Sample Product 1' }],
+ },
+ {
+ sku: 'SKU002',
+ summaries: [{ asin: 'B001TEST02', itemName: 'Sample Product 2' }],
+ },
+ {
+ sku: 'SKU003',
+ summaries: [{ asin: 'B001TEST03', itemName: 'Sample Product 3' }],
+ },
+ ],
+ pagination: { nextToken: null },
  }
  case 'getCatalogItem':
  return {
