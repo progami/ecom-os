@@ -19,11 +19,89 @@ is_truthy() {
   esac
 }
 
+compute_changed_files() {
+  changed_files_available="false"
+  changed_files=()
+
+  cd "$REPO_DIR"
+
+  local base="${deploy_base_sha:-}"
+  local head="${deploy_head_sha:-}"
+
+  if [[ -z "$head" ]]; then
+    head="$(git rev-parse HEAD)"
+  fi
+
+	  if [[ -n "$base" && "$base" != "$ZERO_SHA" ]]; then
+	    if git cat-file -e "$base^{commit}" 2>/dev/null && git cat-file -e "$head^{commit}" 2>/dev/null; then
+	      while IFS= read -r file; do
+	        [[ -n "$file" ]] && changed_files+=("$file")
+	      done < <(git diff --name-only "$base" "$head" || true)
+	      changed_files_available="true"
+	      return 0
+	    fi
+
+    warn "Could not compute changed files for range $base..$head"
+    return 1
+  fi
+
+	  if [[ "$base" == "$ZERO_SHA" ]]; then
+	    while IFS= read -r file; do
+	      [[ -n "$file" ]] && changed_files+=("$file")
+	    done < <(git ls-files)
+	    changed_files_available="true"
+	    return 0
+	  fi
+
+  # Best-effort fallback for manual runs without an explicit range.
+	  if git rev-parse --verify -q "${head}^" >/dev/null 2>&1; then
+	    base="$(git rev-parse "${head}^")"
+	    while IFS= read -r file; do
+	      [[ -n "$file" ]] && changed_files+=("$file")
+	    done < <(git diff --name-only "$base" "$head" || true)
+	    changed_files_available="true"
+	    deploy_base_sha="$base"
+	    deploy_head_sha="$head"
+	    return 0
+  fi
+
+  return 1
+}
+
+any_changed() {
+  local pattern="$1"
+  local file
+  for file in "${changed_files[@]}"; do
+    if [[ "$file" == $pattern ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+any_changed_under() {
+  local prefix="$1"
+  local file
+  for file in "${changed_files[@]}"; do
+    if [[ "$file" == "$prefix"* ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 skip_git="${DEPLOY_SKIP_GIT:-false}"
 skip_install="${DEPLOY_SKIP_INSTALL:-false}"
 skip_pm2_save="${DEPLOY_SKIP_PM2_SAVE:-false}"
+prep_only="${DEPLOY_PREP_ONLY:-false}"
 deploy_git_sha="${DEPLOY_GIT_SHA:-}"
+deploy_base_sha="${DEPLOY_BASE_SHA:-}"
+deploy_head_sha="${DEPLOY_HEAD_SHA:-}"
 migrate_cmd=""
+install_mode=""
+changed_files_available="false"
+changed_files=()
+ZERO_SHA="0000000000000000000000000000000000000000"
 
 # Determine directories based on environment
 if [[ "$environment" == "dev" ]]; then
@@ -71,7 +149,7 @@ case "$app_key" in
     pm2_name="${PM2_PREFIX}-x-plan"
     prisma_cmd="pnpm --filter $workspace prisma:generate"
     migrate_cmd="pnpm --filter $workspace prisma:migrate:deploy"
-    build_cmd="pnpm --filter $workspace build"
+    build_cmd="pnpm --filter $workspace exec next build"
     ;;
   kairos)
     workspace="@targon/kairos"
@@ -260,6 +338,25 @@ ensure_database_url() {
   return 1
 }
 
+ensure_portal_db_url() {
+  if [[ -n "${PORTAL_DB_URL:-}" ]]; then
+    return 0
+  fi
+
+  local sso_dir="$REPO_DIR/apps/sso"
+  local candidates=("$sso_dir/.env.local" "$sso_dir/.env.production" "$sso_dir/.env.dev" "$sso_dir/.env")
+  local file
+
+  for file in "${candidates[@]}"; do
+    if load_env_file "$file" && [[ -n "${PORTAL_DB_URL:-}" ]]; then
+      log "Loaded PORTAL_DB_URL from $(basename "$file")"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 log "=========================================="
 log "Starting deployment of $app_key to $environment"
 log "Repository: $REPO_DIR"
@@ -284,14 +381,76 @@ else
   log "Git pull complete"
 fi
 
+# Step 1.5: Detect what changed in this deploy range (if available)
+if compute_changed_files; then
+  log "Detected ${#changed_files[@]} changed files for deploy range ${deploy_base_sha:-unknown}..${deploy_head_sha:-unknown}"
+else
+  warn "Could not determine changed files for this deployment; using safe defaults"
+fi
+
 # Step 2: Install dependencies
 if is_truthy "$skip_install"; then
   log "Step 2: Skipping dependency install (DEPLOY_SKIP_INSTALL=$skip_install)"
+  install_mode="explicit_skip"
 else
-  log "Step 2: Installing dependencies"
-  cd "$REPO_DIR"
-  pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-  log "Dependencies installed"
+  deps_changed="true"
+  if [[ "$changed_files_available" == "true" ]]; then
+    deps_changed="false"
+    if any_changed "pnpm-lock.yaml" || any_changed "pnpm-workspace.yaml" || any_changed ".npmrc" || any_changed "package.json" || any_changed "*/package.json"; then
+      deps_changed="true"
+    fi
+  fi
+
+  if [[ "$deps_changed" == "false" && -d "$REPO_DIR/node_modules" ]]; then
+    log "Step 2: Skipping dependency install (no dependency changes detected)"
+    install_mode="auto_skip"
+  else
+    log "Step 2: Installing dependencies"
+    cd "$REPO_DIR"
+    pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+    log "Dependencies installed"
+    install_mode="run"
+  fi
+fi
+
+# Optional early exit after git+install (useful for parallel deploy fanout)
+if is_truthy "$prep_only"; then
+  log "Prep-only mode enabled (DEPLOY_PREP_ONLY=$prep_only); stopping after dependencies step"
+  exit 0
+fi
+
+if [[ "$app_key" == "sso" || "$app_key" == "targon" || "$app_key" == "targonos" ]]; then
+  auth_prisma_changed="false"
+  if [[ "$changed_files_available" == "true" ]] && any_changed_under "packages/auth/prisma/"; then
+    auth_prisma_changed="true"
+  fi
+
+  auth_client_dir="$REPO_DIR/packages/auth/node_modules/.prisma/client-auth"
+  auth_client_missing="false"
+  if [[ ! -d "$auth_client_dir" ]]; then
+    auth_client_missing="true"
+  fi
+
+  if [[ "$auth_prisma_changed" == "true" || "$auth_client_missing" == "true" ]]; then
+    log "Ensuring portal auth Prisma client is available"
+
+    if [[ "$auth_client_missing" == "true" || "$install_mode" != "run" ]]; then
+      if ensure_portal_db_url; then
+        cd "$REPO_DIR"
+        pnpm --filter @targon/auth prisma:generate
+      else
+        error "PORTAL_DB_URL is not set and no env file found; cannot generate auth Prisma client"
+        exit 1
+      fi
+    fi
+
+    node "$REPO_DIR/scripts/link-prisma-client-auth.js"
+
+    if [[ ! -d "$REPO_DIR/apps/sso/node_modules/.prisma/client-auth" ]]; then
+      error "Auth Prisma client was not linked into SSO node_modules"
+      exit 1
+    fi
+  fi
 fi
 
 if [[ "$app_key" == "kairos" ]]; then
@@ -322,38 +481,100 @@ fi
 
 # Step 3: Generate Prisma client if needed
 if [[ -n "$prisma_cmd" ]]; then
-  log "Step 3: Generating Prisma client"
-  cd "$REPO_DIR"
-  eval "$prisma_cmd" || warn "Prisma generate had warnings"
-  log "Prisma client generated"
+  run_prisma_generate="true"
+  if [[ "$changed_files_available" == "true" ]]; then
+    run_prisma_generate="false"
+    case "$app_key" in
+      talos)
+        if any_changed "apps/talos/prisma/schema.prisma" && ! any_changed_under "packages/prisma-talos/generated/"; then
+          run_prisma_generate="true"
+        fi
+        ;;
+      xplan|x-plan)
+        if any_changed "apps/x-plan/prisma/schema.prisma" && ! any_changed_under "packages/prisma-x-plan/generated/"; then
+          run_prisma_generate="true"
+        fi
+        ;;
+      kairos)
+        if any_changed "apps/kairos/prisma/schema.prisma" && ! any_changed_under "packages/prisma-kairos/generated/"; then
+          run_prisma_generate="true"
+        fi
+        ;;
+      atlas)
+        if any_changed "apps/atlas/prisma/schema.prisma" && ! any_changed_under "packages/prisma-atlas/generated/"; then
+          run_prisma_generate="true"
+        fi
+        ;;
+    esac
+  fi
+
+  if [[ "$run_prisma_generate" == "true" ]]; then
+    log "Step 3: Generating Prisma client"
+    cd "$REPO_DIR"
+    eval "$prisma_cmd" || warn "Prisma generate had warnings"
+    log "Prisma client generated"
+  else
+    log "Step 3: Skipping Prisma generation (no Prisma schema changes detected)"
+  fi
 else
   log "Step 3: Skipping Prisma generation (not needed)"
 fi
 
 # Step 3b: Apply Prisma migrations if needed
 if [[ -n "$migrate_cmd" ]]; then
-  log "Step 3b: Applying Prisma migrations"
-  if ensure_database_url; then
-    cd "$REPO_DIR"
-    if [[ "$app_key" == "atlas" && "$environment" == "dev" ]]; then
-      if eval "$migrate_cmd"; then
-        log "Migrations applied"
-      else
-        warn "Prisma migrate deploy failed for atlas dev; falling back to non-destructive db push"
-        if eval "cd $app_dir && pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate"; then
-          log "Database schema synced"
-        else
-          error "Prisma db push failed for atlas dev; aborting deployment to avoid a broken app"
-          exit 1
+  run_migrations="true"
+  if [[ "$changed_files_available" == "true" ]]; then
+    run_migrations="false"
+    case "$app_key" in
+      talos)
+        if any_changed "apps/talos/prisma/schema.prisma" || any_changed_under "apps/talos/scripts/migrations/"; then
+          run_migrations="true"
         fi
+        ;;
+      xplan|x-plan)
+        if any_changed "apps/x-plan/prisma/schema.prisma" || any_changed_under "apps/x-plan/prisma/migrations/"; then
+          run_migrations="true"
+        fi
+        ;;
+      kairos)
+        if any_changed "apps/kairos/prisma/schema.prisma" || any_changed_under "apps/kairos/prisma/migrations/"; then
+          run_migrations="true"
+        fi
+        ;;
+      atlas)
+        if any_changed "apps/atlas/prisma/schema.prisma" || any_changed_under "apps/atlas/prisma/migrations/"; then
+          run_migrations="true"
+        fi
+        ;;
+    esac
+  fi
+
+  if [[ "$run_migrations" == "true" ]]; then
+    log "Step 3b: Applying Prisma migrations"
+    if ensure_database_url; then
+      cd "$REPO_DIR"
+      if [[ "$app_key" == "atlas" && "$environment" == "dev" ]]; then
+        if eval "$migrate_cmd"; then
+          log "Migrations applied"
+        else
+          warn "Prisma migrate deploy failed for atlas dev; falling back to non-destructive db push"
+          if eval "cd $app_dir && pnpm exec prisma db push --schema prisma/schema.prisma --skip-generate"; then
+            log "Database schema synced"
+          else
+            error "Prisma db push failed for atlas dev; aborting deployment to avoid a broken app"
+            exit 1
+          fi
+        fi
+      else
+        eval "$migrate_cmd"
+        log "Migrations applied"
       fi
     else
-      eval "$migrate_cmd"
-      log "Migrations applied"
+      error "DATABASE_URL is not set and no env file found; cannot apply migrations"
+      exit 1
     fi
   else
-    error "DATABASE_URL is not set and no env file found; cannot apply migrations"
-    exit 1
+    log "Step 3b: Skipping Prisma migrations (no migration changes detected)"
   fi
 else
   log "Step 3b: Skipping Prisma migrations (not needed)"
@@ -374,19 +595,57 @@ if [[ "$app_key" == "talos" && -n "${legacy_pm2_name:-}" ]]; then
   pm2 delete "$legacy_pm2_name" 2>/dev/null || true
 fi
 
-# Step 5: Clear build caches (keep .next for incremental builds)
-log "Step 5: Clearing build caches (preserving Next.js cache)"
-rm -rf "$app_dir/.turbo" \
-       "$app_dir/.cache" \
-       "$app_dir/.swc" \
-       "$app_dir/node_modules/.cache" \
-       2>/dev/null || true
-log "Caches cleared (Next.js cache preserved for faster builds)"
+# Step 5: Clear build caches (optional; default is preserve for speed)
+clear_caches="${DEPLOY_CLEAR_CACHES:-false}"
+if is_truthy "$clear_caches"; then
+  log "Step 5: Clearing build caches (DEPLOY_CLEAR_CACHES=$clear_caches)"
+  rm -rf "$app_dir/.turbo" \
+         "$app_dir/.cache" \
+         "$app_dir/.swc" \
+         "$app_dir/node_modules/.cache" \
+         2>/dev/null || true
+  log "Caches cleared"
+else
+  log "Step 5: Preserving build caches for faster builds"
+fi
 
 # Step 6: Build the app
 log "Step 6: Building $app_key"
 cd "$REPO_DIR"
+set +e
 eval "$build_cmd"
+build_status=$?
+set -e
+
+if [[ "$build_status" -ne 0 ]]; then
+  error "Build failed (exit code $build_status)"
+
+  if [[ "$install_mode" == "auto_skip" ]]; then
+    warn "Retrying once after running pnpm install (initial install was auto-skipped)"
+    cd "$REPO_DIR"
+    pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+    if ! is_truthy "$clear_caches"; then
+      warn "Clearing caches before retry"
+      rm -rf "$app_dir/.turbo" \
+             "$app_dir/.cache" \
+             "$app_dir/.swc" \
+             "$app_dir/node_modules/.cache" \
+             2>/dev/null || true
+    fi
+
+    set +e
+    eval "$build_cmd"
+    build_status=$?
+    set -e
+  fi
+fi
+
+if [[ "$build_status" -ne 0 ]]; then
+  error "Build failed after retry (exit code $build_status)"
+  exit "$build_status"
+fi
+
 log "Build complete"
 
 # Step 7: Restart PM2 app
