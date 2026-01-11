@@ -20,15 +20,16 @@ export function PortalModal({ open, children, className }: PortalModalProps) {
   if (!open || !mounted) return null
 
   return createPortal(
-    <div
-      className={cn(
-        'fixed inset-0 z-[120] flex justify-center bg-black/50 p-4 backdrop-blur-sm',
-        className
-      )}
-      role="dialog"
-      aria-modal="true"
-    >
-      {children}
+    <div className="fixed inset-0 z-[9998]" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
+      <div
+        className={cn(
+          'relative z-10 flex h-full w-full justify-center p-4 items-center',
+          className
+        )}
+      >
+        {children}
+      </div>
     </div>,
     document.body
   )
