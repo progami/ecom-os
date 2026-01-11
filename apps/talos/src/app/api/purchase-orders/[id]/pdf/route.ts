@@ -103,6 +103,10 @@ async function renderPurchaseOrderPdf(params: {
   const pageHeight = doc.page.height // 841.89 for A4
   const margin = 50
   const contentWidth = pageWidth - margin * 2 // ~495
+  const contentBottomY = pageHeight - margin
+  const footerLineY = contentBottomY - 18
+  const footerTextY = footerLineY + 6
+  const bodyBottomY = footerLineY - 8
 
   // Pre-calculate totals
   const totalsByCurrency = new Map<string, number>()
@@ -273,6 +277,10 @@ async function renderPurchaseOrderPdf(params: {
     return atY + 18
   }
 
+  if (y + 18 > bodyBottomY) {
+    doc.addPage()
+    y = margin
+  }
   y = drawTableHeader(y)
 
   const rowHeight = 20
@@ -321,8 +329,7 @@ async function renderPurchaseOrderPdf(params: {
 
   // Draw all rows
   for (let i = 0; i < params.lines.length; i++) {
-    // Page break check - 50pt reserved for footer (footer at y=811, needs ~20pt)
-    if (rowY + rowHeight > pageHeight - 50) {
+    if (rowY + rowHeight > bodyBottomY) {
       doc.addPage()
       rowY = margin
       rowY = drawTableHeader(rowY)
@@ -340,7 +347,7 @@ async function renderPurchaseOrderPdf(params: {
 
   // Check if totals fit (need space for totals box + footer)
   const totalsHeight = 60 + totalsByCurrency.size * 18
-  if (y + totalsHeight > pageHeight - 50) {
+  if (y + totalsHeight > bodyBottomY) {
     doc.addPage()
     y = margin
   }
@@ -381,7 +388,7 @@ async function renderPurchaseOrderPdf(params: {
 
   if (params.notes?.trim()) {
     y = ty + 20
-    if (y + 60 > pageHeight - 50) {
+    if (y + 60 > bodyBottomY) {
       doc.addPage()
       y = margin
     }
@@ -403,14 +410,17 @@ async function renderPurchaseOrderPdf(params: {
 
   for (let i = 0; i < pageCount; i++) {
     doc.switchToPage(i)
-    const footerY = pageHeight - 30
-
-    doc.moveTo(margin, footerY).lineTo(pageWidth - margin, footerY).strokeColor(COLORS.accent).lineWidth(2).stroke()
+    doc
+      .moveTo(margin, footerLineY)
+      .lineTo(pageWidth - margin, footerLineY)
+      .strokeColor(COLORS.accent)
+      .lineWidth(2)
+      .stroke()
 
     doc.fillColor(COLORS.muted).fontSize(7).font('Helvetica')
-    doc.text(`Generated: ${timestamp}`, margin, footerY + 8)
-    doc.text(`Page ${i + 1} of ${pageCount}`, 0, footerY + 8, { width: pageWidth, align: 'center' })
-    doc.text('targon.io', pageWidth - margin - 50, footerY + 8, { width: 50, align: 'right' })
+    doc.text(`Generated: ${timestamp}`, margin, footerTextY)
+    doc.text(`Page ${i + 1} of ${pageCount}`, 0, footerTextY, { width: pageWidth, align: 'center' })
+    doc.text('targon.io', pageWidth - margin - 50, footerTextY, { width: 50, align: 'right' })
   }
 
   doc.end()
