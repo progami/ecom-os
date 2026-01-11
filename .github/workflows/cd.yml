@@ -84,42 +84,7 @@ jobs:
             echo "Changed files:"
             echo "$CHANGED_FILES"
 
-            ANY_APP=false
-
-            if echo "$CHANGED_FILES" | grep -q "^apps/sso/"; then
-              echo "sso=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/talos/"; then
-              echo "talos=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/website/"; then
-              echo "website=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/x-plan/"; then
-              echo "xplan=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/kairos/"; then
-              echo "kairos=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/atlas/"; then
-              echo "atlas=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^apps/plutus/"; then
-              echo "plutus=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^packages/"; then
-              echo "packages=true" >> "$GITHUB_OUTPUT"
-              ANY_APP=true
-            fi
-
-            echo "any_app=$ANY_APP" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "$CHANGED_FILES" | node scripts/detect-cd-affected-apps.js >> "$GITHUB_OUTPUT"
           fi
 
   build-metadata:
