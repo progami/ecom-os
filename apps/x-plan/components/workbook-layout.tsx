@@ -8,7 +8,7 @@ import type { WorkbookSheetStatus } from '@/lib/workbook';
 import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -223,47 +223,16 @@ export function WorkbookLayout({
     [pathname, resolvedYear, router, searchParams, startTransition],
   );
 
-  const activeYearIndex = useMemo(() => {
-    if (resolvedYear == null) return -1;
-    return sortedYears.findIndex((segment) => segment.year === resolvedYear);
-  }, [resolvedYear, sortedYears]);
-
-  const goToAdjacentYear = useCallback(
-    (offset: -1 | 1) => {
-      if (!sortedYears.length) return;
-      const fallbackIndex = resolvedYear == null ? 0 : activeYearIndex;
-      const currentIndex = fallbackIndex >= 0 ? fallbackIndex : 0;
-      const target = sortedYears[currentIndex + offset];
-      if (!target) return;
-      handleYearSelect(target.year);
-    },
-    [activeYearIndex, handleYearSelect, resolvedYear, sortedYears],
-  );
-
   const isYearAwareSheet = YEAR_AWARE_SHEETS.has(activeSlug);
 
   const yearSwitcher = useMemo(() => {
     if (!sortedYears.length || !isYearAwareSheet || resolvedYear == null) return null;
-    const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null;
-    const next =
-      activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1
-        ? sortedYears[activeYearIndex + 1]
-        : null;
 
     return (
       <div className={SHEET_TOOLBAR_GROUP}>
         <span className={SHEET_TOOLBAR_LABEL}>Year</span>
-        <button
-          type="button"
-          onClick={() => goToAdjacentYear(-1)}
-          className="flex h-6 w-6 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-          aria-label="Previous year"
-          disabled={!previous || isNavigationBusy}
-        >
-          <ChevronLeft aria-hidden className="h-3.5 w-3.5" />
-        </button>
         <select
-          className={`${SHEET_TOOLBAR_SELECT} min-w-[5.5rem]`}
+          className={SHEET_TOOLBAR_SELECT}
           value={String(resolvedYear)}
           onChange={(event) => handleYearSelect(Number(event.target.value))}
           disabled={isNavigationBusy}
@@ -276,26 +245,9 @@ export function WorkbookLayout({
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          onClick={() => goToAdjacentYear(1)}
-          className="flex h-6 w-6 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-          aria-label="Next year"
-          disabled={!next || isNavigationBusy}
-        >
-          <ChevronRight aria-hidden className="h-3.5 w-3.5" />
-        </button>
       </div>
     );
-  }, [
-    activeYearIndex,
-    goToAdjacentYear,
-    handleYearSelect,
-    isNavigationBusy,
-    isYearAwareSheet,
-    resolvedYear,
-    sortedYears,
-  ]);
+  }, [handleYearSelect, isNavigationBusy, isYearAwareSheet, resolvedYear, sortedYears]);
 
   const hasControls = Boolean(yearSwitcher || headerControls);
 
@@ -462,10 +414,10 @@ export function WorkbookLayout({
 
                   {/* Loading state */}
                   {showLoadingIndicator && (
-                    <div className="flex items-center gap-1">
-                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-cyan-700 dark:text-cyan-200/90">
-                        Loading…
+                    <div className="flex items-center gap-0.5">
+                      <div className="h-2 w-2 animate-spin rounded-full border border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+                      <span className="text-[9px] font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-300">
+                        Loading
                       </span>
                     </div>
                   )}
@@ -474,11 +426,11 @@ export function WorkbookLayout({
                   <ThemeToggle />
 
                   {/* X-Plan branding */}
-                  <div className="flex items-center gap-1">
-                    <div className="flex h-5 w-5 items-center justify-center rounded bg-brand-dark shadow-sm">
-                      <span className="text-[10px] font-bold text-white">X</span>
+                  <div className="flex items-center gap-0.5">
+                    <div className="flex h-4 w-4 items-center justify-center rounded bg-brand-dark">
+                      <span className="text-[9px] font-bold text-white">X</span>
                     </div>
-                    <h1 className="text-[13px] font-semibold text-slate-900 dark:text-white">
+                    <h1 className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
                       {activeSheet?.label ?? 'Workbook'}
                     </h1>
                   </div>
@@ -486,7 +438,7 @@ export function WorkbookLayout({
               </div>
 
               {hasControls && (
-                <div className="mt-1 flex flex-wrap items-center justify-end gap-1 border-t border-slate-200 pt-1 dark:border-[#0b3a52]">
+                <div className="mt-0.5 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-0.5 dark:border-slate-800">
                   {headerControls}
                   {yearSwitcher}
                 </div>
