@@ -217,6 +217,7 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
       where: { id },
       select: {
         id: true,
+        isDefault: true,
         createdById: true,
         createdByEmail: true,
         assigneeId: true,
@@ -354,8 +355,34 @@ export const DELETE = withXPlanAuth(async (request: Request, session) => {
     return NextResponse.json({ error: 'No access to strategy' }, { status: 403 });
   }
 
-  // Cascade delete is handled by Prisma schema
-  await prismaAny.strategy.delete({ where: { id } });
+  if (existing.isDefault) {
+    return NextResponse.json({ error: 'Default strategy cannot be deleted' }, { status: 400 });
+  }
+
+  // Avoid runtime crashes caused by legacy DB constraints lacking cascades.
+  await prismaAny.$transaction(async (tx: any) => {
+    await tx.batchTableRow.deleteMany({
+      where: { purchaseOrder: { strategyId: id } },
+    });
+    await tx.purchaseOrderPayment.deleteMany({
+      where: { purchaseOrder: { strategyId: id } },
+    });
+    await tx.logisticsEvent.deleteMany({
+      where: { purchaseOrder: { strategyId: id } },
+    });
+    await tx.purchaseOrder.deleteMany({ where: { strategyId: id } });
+    await tx.salesWeek.deleteMany({ where: { strategyId: id } });
+    await tx.leadTimeOverride.deleteMany({
+      where: { product: { strategyId: id } },
+    });
+    await tx.businessParameter.deleteMany({ where: { strategyId: id } });
+    await tx.profitAndLossWeek.deleteMany({ where: { strategyId: id } });
+    await tx.cashFlowWeek.deleteMany({ where: { strategyId: id } });
+    await tx.monthlySummary.deleteMany({ where: { strategyId: id } });
+    await tx.quarterlySummary.deleteMany({ where: { strategyId: id } });
+    await tx.product.deleteMany({ where: { strategyId: id } });
+    await tx.strategy.delete({ where: { id } });
+  });
 
   return NextResponse.json({ ok: true });
 });
