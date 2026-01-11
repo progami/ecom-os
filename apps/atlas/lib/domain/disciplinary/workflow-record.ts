@@ -59,7 +59,7 @@ function statusLabel(status: string): string {
   const map: Record<string, string> = {
     PENDING_HR_REVIEW: 'Pending HR review',
     PENDING_SUPER_ADMIN: 'Pending final approval',
-    PENDING_ACKNOWLEDGMENT: 'Pending acknowledgement',
+    PENDING_ACKNOWLEDGMENT: 'Pending acknowledgment',
     ACTIVE: 'Active',
     APPEAL_PENDING_HR: 'Appeal pending HR decision',
     APPEALED: 'Appealed',
@@ -115,7 +115,7 @@ function buildWorkflow(action: DisciplinaryWorkflowRecordInput): WorkflowRecordD
         : currentStageId === 'admin'
           ? 'Final approval'
         : currentStageId === 'ack'
-          ? 'Acknowledgement'
+          ? 'Acknowledgment'
           : 'Raised',
     stages: [
       { id: 'raised', label: 'Raised', status: stageStatus(order, currentStageId, 'raised') },
