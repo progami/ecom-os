@@ -37,7 +37,7 @@ export function KairosShell({ children }: { children: React.ReactNode }) {
               href="/forecasts"
               className="group flex items-center gap-2.5 transition-opacity hover:opacity-80"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 shadow-sm">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-dark shadow-sm">
                 <TrendingUp className="h-5 w-5 text-white" aria-hidden />
               </div>
               <div className="hidden sm:block">
