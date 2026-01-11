@@ -118,8 +118,14 @@ export function MainNav() {
  <div className="flex h-16 shrink-0 items-center justify-between">
  <div className="flex items-center gap-3">
  <Link href="/dashboard" scroll={false} prefetch={false} className="flex items-center gap-3">
- <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md ">
- <span className="text-lg font-bold text-white">T</span>
+ <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md">
+   <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+     <path
+       d="M 32.00 8.00 L 52.78 20.00 L 52.78 44.00 L 32.00 56.00 L 11.22 44.00 L 11.22 20.00 Z M 29.00 17.00 L 35.00 17.00 L 35.00 47.00 L 29.00 47.00 Z"
+       fill="#00C2B9"
+       fillRule="evenodd"
+     />
+   </svg>
  </div>
               <span className={cn("text-lg font-semibold text-slate-900 transition-all duration-300", isTabletCollapsed && "md:hidden lg:inline")}>Talos</span>
  </Link>
@@ -274,8 +280,14 @@ export function MainNav() {
  <div className="flex grow flex-col gap-y-5 overflow-y-auto scrollbar-gutter-stable bg-white px-6 pb-4">
  <div className="flex h-16 shrink-0 items-center">
  <Link href="/dashboard" scroll={false} prefetch={false} className="flex items-center gap-3">
- <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md ">
- <span className="text-lg font-bold text-white">T</span>
+ <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md">
+   <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+     <path
+       d="M 32.00 8.00 L 52.78 20.00 L 52.78 44.00 L 32.00 56.00 L 11.22 44.00 L 11.22 20.00 Z M 29.00 17.00 L 35.00 17.00 L 35.00 47.00 L 29.00 47.00 Z"
+       fill="#00C2B9"
+       fillRule="evenodd"
+     />
+   </svg>
  </div>
             <span className="text-lg font-semibold text-slate-900">Talos</span>
  </Link>
