@@ -17,8 +17,9 @@ COMMIT AND PR YOUR WORK TO DEV ON TOP.
 5. **Wait for GitHub CI to pass** - Ensure all checks pass on the main PR
 6. **Merge to main** - Merge the PR yourself without waiting for approval
 7. **Fast-forward dev to main** - Ensure `dev` and `main` are on the same commit
+8. **Delete merged branches** - Delete all feature/fix branches you created after they are merged (both remote and local)
 
-Always wait for CI to pass before merging. Merge PRs yourself without requiring approval.
+Always wait for CI to pass before merging. Merge PRs yourself without requiring approval. Always clean up your branches after merging.
 
 ## Deployment & Caching
 
