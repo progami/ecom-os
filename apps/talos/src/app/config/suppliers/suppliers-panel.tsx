@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Label } from '@/components/ui/label'
+import { PortalModal } from '@/components/ui/portal-modal'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Plus, Search, Trash2, Users } from '@/lib/lucide-icons'
@@ -374,164 +375,162 @@ export default function SuppliersPanel({
         )}
       </div>
 
-      {isModalOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
-          <div className="flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {editingSupplier ? 'Edit Supplier' : 'New Supplier'}
-              </h2>
-              <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
-                Close
-              </Button>
+      <PortalModal open={isModalOpen} className="items-center">
+        <div className="flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+          <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {editingSupplier ? 'Edit Supplier' : 'New Supplier'}
+            </h2>
+            <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
+              Close
+            </Button>
+          </div>
+
+          <form onSubmit={submitSupplier} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="supplier-name">Name</Label>
+                  <input
+                    id="supplier-name"
+                    value={formState.name}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, name: event.target.value }))
+                    }
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-contact">Contact Name</Label>
+                  <input
+                    id="supplier-contact"
+                    value={formState.contactName}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, contactName: event.target.value }))
+                    }
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-email">Email</Label>
+                  <input
+                    id="supplier-email"
+                    type="email"
+                    value={formState.email}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, email: event.target.value }))
+                    }
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-phone">Phone</Label>
+                  <input
+                    id="supplier-phone"
+                    value={formState.phone}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, phone: event.target.value }))
+                    }
+                    required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="supplier-address">Address</Label>
+                  <Textarea
+                    id="supplier-address"
+                    value={formState.address}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, address: event.target.value }))
+                    }
+                    required
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="supplier-notes">Notes</Label>
+                  <Textarea
+                    id="supplier-notes"
+                    value={formState.notes}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, notes: event.target.value }))
+                    }
+                    placeholder="Optional"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-payment-terms">Default Payment Terms</Label>
+                  <input
+                    id="supplier-payment-terms"
+                    value={formState.defaultPaymentTerms}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, defaultPaymentTerms: event.target.value }))
+                    }
+                    placeholder="e.g., Net 30, 50% deposit"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  />
+                  <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="supplier-incoterms">Default Incoterms</Label>
+                  <select
+                    id="supplier-incoterms"
+                    value={formState.defaultIncoterms}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, defaultIncoterms: event.target.value }))
+                    }
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                  >
+                    <option value="">None (select on PO)</option>
+                    {INCOTERMS_OPTIONS.map(option => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={submitSupplier} className="flex min-h-0 flex-1 flex-col">
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1 md:col-span-2">
-                    <Label htmlFor="supplier-name">Name</Label>
-                    <input
-                      id="supplier-name"
-                      value={formState.name}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, name: event.target.value }))
-                      }
-                      required
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                    />
-                  </div>
+            <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
+              <div />
 
-                  <div className="space-y-1">
-                    <Label htmlFor="supplier-contact">Contact Name</Label>
-                    <input
-                      id="supplier-contact"
-                      value={formState.contactName}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, contactName: event.target.value }))
-                      }
-                      required
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="supplier-email">Email</Label>
-                    <input
-                      id="supplier-email"
-                      type="email"
-                      value={formState.email}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, email: event.target.value }))
-                      }
-                      required
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="supplier-phone">Phone</Label>
-                    <input
-                      id="supplier-phone"
-                      value={formState.phone}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, phone: event.target.value }))
-                      }
-                      required
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                    />
-                  </div>
-
-                  <div className="space-y-1 md:col-span-2">
-                    <Label htmlFor="supplier-address">Address</Label>
-                    <Textarea
-                      id="supplier-address"
-                      value={formState.address}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, address: event.target.value }))
-                      }
-                      required
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="space-y-1 md:col-span-2">
-                    <Label htmlFor="supplier-notes">Notes</Label>
-                    <Textarea
-                      id="supplier-notes"
-                      value={formState.notes}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, notes: event.target.value }))
-                      }
-                      placeholder="Optional"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="supplier-payment-terms">Default Payment Terms</Label>
-                    <input
-                      id="supplier-payment-terms"
-                      value={formState.defaultPaymentTerms}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, defaultPaymentTerms: event.target.value }))
-                      }
-                      placeholder="e.g., Net 30, 50% deposit"
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                    />
-                    <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="supplier-incoterms">Default Incoterms</Label>
-                    <select
-                      id="supplier-incoterms"
-                      value={formState.defaultIncoterms}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, defaultIncoterms: event.target.value }))
-                      }
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                    >
-                      <option value="">None (select on PO)</option>
-                      {INCOTERMS_OPTIONS.map(option => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving…
+                    </span>
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
               </div>
-
-              <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
-                <div />
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeModal}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Saving…
-                      </span>
-                    ) : (
-                      'Save'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </PortalModal>
 
       <ConfirmDialog
         isOpen={confirmDelete !== null}
