@@ -62,7 +62,7 @@ type AppBase = {
 }
 
 type AppManifestEntry = {
-  lifecycle?: AppLifecycle
+  lifecycle?: AppLifecycle | 'archived'
 }
 
 type AppManifest = {
@@ -214,7 +214,7 @@ function resolveLifecycle(appId: string): AppLifecycle {
   if (manifestEntry?.lifecycle === 'dev') {
     return 'dev'
   }
-  if (manifestEntry?.lifecycle === 'archive') {
+  if (manifestEntry?.lifecycle === 'archive' || manifestEntry?.lifecycle === 'archived') {
     return 'archive'
   }
   if (manifestEntry?.lifecycle === 'active') {
