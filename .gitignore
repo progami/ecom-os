@@ -47,6 +47,7 @@ apps/archived/**/prisma/*.db*
 !apps/kairos/.env.dev.ci
 !apps/atlas/.env.dev.ci
 !apps/sso/.env.dev.ci
+!apps/plutus/.env.dev.ci
 
 # Editor
 .DS_Store

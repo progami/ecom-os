@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
   echo "Usage: deploy-app.sh <app-key> <environment>" >&2
-  echo "  app-key: talos, sso, website, xplan, kairos, atlas" >&2
+  echo "  app-key: talos, sso, website, xplan, kairos, atlas, plutus" >&2
   echo "  environment: dev, main" >&2
   exit 1
 fi
@@ -88,6 +88,13 @@ case "$app_key" in
     prisma_cmd="cd $app_dir && npx prisma generate"
     migrate_cmd="cd $app_dir && pnpm run db:migrate:deploy --schema prisma/schema.prisma"
     build_cmd="cd $app_dir && pnpm run build"
+    ;;
+  plutus)
+    workspace="@targon/plutus"
+    app_dir="$REPO_DIR/apps/plutus"
+    pm2_name="${PM2_PREFIX}-plutus"
+    prisma_cmd=""
+    build_cmd="pnpm --filter $workspace build"
     ;;
   *)
     echo "Unknown app key: $app_key" >&2
