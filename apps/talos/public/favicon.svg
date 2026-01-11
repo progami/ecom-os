@@ -1,20 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
-  <defs>
-    <linearGradient id="talos-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#002C51" />
-      <stop offset="1" stop-color="#001f3a" />
-    </linearGradient>
-  </defs>
-
-  <!-- Background -->
-  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#talos-bg)" />
-  <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#00C2B9" stroke-opacity="0.2" />
-
-  <!-- Hexagon with vertical slit (Talos eye/helmet) -->
-  <g transform="translate(32, 32)">
-    <!-- Outer hexagon -->
-    <path d="M0,-22 L19,-11 L19,11 L0,22 L-19,11 L-19,-11 Z" fill="#00C2B9" />
-    <!-- Vertical slit (negative space) -->
-    <rect x="-3" y="-18" width="6" height="36" fill="#002C51" />
-  </g>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Talos favicon">
+  <rect width="64" height="64" fill="#002C51"/>
+  <path d="M 32.00 8.00 L 52.78 20.00 L 52.78 44.00 L 32.00 56.00 L 11.22 44.00 L 11.22 20.00 Z M 29.00 17.00 L 35.00 17.00 L 35.00 47.00 L 29.00 47.00 Z" fill="#00C2B9" fill-rule="evenodd"/>
 </svg>

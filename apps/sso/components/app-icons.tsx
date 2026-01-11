@@ -8,26 +8,11 @@ import type { ReactNode } from 'react'
 /** Talos (WMS): Hexagon with vertical slit - the watchful eye of the automaton */
 export const TalosIcon = (
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
-    {/* Solid hexagon body */}
+    {/* Hexagon with vertical slit cutout using evenodd fill-rule */}
     <path
-      d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z"
+      d="M 12 3 L 19.8 7.5 L 19.8 16.5 L 12 21 L 4.2 16.5 L 4.2 7.5 Z M 10.9 6.4 L 13.1 6.4 L 13.1 17.6 L 10.9 17.6 Z"
       fill="currentColor"
-      opacity="0.85"
-    />
-    {/* Vertical slit - the eye */}
-    <path
-      d="M12 5V19"
-      stroke="var(--icon-bg, #002C51)"
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
-    {/* Subtle highlight for depth */}
-    <path
-      d="M12 2L21.5 7.5V16.5L12 22L2.5 16.5V7.5L12 2Z"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      strokeLinejoin="round"
+      fillRule="evenodd"
     />
   </svg>
 )
