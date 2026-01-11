@@ -25,6 +25,13 @@ if (!isTruthy(process.env.SKIP_DOTENV)) {
   });
 }
 
+// Backward-compat / safety: prefer NEXTAUTH_URL when NEXT_PUBLIC_APP_URL isn't set.
+// This prevents crashes during deploys when only NEXTAUTH_URL is configured.
+if (!process.env.NEXT_PUBLIC_APP_URL && process.env.NEXTAUTH_URL) {
+  process.env.NEXT_PUBLIC_APP_URL = process.env.NEXTAUTH_URL;
+}
+
+
 const basePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || ''
 
 if (basePath && typeof global.fetch === 'function') {

@@ -1145,6 +1145,9 @@ importers:
 
   packages/theme:
     devDependencies:
+      tailwindcss:
+        specifier: ^3.4.0
+        version: 3.4.17(ts-node@10.9.2(@swc/core@1.13.5(@swc/helpers@0.5.17))(@types/node@24.3.3)(typescript@5.9.3))
       typescript:
         specifier: 5.9.3
         version: 5.9.3
