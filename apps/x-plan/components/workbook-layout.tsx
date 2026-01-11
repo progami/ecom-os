@@ -251,19 +251,19 @@ export function WorkbookLayout({
         : null;
 
     return (
-      <div className={`${SHEET_TOOLBAR_GROUP} gap-1`}>
+      <div className={SHEET_TOOLBAR_GROUP}>
         <span className={SHEET_TOOLBAR_LABEL}>Year</span>
         <button
           type="button"
           onClick={() => goToAdjacentYear(-1)}
-          className="flex h-7 w-7 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-400 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+          className="flex h-6 w-6 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
           aria-label="Previous year"
           disabled={!previous || isNavigationBusy}
         >
-          <ChevronLeft aria-hidden className="h-4 w-4" />
+          <ChevronLeft aria-hidden className="h-3.5 w-3.5" />
         </button>
         <select
-          className={`${SHEET_TOOLBAR_SELECT} min-w-[6rem]`}
+          className={`${SHEET_TOOLBAR_SELECT} min-w-[5.5rem]`}
           value={String(resolvedYear)}
           onChange={(event) => handleYearSelect(Number(event.target.value))}
           disabled={isNavigationBusy}
@@ -279,11 +279,11 @@ export function WorkbookLayout({
         <button
           type="button"
           onClick={() => goToAdjacentYear(1)}
-          className="flex h-7 w-7 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-400 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+          className="flex h-6 w-6 items-center justify-center rounded border border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
           aria-label="Next year"
           disabled={!next || isNavigationBusy}
         >
-          <ChevronRight aria-hidden className="h-4 w-4" />
+          <ChevronRight aria-hidden className="h-3.5 w-3.5" />
         </button>
       </div>
     );
