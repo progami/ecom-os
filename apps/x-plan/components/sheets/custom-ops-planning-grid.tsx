@@ -179,6 +179,41 @@ function resolveStageEnd(row: OpsInputRow, stage: StageWeeksKey): Date | null {
   return addWeeks(start, weeks);
 }
 
+/**
+ * Calculate weeks from date differences (for read-only weeks display).
+ * - productionWeeks = (productionComplete - productionStart) / 7
+ * - sourceWeeks = (sourceDeparture - productionComplete) / 7
+ * - oceanWeeks = (portEta - sourceDeparture) / 7
+ * - finalWeeks = (availableDate - portEta) / 7
+ */
+function calculateWeeksFromDates(row: OpsInputRow, stageKey: StageWeeksKey): number | null {
+  const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageKey);
+  if (stageIndex < 0) return null;
+
+  const stage = STAGE_CONFIG[stageIndex];
+  const endDate = parseIsoDate(row[stage.overrideKey]);
+  if (!endDate) return null;
+
+  let startDate: Date | null = null;
+
+  if (stageKey === 'productionWeeks') {
+    // Manufacturing weeks: from productionStart to productionComplete
+    startDate = parseIsoDate(row.productionStart);
+  } else {
+    // Other stages: from previous stage end to this stage end
+    const prevStage = STAGE_CONFIG[stageIndex - 1];
+    if (prevStage) {
+      startDate = parseIsoDate(row[prevStage.overrideKey]);
+    }
+  }
+
+  if (!startDate) return null;
+
+  const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+  const diffMs = endDate.getTime() - startDate.getTime();
+  return diffMs / MS_PER_WEEK;
+}
+
 function recomputeStageDates(
   record: OpsInputRow,
   entry: { values: Record<string, string | null> },
@@ -413,10 +448,17 @@ function cellDomId(rowId: string, colKey: keyof OpsInputRow): string {
 }
 
 function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
-  if (column.type === 'stage' && stageMode === 'dates') {
-    const stageField = column.key as StageWeeksKey;
-    const endDate = resolveStageEnd(row, stageField);
-    return toIsoDate(endDate) ?? '';
+  if (column.type === 'stage') {
+    if (stageMode === 'dates') {
+      // Return the date override field directly for editing
+      const stageField = column.key as StageWeeksKey;
+      const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+      return row[overrideField] ?? '';
+    } else {
+      // Weeks mode is read-only, but return calculated value for display
+      const weeks = calculateWeeksFromDates(row, column.key as StageWeeksKey);
+      return weeks !== null ? formatNumericInput(weeks, 2) : '';
+    }
   }
 
   if (column.type === 'date') {
@@ -436,11 +478,19 @@ function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageM
 }
 
 function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
-  if (column.type === 'stage' && stageMode === 'dates') {
-    const stageField = column.key as StageWeeksKey;
-    const endDate = resolveStageEnd(row, stageField);
-    const iso = toIsoDate(endDate);
-    return iso ? formatDateDisplay(iso) : '';
+  if (column.type === 'stage') {
+    if (stageMode === 'weeks') {
+      // Calculate weeks from dates (read-only derived value)
+      const weeks = calculateWeeksFromDates(row, column.key as StageWeeksKey);
+      if (weeks === null) return '';
+      return formatNumericInput(weeks, 2);
+    } else {
+      // Show the date
+      const stageField = column.key as StageWeeksKey;
+      const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+      const dateValue = row[overrideField];
+      return dateValue ? formatDateDisplay(dateValue) : '';
+    }
   }
 
   if (column.type === 'date') {
@@ -530,7 +580,9 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
     >
       {COLUMNS.map((column, colIndex) => {
         const isEditing = editingColKey === column.key;
-        const isEditable = column.editable !== false;
+        // Stage columns are read-only in weeks mode (weeks are calculated from dates)
+        const isStageInWeeksMode = column.type === 'stage' && stageMode === 'weeks';
+        const isEditable = column.editable !== false && !isStageInWeeksMode;
         const isDateCell =
           column.type === 'date' || (column.type === 'stage' && stageMode === 'dates');
         const isDropdownCell = column.type === 'dropdown';
@@ -975,51 +1027,60 @@ export function CustomOpsPlanningGrid({
       }
       const entry = pendingRef.current.get(rowId)!;
 
-      // Handle stage columns in date mode
+      // Handle stage columns in date mode (weeks mode is read-only)
       if (column.type === 'stage' && stageMode === 'dates') {
         const stageField = colKey as StageWeeksKey;
         const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
         const iso = finalValue;
 
         if (!iso) {
+          // Clear the date
           if ((row[overrideField] ?? '') !== '') {
             entry.values[overrideField] = '';
+            entry.values[colKey] = ''; // Also clear the weeks
           }
         } else {
-          const picked = new Date(`${iso}T00:00:00Z`);
-          const stageStart = resolveStageStart(row, stageField);
-          if (stageStart) {
-            if (picked.getTime() < stageStart.getTime()) {
-              toast.error('Stage end date cannot be before the stage start');
-              cancelEditing();
-              return;
+          // Save the date and calculate weeks from date difference
+          const endDate = new Date(`${iso}T00:00:00Z`);
+
+          // Determine start date based on stage
+          let startDate: Date | null = null;
+          if (stageField === 'productionWeeks') {
+            // Manufacturing: from productionStart to productionComplete
+            startDate = parseIsoDate(row.productionStart);
+          } else {
+            // Other stages: from previous stage end date
+            const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageField);
+            if (stageIndex > 0) {
+              const prevStage = STAGE_CONFIG[stageIndex - 1];
+              startDate = parseIsoDate(row[prevStage.overrideKey]);
             }
-            const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000);
-            const weeks = diffDays / 7;
-            if (weeks < 0) {
-              toast.error('Stage weeks cannot be negative');
-              cancelEditing();
-              return;
-            }
-            const normalized = formatNumericInput(weeks, 2);
+          }
+
+          if (startDate && endDate.getTime() < startDate.getTime()) {
+            toast.error('End date cannot be before the start date');
+            cancelEditing();
+            return;
+          }
+
+          // Save the date
+          if ((row[overrideField] ?? '') !== iso) {
+            entry.values[overrideField] = iso;
+          }
+
+          // Calculate and save weeks (for database consistency)
+          if (startDate) {
+            const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+            const weeks = (endDate.getTime() - startDate.getTime()) / MS_PER_WEEK;
+            const normalized = formatNumericInput(Math.max(0, weeks), 2);
             if (row[colKey] !== normalized) {
               entry.values[colKey] = normalized;
             }
           }
-          if ((row[overrideField] ?? '') !== iso) {
-            entry.values[overrideField] = iso ?? '';
-          }
         }
       } else if (NUMERIC_FIELDS.has(colKey)) {
+        // Stage weeks are now read-only, so this only handles other numeric fields
         entry.values[colKey] = finalValue;
-
-        // Clear override if weeks changed
-        if ((colKey as string) in STAGE_OVERRIDE_FIELDS) {
-          const overrideField = STAGE_OVERRIDE_FIELDS[colKey as StageWeeksKey];
-          if ((row[overrideField] ?? '') !== '') {
-            entry.values[overrideField] = '';
-          }
-        }
       } else if (DATE_FIELDS.has(colKey)) {
         entry.values[colKey] = finalValue;
       } else {
@@ -1032,17 +1093,18 @@ export function CustomOpsPlanningGrid({
         updatedRow[key as keyof OpsInputRow] = val as any;
       }
 
-      // Recompute stage dates if necessary
-      const needsStageRecompute =
-        colKey === 'poDate' || (colKey as string) in STAGE_OVERRIDE_FIELDS;
-      if (needsStageRecompute) {
-        const anchorStage =
-          column.type === 'stage' && stageMode === 'dates' ? (colKey as StageWeeksKey) : null;
-        updatedRow = recomputeStageDates(
-          updatedRow,
-          entry as { values: Record<string, string | null> },
-          { anchorStage },
-        );
+      // Recalculate weeks when relevant dates change (for database consistency)
+      // productionStart affects productionWeeks
+      // Each stage date affects the next stage's weeks
+      if (colKey === 'productionStart') {
+        const weeks = calculateWeeksFromDates(updatedRow, 'productionWeeks');
+        if (weeks !== null) {
+          const normalized = formatNumericInput(weeks, 2);
+          if (updatedRow.productionWeeks !== normalized) {
+            entry.values.productionWeeks = normalized;
+            updatedRow.productionWeeks = normalized;
+          }
+        }
       }
 
       if (Object.keys(entry.values).length === 0) {
@@ -1491,7 +1553,14 @@ export function CustomOpsPlanningGrid({
         }
         const entry = pendingRef.current.get(update.rowId)!;
 
-        if (column.type === 'stage' && stageMode === 'dates') {
+        // Stage columns: only allow paste in dates mode, weeks mode is read-only
+        if (column.type === 'stage') {
+          if (stageMode === 'weeks') {
+            // Skip - weeks are read-only (calculated from dates)
+            continue;
+          }
+
+          // Dates mode - paste date and calculate weeks
           const stageField = column.key as StageWeeksKey;
           const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
           const row = updatedRows[rowIndex];
@@ -1508,11 +1577,25 @@ export function CustomOpsPlanningGrid({
             updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate };
             entry.values[overrideField] = pastedDate;
 
-            const stageStart = resolveStageStart(row, stageField);
-            if (stageStart) {
-              const picked = new Date(`${pastedDate}T00:00:00Z`);
-              const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000);
-              const weeks = Math.max(0, diffDays / 7);
+            // Calculate weeks from dates (using new model)
+            const endDate = new Date(`${pastedDate}T00:00:00Z`);
+            let startDate: Date | null = null;
+
+            if (stageField === 'productionWeeks') {
+              // Manufacturing: from productionStart to productionComplete
+              startDate = parseIsoDate(row.productionStart);
+            } else {
+              // Other stages: from previous stage end date
+              const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageField);
+              if (stageIndex > 0) {
+                const prevStage = STAGE_CONFIG[stageIndex - 1];
+                startDate = parseIsoDate(row[prevStage.overrideKey]);
+              }
+            }
+
+            if (startDate) {
+              const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
+              const weeks = Math.max(0, (endDate.getTime() - startDate.getTime()) / MS_PER_WEEK);
               const normalizedWeeks = formatNumericInput(weeks, 2);
 
               undoEdits.push({
@@ -1536,7 +1619,7 @@ export function CustomOpsPlanningGrid({
           }
         }
 
-        if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
+        if (column.type === 'numeric') {
           const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2;
           finalValue = normalizeNumeric(finalValue, precision);
         }
