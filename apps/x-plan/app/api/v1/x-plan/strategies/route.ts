@@ -327,6 +327,7 @@ export const DELETE = withXPlanAuth(async (request: Request, session) => {
       where: { id },
       select: {
         id: true,
+        isDefault: true,
         createdById: true,
         createdByEmail: true,
         assigneeId: true,
