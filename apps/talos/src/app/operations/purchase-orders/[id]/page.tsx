@@ -48,7 +48,6 @@ import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { withBasePath } from '@/lib/utils/base-path'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
 // 5-Stage State Machine Types
@@ -1507,18 +1506,22 @@ export default function PurchaseOrderDetailPage() {
 
     try {
       setPdfDownloading(true)
-      const response = await fetch(withBasePath(`/api/purchase-orders/${order.id}/pdf`), {
+      const response = await fetch(`/api/purchase-orders/${order.id}/pdf`, {
         method: 'GET',
         credentials: 'include',
       })
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        toast.error(payload?.error ?? 'Failed to download PDF')
+        const payload = await response.clone().json().catch(() => null)
+        toast.error(payload?.error ?? `Failed to download PDF (HTTP ${response.status})`)
         return
       }
 
       const blob = await response.blob()
+      if (!blob.size) {
+        toast.error('Failed to download PDF (empty file)')
+        return
+      }
       const disposition = response.headers.get('Content-Disposition') ?? ''
       const match = disposition.match(/filename="?([^\";]+)"?/i)
       const headerFilename = match?.[1]?.trim()
