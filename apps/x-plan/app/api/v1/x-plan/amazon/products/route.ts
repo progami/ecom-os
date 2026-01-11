@@ -40,8 +40,8 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
       {
         error:
           region === 'UK'
-            ? 'TALOS_DATABASE_URL_UK (or legacy WMS_DATABASE_URL_UK) is not configured'
-            : 'TALOS_DATABASE_URL_US (or legacy WMS_DATABASE_URL_US) is not configured',
+            ? 'TALOS_DATABASE_URL_UK is not configured'
+            : 'TALOS_DATABASE_URL_US is not configured',
       },
       { status: 501 },
     );
