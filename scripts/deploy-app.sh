@@ -375,14 +375,19 @@ fi
 
 # Step 3b: Apply Prisma migrations if needed
 if [[ -n "$migrate_cmd" ]]; then
-  log "Step 3b: Applying Prisma migrations"
+  if [[ "$app_key" == "atlas" && "$environment" == "dev" ]]; then
+    log "Step 3b: Syncing Atlas database schema (dev)"
+  else
+    log "Step 3b: Applying Prisma migrations"
+  fi
   if ensure_database_url; then
     cd "$REPO_DIR"
     if [[ "$app_key" == "atlas" && "$environment" == "dev" ]]; then
-      if eval "$migrate_cmd"; then
-        log "Migrations applied"
+      if eval "cd $app_dir && pnpm exec prisma db push --schema prisma/schema.prisma --accept-data-loss --skip-generate"; then
+        log "Database schema synced"
       else
-        warn "Prisma migrations failed for atlas dev; continuing without blocking deployment"
+        error "Prisma db push failed for atlas dev; aborting deployment to avoid a broken app"
+        exit 1
       fi
     else
       eval "$migrate_cmd"
