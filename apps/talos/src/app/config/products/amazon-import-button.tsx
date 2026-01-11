@@ -75,12 +75,16 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
 
       {isOpen && mounted
         ? createPortal(
-            <div className="fixed inset-0 z-[100] overflow-y-auto">
-              <div className="flex min-h-screen items-center justify-center px-4 py-12 text-center sm:block sm:p-0">
-                <div className="fixed inset-0 bg-slate-500/75 transition-opacity" onClick={handleClose} />
+            <div className="fixed inset-0 z-[100] bg-black/50">
+              <div className="flex h-full w-full items-center justify-center p-4">
+                <div
+                  className="fixed inset-0"
+                  onClick={handleClose}
+                  aria-hidden="true"
+                />
 
-                <div className="relative inline-block w-full max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:align-middle">
-                  <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                <div className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-xl">
+                  <div className="px-6 pb-4 pt-5">
                     <div className="mb-4 flex items-center justify-between">
                       <h3 className="text-lg font-medium text-slate-900">Import Products from Amazon</h3>
                       <Button
@@ -153,18 +157,17 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                     </div>
                   </div>
 
-                  <div className="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-                    <Button onClick={handleImport} disabled={importing} className="w-full sm:ml-3 sm:w-auto gap-2">
-                      {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                      {importing ? 'Importing…' : 'Import'}
-                    </Button>
+                  <div className="flex justify-end gap-3 border-t bg-slate-50 px-6 py-4">
                     <Button
                       onClick={handleClose}
                       variant="outline"
                       disabled={importing}
-                      className="mt-3 w-full sm:mt-0 sm:w-auto"
                     >
                       Close
+                    </Button>
+                    <Button onClick={handleImport} disabled={importing} className="gap-2">
+                      {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {importing ? 'Importing…' : 'Import'}
                     </Button>
                   </div>
                 </div>
