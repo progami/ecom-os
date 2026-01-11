@@ -23,7 +23,7 @@ const envLogDir = process.env.RUN_DEV_LOG_DIR && process.env.RUN_DEV_LOG_DIR.tri
 const logDir = envLogDir ? path.resolve(envLogDir) : path.resolve(__dirname, '..', 'logs')
 fs.mkdirSync(logDir, { recursive: true })
 
-const defaultLogs = envLogDir ? [] : ['targon', 'atlas', 'talos']
+const defaultLogs = envLogDir ? [] : ['sso', 'atlas', 'talos']
 for (const name of defaultLogs) {
   const file = path.join(logDir, `${name}.log`)
   try {

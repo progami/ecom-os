@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 declare -a required_dev_host_files=(
-  "apps/targon/.env.dev"
+  "apps/sso/.env.dev"
   "apps/talos/.env.dev"
   "apps/x-plan/.env.dev"
 )
@@ -45,9 +45,9 @@ for file in "${required_dev_host_files[@]}"; do
     "Prod host https://targonos.targonglobal.com must not appear in"
 done
 
-require_contains "apps/targon/.env.dev" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
+require_contains "apps/sso/.env.dev" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
   "PORTAL_APPS_CONFIG must point at dev.apps.json in"
-require_contains "apps/targon/.env.local" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
+require_contains "apps/sso/.env.local" '^PORTAL_APPS_CONFIG=dev\.apps\.json$' \
   "PORTAL_APPS_CONFIG must point at dev.apps.json in"
 
 if [[ $has_error -eq 1 ]]; then
