@@ -35,6 +35,7 @@ export type OpsInputRow = {
   productId: string;
   orderCode: string;
   poDate: string;
+  productionStart: string;
   productionComplete: string;
   sourceDeparture: string;
   portEta: string;
@@ -57,7 +58,6 @@ export type OpsInputRow = {
   referralRate: string;
   storagePerMonth: string;
   status: string;
-  notes: string;
 };
 
 interface CustomOpsPlanningGridProps {
@@ -126,6 +126,7 @@ const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
 
 const DATE_FIELDS = new Set<keyof OpsInputRow>([
   'poDate',
+  'productionStart',
   'pay1Date',
   'productionComplete',
   'sourceDeparture',
@@ -318,7 +319,7 @@ function formatPurchaseOrderStatus(value: string): string {
 
 const COLUMNS: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 150, type: 'text', editable: true },
-  { key: 'poDate', header: 'PO Date', width: 150, type: 'date', editable: true },
+  { key: 'poDate', header: 'PO Date', width: 130, type: 'date', editable: true },
   { key: 'shipName', header: 'Ship', width: 160, type: 'text', editable: true },
   { key: 'containerNumber', header: 'Container #', width: 160, type: 'text', editable: true },
   {
@@ -329,11 +330,12 @@ const COLUMNS: ColumnDef[] = [
     editable: true,
     options: PURCHASE_ORDER_STATUS_OPTIONS,
   },
+  { key: 'productionStart', header: 'Mfg Start', width: 130, type: 'date', editable: true },
   {
     key: 'productionWeeks',
-    header: 'Prod.',
-    headerWeeks: 'Prod (wk)',
-    headerDates: 'Prod Done',
+    header: 'Manufacturing',
+    headerWeeks: 'Mfg (wk)',
+    headerDates: 'Mfg Done',
     width: 130,
     type: 'stage',
     editable: true,
@@ -343,7 +345,7 @@ const COLUMNS: ColumnDef[] = [
     key: 'sourceWeeks',
     header: 'Ocean Departure',
     headerWeeks: 'Depart (wk)',
-    headerDates: 'Depart',
+    headerDates: 'Departure',
     width: 130,
     type: 'stage',
     editable: true,
@@ -351,9 +353,9 @@ const COLUMNS: ColumnDef[] = [
   },
   {
     key: 'oceanWeeks',
-    header: 'Ocean',
-    headerWeeks: 'ETA (wk)',
-    headerDates: 'ETA',
+    header: 'Ocean Transit',
+    headerWeeks: 'Arrival (wk)',
+    headerDates: 'Port Arrival',
     width: 130,
     type: 'stage',
     editable: true,
@@ -361,15 +363,14 @@ const COLUMNS: ColumnDef[] = [
   },
   {
     key: 'finalWeeks',
-    header: 'Warehouse Arrival',
+    header: 'Final Delivery',
     headerWeeks: 'WH (wk)',
-    headerDates: 'WH',
+    headerDates: 'Warehouse',
     width: 130,
     type: 'stage',
     editable: true,
     precision: 2,
   },
-  { key: 'notes', header: 'Notes', width: 200, type: 'text', editable: true },
 ];
 
 type StageMode = 'weeks' | 'dates';

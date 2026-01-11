@@ -209,6 +209,8 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         version: true,
         updatedAt: true,
         effectiveDate: true,
+        summary: true,
+        category: true,
       },
     })
 
@@ -240,9 +242,13 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         type: 'POLICY_ACK_REQUIRED',
         typeLabel: toTypeLabel('POLICY_ACK_REQUIRED'),
         title: 'Policy acknowledgment required',
-        description: `Acknowledge “${policy.title}” (v${policy.version})`,
+        description: `Acknowledge "${policy.title}" (v${policy.version})`,
         href: `/policies/${policy.id}`,
         entity: { type: 'POLICY', id: policy.id },
+        entityData: {
+          summary: policy.summary ?? undefined,
+          category: policy.category ?? undefined,
+        },
         stageLabel: toStageLabel('POLICY_ACK_REQUIRED'),
         createdAt,
         dueAt,
@@ -271,6 +277,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       startDate: true,
       endDate: true,
       totalDays: true,
+      reason: true,
       employee: { select: { firstName: true, lastName: true } },
     },
   })
@@ -290,6 +297,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
       href: `/leaves/${req.id}`,
       entity: { type: 'LEAVE_REQUEST', id: req.id },
+      entityData: {
+        reason: req.reason ?? undefined,
+      },
       stageLabel: toStageLabel('LEAVE_PENDING_MANAGER'),
       createdAt,
       dueAt,
@@ -314,6 +324,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         startDate: true,
         endDate: true,
         totalDays: true,
+        reason: true,
         employee: { select: { firstName: true, lastName: true } },
       },
     })
@@ -333,6 +344,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
         href: `/leaves/${req.id}`,
         entity: { type: 'LEAVE_REQUEST', id: req.id },
+        entityData: {
+          reason: req.reason ?? undefined,
+        },
         stageLabel: toStageLabel('LEAVE_PENDING_HR'),
         createdAt,
         dueAt,
@@ -358,6 +372,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         startDate: true,
         endDate: true,
         totalDays: true,
+        reason: true,
         employee: { select: { firstName: true, lastName: true } },
       },
     })
@@ -377,6 +392,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
         href: `/leaves/${req.id}`,
         entity: { type: 'LEAVE_REQUEST', id: req.id },
+        entityData: {
+          reason: req.reason ?? undefined,
+        },
         stageLabel: toStageLabel('LEAVE_PENDING_SUPER_ADMIN'),
         createdAt,
         dueAt,
@@ -400,6 +418,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         id: true,
         createdAt: true,
         submittedAt: true,
+        reviewType: true,
+        overallRating: true,
+        strengths: true,
         employee: { select: { firstName: true, lastName: true } },
       },
     })
@@ -416,6 +437,11 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         description: `Review for ${review.employee.firstName} ${review.employee.lastName}`,
         href: `/performance/reviews/${review.id}`,
         entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+        entityData: {
+          reviewType: review.reviewType ?? undefined,
+          overallRating: review.overallRating ?? undefined,
+          strengths: review.strengths ?? undefined,
+        },
         stageLabel: toStageLabel('REVIEW_PENDING_HR'),
         createdAt,
         dueAt: null,
@@ -439,6 +465,8 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         createdAt: true,
         reportedDate: true,
         severity: true,
+        description: true,
+        violationType: true,
         employee: { select: { firstName: true, lastName: true } },
       },
     })
@@ -455,6 +483,11 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
         href: `/performance/violations/${action.id}`,
         entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+        entityData: {
+          description: action.description ?? undefined,
+          violationType: action.violationType ?? undefined,
+          severity: action.severity ?? undefined,
+        },
         stageLabel: toStageLabel('VIOLATION_PENDING_HR'),
         createdAt,
         dueAt: null,
@@ -480,6 +513,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         createdAt: true,
         submittedAt: true,
         hrReviewedAt: true,
+        reviewType: true,
+        overallRating: true,
+        strengths: true,
         employee: { select: { firstName: true, lastName: true } },
       },
     })
@@ -496,6 +532,11 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         description: `Review for ${review.employee.firstName} ${review.employee.lastName}`,
         href: `/performance/reviews/${review.id}`,
         entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+        entityData: {
+          reviewType: review.reviewType ?? undefined,
+          overallRating: review.overallRating ?? undefined,
+          strengths: review.strengths ?? undefined,
+        },
         stageLabel: toStageLabel('REVIEW_PENDING_SUPER_ADMIN'),
         createdAt,
         dueAt: null,
@@ -520,6 +561,8 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         reportedDate: true,
         hrReviewedAt: true,
         severity: true,
+        description: true,
+        violationType: true,
         employee: { select: { firstName: true, lastName: true } },
       },
     })
@@ -536,6 +579,11 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
         href: `/performance/violations/${action.id}`,
         entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+        entityData: {
+          description: action.description ?? undefined,
+          violationType: action.violationType ?? undefined,
+          severity: action.severity ?? undefined,
+        },
         stageLabel: toStageLabel('VIOLATION_PENDING_SUPER_ADMIN'),
         createdAt,
         dueAt: null,
@@ -560,6 +608,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       id: true,
       createdAt: true,
       hrReviewedAt: true,
+      reviewType: true,
+      overallRating: true,
+      strengths: true,
     },
   })
 
@@ -575,6 +626,11 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       description: 'A performance review is awaiting your acknowledgment',
       href: `/performance/reviews/${review.id}`,
       entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+      entityData: {
+        reviewType: review.reviewType ?? undefined,
+        overallRating: review.overallRating ?? undefined,
+        strengths: review.strengths ?? undefined,
+      },
       stageLabel: toStageLabel('REVIEW_ACK_REQUIRED'),
       createdAt,
       dueAt: null,
@@ -604,6 +660,9 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       employeeId: true,
       employeeAcknowledged: true,
       managerAcknowledged: true,
+      description: true,
+      violationType: true,
+      severity: true,
       employee: { select: { firstName: true, lastName: true, reportsToId: true } },
     },
   })
@@ -627,6 +686,11 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       description: `Acknowledge ${who} violation record`,
       href: `/performance/violations/${action.id}`,
       entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+      entityData: {
+        description: action.description ?? undefined,
+        violationType: action.violationType ?? undefined,
+        severity: action.severity ?? undefined,
+      },
       stageLabel: toStageLabel('VIOLATION_ACK_REQUIRED'),
       createdAt,
       dueAt: null,
