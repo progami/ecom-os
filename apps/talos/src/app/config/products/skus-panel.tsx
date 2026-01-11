@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PortalModal } from '@/components/ui/portal-modal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
@@ -524,311 +525,309 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         )}
       </div>
 
-      {isModalOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-start justify-center bg-black/50 p-4">
-          <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {editingSku ? 'Edit SKU' : 'New SKU'}
-              </h2>
-              <div className="flex items-center gap-3">
-                {editingSku ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      closeModal()
-                      router.push(
-                        `/config/products/batches?skuId=${encodeURIComponent(editingSku.id)}`
-                      )
-                    }}
-                    disabled={isSubmitting}
-                  >
-                    View Batches
-                  </Button>
-                ) : null}
-                <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
-                  Close
+      <PortalModal open={isModalOpen} className="items-start">
+        <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+          <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
+            <h2 className="text-lg font-semibold text-slate-900">
+              {editingSku ? 'Edit SKU' : 'New SKU'}
+            </h2>
+            <div className="flex items-center gap-3">
+              {editingSku ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    closeModal()
+                    router.push(
+                      `/config/products/batches?skuId=${encodeURIComponent(editingSku.id)}`
+                    )
+                  }}
+                  disabled={isSubmitting}
+                >
+                  View Batches
                 </Button>
+              ) : null}
+              <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
+                Close
+              </Button>
+            </div>
+          </div>
+
+          <form onSubmit={submitSku} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex-1 space-y-6 overflow-y-auto p-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="skuCode">SKU Code</Label>
+                  <Input
+                    id="skuCode"
+                    value={formState.skuCode}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, skuCode: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="asin">ASIN</Label>
+                  <Input
+                    id="asin"
+                    value={formState.asin}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, asin: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    value={formState.description}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, description: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="md:col-span-2 pt-2">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Amazon Listing Defaults{' '}
+                    <span className="text-slate-400 font-normal">(optional)</span>
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Used by Amazon → FBA Fee Discrepancies (size tier/fees are set per batch).
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="amazonCategory">Category</Label>
+                  <Input
+                    id="amazonCategory"
+                    value={formState.amazonCategory}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, amazonCategory: event.target.value }))
+                    }
+                    placeholder="e.g. Home & Kitchen"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
+                  <Input
+                    id="amazonReferralFeePercent"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={formState.amazonReferralFeePercent}
+                    onChange={event =>
+                      setFormState(prev => ({
+                        ...prev,
+                        amazonReferralFeePercent: event.target.value,
+                      }))
+                    }
+                    placeholder="e.g. 15"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="defaultSupplierId">Default Supplier</Label>
+                  <select
+                    id="defaultSupplierId"
+                    value={formState.defaultSupplierId}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, defaultSupplierId: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={suppliersLoading}
+                  >
+                    <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="secondarySupplierId">Secondary Supplier</Label>
+                  <select
+                    id="secondarySupplierId"
+                    value={formState.secondarySupplierId}
+                    onChange={event =>
+                      setFormState(prev => ({
+                        ...prev,
+                        secondarySupplierId: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={suppliersLoading}
+                  >
+                    <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
+                    {suppliers.map(supplier => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                  {editingSku ? (
+                    <>
+                      Batch-specific specs (pack size, units/carton, dimensions, weights, packaging)
+                      are managed per batch. Click the SKU code (or use View Batches) to view or
+                      edit batches.
+                    </>
+                  ) : (
+                    <>
+                      An initial batch is required for every SKU. Define the batch code and basic
+                      packaging specs now; additional batches can be added later in Products →
+                      Batches.
+                    </>
+                  )}
+                </div>
+
+                {!editingSku ? (
+                  <>
+                    <div className="md:col-span-2 pt-2">
+                      <h3 className="text-sm font-semibold text-slate-900">Initial Batch</h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Required. Defines pack size, units/carton, and unit weight.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="initialBatchCode">Batch Code</Label>
+                      <Input
+                        id="initialBatchCode"
+                        value={formState.initialBatch.batchCode}
+                        onChange={event =>
+                          setFormState(prev => ({
+                            ...prev,
+                            initialBatch: { ...prev.initialBatch, batchCode: event.target.value },
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="initialPackagingType">Packaging Type</Label>
+                      <select
+                        id="initialPackagingType"
+                        value={formState.initialBatch.packagingType}
+                        onChange={event =>
+                          setFormState(prev => ({
+                            ...prev,
+                            initialBatch: {
+                              ...prev.initialBatch,
+                              packagingType: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      >
+                        <option value="">Optional</option>
+                        <option value="BOX">Box</option>
+                        <option value="POLYBAG">Polybag</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="initialPackSize">Pack Size</Label>
+                      <Input
+                        id="initialPackSize"
+                        type="number"
+                        min={1}
+                        value={formState.initialBatch.packSize}
+                        onChange={event =>
+                          setFormState(prev => ({
+                            ...prev,
+                            initialBatch: { ...prev.initialBatch, packSize: event.target.value },
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="initialUnitsPerCarton">Units per Carton</Label>
+                      <Input
+                        id="initialUnitsPerCarton"
+                        type="number"
+                        min={1}
+                        value={formState.initialBatch.unitsPerCarton}
+                        onChange={event =>
+                          setFormState(prev => ({
+                            ...prev,
+                            initialBatch: {
+                              ...prev.initialBatch,
+                              unitsPerCarton: event.target.value,
+                            },
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1 md:col-span-2">
+                      <Label htmlFor="initialUnitWeightKg">Unit Weight (kg)</Label>
+                      <Input
+                        id="initialUnitWeightKg"
+                        type="number"
+                        min={0.001}
+                        step={0.001}
+                        value={formState.initialBatch.unitWeightKg}
+                        onChange={event =>
+                          setFormState(prev => ({
+                            ...prev,
+                            initialBatch: {
+                              ...prev.initialBatch,
+                              unitWeightKg: event.target.value,
+                            },
+                          }))
+                        }
+                        required
+                      />
+                    </div>
+                  </>
+                ) : null}
               </div>
             </div>
 
-            <form onSubmit={submitSku} className="flex min-h-0 flex-1 flex-col">
-              <div className="flex-1 space-y-6 overflow-y-auto p-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="skuCode">SKU Code</Label>
-                    <Input
-                      id="skuCode"
-                      value={formState.skuCode}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, skuCode: event.target.value }))
-                      }
-                      required
-                    />
-                  </div>
+            <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
+              <div />
 
-                  <div className="space-y-1">
-                    <Label htmlFor="asin">ASIN</Label>
-                    <Input
-                      id="asin"
-                      value={formState.asin}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, asin: event.target.value }))
-                      }
-                      placeholder="Optional"
-                    />
-                  </div>
-
-                  <div className="space-y-1 md:col-span-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      value={formState.description}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, description: event.target.value }))
-                      }
-                      required
-                    />
-                  </div>
-
-                  <div className="md:col-span-2 pt-2">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Amazon Listing Defaults{' '}
-                      <span className="text-slate-400 font-normal">(optional)</span>
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Used by Amazon → FBA Fee Discrepancies (size tier/fees are set per batch).
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="amazonCategory">Category</Label>
-                    <Input
-                      id="amazonCategory"
-                      value={formState.amazonCategory}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, amazonCategory: event.target.value }))
-                      }
-                      placeholder="e.g. Home & Kitchen"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
-                    <Input
-                      id="amazonReferralFeePercent"
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      value={formState.amazonReferralFeePercent}
-                      onChange={event =>
-                        setFormState(prev => ({
-                          ...prev,
-                          amazonReferralFeePercent: event.target.value,
-                        }))
-                      }
-                      placeholder="e.g. 15"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="defaultSupplierId">Default Supplier</Label>
-                    <select
-                      id="defaultSupplierId"
-                      value={formState.defaultSupplierId}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, defaultSupplierId: event.target.value }))
-                      }
-                      className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      disabled={suppliersLoading}
-                    >
-                      <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
-                      {suppliers.map(supplier => (
-                        <option key={supplier.id} value={supplier.id}>
-                          {supplier.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="secondarySupplierId">Secondary Supplier</Label>
-                    <select
-                      id="secondarySupplierId"
-                      value={formState.secondarySupplierId}
-                      onChange={event =>
-                        setFormState(prev => ({
-                          ...prev,
-                          secondarySupplierId: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      disabled={suppliersLoading}
-                    >
-                      <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
-                      {suppliers.map(supplier => (
-                        <option key={supplier.id} value={supplier.id}>
-                          {supplier.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                    {editingSku ? (
-                      <>
-                        Batch-specific specs (pack size, units/carton, dimensions, weights,
-                        packaging) are managed per batch. Click the SKU code (or use View Batches)
-                        to view or edit batches.
-                      </>
-                    ) : (
-                      <>
-                        An initial batch is required for every SKU. Define the batch code and basic
-                        packaging specs now; additional batches can be added later in Products →
-                        Batches.
-                      </>
-                    )}
-                  </div>
-
-                  {!editingSku ? (
-                    <>
-                      <div className="md:col-span-2 pt-2">
-                        <h3 className="text-sm font-semibold text-slate-900">Initial Batch</h3>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Required. Defines pack size, units/carton, and unit weight.
-                        </p>
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label htmlFor="initialBatchCode">Batch Code</Label>
-                        <Input
-                          id="initialBatchCode"
-                          value={formState.initialBatch.batchCode}
-                          onChange={event =>
-                            setFormState(prev => ({
-                              ...prev,
-                              initialBatch: { ...prev.initialBatch, batchCode: event.target.value },
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label htmlFor="initialPackagingType">Packaging Type</Label>
-                        <select
-                          id="initialPackagingType"
-                          value={formState.initialBatch.packagingType}
-                          onChange={event =>
-                            setFormState(prev => ({
-                              ...prev,
-                              initialBatch: {
-                                ...prev.initialBatch,
-                                packagingType: event.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        >
-                          <option value="">Optional</option>
-                          <option value="BOX">Box</option>
-                          <option value="POLYBAG">Polybag</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label htmlFor="initialPackSize">Pack Size</Label>
-                        <Input
-                          id="initialPackSize"
-                          type="number"
-                          min={1}
-                          value={formState.initialBatch.packSize}
-                          onChange={event =>
-                            setFormState(prev => ({
-                              ...prev,
-                              initialBatch: { ...prev.initialBatch, packSize: event.target.value },
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label htmlFor="initialUnitsPerCarton">Units per Carton</Label>
-                        <Input
-                          id="initialUnitsPerCarton"
-                          type="number"
-                          min={1}
-                          value={formState.initialBatch.unitsPerCarton}
-                          onChange={event =>
-                            setFormState(prev => ({
-                              ...prev,
-                              initialBatch: {
-                                ...prev.initialBatch,
-                                unitsPerCarton: event.target.value,
-                              },
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-
-                      <div className="space-y-1 md:col-span-2">
-                        <Label htmlFor="initialUnitWeightKg">Unit Weight (kg)</Label>
-                        <Input
-                          id="initialUnitWeightKg"
-                          type="number"
-                          min={0.001}
-                          step={0.001}
-                          value={formState.initialBatch.unitWeightKg}
-                          onChange={event =>
-                            setFormState(prev => ({
-                              ...prev,
-                              initialBatch: {
-                                ...prev.initialBatch,
-                                unitWeightKg: event.target.value,
-                              },
-                            }))
-                          }
-                          required
-                        />
-                      </div>
-                    </>
-                  ) : null}
-                </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving…
+                    </span>
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
               </div>
-
-              <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
-                <div />
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeModal}
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Saving…
-                      </span>
-                    ) : (
-                      'Save'
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
-      ) : null}
+      </PortalModal>
 
       <ConfirmDialog
         isOpen={confirmDelete !== null}
