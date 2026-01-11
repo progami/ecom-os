@@ -13,6 +13,7 @@ on:
         type: choice
         options:
           - ''
+          - sso
           - targon
           - talos
           - website
@@ -42,7 +43,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      targon: ${{ steps.changes.outputs.targon }}
+      sso: ${{ steps.changes.outputs.sso }}
       talos: ${{ steps.changes.outputs.talos }}
       website: ${{ steps.changes.outputs.website }}
       xplan: ${{ steps.changes.outputs.xplan }}
@@ -83,8 +84,8 @@ jobs:
 
             ANY_APP=false
 
-            if echo "$CHANGED_FILES" | grep -q "^apps/targon/"; then
-              echo "targon=true" >> "$GITHUB_OUTPUT"
+            if echo "$CHANGED_FILES" | grep -q "^apps/sso/"; then
+              echo "sso=true" >> "$GITHUB_OUTPUT"
               ANY_APP=true
             fi
             if echo "$CHANGED_FILES" | grep -q "^apps/talos/"; then
@@ -326,11 +327,11 @@ jobs:
 
           declare -a apps=()
           if [[ "$TARGET_ENV" == "main" ]]; then
-            apps=(targon talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas)
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(targon talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas)
           else
-            [[ "${{ needs.detect-changes.outputs.targon }}" == "true" ]] && apps+=(targon)
+            [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
             [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
@@ -391,15 +392,20 @@ jobs:
           requested_app="${{ inputs.app }}"
           target_env="${{ inputs.environment }}"
 
+          # Backwards compatibility: older workflows used "targon" for the portal key.
+          if [[ "$requested_app" == "targon" ]]; then
+            requested_app="sso"
+          fi
+
           declare -a apps=()
           if [[ "$target_env" == "main" ]]; then
-            apps=(targon talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas)
           elif [[ -n "$requested_app" ]]; then
             apps=("$requested_app")
           elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            apps=(targon talos website xplan kairos atlas)
+            apps=(sso talos website xplan kairos atlas)
           else
-            [[ "${{ needs.detect-changes.outputs.targon }}" == "true" ]] && apps+=(targon)
+            [[ "${{ needs.detect-changes.outputs.sso }}" == "true" ]] && apps+=(sso)
             [[ "${{ needs.detect-changes.outputs.talos }}" == "true" ]] && apps+=(talos)
             [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
             [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)

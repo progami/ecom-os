@@ -1,6 +1,6 @@
 {
   "apps": {
-    "targon": { "lifecycle": "active" },
+    "sso": { "lifecycle": "active" },
     "talos": { "lifecycle": "active" },
     "website": { "lifecycle": "active" },
     "kairos": { "lifecycle": "active" },

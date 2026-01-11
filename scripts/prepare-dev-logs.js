@@ -12,7 +12,7 @@ try {
 
 fs.mkdirSync(logDir, { recursive: true })
 
-const defaultLogs = ['targon', 'atlas', 'talos']
+const defaultLogs = ['sso', 'atlas', 'talos']
 for (const name of defaultLogs) {
   const target = path.join(logDir, `${name}.log`)
   try {

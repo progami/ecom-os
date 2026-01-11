@@ -17,6 +17,7 @@ packages/prisma-wms/generated/
 packages/prisma-x-plan/generated/
 packages/prisma-atlas/generated/
 packages/prisma-kairos/generated/
+packages/prisma-talos/generated/
 
 # TypeScript
 *.tsbuildinfo
@@ -41,11 +42,11 @@ apps/archived/**/prisma/*.db*
 # Env
 .env*
 *.mcp.json
-!apps/targon/.env.dev.ci
 !apps/wms/.env.dev.ci
 !apps/x-plan/.env.dev.ci
 !apps/kairos/.env.dev.ci
 !apps/atlas/.env.dev.ci
+!apps/sso/.env.dev.ci
 
 # Editor
 .DS_Store

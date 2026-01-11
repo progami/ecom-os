@@ -54,7 +54,7 @@ PM2 process definitions live in `ecosystem.config.js` and reference these direct
 
 ```text
 apps/
-  targon/       # Portal (auth + navigation hub)
+  sso/          # Portal (auth + navigation hub)
   talos/        # Warehouse Management (custom server.js)
   x-plan/       # X‑Plan (Next.js app)
   atlas/         # Atlas (Next.js app)
@@ -76,7 +76,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 
 | App | Workspace | Base path | Notes |
 | --- | --- | --- | --- |
-| Portal | `@targon/targon` | `/` | Central auth (NextAuth v5) + app navigation |
+| Portal | `@targon/sso` | `/` | Central auth (NextAuth v5) + app navigation |
 | Talos | `@targon/talos` | `/talos` | Uses `apps/talos/server.js`, Redis, and S3 presigned uploads |
 | X‑Plan | `@targon/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
 | Atlas | `@targon/atlas` | `/atlas` | Prisma schema `atlas`; Playwright tests |
@@ -84,7 +84,7 @@ All product apps are Next.js 16 + React 19 and are designed to run either standa
 
 ## Authentication model (Portal as the source of truth)
 
-- The portal (`apps/targon`) is the canonical NextAuth app; other apps validate the portal session.
+- The portal (`apps/sso`) is the canonical NextAuth app; other apps validate the portal session.
 - Cookie domain is shared (`COOKIE_DOMAIN=.targonglobal.com`) so a user signs in once and can use multiple apps.
 - Shared secret: `PORTAL_AUTH_SECRET` (and/or `NEXTAUTH_SECRET`) must match across apps.
 - Reverse proxy support: nginx forwards `X-Forwarded-Host` / `X-Forwarded-Proto`; NextAuth v5 requires `AUTH_TRUST_HOST=true` behind a proxy.
@@ -136,7 +136,7 @@ pnpm install
 pnpm dev
 
 # Single app
-pnpm --filter @targon/targon dev
+pnpm --filter @targon/sso dev
 pnpm --filter @targon/talos dev
 pnpm --filter @targon/x-plan dev
 pnpm --filter @targon/atlas dev

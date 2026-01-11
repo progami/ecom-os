@@ -36,7 +36,7 @@ Dev
 - In dev, cookie name becomes `targon.next-auth.session-token` to avoid collisions.
 - Apps attempt `next-auth.session-token`, `targon.next-auth.session-token`, and their legacy cookie name.
 - When `GOOGLE_ALLOWED_EMAILS` is omitted locally, any Google account may sign in (handy for smoke tests).
-- To test Google SSO locally, create `apps/targon/.env.local` (gitignored) with:
+- To test Google SSO locally, create `apps/sso/.env.local` (gitignored) with:
   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` copied from the Google Cloud project (`targon-sso`).
   - `GOOGLE_ALLOWED_EMAILS` set to the Workspace accounts you want exercising the flow.
   - `NEXTAUTH_SECRET` (and optionally `NEXTAUTH_URL=http://localhost:3000`) so the NextAuth session behavior matches production.

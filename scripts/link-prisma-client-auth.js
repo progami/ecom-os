@@ -31,9 +31,9 @@ function copyDir(name, sourceDir, destDir) {
   }
 }
 
-// 1. Auth client for Targon
+// 1. Auth client for SSO
 const authSource = path.resolve(repoRoot, 'packages/auth/node_modules/.prisma/client-auth');
-const authDest = path.resolve(repoRoot, 'apps/targon/node_modules/.prisma/client-auth');
+const authDest = path.resolve(repoRoot, 'apps/sso/node_modules/.prisma/client-auth');
 copyDir('auth', authSource, authDest);
 
 // 2. X-Plan client
