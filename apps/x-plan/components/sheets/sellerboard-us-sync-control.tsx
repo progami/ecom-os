@@ -109,10 +109,10 @@ export function SellerboardUsSyncControl({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 active:translate-y-px dark:border-[#2a4a64] dark:bg-[#0a2438] dark:text-slate-200 dark:hover:bg-[#0f2d45]"
+          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 active:translate-y-px dark:border-[#2a4a64] dark:bg-[#0a2438] dark:text-slate-200 dark:hover:bg-[#0f2d45]"
         >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Sync Sellerboard
+          <RefreshCw className="h-3 w-3" />
+          Sync
         </button>
       </div>
 
