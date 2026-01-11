@@ -2,8 +2,22 @@ import 'server-only';
 
 import { z } from 'zod';
 
-import type { EtsRunConfig } from '@/lib/models/ets';
-import type { ProphetRunConfig, ProphetSeasonalityToggle } from '@/lib/models/prophet';
+export type ProphetSeasonalityToggle = 'auto' | 'on' | 'off';
+
+export type ProphetRunConfig = {
+  intervalWidth?: number;
+  uncertaintySamples?: number;
+  seasonalityMode?: 'additive' | 'multiplicative';
+  yearlySeasonality?: ProphetSeasonalityToggle;
+  weeklySeasonality?: ProphetSeasonalityToggle;
+  dailySeasonality?: ProphetSeasonalityToggle;
+};
+
+export type EtsRunConfig = {
+  seasonLength?: number;
+  spec?: string;
+  intervalLevel?: number | null;
+};
 
 const seasonalityToggleSchema = z.enum(['auto', 'on', 'off']);
 
@@ -45,4 +59,3 @@ export function parseEtsConfig(value: unknown): EtsRunConfig | undefined {
   if (value === undefined || value === null) return undefined;
   return etsConfigSchema.parse(value) as EtsRunConfig;
 }
-
