@@ -116,6 +116,17 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>(() => initialSorting ?? [])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
 
+  // Defer showing skeleton to prevent flash on quick loads
+  const [showSkeleton, setShowSkeleton] = React.useState(false)
+  React.useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setShowSkeleton(true), 150)
+      return () => clearTimeout(timer)
+    } else {
+      setShowSkeleton(false)
+    }
+  }, [loading])
+
   const table = useReactTable({
     data,
     columns,
@@ -192,8 +203,13 @@ export function DataTable<TData, TValue>({
         ))}
       </TableHeader>
       <TableBody>
-        {loading ? (
+        {showSkeleton ? (
           <TableSkeleton rows={skeletonRows} columns={columns.length} />
+        ) : loading ? (
+          // During initial delay, show minimal placeholder to prevent layout shift
+          <TableRow hoverable={false}>
+            <TableCell colSpan={columns.length} className="h-24" />
+          </TableRow>
         ) : table.getRowModel().rows.length === 0 ? (
           emptyState ? (
             <TableRow hoverable={false}>

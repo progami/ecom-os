@@ -159,7 +159,7 @@ export function SalesPlanningFocusControl({
       <select
         value={focusProductId}
         onChange={(event) => setFocusProductId(event.target.value)}
-        className={SHEET_TOOLBAR_SELECT}
+        className={`${SHEET_TOOLBAR_SELECT} max-w-[7rem]`}
         aria-label="Focus on a single SKU"
       >
         <option value="ALL">Show all</option>
