@@ -35,9 +35,9 @@ function Badge({ className, variant, ...props }: BadgeProps) {
 
 const statusStyles: Record<ForecastStatus, string> = {
   DRAFT: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-400',
-  READY: 'border-success-200 bg-success-50 text-success-700 dark:border-success-500/30 dark:bg-success-950 dark:text-success-400',
+  READY: 'border-success-200 bg-success-50 text-success-700 dark:border-success-500/30 dark:bg-success-900 dark:text-success-300',
   RUNNING: 'border-brand-teal-200 bg-brand-teal-50 text-brand-teal-700 dark:border-brand-cyan/30 dark:bg-brand-cyan/15 dark:text-brand-cyan',
-  FAILED: 'border-danger-200 bg-danger-50 text-danger-700 dark:border-danger-500/30 dark:bg-danger-950 dark:text-danger-400',
+  FAILED: 'border-danger-200 bg-danger-50 text-danger-700 dark:border-danger-500/30 dark:bg-danger-900 dark:text-danger-300',
 };
 
 const statusIcons: Record<ForecastStatus, React.ReactNode> = {
