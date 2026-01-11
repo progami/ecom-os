@@ -69,10 +69,9 @@ export function SheetViewToggle({ value, slug }: SheetViewToggleProps) {
               type="button"
               className={clsx(
                 SHEET_TOOLBAR_BUTTON,
-                'rounded-none first:rounded-l-full last:rounded-r-full',
                 isActive
-                  ? 'border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md dark:border-[#00c2b9] dark:bg-[#00c2b9]/15 dark:text-cyan-100 dark:shadow-[0_12px_24px_rgba(0,194,185,0.15)]'
-                  : 'text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-cyan-100',
+                  ? 'bg-cyan-600 text-white dark:bg-cyan-500'
+                  : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700',
               )}
               onClick={() => handleSelect(option.value)}
               aria-pressed={isActive}
