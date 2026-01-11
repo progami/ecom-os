@@ -1,123 +1,19 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="64"
-  height="64"
-  viewBox="0 0 64 64"
-  fill="none"
->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
   <defs>
-    <!-- Background gradient - deep navy (matching x-plan) -->
     <linearGradient id="kairos-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#041324" />
-      <stop offset="50%" stop-color="#002C51" />
-      <stop offset="100%" stop-color="#06182b" />
+      <stop offset="0" stop-color="#002C51" />
+      <stop offset="1" stop-color="#001f3a" />
     </linearGradient>
-
-    <!-- Subtle shine overlay -->
-    <radialGradient
-      id="kairos-shine"
-      cx="0.3"
-      cy="0.2"
-      r="0.8"
-      gradientUnits="objectBoundingBox"
-    >
-      <stop offset="0%" stop-color="#00C2B9" stop-opacity="0.15" />
-      <stop offset="100%" stop-color="#00C2B9" stop-opacity="0" />
-    </radialGradient>
-
-    <!-- Hourglass gradient - cyan/teal -->
-    <linearGradient id="kairos-glass" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#00E5DB" />
-      <stop offset="50%" stop-color="#00C2B9" />
-      <stop offset="100%" stop-color="#00A89F" />
-    </linearGradient>
-
-    <!-- Sand gradient -->
-    <linearGradient id="kairos-sand" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#00E5DB" stop-opacity="0.6" />
-      <stop offset="100%" stop-color="#00C2B9" stop-opacity="0.9" />
-    </linearGradient>
-
-    <!-- Glow filter -->
-    <filter id="kairos-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
 
-  <!-- Background rounded rectangle -->
+  <!-- Background -->
   <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#kairos-bg)" />
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#00C2B9" stroke-opacity="0.2" />
 
-  <!-- Shine overlay -->
-  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#kairos-shine)" />
-
-  <!-- Subtle time marks around edge -->
-  <g stroke="#00C2B9" stroke-opacity="0.12" stroke-width="1">
-    <line x1="32" y1="6" x2="32" y2="10" />
-    <line x1="32" y1="54" x2="32" y2="58" />
-    <line x1="6" y1="32" x2="10" y2="32" />
-    <line x1="54" y1="32" x2="58" y2="32" />
-  </g>
-
-  <!-- Hourglass shape with glow -->
-  <g filter="url(#kairos-glow)">
-    <!-- Top triangle -->
-    <path
-      d="M20 14 L44 14 L32 30 Z"
-      stroke="url(#kairos-glass)"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      fill="none"
-    />
-
-    <!-- Bottom triangle -->
-    <path
-      d="M20 50 L44 50 L32 34 Z"
-      stroke="url(#kairos-glass)"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      fill="none"
-    />
-
-    <!-- Sand in bottom (representing forecast completion) -->
-    <path
-      d="M26 50 L38 50 L32 42 Z"
-      fill="url(#kairos-sand)"
-    />
-
-    <!-- Falling sand stream -->
-    <line
-      x1="32"
-      y1="30"
-      x2="32"
-      y2="40"
-      stroke="url(#kairos-glass)"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-opacity="0.7"
-    />
-
-    <!-- Small sand dots in top -->
-    <circle cx="28" cy="18" r="1.5" fill="url(#kairos-sand)" />
-    <circle cx="32" cy="20" r="1.5" fill="url(#kairos-sand)" />
-    <circle cx="36" cy="18" r="1.5" fill="url(#kairos-sand)" />
-  </g>
-
-  <!-- Border with subtle cyan tint -->
-  <rect
-    x="1"
-    y="1"
-    width="62"
-    height="62"
-    rx="14"
-    fill="none"
-    stroke="#00C2B9"
-    stroke-opacity="0.2"
-    stroke-width="1"
+  <!-- Kairos: Lightning bolt becoming upward arrow -->
+  <!-- The shape starts as a lightning bolt at bottom and becomes an arrow pointing up -->
+  <path
+    d="M32,10 L22,22 L28,22 L20,38 L28,38 L28,54 L36,54 L36,38 L44,38 L36,22 L42,22 Z"
+    fill="#00C2B9"
   />
 </svg>

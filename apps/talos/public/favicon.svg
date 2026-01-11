@@ -1,56 +1,20 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="64"
-  height="64"
-  viewBox="0 0 64 64"
-  fill="none"
->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
   <defs>
     <linearGradient id="talos-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0a1628" />
-      <stop offset="0.58" stop-color="#0f172a" />
-      <stop offset="1" stop-color="#042f2e" />
-    </linearGradient>
-    <radialGradient
-      id="talos-shine"
-      cx="0"
-      cy="0"
-      r="1"
-      gradientUnits="userSpaceOnUse"
-      gradientTransform="translate(16 14) rotate(45) scale(40)"
-    >
-      <stop offset="0" stop-color="#00C2B9" stop-opacity="0.22" />
-      <stop offset="1" stop-color="#00C2B9" stop-opacity="0" />
-    </radialGradient>
-    <linearGradient id="talos-cog" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#5eead4" />
-      <stop offset="0.55" stop-color="#00C2B9" />
-      <stop offset="1" stop-color="#0d9488" />
+      <stop offset="0" stop-color="#002C51" />
+      <stop offset="1" stop-color="#001f3a" />
     </linearGradient>
   </defs>
 
+  <!-- Background -->
   <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#talos-bg)" />
-  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#talos-shine)" />
-  <rect
-    x="1"
-    y="1"
-    width="62"
-    height="62"
-    rx="14"
-    fill="none"
-    stroke="#00C2B9"
-    stroke-opacity="0.12"
-  />
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#00C2B9" stroke-opacity="0.2" />
 
-  <g
-    transform="translate(8 8) scale(2)"
-    stroke="url(#talos-cog)"
-    stroke-width="1.6"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    fill="none"
-  >
-    <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
-    <circle cx="12" cy="12" r="3" />
+  <!-- Hexagon with vertical slit (Talos eye/helmet) -->
+  <g transform="translate(32, 32)">
+    <!-- Outer hexagon -->
+    <path d="M0,-22 L19,-11 L19,11 L0,22 L-19,11 L-19,-11 Z" fill="#00C2B9" />
+    <!-- Vertical slit (negative space) -->
+    <rect x="-3" y="-18" width="6" height="36" fill="#002C51" />
   </g>
 </svg>

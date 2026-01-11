@@ -7,7 +7,10 @@ export const metadata: Metadata = {
   title: 'Atlas',
   description: 'Atlas — Human Resource Management',
   icons: {
-    icon: `${appBasePath || ''}/favicon.ico`,
+    icon: [
+      { url: `${appBasePath}/favicon.ico`, sizes: '48x48' },
+      { url: `${appBasePath}/favicon.svg`, type: 'image/svg+xml' },
+    ],
   },
 }
 
