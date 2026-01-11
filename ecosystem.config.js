@@ -74,7 +74,19 @@ module.exports = {
       args: 'start -p 3110',
       interpreter: 'node',
       exec_mode: 'fork',
-      env: { NODE_ENV: 'production', PORT: 3110 },
+      env: { NODE_ENV: 'production', PORT: 3110, KAIROS_ML_URL: 'http://127.0.0.1:3111' },
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '300M'
+    },
+    {
+      name: 'dev-kairos-ml',
+      cwd: path.join(DEV_DIR, 'services/kairos-ml'),
+      script: '.venv/bin/python',
+      args: '-m uvicorn app.main:app --host 127.0.0.1 --port 3111',
+      interpreter: 'none',
+      exec_mode: 'fork',
+      env: { PYTHONUNBUFFERED: '1', PORT: 3111 },
       autorestart: true,
       watch: false,
       max_memory_restart: '300M'
@@ -160,7 +172,19 @@ module.exports = {
       args: 'start -p 3010',
       interpreter: 'node',
       exec_mode: 'fork',
-      env: { NODE_ENV: 'production', PORT: 3010 },
+      env: { NODE_ENV: 'production', PORT: 3010, KAIROS_ML_URL: 'http://127.0.0.1:3011' },
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '300M'
+    },
+    {
+      name: 'main-kairos-ml',
+      cwd: path.join(MAIN_DIR, 'services/kairos-ml'),
+      script: '.venv/bin/python',
+      args: '-m uvicorn app.main:app --host 127.0.0.1 --port 3011',
+      interpreter: 'none',
+      exec_mode: 'fork',
+      env: { PYTHONUNBUFFERED: '1', PORT: 3011 },
       autorestart: true,
       watch: false,
       max_memory_restart: '300M'

@@ -35,7 +35,7 @@ export default function ModelsPage() {
             <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-brand-teal-500 dark:text-brand-cyan" aria-hidden />
-                <span>Runs in Kairos via Augurs WASM (no Python)</span>
+                <span>Runs via Kairos ML service (Python)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-brand-teal-500 dark:text-brand-cyan" aria-hidden />
@@ -76,7 +76,7 @@ export default function ModelsPage() {
             <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
               <div className="flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-brand-teal-500 dark:text-brand-cyan" aria-hidden />
-                <span>Runs in Kairos via Augurs WASM (no Python)</span>
+                <span>Runs via Kairos ML service (Python)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="h-3.5 w-3.5 text-brand-teal-500 dark:text-brand-cyan" aria-hidden />
