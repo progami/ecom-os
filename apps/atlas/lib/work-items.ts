@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/prisma'
 import { HR_ROLE_NAMES, PermissionLevel } from '@/lib/permissions'
-import type { WorkItemAction, WorkItemDTO, WorkItemPriority, WorkItemsResponse } from '@/lib/contracts/work-items'
+import type {
+  CompletedWorkItemDTO,
+  CompletedWorkItemsResponse,
+  WorkItemAction,
+  WorkItemDTO,
+  WorkItemPriority,
+  WorkItemsResponse,
+} from '@/lib/contracts/work-items'
 import { rankWorkItems } from '@/lib/domain/work-items/rank'
 
 export type WorkItemType =
@@ -716,6 +723,219 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       totalCount: ranked.length,
       actionRequiredCount,
       overdueCount,
+    },
+  }
+}
+
+export async function getCompletedWorkItems(employeeId: string): Promise<CompletedWorkItemsResponse> {
+  const actor = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: {
+      id: true,
+      region: true,
+    },
+  })
+
+  if (!actor) {
+    return { items: [], meta: { totalCount: 0 } }
+  }
+
+  const policyRegion = mapEmployeeRegionToPolicyRegion(actor.region)
+  const items: CompletedWorkItemDTO[] = []
+
+  // Completed tasks
+  const completedTasks = await prisma.task.findMany({
+    where: {
+      assignedToId: employeeId,
+      status: 'DONE',
+    },
+    orderBy: [{ completedAt: 'desc' }, { updatedAt: 'desc' }],
+    take: 50,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      completedAt: true,
+      updatedAt: true,
+    },
+  })
+
+  for (const task of completedTasks) {
+    items.push({
+      id: `TASK_COMPLETED:${task.id}`,
+      type: 'TASK_COMPLETED',
+      typeLabel: 'Task',
+      title: task.title,
+      description: task.description,
+      href: `/tasks/${task.id}`,
+      entity: { type: 'TASK', id: task.id },
+      completedAt: iso(task.completedAt ?? task.updatedAt),
+      completedLabel: 'Completed',
+    })
+  }
+
+  // Acknowledged policies
+  if (policyRegion) {
+    const acknowledgements = await prisma.policyAcknowledgement.findMany({
+      where: { employeeId },
+      orderBy: [{ acknowledgedAt: 'desc' }],
+      take: 50,
+      select: {
+        id: true,
+        acknowledgedAt: true,
+        policyVersion: true,
+        policy: {
+          select: {
+            id: true,
+            title: true,
+            summary: true,
+            category: true,
+          },
+        },
+      },
+    })
+
+    for (const ack of acknowledgements) {
+      items.push({
+        id: `POLICY_ACKNOWLEDGED:${ack.id}`,
+        type: 'POLICY_ACKNOWLEDGED',
+        typeLabel: 'Policy',
+        title: `Acknowledged "${ack.policy.title}" (v${ack.policyVersion})`,
+        description: ack.policy.summary,
+        href: `/policies/${ack.policy.id}`,
+        entity: { type: 'POLICY', id: ack.policy.id },
+        entityData: {
+          summary: ack.policy.summary ?? undefined,
+          category: ack.policy.category ?? undefined,
+        },
+        completedAt: iso(ack.acknowledgedAt),
+        completedLabel: 'Acknowledged',
+      })
+    }
+  }
+
+  // Approved leave requests (where user was the requester)
+  const approvedLeaves = await prisma.leaveRequest.findMany({
+    where: {
+      employeeId,
+      status: 'APPROVED',
+    },
+    orderBy: [{ hrApprovedAt: 'desc' }, { managerApprovedAt: 'desc' }, { updatedAt: 'desc' }],
+    take: 50,
+    select: {
+      id: true,
+      leaveType: true,
+      startDate: true,
+      endDate: true,
+      totalDays: true,
+      reason: true,
+      hrApprovedAt: true,
+      managerApprovedAt: true,
+      updatedAt: true,
+    },
+  })
+
+  for (const leave of approvedLeaves) {
+    items.push({
+      id: `LEAVE_APPROVED:${leave.id}`,
+      type: 'LEAVE_APPROVED',
+      typeLabel: 'Leave',
+      title: `${leave.leaveType.replaceAll('_', ' ').toLowerCase()} approved`,
+      description: `${leave.totalDays} days • ${leave.reason ?? ''}`,
+      href: `/leaves/${leave.id}`,
+      entity: { type: 'LEAVE_REQUEST', id: leave.id },
+      entityData: {
+        reason: leave.reason ?? undefined,
+      },
+      completedAt: iso(leave.hrApprovedAt ?? leave.managerApprovedAt ?? leave.updatedAt),
+      completedLabel: 'Approved',
+    })
+  }
+
+  // Completed performance reviews (acknowledged by employee)
+  const completedReviews = await prisma.performanceReview.findMany({
+    where: {
+      employeeId,
+      status: { in: ['ACKNOWLEDGED', 'COMPLETED'] },
+    },
+    orderBy: [{ acknowledgedAt: 'desc' }, { updatedAt: 'desc' }],
+    take: 50,
+    select: {
+      id: true,
+      reviewType: true,
+      overallRating: true,
+      strengths: true,
+      acknowledgedAt: true,
+      updatedAt: true,
+      status: true,
+    },
+  })
+
+  for (const review of completedReviews) {
+    items.push({
+      id: `REVIEW_COMPLETED:${review.id}`,
+      type: 'REVIEW_COMPLETED',
+      typeLabel: 'Review',
+      title: `${review.reviewType ?? 'Performance'} review`,
+      description: review.strengths,
+      href: `/performance/reviews/${review.id}`,
+      entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+      entityData: {
+        reviewType: review.reviewType ?? undefined,
+        overallRating: review.overallRating ?? undefined,
+        strengths: review.strengths ?? undefined,
+      },
+      completedAt: iso(review.acknowledgedAt ?? review.updatedAt),
+      completedLabel: review.status === 'ACKNOWLEDGED' ? 'Acknowledged' : 'Completed',
+    })
+  }
+
+  // Completed disciplinary actions (both parties acknowledged = ACTIVE status)
+  const completedViolations = await prisma.disciplinaryAction.findMany({
+    where: {
+      employeeId,
+      status: 'ACTIVE',
+      employeeAcknowledged: true,
+      managerAcknowledged: true,
+    },
+    orderBy: [{ employeeAcknowledgedAt: 'desc' }, { updatedAt: 'desc' }],
+    take: 50,
+    select: {
+      id: true,
+      violationType: true,
+      severity: true,
+      description: true,
+      employeeAcknowledgedAt: true,
+      updatedAt: true,
+    },
+  })
+
+  for (const action of completedViolations) {
+    items.push({
+      id: `VIOLATION_COMPLETED:${action.id}`,
+      type: 'VIOLATION_COMPLETED',
+      typeLabel: 'Violation',
+      title: `${action.violationType ?? 'Violation'} record`,
+      description: action.description,
+      href: `/performance/violations/${action.id}`,
+      entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+      entityData: {
+        description: action.description ?? undefined,
+        violationType: action.violationType ?? undefined,
+        severity: action.severity ?? undefined,
+      },
+      completedAt: iso(action.employeeAcknowledgedAt ?? action.updatedAt),
+      completedLabel: 'Acknowledged',
+    })
+  }
+
+  // Sort by completion date, newest first
+  items.sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))
+
+  return {
+    items,
+    meta: {
+      totalCount: items.length,
     },
   }
 }

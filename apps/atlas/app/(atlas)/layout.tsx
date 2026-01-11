@@ -12,7 +12,6 @@ import {
   XIcon,
   ClipboardDocumentCheckIcon,
   BellIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
   OrgChartIcon,
   UsersIcon,
@@ -49,7 +48,6 @@ const navigation: NavSection[] = [
     items: [
       { name: 'My Hub', href: '/hub', icon: HomeIcon },
       { name: 'Inbox', href: '/work', icon: BellIcon },
-      { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
     ],
   },
   {
