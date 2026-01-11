@@ -121,7 +121,7 @@ export function MainNav() {
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md ">
  <span className="text-lg font-bold text-white">T</span>
  </div>
-              <span className={cn("text-xl font-bold text-slate-900 transition-all duration-300", isTabletCollapsed && "md:hidden lg:inline")}>Talos</span>
+              <span className={cn("text-lg font-semibold text-slate-900 transition-all duration-300", isTabletCollapsed && "md:hidden lg:inline")}>Talos</span>
  </Link>
  </div>
 
@@ -277,7 +277,7 @@ export function MainNav() {
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md ">
  <span className="text-lg font-bold text-white">T</span>
  </div>
-            <span className="text-xl font-bold text-slate-900 ">Talos</span>
+            <span className="text-lg font-semibold text-slate-900">Talos</span>
  </Link>
  </div>
 
