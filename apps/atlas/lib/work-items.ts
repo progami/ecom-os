@@ -890,20 +890,22 @@ export async function getCompletedWorkItems(employeeId: string): Promise<Complet
     })
   }
 
-  // Completed disciplinary actions (both parties acknowledged)
+  // Completed disciplinary actions (both parties acknowledged = ACTIVE status)
   const completedViolations = await prisma.disciplinaryAction.findMany({
     where: {
       employeeId,
-      status: 'COMPLETED',
+      status: 'ACTIVE',
+      employeeAcknowledged: true,
+      managerAcknowledged: true,
     },
-    orderBy: [{ completedAt: 'desc' }, { updatedAt: 'desc' }],
+    orderBy: [{ employeeAcknowledgedAt: 'desc' }, { updatedAt: 'desc' }],
     take: 50,
     select: {
       id: true,
       violationType: true,
       severity: true,
       description: true,
-      completedAt: true,
+      employeeAcknowledgedAt: true,
       updatedAt: true,
     },
   })
@@ -922,7 +924,7 @@ export async function getCompletedWorkItems(employeeId: string): Promise<Complet
         violationType: action.violationType ?? undefined,
         severity: action.severity ?? undefined,
       },
-      completedAt: iso(action.completedAt ?? action.updatedAt),
+      completedAt: iso(action.employeeAcknowledgedAt ?? action.updatedAt),
       completedLabel: 'Acknowledged',
     })
   }
