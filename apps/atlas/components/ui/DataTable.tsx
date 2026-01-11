@@ -206,10 +206,14 @@ export function DataTable<TData, TValue>({
         {showSkeleton ? (
           <TableSkeleton rows={skeletonRows} columns={columns.length} />
         ) : loading ? (
-          // During initial delay, show minimal placeholder to prevent layout shift
-          <TableRow hoverable={false}>
-            <TableCell colSpan={columns.length} className="h-24" />
-          </TableRow>
+          // During initial delay, show placeholder matching expected table height
+          <>
+            {Array.from({ length: skeletonRows }).map((_, i) => (
+              <TableRow key={i} hoverable={false}>
+                <TableCell colSpan={columns.length} className="h-14" />
+              </TableRow>
+            ))}
+          </>
         ) : table.getRowModel().rows.length === 0 ? (
           emptyState ? (
             <TableRow hoverable={false}>
