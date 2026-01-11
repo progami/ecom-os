@@ -13,6 +13,7 @@ type AmazonInventorySummary = {
   sellerSku?: string
   fnSku?: string
   totalQuantity?: number
+  productName?: string
 }
 
 type AmazonInventorySummariesResponse = {
@@ -137,7 +138,6 @@ const AMAZON_BASE_REQUIRED_ENV_VARS = [
 const AMAZON_TENANT_REQUIRED_ENV_VARS = ['AMAZON_REFRESH_TOKEN'] as const
 
 const clientCache = new Map<string, SellingPartnerApiClient>()
-const sellerIdCache = new Map<string, string>()
 
 function normalizeRegion(value: string): SellingPartnerApiRegion | null {
   const normalized = value.trim().toLowerCase()
@@ -392,148 +392,41 @@ export function getAmazonClient(tenantCode?: TenantCode): SellingPartnerApiClien
   return client
 }
 
-async function getSellerId(tenantCode?: TenantCode): Promise<string> {
-  const config = getAmazonSpApiConfigFromEnv(tenantCode)
-  if (!config) {
-    return 'MOCK_SELLER'
-  }
-
-  const key = `seller:${getCacheKey(config)}`
-  const cached = sellerIdCache.get(key)
-  if (cached) return cached
-
-  const response = await callAmazonApi<unknown>(tenantCode, {
-    operation: 'getMarketplaceParticipations',
-    endpoint: 'sellers',
-  })
-
-  const record = asRecord(response)
-  const participations = record
-    ? toRecordArray(
-        getArrayField(record, ['payload', 'marketplaceParticipations', 'participations', 'items'])
-      )
-    : []
-
-  let resolvedSellerId: string | undefined
-
-  for (const participation of participations) {
-    const sellerId = getStringField(participation, [
-      'sellerId',
-      'seller_id',
-      'merchantId',
-      'merchantIdentifier',
-    ])
-    if (!sellerId) continue
-
-    const marketplaceRecord =
-      asRecord(getRecordValue(participation, 'marketplace')) ||
-      asRecord(getRecordValue(participation, 'Marketplace'))
-    const marketplaceId = pickString([participation, marketplaceRecord], [
-      'marketplaceId',
-      'marketplace_id',
-      'id',
-    ])
-
-    if (marketplaceId && marketplaceId === config.marketplaceId) {
-      resolvedSellerId = sellerId
-      break
-    }
-
-    if (!resolvedSellerId) {
-      resolvedSellerId = sellerId
-    }
-  }
-
-  if (!resolvedSellerId) {
-    throw new Error('Unable to resolve Amazon seller id. Check SP-API seller permissions.')
-  }
-
-  sellerIdCache.set(key, resolvedSellerId)
-  return resolvedSellerId
-}
-
 export async function getListingsItems(
   tenantCode?: TenantCode,
   options?: {
     limit?: number
   }
 ): Promise<{ items: AmazonListingItemSummary[]; hasMore: boolean }> {
-  const config = getAmazonSpApiConfigFromEnv(tenantCode)
   const limit = Math.min(options?.limit ?? 250, 1000)
   if (!limit) return { items: [], hasMore: false }
 
-  const sellerId = await getSellerId(tenantCode)
-  const marketplaceId = config?.marketplaceId ?? getDefaultMarketplaceId(tenantCode) ?? ''
-  const pageSize = Math.min(50, limit)
-  const maxPages = 25
+  const inventoryResponse = await getInventory(tenantCode)
+  const summaries = inventoryResponse?.inventorySummaries ?? []
 
   const seen = new Set<string>()
   const items: AmazonListingItemSummary[] = []
-  let pageToken: string | undefined
-  let hasMore = false
 
-  for (let page = 0; page < maxPages && items.length < limit; page += 1) {
-    const response = await callAmazonApi<unknown>(tenantCode, {
-      operation: 'searchListingsItems',
-      endpoint: 'listingsItems',
-      options: { version: '2021-08-01' },
-      path: { sellerId },
-      query: {
-        marketplaceIds: [marketplaceId],
-        includedData: ['summaries'],
-        pageSize,
-        ...(pageToken ? { pageToken } : {}),
-      },
-    })
+  for (const summary of summaries) {
+    if (items.length >= limit) break
 
-    const responseRecord = asRecord(response)
-    const payloadCandidate = responseRecord ? asRecord(getRecordValue(responseRecord, 'payload')) : null
-    const record = payloadCandidate ?? responseRecord
+    const sellerSku = typeof summary.sellerSku === 'string' ? summary.sellerSku.trim() : ''
+    if (!sellerSku) continue
 
-    const rawItems = record ? toRecordArray(getArrayField(record, ['items'])) : []
-    if (rawItems.length === 0) {
-      hasMore = false
-      break
-    }
+    const normalizedKey = sellerSku.toUpperCase()
+    if (seen.has(normalizedKey)) continue
+    seen.add(normalizedKey)
 
-    for (const item of rawItems) {
-      const sku = getStringField(item, ['sku', 'sellerSku', 'seller_sku', 'SellerSKU'])?.trim()
-      if (!sku) continue
-      const normalizedKey = sku.toUpperCase()
-      if (seen.has(normalizedKey)) continue
-      seen.add(normalizedKey)
+    const asin = typeof summary.asin === 'string' && summary.asin.trim() ? summary.asin.trim() : null
+    const title =
+      typeof summary.productName === 'string' && summary.productName.trim()
+        ? summary.productName.trim()
+        : null
 
-      const summaries = toRecordArray(getArrayField(item, ['summaries']))
-      const attributes = getRecordField(item, ['attributes'])
-
-      const asin =
-        pickString([item, summaries[0], attributes], ['asin', 'ASIN']) ?? null
-
-      const title =
-        pickString([summaries[0], item, attributes], [
-          'itemName',
-          'item_name',
-          'productName',
-          'product_name',
-          'title',
-          'name',
-        ]) ?? null
-
-      items.push({ sellerSku: sku, asin, title })
-      if (items.length >= limit) break
-    }
-
-    const nextToken = record ? extractPaginationToken(record) : undefined
-    if (!nextToken) {
-      hasMore = false
-      break
-    }
-
-    pageToken = nextToken
-    hasMore = true
+    items.push({ sellerSku, asin, title })
   }
 
-  return { items, hasMore }
+  return { items, hasMore: summaries.length > items.length }
 }
 
 // Helper functions for common operations
