@@ -1,3 +1,6 @@
 export { InboxDashboard } from './InboxDashboard'
 export { InboxItemList } from './InboxItemList'
 export { InboxActionPane } from './InboxActionPane'
+export { CompletedItemList } from './CompletedItemList'
+export { CompletedActionPane } from './CompletedActionPane'
+export { CreateRequestModal } from './CreateRequestModal'
