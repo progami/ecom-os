@@ -164,6 +164,60 @@ function parseDate(value: string | null | undefined) {
   return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
 }
 
+function validatePurchaseOrderStageDates(dates: {
+  poDate: Date | null;
+  productionStart: Date | null;
+  productionComplete: Date | null;
+  sourceDeparture: Date | null;
+  portEta: Date | null;
+  availableDate: Date | null;
+}): string | null {
+  const { poDate, productionStart, productionComplete, sourceDeparture, portEta, availableDate } =
+    dates;
+
+  if (poDate) {
+    const checks = [
+      { label: 'Mfg Start', date: productionStart },
+      { label: 'Mfg Done', date: productionComplete },
+      { label: 'Departure', date: sourceDeparture },
+      { label: 'Port Arrival', date: portEta },
+      { label: 'Warehouse', date: availableDate },
+    ] as const;
+
+    for (const check of checks) {
+      if (check.date && check.date.getTime() <= poDate.getTime()) {
+        return `${check.label} must be after PO Date`;
+      }
+    }
+  }
+
+  if (
+    productionStart &&
+    productionComplete &&
+    productionComplete.getTime() <= productionStart.getTime()
+  ) {
+    return 'Mfg Done must be after Mfg Start';
+  }
+
+  if (
+    productionComplete &&
+    sourceDeparture &&
+    sourceDeparture.getTime() <= productionComplete.getTime()
+  ) {
+    return 'Departure must be after Mfg Done';
+  }
+
+  if (sourceDeparture && portEta && portEta.getTime() <= sourceDeparture.getTime()) {
+    return 'Port Arrival must be after Departure';
+  }
+
+  if (portEta && availableDate && availableDate.getTime() <= portEta.getTime()) {
+    return 'Warehouse must be after Port Arrival';
+  }
+
+  return null;
+}
+
 type StageDefaultsMap = Record<string, number>;
 
 type StageParameterRow = {
@@ -233,7 +287,17 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
   try {
     const orderMeta = await prisma.purchaseOrder.findMany({
       where: { id: { in: parsed.data.updates.map(({ id }) => id) } },
-      select: { id: true, strategyId: true, strategy: { select: { region: true } } },
+      select: {
+        id: true,
+        strategyId: true,
+        strategy: { select: { region: true } },
+        poDate: true,
+        productionStart: true,
+        productionComplete: true,
+        sourceDeparture: true,
+        portEta: true,
+        availableDate: true,
+      },
     });
 
     const { response } = await requireXPlanStrategiesAccess(
@@ -304,85 +368,138 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
       }
     }
 
-    await prisma.$transaction(
-      parsed.data.updates.map(({ id, values }) => {
-        const data: Record<string, unknown> = {};
-        const weekStartsOn = weekStartsOnByOrder.get(id) ?? 0;
-        const calendar = calendarsByStart.get(weekStartsOn);
-        for (const field of allowedFields) {
-          if (!(field in values)) continue;
-          const incoming = values[field];
-          if (incoming === null || incoming === undefined || incoming === '') {
-            if (REQUIRED_STAGE_WEEK_FIELDS.has(field)) {
-              continue;
-            }
+    const orderById = new Map(orderMeta.map((order) => [order.id, order]));
+
+    const preparedUpdates = parsed.data.updates.map(({ id, values }) => {
+      const data: Record<string, unknown> = {};
+      const weekStartsOn = weekStartsOnByOrder.get(id) ?? 0;
+      const calendar = calendarsByStart.get(weekStartsOn);
+
+      for (const field of allowedFields) {
+        if (!(field in values)) continue;
+        const incoming = values[field];
+        if (incoming === null || incoming === undefined || incoming === '') {
+          if (REQUIRED_STAGE_WEEK_FIELDS.has(field)) {
+            continue;
+          }
+          data[field] = null;
+          if (field in DATE_TO_WEEK_FIELD) {
+            data[DATE_TO_WEEK_FIELD[field]] = null;
+          }
+          if (field in WEEK_TO_DATE_FIELD) {
+            data[WEEK_TO_DATE_FIELD[field]] = null;
+          }
+          continue;
+        }
+
+        if (field === 'quantity') {
+          data[field] = parseNumber(incoming) ?? null;
+        } else if (weekNumberFields[field]) {
+          const parsedWeek = parseNumber(incoming);
+          const weekNumber = parsedWeek == null ? null : Math.round(parsedWeek);
+          data[field] = weekNumber;
+          const dateField = WEEK_TO_DATE_FIELD[field];
+          if (calendar && dateField && weekNumber != null) {
+            data[dateField] = getCalendarDateForWeek(weekNumber, calendar);
+          }
+        } else if (percentFields[field]) {
+          const parsedNumber = parseNumber(incoming);
+          if (parsedNumber === null) {
+            data[field] = null;
+          } else {
+            data[field] = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber;
+          }
+        } else if (decimalFields[field]) {
+          data[field] = parseNumber(incoming);
+        } else if (dateFields[field]) {
+          const parsedDate = parseDate(incoming);
+          if (!parsedDate) {
             data[field] = null;
             if (field in DATE_TO_WEEK_FIELD) {
               data[DATE_TO_WEEK_FIELD[field]] = null;
             }
-            if (field in WEEK_TO_DATE_FIELD) {
-              data[WEEK_TO_DATE_FIELD[field]] = null;
-            }
             continue;
           }
 
-          if (field === 'quantity') {
-            data[field] = parseNumber(incoming) ?? null;
-          } else if (weekNumberFields[field]) {
-            const parsedWeek = parseNumber(incoming);
-            const weekNumber = parsedWeek == null ? null : Math.round(parsedWeek);
-            data[field] = weekNumber;
-            const dateField = WEEK_TO_DATE_FIELD[field];
-            if (calendar && dateField && weekNumber != null) {
-              data[dateField] = getCalendarDateForWeek(weekNumber, calendar);
-            }
-          } else if (percentFields[field]) {
-            const parsedNumber = parseNumber(incoming);
-            if (parsedNumber === null) {
-              data[field] = null;
-            } else {
-              data[field] = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber;
-            }
-          } else if (decimalFields[field]) {
-            data[field] = parseNumber(incoming);
-          } else if (dateFields[field]) {
-            const parsedDate = parseDate(incoming);
-            if (!parsedDate) {
-              data[field] = null;
-              if (field in DATE_TO_WEEK_FIELD) {
-                data[DATE_TO_WEEK_FIELD[field]] = null;
-              }
+          if (calendar && field in DATE_TO_WEEK_FIELD) {
+            const weekNumber = weekNumberForDate(parsedDate, calendar);
+            if (weekNumber != null) {
+              data[DATE_TO_WEEK_FIELD[field]] = weekNumber;
+              data[field] = getCalendarDateForWeek(weekNumber, calendar);
               continue;
             }
-
-            if (calendar && field in DATE_TO_WEEK_FIELD) {
-              const weekNumber = weekNumberForDate(parsedDate, calendar);
-              if (weekNumber != null) {
-                data[DATE_TO_WEEK_FIELD[field]] = weekNumber;
-                data[field] = getCalendarDateForWeek(weekNumber, calendar);
-                continue;
-              }
-            }
-
-            data[field] = parsedDate;
-          } else if (field === 'status') {
-            data[field] = incoming as string;
-          } else if (field === 'productId') {
-            data[field] = incoming;
-          } else if (
-            field === 'orderCode' ||
-            field === 'transportReference' ||
-            field === 'shipName' ||
-            field === 'containerNumber'
-          ) {
-            data[field] = incoming;
-          } else if (field === 'notes') {
-            data[field] = incoming;
           }
-        }
 
-        return prisma.purchaseOrder.update({ where: { id }, data });
-      }),
+          data[field] = parsedDate;
+        } else if (field === 'status') {
+          data[field] = incoming as string;
+        } else if (field === 'productId') {
+          data[field] = incoming;
+        } else if (
+          field === 'orderCode' ||
+          field === 'transportReference' ||
+          field === 'shipName' ||
+          field === 'containerNumber'
+        ) {
+          data[field] = incoming;
+        } else if (field === 'notes') {
+          data[field] = incoming;
+        }
+      }
+
+      return { id, data };
+    });
+
+    for (const update of preparedUpdates) {
+      const existing = orderById.get(update.id);
+      if (!existing) continue;
+
+      const touchesStageDates =
+        'poDate' in update.data ||
+        'productionStart' in update.data ||
+        'productionComplete' in update.data ||
+        'sourceDeparture' in update.data ||
+        'portEta' in update.data ||
+        'availableDate' in update.data;
+
+      if (!touchesStageDates) continue;
+
+      const stageError = validatePurchaseOrderStageDates({
+        poDate: ('poDate' in update.data ? (update.data.poDate as Date | null) : existing.poDate) ??
+          null,
+        productionStart:
+          ('productionStart' in update.data
+            ? (update.data.productionStart as Date | null)
+            : existing.productionStart) ?? null,
+        productionComplete:
+          ('productionComplete' in update.data
+            ? (update.data.productionComplete as Date | null)
+            : existing.productionComplete) ?? null,
+        sourceDeparture:
+          ('sourceDeparture' in update.data
+            ? (update.data.sourceDeparture as Date | null)
+            : existing.sourceDeparture) ?? null,
+        portEta:
+          ('portEta' in update.data ? (update.data.portEta as Date | null) : existing.portEta) ??
+          null,
+        availableDate:
+          ('availableDate' in update.data
+            ? (update.data.availableDate as Date | null)
+            : existing.availableDate) ?? null,
+      });
+
+      if (stageError) {
+        return NextResponse.json(
+          {
+            error: `Dates must be in order: PO Date → Mfg Start → Mfg Done → Departure → Port Arrival → Warehouse. (${stageError})`,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    await prisma.$transaction(
+      preparedUpdates.map(({ id, data }) => prisma.purchaseOrder.update({ where: { id }, data })),
     );
     if (debug) {
       console.log('[PUT /purchase-orders] success');
