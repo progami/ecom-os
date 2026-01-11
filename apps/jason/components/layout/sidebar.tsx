@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, Mail, Home, Settings, LogOut, ChevronLeft, ChevronRight, Sparkles, Activity } from 'lucide-react';
+import { Calendar, Mail, Home, Settings, LogOut, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -33,14 +33,11 @@ export function Sidebar() {
             "flex items-center gap-3",
             collapsed && "justify-center"
           )}>
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent rounded-lg blur-lg opacity-75 animate-pulse-slow" />
-              <div className="relative bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-lg p-2">
-                <Sparkles className="h-5 w-5" />
-              </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md">
+              <span className="text-lg font-bold text-white">J</span>
             </div>
             {!collapsed && (
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <span className="text-lg font-semibold text-foreground">
                 Jason
               </span>
             )}
