@@ -223,14 +223,12 @@ export function DataTable<TData, TValue>({
             </TableRow>
           ) : null
         ) : (
-          table.getRowModel().rows.map((row, index) => (
+          table.getRowModel().rows.map((row) => (
             <TableRow
               key={row.id}
               hoverable={Boolean(onRowClick)}
               onClick={onRowClick ? () => onRowClick(row.original) : undefined}
               data-state={row.getIsSelected() && 'selected'}
-              className="animate-in fade-in duration-200"
-              style={{ animationDelay: `${index * 20}ms` }}
             >
               {row.getVisibleCells().map((cell) => {
                 const align = (cell.column.columnDef.meta as ColumnMeta | undefined)?.align
