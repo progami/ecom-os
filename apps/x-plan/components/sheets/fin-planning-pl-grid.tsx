@@ -121,8 +121,8 @@ const columnConfig: Array<{
   },
   {
     key: 'grossProfit',
-    label: 'Order Gross Profit',
-    width: 140,
+    label: 'Order GP',
+    width: 110,
     format: 'currency',
     editable: false,
     align: 'right',
@@ -972,7 +972,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
     <section className="space-y-4">
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
-        style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
+        style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
       >
         <textarea
           ref={clipboardRef}
