@@ -102,7 +102,7 @@ export function EmployeeOverviewTab({ employee }: { employee: Employee }) {
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {employee.department} &middot; {employee.employeeId}
+              {employee.department ?? 'No department'} &middot; {employee.employeeId}
             </p>
           </div>
         </div>
@@ -158,7 +158,7 @@ export function EmployeeOverviewTab({ employee }: { employee: Employee }) {
           <InfoRow
             icon={BuildingIcon}
             label="Department"
-            value={employee.department}
+            value={employee.department ?? 'Not assigned'}
           />
 
           <InfoRow
