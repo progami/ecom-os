@@ -1,85 +1,25 @@
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="64"
-  height="64"
-  viewBox="0 0 64 64"
-  fill="none"
->
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
   <defs>
-    <!-- Background gradient - deep navy -->
     <linearGradient id="xplan-bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#041324" />
-      <stop offset="50%" stop-color="#002C51" />
-      <stop offset="100%" stop-color="#06182b" />
+      <stop offset="0" stop-color="#002C51" />
+      <stop offset="1" stop-color="#001f3a" />
     </linearGradient>
-
-    <!-- Subtle shine overlay -->
-    <radialGradient
-      id="xplan-shine"
-      cx="0.3"
-      cy="0.2"
-      r="0.8"
-      gradientUnits="objectBoundingBox"
-    >
-      <stop offset="0%" stop-color="#00C2B9" stop-opacity="0.15" />
-      <stop offset="100%" stop-color="#00C2B9" stop-opacity="0" />
-    </radialGradient>
-
-    <!-- X gradient - cyan/teal -->
-    <linearGradient id="xplan-x" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#00E5DB" />
-      <stop offset="50%" stop-color="#00C2B9" />
-      <stop offset="100%" stop-color="#00A89F" />
-    </linearGradient>
-
-    <!-- Glow filter for the X -->
-    <filter id="xplan-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
 
-  <!-- Background rounded rectangle -->
+  <!-- Background -->
   <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#xplan-bg)" />
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="#00C2B9" stroke-opacity="0.2" />
 
-  <!-- Shine overlay -->
-  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#xplan-shine)" />
+  <!-- X-Plan: Two interlocking chain links forming an X -->
+  <g fill="none" stroke="#00C2B9" stroke-width="4" stroke-linecap="round">
+    <!-- First link (top-left to bottom-right diagonal) -->
+    <path d="M16,16 Q32,28 32,32 Q32,36 48,48" />
+    <ellipse cx="16" cy="16" rx="6" ry="8" transform="rotate(-45 16 16)" />
+    <ellipse cx="48" cy="48" rx="6" ry="8" transform="rotate(-45 48 48)" />
 
-  <!-- Subtle grid pattern for planning aesthetic -->
-  <g stroke="#00C2B9" stroke-opacity="0.08" stroke-width="0.5">
-    <line x1="22" y1="8" x2="22" y2="56" />
-    <line x1="32" y1="8" x2="32" y2="56" />
-    <line x1="42" y1="8" x2="42" y2="56" />
-    <line x1="8" y1="22" x2="56" y2="22" />
-    <line x1="8" y1="32" x2="56" y2="32" />
-    <line x1="8" y1="42" x2="56" y2="42" />
+    <!-- Second link (top-right to bottom-left diagonal) -->
+    <path d="M48,16 Q32,28 32,32 Q32,36 16,48" />
+    <ellipse cx="48" cy="16" rx="6" ry="8" transform="rotate(45 48 16)" />
+    <ellipse cx="16" cy="48" rx="6" ry="8" transform="rotate(45 16 48)" />
   </g>
-
-  <!-- The X mark - bold and centered -->
-  <g filter="url(#xplan-glow)">
-    <path
-      d="M18 18 L46 46 M46 18 L18 46"
-      stroke="url(#xplan-x)"
-      stroke-width="7"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      fill="none"
-    />
-  </g>
-
-  <!-- Border with subtle cyan tint -->
-  <rect
-    x="1"
-    y="1"
-    width="62"
-    height="62"
-    rx="14"
-    fill="none"
-    stroke="#00C2B9"
-    stroke-opacity="0.2"
-    stroke-width="1"
-  />
 </svg>
