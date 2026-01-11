@@ -933,7 +933,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
     <section className="space-y-4">
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
-        style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
+        style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
       >
         <textarea
           ref={clipboardRef}
