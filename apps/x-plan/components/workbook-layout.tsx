@@ -251,19 +251,19 @@ export function WorkbookLayout({
         : null;
 
     return (
-      <div className={`${SHEET_TOOLBAR_GROUP} gap-2`}>
+      <div className={`${SHEET_TOOLBAR_GROUP} gap-1`}>
         <span className={SHEET_TOOLBAR_LABEL}>Year</span>
         <button
           type="button"
           onClick={() => goToAdjacentYear(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
           aria-label="Previous year"
           disabled={!previous || isNavigationBusy}
         >
-          <ChevronLeft aria-hidden className="h-4 w-4" />
+          <ChevronLeft aria-hidden className="h-3.5 w-3.5" />
         </button>
         <select
-          className={`${SHEET_TOOLBAR_SELECT} min-w-[7rem]`}
+          className={`${SHEET_TOOLBAR_SELECT} min-w-[5.5rem]`}
           value={String(resolvedYear)}
           onChange={(event) => handleYearSelect(Number(event.target.value))}
           disabled={isNavigationBusy}
@@ -279,11 +279,11 @@ export function WorkbookLayout({
         <button
           type="button"
           onClick={() => goToAdjacentYear(1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-600 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-300 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
           aria-label="Next year"
           disabled={!next || isNavigationBusy}
         >
-          <ChevronRight aria-hidden className="h-4 w-4" />
+          <ChevronRight aria-hidden className="h-3.5 w-3.5" />
         </button>
       </div>
     );
@@ -443,10 +443,10 @@ export function WorkbookLayout({
         <section className="flex flex-1 overflow-hidden">
           <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
             <header
-              className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8"
+              className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-4 lg:px-6"
               role="banner"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 flex-1 items-center">
                   <SheetTabs
                     sheets={sheetTabs}
@@ -455,15 +455,15 @@ export function WorkbookLayout({
                     onSheetSelect={goToSheet}
                   />
                 </div>
-                <div className="flex shrink-0 items-center gap-4">
+                <div className="flex shrink-0 items-center gap-2">
                   {/* Active strategy indicator */}
                   {ribbon}
 
                   {/* Loading state */}
                   {showLoadingIndicator && (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
-                      <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-200/90">
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-cyan-700 dark:text-cyan-200/90">
                         Loading…
                       </span>
                     </div>
@@ -473,15 +473,15 @@ export function WorkbookLayout({
                   <ThemeToggle />
 
                   {/* X-Plan branding */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-dark shadow-md">
-                      <span className="text-lg font-bold text-white">X</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-dark shadow-sm">
+                      <span className="text-sm font-bold text-white">X</span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold uppercase tracking-[0.1em] text-brand-teal-600 dark:text-brand-teal-400">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-brand-teal-600 dark:text-brand-teal-400">
                         X-Plan
                       </span>
-                      <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">
+                      <h1 className="text-base font-semibold leading-tight text-slate-900 dark:text-white">
                         {activeSheet?.label ?? 'Workbook'}
                       </h1>
                     </div>
@@ -490,7 +490,7 @@ export function WorkbookLayout({
               </div>
 
               {hasControls && (
-                <div className="mt-3 flex flex-wrap items-center justify-end gap-4 border-t border-slate-200 pt-3 dark:border-[#0b3a52]">
+                <div className="mt-2 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 pt-2 dark:border-[#0b3a52]">
                   {headerControls}
                   {yearSwitcher}
                 </div>
@@ -516,7 +516,7 @@ export function WorkbookLayout({
       </main>
 
       <footer
-        className="space-y-3 border-t border-slate-200 bg-white/95 px-2 py-3 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] lg:hidden"
+        className="space-y-2 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] lg:hidden"
         role="navigation"
         aria-label="Sheet navigation"
       >
@@ -527,7 +527,7 @@ export function WorkbookLayout({
           onSheetSelect={goToSheet}
         />
         {hasControls && (
-          <div className="flex items-center justify-end gap-4 border-t border-slate-200 pt-3 dark:border-[#0b3a52]">
+          <div className="flex items-center justify-end gap-2 border-t border-slate-200 pt-2 dark:border-[#0b3a52]">
             {headerControls}
             {yearSwitcher}
           </div>
