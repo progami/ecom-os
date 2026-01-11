@@ -68,11 +68,11 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
       </Button>
 
       {isOpen ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center px-4 py-12 text-center sm:block sm:p-0">
             <div className="fixed inset-0 bg-slate-500/75 transition-opacity" onClick={handleClose} />
 
-            <div className="inline-block w-full max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:align-middle">
+            <div className="relative inline-block w-full max-w-lg transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all sm:my-8 sm:align-middle">
               <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-lg font-medium text-slate-900">Import Products from Amazon</h3>
