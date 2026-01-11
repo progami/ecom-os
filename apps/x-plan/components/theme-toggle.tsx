@@ -4,8 +4,6 @@ import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -15,20 +13,19 @@ export function ThemeToggle() {
   }, []);
 
   if (!mounted) {
-    return <div className="h-5 w-5 rounded border border-input bg-background" />;
+    return <div className="h-4 w-4 rounded border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800" />;
   }
 
   const isDark = theme === 'dark';
 
   return (
-    <Button
-      variant="outline"
-      size="icon"
+    <button
+      type="button"
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className="h-5 w-5"
+      className="flex h-4 w-4 items-center justify-center rounded border border-slate-200 bg-white text-slate-400 transition hover:bg-slate-50 hover:text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
     >
       {isDark ? <Sun className="h-2.5 w-2.5" aria-hidden /> : <Moon className="h-2.5 w-2.5" aria-hidden />}
-    </Button>
+    </button>
   );
 }

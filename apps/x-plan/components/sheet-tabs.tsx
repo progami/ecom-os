@@ -84,19 +84,19 @@ export function SheetTabs({
                   onClick={onSheetSelect ? (event) => handleClick(sheet.slug, event) : undefined}
                   title={sheet.label}
                   className={clsx(
-                    'group flex items-center gap-1 rounded px-1.5 py-1 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                    'group flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                     isActive
-                      ? 'bg-cyan-600 text-white dark:bg-cyan-400 dark:text-slate-900'
+                      ? 'bg-cyan-600 text-white dark:bg-cyan-500 dark:text-white'
                       : isCompleted
                         ? 'text-cyan-700 hover:bg-cyan-50 dark:text-cyan-300 dark:hover:bg-cyan-900/20'
-                        : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5',
+                        : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5',
                   )}
                 >
                   <span
                     className={clsx(
-                      'flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold transition-all',
+                      'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition-all',
                       isActive
-                        ? 'bg-white text-cyan-600 dark:bg-slate-900 dark:text-cyan-400'
+                        ? 'bg-white text-cyan-600 dark:bg-white dark:text-cyan-600'
                         : isCompleted
                           ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300'
                           : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
@@ -109,10 +109,10 @@ export function SheetTabs({
                 {index < sheets.length - 1 && (
                   <ChevronRight
                     className={clsx(
-                      'mx-0.5 h-3 w-3 flex-shrink-0',
+                      'mx-0.5 h-3.5 w-3.5 flex-shrink-0',
                       isCompleted
                         ? 'text-cyan-600 dark:text-cyan-400'
-                        : 'text-slate-400 dark:text-slate-500',
+                        : 'text-slate-300 dark:text-slate-600',
                     )}
                     aria-hidden
                   />

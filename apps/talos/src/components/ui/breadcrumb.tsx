@@ -3,17 +3,19 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronRight, Home } from '@/lib/lucide-icons'
+import { withoutBasePath } from '@/lib/utils/base-path'
 
 export function Breadcrumb() {
  const pathname = usePathname()
+ const normalizedPathname = withoutBasePath(pathname)
  
  // Don't show breadcrumbs on home or login pages
- if (pathname === '/' || pathname === '/auth/login') {
+ if (normalizedPathname === '/' || normalizedPathname === '/auth/login') {
  return null
  }
 
  // Parse the pathname into segments
- const segments = pathname.split('/').filter(Boolean)
+ const segments = normalizedPathname.split('/').filter(Boolean)
 
  // Create breadcrumb items
  const breadcrumbs = segments.map((segment, index) => {
@@ -23,6 +25,7 @@ export function Breadcrumb() {
  // Skip warehouse IDs in breadcrumbs (they don't have their own page)
  // Warehouse IDs appear after 'warehouses' and before 'rates' or 'edit'
  const isWarehouseId = previousSegment === 'warehouses' && segment.match(/^[a-f0-9-]{36}$/i)
+ const isOperationsRoot = segment === 'operations'
 
  // Handle special cases for better labels
  let label = segment
@@ -58,7 +61,7 @@ export function Breadcrumb() {
  }
  }
 
- return { href, label, skip: isWarehouseId }
+ return { href, label, skip: isWarehouseId || isOperationsRoot }
  }).filter(item => !item.skip)
 
  const homeLink = '/dashboard'
