@@ -4,6 +4,14 @@
 
 This plan outlines the integration of Amazon Selling Partner API (SP-API) data sources into Kairos for time series forecasting. The integration will enable users to import Amazon marketplace data alongside existing Google Trends data.
 
+## Constraints & Decisions (confirmed)
+
+- **Primary forecast target:** Units. Revenue and net proceeds are derived via simple multiplications downstream.
+- **Granularity:** Daily or weekly depending on the lowest-available granularity per source; store source-native and roll up as needed.
+- **Connection type:** Amazon **Seller Central** (SP-API).
+- **Scale:** ~30–40 ASINs initially.
+- **Storage:** Postgres only; Timescale (or other TSDB) is not worth the added complexity at this scale.
+
 ---
 
 ## Data Sources Overview
@@ -12,7 +20,7 @@ This plan outlines the integration of Amazon Selling Partner API (SP-API) data s
 |-------------|-----|----------|--------------|
 | **Brand Analytics** | Reports API | P0 | Search frequency, conversion, market basket |
 | **Seller Economics** | Data Kiosk | P1 | Profitability, net proceeds per ASIN |
-| **Vendor Forecasting** | Data Kiosk | P1 | 48-week demand predictions |
+| **Vendor Forecasting (vendor-only)** | Data Kiosk | P1 | 48-week demand predictions |
 | **Customer Feedback** | Customer Feedback API | P2 | Review trends, sentiment signals |
 
 ---
