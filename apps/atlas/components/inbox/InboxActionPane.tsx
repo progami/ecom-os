@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkItemDTO, WorkItemEntityData } from '@/lib/contracts/work-items'
@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils'
 type InboxActionPaneProps = {
   item: WorkItemDTO | null
   onAction: (actionId: ActionId, item: WorkItemDTO) => Promise<void> | void
+  currentIndex?: number
+  totalCount?: number
 }
 
 function getEntityTypeConfig(type: string) {
@@ -212,8 +214,16 @@ function EmptyState() {
   )
 }
 
-export function InboxActionPane({ item, onAction }: InboxActionPaneProps) {
+export function InboxActionPane({ item, onAction, currentIndex, totalCount }: InboxActionPaneProps) {
   const [acting, setActing] = useState<ActionId | null>(null)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [successLabel, setSuccessLabel] = useState('')
+
+  // Reset success state when item changes
+  useEffect(() => {
+    setShowSuccess(false)
+    setSuccessLabel('')
+  }, [item?.id])
 
   if (!item) {
     return <EmptyState />
@@ -221,11 +231,17 @@ export function InboxActionPane({ item, onAction }: InboxActionPaneProps) {
 
   const entityConfig = getEntityTypeConfig(item.entity.type)
   const dueLabel = getWorkItemDueLabel(item)
+  const showProgress = typeof currentIndex === 'number' && typeof totalCount === 'number' && totalCount > 0
 
   const handleAction = async (actionId: ActionId) => {
     setActing(actionId)
     try {
       await onAction(actionId, item)
+      // Show success feedback briefly
+      const action = item.primaryAction?.id === actionId ? item.primaryAction : item.secondaryActions.find(a => a.id === actionId)
+      setSuccessLabel(action?.label ?? 'Done')
+      setShowSuccess(true)
+      setTimeout(() => setShowSuccess(false), 2000)
     } finally {
       setActing(null)
     }
@@ -233,111 +249,77 @@ export function InboxActionPane({ item, onAction }: InboxActionPaneProps) {
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-      {/* Hero header with gradient */}
-      <div className={cn(
-        'relative px-6 py-8 bg-gradient-to-br text-white overflow-hidden',
-        entityConfig.gradient
-      )}>
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
-        </div>
-
-        <div className="relative">
-          {/* Type badge */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+      {/* Compact header */}
+      <div className="shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className={cn(
+              'shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md',
+              `bg-gradient-to-br ${entityConfig.gradient}`
+            )}>
               {entityConfig.icon}
             </div>
-            <div>
-              <span className="text-sm font-medium text-white/80">{item.typeLabel}</span>
-              <span className="mx-2 text-white/40">·</span>
-              <span className="text-sm text-white/70">{item.stageLabel}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1">
+                <span className="font-medium">{item.typeLabel}</span>
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span>{item.stageLabel}</span>
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50 leading-tight line-clamp-2">
+                {item.title}
+              </h2>
             </div>
           </div>
 
-          {/* Title */}
-          <h2 className="text-xl font-bold leading-tight">{item.title}</h2>
+          {/* Progress indicator */}
+          {showProgress ? (
+            <div className="shrink-0 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
+                {currentIndex + 1} of {totalCount}
+              </span>
+            </div>
+          ) : null}
+        </div>
 
-          {/* Status indicators */}
-          <div className="mt-4 flex items-center gap-3">
+        {/* Status badges */}
+        {(item.isOverdue || item.isActionRequired) ? (
+          <div className="mt-3 flex items-center gap-2">
             {item.isOverdue ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold">
-                <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                {item.overdueDays ? `${item.overdueDays} days overdue` : 'Overdue'}
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 dark:bg-red-900/30 rounded-full text-xs font-semibold text-red-700 dark:text-red-300">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                {item.overdueDays ? `${item.overdueDays}d overdue` : 'Overdue'}
               </span>
             ) : item.isActionRequired ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold">
-                <span className="w-2 h-2 bg-white rounded-full" />
-                Action Required
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cyan-100 dark:bg-cyan-900/30 rounded-full text-xs font-semibold text-cyan-700 dark:text-cyan-300">
+                <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full" />
+                Action required
               </span>
             ) : null}
           </div>
-        </div>
-      </div>
-
-      {/* Content area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {/* Description */}
-        {item.description ? (
-          <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-              {item.description}
-            </p>
-          </div>
         ) : null}
-
-        {/* Entity-specific content */}
-        <EntityContent entityType={item.entity.type} entityData={item.entityData} />
-
-        {/* Metadata cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-              Due Date
-            </p>
-            <p className={cn(
-              'text-sm font-semibold',
-              item.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
-            )}>
-              {dueLabel}
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
-              Created
-            </p>
-            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {formatWorkItemWhen(item.createdAt)}
-            </p>
-          </div>
-        </div>
-
-        {/* See full details - small link at bottom */}
-        <div className="pt-1">
-          <a
-            href={item.href}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            See full details
-          </a>
-        </div>
       </div>
 
-      {/* Action footer */}
-      {(item.primaryAction || item.secondaryActions.length > 0) ? (
-        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
-          <div className="flex flex-col gap-3">
+      {/* Success feedback */}
+      {showSuccess ? (
+        <div className="shrink-0 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            <span className="text-sm font-semibold">{successLabel} complete</span>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Primary action - sticky at top of content area for visibility */}
+      {(item.primaryAction || item.secondaryActions.length > 0) && !showSuccess ? (
+        <div className="shrink-0 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col gap-2">
             {/* Primary action - full width, prominent */}
             {item.primaryAction ? (
               <Button
                 className={cn(
-                  'w-full h-12 text-base font-semibold',
+                  'w-full h-11 text-base font-semibold',
                   'bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100',
                   'dark:text-slate-900'
                 )}
@@ -356,7 +338,7 @@ export function InboxActionPane({ item, onAction }: InboxActionPaneProps) {
                   <Button
                     key={action.id}
                     variant="secondary"
-                    className="flex-1 h-10"
+                    className="flex-1 h-9"
                     disabled={action.disabled || acting === action.id}
                     loading={acting === action.id}
                     onClick={() => handleAction(action.id)}
@@ -369,6 +351,62 @@ export function InboxActionPane({ item, onAction }: InboxActionPaneProps) {
           </div>
         </div>
       ) : null}
+
+      {/* Content area */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        {/* Description */}
+        {item.description ? (
+          <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+              {item.description}
+            </p>
+          </div>
+        ) : null}
+
+        {/* Entity-specific content */}
+        <EntityContent entityType={item.entity.type} entityData={item.entityData} />
+
+        {/* Metadata - only show if there's something to show */}
+        {(item.dueAt || item.createdAt) ? (
+          <div className={cn('grid gap-3', item.dueAt ? 'grid-cols-2' : 'grid-cols-1')}>
+            {item.dueAt ? (
+              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                  Due Date
+                </p>
+                <p className={cn(
+                  'text-sm font-semibold',
+                  item.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
+                )}>
+                  {dueLabel}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+                Created
+              </p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {formatWorkItemWhen(item.createdAt)}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* See full details - small link at bottom */}
+        <div className="pt-1">
+          <a
+            href={item.href}
+            className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            See full details
+          </a>
+        </div>
+      </div>
     </div>
   )
 }

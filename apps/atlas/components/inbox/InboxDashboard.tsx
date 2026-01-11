@@ -122,11 +122,21 @@ export function InboxDashboard({
     return items.find((i) => i.id === selectedId) ?? items[0] ?? null
   }, [items, selectedId])
 
+  const selectedIndex = useMemo(() => {
+    if (!selected) return -1
+    return items.findIndex((i) => i.id === selected.id)
+  }, [items, selected])
+
   const selectedCompleted = useMemo(() => {
     if (!completedItems.length) return null
     if (!selectedId) return completedItems[0] ?? null
     return completedItems.find((i) => i.id === selectedId) ?? completedItems[0] ?? null
   }, [completedItems, selectedId])
+
+  const completedSelectedIndex = useMemo(() => {
+    if (!selectedCompleted) return -1
+    return completedItems.findIndex((i) => i.id === selectedCompleted.id)
+  }, [completedItems, selectedCompleted])
 
   const isLoading = activeTab === 'pending' ? loading : completedLoading
 
@@ -189,7 +199,12 @@ export function InboxDashboard({
 
           {/* Right: Action pane */}
           <div className="flex-1 min-h-0">
-            <InboxActionPane item={selected} onAction={onAction} />
+            <InboxActionPane
+              item={selected}
+              onAction={onAction}
+              currentIndex={selectedIndex}
+              totalCount={items.length}
+            />
           </div>
         </div>
       ) : (
