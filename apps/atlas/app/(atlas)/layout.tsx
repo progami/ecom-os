@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { ReactNode, Suspense, useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { NavigationHistoryProvider } from '@/lib/navigation-history';
 import { MeApi } from '@/lib/api-client';
 import { CommandPalette } from '@/components/search/CommandPalette';
+import { RouteLoadingIndicator } from '@/components/ui/RouteLoadingIndicator';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -276,6 +277,10 @@ export default function ATLASLayout({ children }: { children: ReactNode }) {
 
   return (
     <NavigationHistoryProvider>
+      <Suspense fallback={null}>
+        <RouteLoadingIndicator />
+      </Suspense>
+
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:z-50 md:flex md:w-64 md:flex-col">
         <Sidebar isSuperAdmin={isSuperAdmin} isHR={isHR} />
