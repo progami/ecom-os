@@ -11,6 +11,7 @@ import SkusPanel from './skus-panel'
 import { redirectToPortal } from '@/lib/portal'
 import { Button } from '@/components/ui/button'
 import { ImportButton } from '@/components/ui/import-button'
+import { AmazonImportButton } from './amazon-import-button'
 
 const ALLOWED_ROLES = ['admin', 'staff']
 
@@ -64,6 +65,7 @@ function ProductsPageContent() {
           icon={Package}
           actions={
             <div className="flex items-center gap-2">
+              <AmazonImportButton onImportComplete={() => window.location.reload()} />
               <ImportButton entityName="skus" onImportComplete={() => window.location.reload()} />
               <Button onClick={handleOpenSkuModal} className="gap-2">
                 <Plus className="h-4 w-4" />
