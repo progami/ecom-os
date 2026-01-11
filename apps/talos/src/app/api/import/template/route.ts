@@ -156,6 +156,30 @@ function getSampleData(entityName: string, _config: ImportConfig): unknown[][] {
         ],
       ]
 
+    case 'suppliers':
+      return [
+        [
+          'ABC Manufacturing Co.',
+          'John Smith',
+          'john@abcmfg.com',
+          '+1-555-123-4567',
+          '123 Industrial Park, Shenzhen, China',
+          'Primary supplier for plastic components',
+          'Net 30',
+          'FOB',
+        ],
+        [
+          'Global Parts Ltd.',
+          'Jane Doe',
+          'jane@globalparts.com',
+          '+44-20-7946-0958',
+          '456 Trade Street, London, UK',
+          'European distributor',
+          '50% deposit, 50% before shipping',
+          'CIF',
+        ],
+      ]
+
     case 'costRates':
       return [
         [
@@ -250,6 +274,16 @@ function getFieldDescription(dbField: string, entityName: string): string {
       longitude: 'Geographic longitude coordinate',
       contactEmail: 'Contact email for the warehouse',
       contactPhone: 'Contact phone number',
+    },
+    suppliers: {
+      name: 'Unique supplier name (used as identifier)',
+      contactName: 'Primary contact person name',
+      email: 'Contact email address',
+      phone: 'Contact phone number',
+      address: 'Physical address of the supplier',
+      notes: 'Additional notes or comments',
+      defaultPaymentTerms: 'Default payment terms (e.g., Net 30, 50% deposit)',
+      defaultIncoterms: 'Default Incoterms (e.g., FOB, CIF, EXW, DDP)',
     },
     costRates: {
       warehouse: 'Warehouse name (must match existing warehouse)',
