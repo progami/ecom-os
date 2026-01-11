@@ -228,7 +228,7 @@ export function SkuBatchesModal({
   if (!isOpen || !sku) return null
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-5xl">
         <SkuBatchesManager sku={sku} onRequestClose={onClose} onBatchesUpdated={onBatchesUpdated} />
       </div>
@@ -768,7 +768,7 @@ function SkuBatchesManager({
       </div>
 
       {isFormOpen ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
           <div className="flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div className="flex flex-col">
