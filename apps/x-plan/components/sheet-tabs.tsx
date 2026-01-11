@@ -68,7 +68,7 @@ export function SheetTabs({
   }
 
   return (
-    <div className="flex w-full items-center justify-between gap-1.5 py-1">
+    <div className="flex w-full items-center justify-between gap-1 py-0.5">
       <nav className="flex items-center overflow-x-auto">
         <ol className="flex items-center">
           {sheets.map((sheet, index) => {
@@ -83,7 +83,7 @@ export function SheetTabs({
                   href={href}
                   onClick={onSheetSelect ? (event) => handleClick(sheet.slug, event) : undefined}
                   className={clsx(
-                    'group flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                    'group flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                     isActive
                       ? 'bg-cyan-600 text-white dark:bg-cyan-400 dark:text-slate-900'
                       : isCompleted
@@ -93,7 +93,7 @@ export function SheetTabs({
                 >
                   <span
                     className={clsx(
-                      'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-all',
+                      'flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold transition-all',
                       isActive
                         ? 'bg-white text-cyan-600 dark:bg-slate-900 dark:text-cyan-400'
                         : isCompleted
@@ -108,7 +108,7 @@ export function SheetTabs({
                 {index < sheets.length - 1 && (
                   <ChevronRight
                     className={clsx(
-                      'mx-0.5 h-3 w-3 flex-shrink-0',
+                      'mx-px h-2.5 w-2.5 flex-shrink-0',
                       isCompleted
                         ? 'text-cyan-600 dark:text-cyan-400'
                         : 'text-slate-400 dark:text-slate-500',
