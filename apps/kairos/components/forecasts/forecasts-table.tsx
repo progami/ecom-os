@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowUpDown, ExternalLink, Loader2, Play, Plus, RefreshCw, X } from 'lucide-react';
+import { ArrowUpDown, ExternalLink, Loader2, Play, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -154,6 +154,71 @@ function RunForecastButton({ forecast }: { forecast: ForecastListItem }) {
       )}
       Run
     </Button>
+  );
+}
+
+function DeleteForecastButton({ forecast }: { forecast: ForecastListItem }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => fetchJson(`/api/v1/forecasts/${forecast.id}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      toast.success('Forecast deleted', { description: forecast.name });
+      setOpen(false);
+      await queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY });
+    },
+    onError: (error) => {
+      toast.error('Delete failed', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={deleteMutation.isPending || forecast.status === 'RUNNING'}
+          className="gap-2 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+        >
+          {deleteMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Trash2 className="h-4 w-4" aria-hidden />
+          )}
+          Delete
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete forecast?</DialogTitle>
+          <DialogDescription>
+            This permanently deletes <span className="font-medium">{forecast.name}</span> and its run history.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={deleteMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void deleteMutation.mutateAsync()}
+            disabled={deleteMutation.isPending}
+            className="gap-2"
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Trash2 className="h-4 w-4" aria-hidden />
+            )}
+            Delete forecast
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -338,6 +403,7 @@ export function ForecastsTable() {
               </Link>
             </Button>
             <RunForecastButton forecast={row.original} />
+            <DeleteForecastButton forecast={row.original} />
           </div>
         ),
         enableSorting: false,

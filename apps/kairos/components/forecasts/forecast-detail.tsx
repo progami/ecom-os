@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { Download, Loader2, Play, RefreshCw, TrendingUp, X } from 'lucide-react';
+import { Download, Loader2, Play, RefreshCw, Trash2, TrendingUp, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   type ColumnDef,
@@ -16,16 +17,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useState } from 'react';
 
 import { fetchJson } from '@/lib/api/client';
 import { withAppBasePath } from '@/lib/base-path';
-import type { ForecastDetail, ForecastOutput, ForecastOutputPoint, ForecastStatus } from '@/types/kairos';
+import type { ForecastDetail, ForecastModel, ForecastOutput, ForecastOutputPoint, ForecastStatus } from '@/types/kairos';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ForecastChart } from '@/components/charts/forecast-chart';
 import { cn } from '@/lib/utils';
@@ -89,10 +91,49 @@ function formatDurationMs(ms: number) {
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
   return `${Math.round(ms)}ms`;
 }
+
+function parseInterval(value: string) {
+  const interval = Number(value);
+  if (!Number.isFinite(interval)) {
+    return null;
+  }
+  if (interval <= 0 || interval >= 1) {
+    return null;
+  }
+  return interval;
+}
+
+function parseOptionalInt(value: string) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    return null;
+  }
+  return parsed;
+}
+
+function modelFromParams(value: unknown): ForecastModel | null {
+  if (!value || typeof value !== 'object') return null;
+  const rec = value as Record<string, unknown>;
+  return rec.model === 'PROPHET' || rec.model === 'ETS' ? rec.model : null;
+}
+
 export function ForecastDetailView({ forecastId }: { forecastId: string }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+
+  const [runAsOpen, setRunAsOpen] = useState(false);
+  const [runAsModel, setRunAsModel] = useState<ForecastModel>('PROPHET');
+
+  const [runAsProphetIntervalWidth, setRunAsProphetIntervalWidth] = useState('0.8');
+  const [runAsProphetUncertaintySamples, setRunAsProphetUncertaintySamples] = useState('200');
+
+  const [runAsEtsSeasonLength, setRunAsEtsSeasonLength] = useState('7');
+  const [runAsEtsIntervalLevel, setRunAsEtsIntervalLevel] = useState('0.8');
+  const [runAsEtsSpec, setRunAsEtsSpec] = useState('');
 
   const forecastQuery = useQuery({
     queryKey: FORECAST_DETAIL_KEY(forecastId),
@@ -104,10 +145,14 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
     refetchIntervalInBackground: true,
   });
 
+  type RunForecastInput = { model?: ForecastModel; config?: unknown };
+
   const runMutation = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (payload: RunForecastInput) =>
       fetchJson<RunForecastResponse>(`/api/v1/forecasts/${forecastId}/run`, {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
       }),
     onSuccess: async (data) => {
       const runStatus = String(data.run.status).toUpperCase();
@@ -122,6 +167,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         queryClient.invalidateQueries({ queryKey: FORECAST_DETAIL_KEY(forecastId) }),
         queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY }),
       ]);
+      setRunAsOpen(false);
     },
     onError: (error) => {
       toast.error('Run failed', {
@@ -149,12 +195,67 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => fetchJson(`/api/v1/forecasts/${forecastId}`, { method: 'DELETE' }),
+    onSuccess: async () => {
+      toast.success('Forecast deleted');
+      setDeleteOpen(false);
+      await queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY });
+      router.push('/forecasts');
+    },
+    onError: (error) => {
+      toast.error('Delete failed', {
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
   const forecast = forecastQuery.data?.forecast ?? null;
+  const runs = useMemo(() => forecast?.runs ?? [], [forecast?.runs]);
   const latestRun = forecast?.latestRun ?? null;
   const latestSuccessfulRun = forecast?.latestSuccessfulRun ?? null;
-  const chartOutput =
-    latestRun?.status === 'SUCCESS' ? latestRun.output : latestSuccessfulRun?.output ?? null;
+
+  useEffect(() => {
+    if (!forecast) {
+      setSelectedRunId(null);
+      return;
+    }
+
+    if (selectedRunId && runs.some((run) => run.id === selectedRunId)) {
+      return;
+    }
+
+    if (latestSuccessfulRun) {
+      setSelectedRunId(latestSuccessfulRun.id);
+      return;
+    }
+
+    if (latestRun) {
+      setSelectedRunId(latestRun.id);
+      return;
+    }
+
+    setSelectedRunId(null);
+  }, [forecast, latestRun, latestSuccessfulRun, runs, selectedRunId]);
+
+  const selectedRun = useMemo(() => {
+    if (!selectedRunId) return null;
+    return runs.find((run) => run.id === selectedRunId) ?? null;
+  }, [runs, selectedRunId]);
+
+  const chartOutput = selectedRun?.status === 'SUCCESS' ? selectedRun.output : null;
   const outputParsed = useMemo(() => parseForecastOutput(chartOutput), [chartOutput]);
+
+  useEffect(() => {
+    if (!forecast || !runAsOpen) return;
+
+    setRunAsModel(forecast.model);
+    setRunAsProphetIntervalWidth('0.8');
+    setRunAsProphetUncertaintySamples('200');
+    setRunAsEtsIntervalLevel('0.8');
+    setRunAsEtsSpec('');
+    setRunAsEtsSeasonLength(forecast.series.granularity === 'WEEKLY' ? '52' : '7');
+  }, [forecast, runAsOpen]);
 
   const rows = useMemo<ForecastPointRow[]>(() => {
     if (!forecast) return [];
@@ -306,13 +407,14 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
       ? formatDistanceToNowStrict(lastRunDate, { addSuffix: true })
       : '—';
 
-  const runDate = latestRun?.ranAt ? new Date(latestRun.ranAt) : null;
-  const runLabel =
+  const runDate = selectedRun?.ranAt ? new Date(selectedRun.ranAt) : null;
+  const selectedRunLabel =
     runDate && !Number.isNaN(runDate.getTime())
       ? formatDistanceToNowStrict(runDate, { addSuffix: true })
       : null;
 
   const outputMeta = outputParsed?.meta ?? null;
+  const viewedModel = outputParsed?.model ?? modelFromParams(selectedRun?.params);
 
   return (
     <div className="space-y-8 animate-in">
@@ -322,7 +424,10 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-h1">{forecast.name}</h1>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">{forecast.model}</Badge>
+              <Badge variant="secondary">Default: {forecast.model}</Badge>
+              {viewedModel && viewedModel !== forecast.model ? (
+                <Badge variant="outline">Viewing: {viewedModel}</Badge>
+              ) : null}
               <StatusBadge status={forecast.status} />
             </div>
           </div>
@@ -346,8 +451,147 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
               CSV
             </a>
           </Button>
+
+          <Dialog open={runAsOpen} onOpenChange={setRunAsOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={forecast.status === 'RUNNING'}
+                className="gap-2"
+              >
+                <Play className="h-4 w-4" aria-hidden />
+                Run model…
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Run model</DialogTitle>
+                <DialogDescription>
+                  Run a different model on the same series + horizon. This does not change the default model.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Model</div>
+                  <Select value={runAsModel} onValueChange={(value) => setRunAsModel(value as ForecastModel)}>
+                    <SelectTrigger aria-label="Forecast model">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PROPHET">PROPHET</SelectItem>
+                      <SelectItem value="ETS">ETS (Auto)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {runAsModel === 'PROPHET' ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval width</div>
+                      <Input
+                        value={runAsProphetIntervalWidth}
+                        onChange={(event) => setRunAsProphetIntervalWidth(event.target.value)}
+                        type="number"
+                        step="0.05"
+                        min={0.5}
+                        max={0.99}
+                        aria-label="Prophet interval width"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Uncertainty samples</div>
+                      <Input
+                        value={runAsProphetUncertaintySamples}
+                        onChange={(event) => setRunAsProphetUncertaintySamples(event.target.value)}
+                        type="number"
+                        step={1}
+                        min={0}
+                        max={2000}
+                        aria-label="Prophet uncertainty samples"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Season length</div>
+                      <Input
+                        value={runAsEtsSeasonLength}
+                        onChange={(event) => setRunAsEtsSeasonLength(event.target.value)}
+                        type="number"
+                        step={1}
+                        min={1}
+                        max={365}
+                        aria-label="ETS season length"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval level</div>
+                      <Input
+                        value={runAsEtsIntervalLevel}
+                        onChange={(event) => setRunAsEtsIntervalLevel(event.target.value)}
+                        type="number"
+                        step="0.05"
+                        min={0.5}
+                        max={0.99}
+                        aria-label="ETS interval level"
+                      />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Spec</div>
+                      <Input value={runAsEtsSpec} onChange={(event) => setRunAsEtsSpec(event.target.value)} aria-label="ETS spec" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button variant="outline" onClick={() => setRunAsOpen(false)} disabled={runMutation.isPending}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const config =
+                      runAsModel === 'ETS'
+                        ? {
+                            seasonLength: parseOptionalInt(runAsEtsSeasonLength) ?? undefined,
+                            spec: runAsEtsSpec.trim() || undefined,
+                            intervalLevel:
+                              runAsEtsIntervalLevel.trim() === ''
+                                ? null
+                                : (parseInterval(runAsEtsIntervalLevel) ?? undefined),
+                          }
+                        : {
+                            intervalWidth: parseInterval(runAsProphetIntervalWidth) ?? undefined,
+                            uncertaintySamples: parseOptionalInt(runAsProphetUncertaintySamples) ?? undefined,
+                          };
+
+                    const configCleaned = Object.fromEntries(
+                      Object.entries(config).filter(([, value]) => value !== undefined),
+                    );
+
+                    void runMutation.mutateAsync({
+                      model: runAsModel,
+                      config: Object.keys(configCleaned).length > 0 ? configCleaned : undefined,
+                    });
+                  }}
+                  disabled={runMutation.isPending || forecast.status === 'RUNNING'}
+                  className="gap-2"
+                >
+                  {runMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Play className="h-4 w-4" aria-hidden />
+                  )}
+                  Run
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Button
-            onClick={() => void runMutation.mutateAsync()}
+            onClick={() => void runMutation.mutateAsync({})}
             disabled={runMutation.isPending || forecast.status === 'RUNNING'}
             className="gap-2"
           >
@@ -356,8 +600,9 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
             ) : (
               <Play className="h-4 w-4" aria-hidden />
             )}
-            Run now
+            Run default
           </Button>
+
           {forecast.status === 'RUNNING' ? (
             <Button
               variant="destructive"
@@ -373,6 +618,53 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
               Cancel
             </Button>
           ) : null}
+
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={deleteMutation.isPending || forecast.status === 'RUNNING'}
+                className="gap-2 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300"
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                )}
+                Delete
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete forecast?</DialogTitle>
+                <DialogDescription>
+                  This permanently deletes <span className="font-medium">{forecast.name}</span> and its run history.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="gap-2 sm:gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={deleteMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => void deleteMutation.mutateAsync()}
+                  disabled={deleteMutation.isPending}
+                  className="gap-2"
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  )}
+                  Delete forecast
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -395,31 +687,31 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Latest Run</CardTitle>
-            <CardDescription>Run status and metadata.</CardDescription>
+            <CardTitle>Selected Run</CardTitle>
+            <CardDescription>Pick a run below to compare models.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
-              <div className="text-muted-foreground">Last run</div>
+              <div className="text-muted-foreground">Latest run</div>
               <div className="text-xs text-muted-foreground">{lastRunLabel}</div>
             </div>
-            {latestRun ? (
+            {selectedRun ? (
               <>
                 <div className="flex items-center justify-between">
                   <div className="text-muted-foreground">Run status</div>
-                  <Badge variant={latestRun.status === 'FAILED' ? 'destructive' : 'secondary'}>
-                    {latestRun.status}
+                  <Badge variant={selectedRun.status === 'FAILED' ? 'destructive' : 'secondary'}>
+                    {selectedRun.status}
                   </Badge>
                 </div>
-                {runLabel ? (
+                {selectedRunLabel ? (
                   <div className="flex items-center justify-between">
                     <div className="text-muted-foreground">Ran</div>
-                    <div className="text-xs text-muted-foreground">{runLabel}</div>
+                    <div className="text-xs text-muted-foreground">{selectedRunLabel}</div>
                   </div>
                 ) : null}
-                {latestRun.errorMessage ? (
+                {selectedRun.errorMessage ? (
                   <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100">
-                    {latestRun.errorMessage}
+                    {selectedRun.errorMessage}
                   </div>
                 ) : null}
                 {outputMeta ? (
@@ -453,6 +745,74 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Run History</CardTitle>
+          <CardDescription>Select a run to view its output and compare models.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {runs.length > 0 ? (
+            <div className="overflow-hidden rounded-xl border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ran</TableHead>
+                    <TableHead className="w-24" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {runs.map((run) => {
+                    const model = modelFromParams(run.params);
+                    const ranAt = new Date(run.ranAt);
+                    const ranLabel = Number.isNaN(ranAt.getTime())
+                      ? formatIsoDate(run.ranAt)
+                      : formatDistanceToNowStrict(ranAt, { addSuffix: true });
+
+                    const statusVariant =
+                      run.status === 'SUCCESS' ? 'success' : run.status === 'FAILED' ? 'destructive' : 'secondary';
+
+                    return (
+                      <TableRow
+                        key={run.id}
+                        className={cn(
+                          selectedRunId === run.id && 'bg-slate-50/80 dark:bg-white/5 hover:bg-slate-50/80 dark:hover:bg-white/5',
+                        )}
+                      >
+                        <TableCell className="font-medium">{model ?? '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant}>{run.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{ranLabel}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedRunId(run.id)}
+                            disabled={selectedRunId === run.id}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No runs yet.</div>
+          )}
+
+          {selectedRun && selectedRun.status !== 'SUCCESS' ? (
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+              Selected run has no forecast output yet.
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {/* Forecast Visualization Chart */}
       {rows.length > 0 && (
