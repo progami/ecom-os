@@ -24,7 +24,18 @@ interface SupplierRow {
   updatedAt: string
 }
 
-const INCOTERMS_OPTIONS = ['EXW', 'FOB', 'FCA', 'CFR', 'CIF', 'CPT', 'CIP', 'DAP', 'DPU', 'DDP'] as const
+const INCOTERMS_OPTIONS = [
+  'EXW',
+  'FOB',
+  'FCA',
+  'CFR',
+  'CIF',
+  'CPT',
+  'CIP',
+  'DAP',
+  'DPU',
+  'DDP',
+] as const
 
 interface SuppliersResponse {
   data: SupplierRow[]
@@ -60,7 +71,10 @@ interface SuppliersPanelProps {
   onExternalModalClose?: () => void
 }
 
-export default function SuppliersPanel({ externalModalOpen, onExternalModalClose }: SuppliersPanelProps) {
+export default function SuppliersPanel({
+  externalModalOpen,
+  onExternalModalClose,
+}: SuppliersPanelProps) {
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -111,7 +125,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
 
   const filteredSuppliers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
-    return suppliers.filter((supplier) => {
+    return suppliers.filter(supplier => {
       if (!term) return true
       return (
         supplier.name.toLowerCase().includes(term) ||
@@ -175,8 +189,12 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
         phone: formState.phone.trim(),
         address: formState.address.trim(),
         notes: formState.notes.trim() ? formState.notes.trim() : null,
-        defaultPaymentTerms: formState.defaultPaymentTerms.trim() ? formState.defaultPaymentTerms.trim() : null,
-        defaultIncoterms: formState.defaultIncoterms.trim() ? formState.defaultIncoterms.trim() : null,
+        defaultPaymentTerms: formState.defaultPaymentTerms.trim()
+          ? formState.defaultPaymentTerms.trim()
+          : null,
+        defaultIncoterms: formState.defaultIncoterms.trim()
+          ? formState.defaultIncoterms.trim()
+          : null,
       }
 
       const endpoint = editingSupplier
@@ -247,7 +265,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={event => setSearchTerm(event.target.value)}
                 placeholder="Search suppliers..."
                 className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
               />
@@ -293,24 +311,36 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSuppliers.map((supplier) => (
+                {filteredSuppliers.map(supplier => (
                   <tr key={supplier.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{supplier.name}</td>
+                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
+                      {supplier.name}
+                    </td>
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {supplier.contactName ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.email ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                      {supplier.email ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                      {supplier.phone ?? '—'}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {supplier.defaultPaymentTerms || supplier.defaultIncoterms ? (
                         <div className="flex flex-wrap gap-1">
                           {supplier.defaultIncoterms && (
-                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-blue-50 text-blue-700 border-blue-200"
+                            >
                               {supplier.defaultIncoterms}
                             </Badge>
                           )}
                           {supplier.defaultPaymentTerms && (
-                            <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200"
+                            >
                               {supplier.defaultPaymentTerms.length > 20
                                 ? `${supplier.defaultPaymentTerms.slice(0, 20)}…`
                                 : supplier.defaultPaymentTerms}
@@ -345,9 +375,9 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
       </div>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-lg shadow-xl">
-            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4 rounded-t-lg">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div className="flex w-full max-w-2xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
               <h2 className="text-lg font-semibold text-slate-900">
                 {editingSupplier ? 'Edit Supplier' : 'New Supplier'}
               </h2>
@@ -356,111 +386,134 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
               </Button>
             </div>
 
-            <form onSubmit={submitSupplier} className="space-y-6 p-6 bg-white rounded-b-lg">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1 md:col-span-2">
-                  <Label htmlFor="supplier-name">Name</Label>
-                  <input
-                    id="supplier-name"
-                    value={formState.name}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                  />
-                </div>
+            <form onSubmit={submitSupplier} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="supplier-name">Name</Label>
+                    <input
+                      id="supplier-name"
+                      value={formState.name}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, name: event.target.value }))
+                      }
+                      required
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                    />
+                  </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="supplier-contact">Contact Name</Label>
-                  <input
-                    id="supplier-contact"
-                    value={formState.contactName}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, contactName: event.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                  />
-                </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="supplier-contact">Contact Name</Label>
+                    <input
+                      id="supplier-contact"
+                      value={formState.contactName}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, contactName: event.target.value }))
+                      }
+                      required
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                    />
+                  </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="supplier-email">Email</Label>
-                  <input
-                    id="supplier-email"
-                    type="email"
-                    value={formState.email}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                  />
-                </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="supplier-email">Email</Label>
+                    <input
+                      id="supplier-email"
+                      type="email"
+                      value={formState.email}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, email: event.target.value }))
+                      }
+                      required
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                    />
+                  </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="supplier-phone">Phone</Label>
-                  <input
-                    id="supplier-phone"
-                    value={formState.phone}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, phone: event.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                  />
-                </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="supplier-phone">Phone</Label>
+                    <input
+                      id="supplier-phone"
+                      value={formState.phone}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, phone: event.target.value }))
+                      }
+                      required
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                    />
+                  </div>
 
-                <div className="space-y-1 md:col-span-2">
-                  <Label htmlFor="supplier-address">Address</Label>
-                  <Textarea
-                    id="supplier-address"
-                    value={formState.address}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, address: event.target.value }))}
-                    required
-                    rows={2}
-                  />
-                </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="supplier-address">Address</Label>
+                    <Textarea
+                      id="supplier-address"
+                      value={formState.address}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, address: event.target.value }))
+                      }
+                      required
+                      rows={2}
+                    />
+                  </div>
 
-                <div className="space-y-1 md:col-span-2">
-                  <Label htmlFor="supplier-notes">Notes</Label>
-                  <Textarea
-                    id="supplier-notes"
-                    value={formState.notes}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, notes: event.target.value }))}
-                    placeholder="Optional"
-                    rows={3}
-                  />
-                </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <Label htmlFor="supplier-notes">Notes</Label>
+                    <Textarea
+                      id="supplier-notes"
+                      value={formState.notes}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, notes: event.target.value }))
+                      }
+                      placeholder="Optional"
+                      rows={3}
+                    />
+                  </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="supplier-payment-terms">Default Payment Terms</Label>
-                  <input
-                    id="supplier-payment-terms"
-                    value={formState.defaultPaymentTerms}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, defaultPaymentTerms: event.target.value }))}
-                    placeholder="e.g., Net 30, 50% deposit"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                  />
-                  <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
-                </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="supplier-payment-terms">Default Payment Terms</Label>
+                    <input
+                      id="supplier-payment-terms"
+                      value={formState.defaultPaymentTerms}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, defaultPaymentTerms: event.target.value }))
+                      }
+                      placeholder="e.g., Net 30, 50% deposit"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                    />
+                    <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
+                  </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="supplier-incoterms">Default Incoterms</Label>
-                  <select
-                    id="supplier-incoterms"
-                    value={formState.defaultIncoterms}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, defaultIncoterms: event.target.value }))}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
-                  >
-                    <option value="">None (select on PO)</option>
-                    {INCOTERMS_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
+                  <div className="space-y-1">
+                    <Label htmlFor="supplier-incoterms">Default Incoterms</Label>
+                    <select
+                      id="supplier-incoterms"
+                      value={formState.defaultIncoterms}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, defaultIncoterms: event.target.value }))
+                      }
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+                    >
+                      <option value="">None (select on PO)</option>
+                      {INCOTERMS_OPTIONS.map(option => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500">Auto-filled when creating new POs</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t pt-6">
+              <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
                 <div />
 
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={closeModal} disabled={isSubmitting}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeModal}
+                    disabled={isSubmitting}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
