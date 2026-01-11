@@ -79,6 +79,18 @@ module.exports = {
       watch: false,
       max_memory_restart: '300M'
     },
+    {
+      name: 'dev-plutus',
+      cwd: path.join(DEV_DIR, 'apps/plutus'),
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 3112',
+      interpreter: 'node',
+      exec_mode: 'fork',
+      env: { NODE_ENV: 'production', PORT: 3112 },
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '300M'
+    },
 
     // ===========================================
     // MAIN ENVIRONMENT (30xx ports) - targonos.targonglobal.com
@@ -149,6 +161,18 @@ module.exports = {
       interpreter: 'node',
       exec_mode: 'fork',
       env: { NODE_ENV: 'production', PORT: 3010 },
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '300M'
+    },
+    {
+      name: 'main-plutus',
+      cwd: path.join(MAIN_DIR, 'apps/plutus'),
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -p 3012',
+      interpreter: 'node',
+      exec_mode: 'fork',
+      env: { NODE_ENV: 'production', PORT: 3012 },
       autorestart: true,
       watch: false,
       max_memory_restart: '300M'

@@ -26,6 +26,7 @@ const APPS_TO_SYNC = [
   'apps/sso',
   'apps/x-plan',
   'apps/atlas',
+  'apps/plutus',
 ]
 
 function readJSON(filePath) {
