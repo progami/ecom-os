@@ -122,7 +122,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     () => [
       { id: 'overview' as Tab, label: 'Overview', icon: UsersIcon, visible: true },
       { id: 'documents' as Tab, label: 'Documents', icon: FolderIcon, visible: canViewDocuments },
-      { id: 'performance' as Tab, label: 'Performance', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
+      { id: 'performance' as Tab, label: 'Reviews', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
       { id: 'leave' as Tab, label: 'Leave', icon: CalendarDaysIcon, visible: canViewLeave },
       { id: 'violations' as Tab, label: 'Violations', icon: ShieldExclamationIcon, visible: canViewViolations },
     ],
