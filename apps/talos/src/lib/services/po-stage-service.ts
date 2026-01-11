@@ -765,6 +765,39 @@ export async function createPurchaseOrder(
     return Math.ceil(unitsOrdered / unitsPerCarton)
   }
 
+  const counterpartyName =
+    typeof input.counterpartyName === 'string' && input.counterpartyName.trim().length > 0
+      ? input.counterpartyName.trim()
+      : null
+  if (!counterpartyName) {
+    throw new ValidationError('Supplier is required')
+  }
+
+  const expectedDate = resolveDateValue(input.expectedDate, 'Cargo Ready Date')
+  if (!expectedDate) {
+    throw new ValidationError('Cargo Ready Date is required')
+  }
+
+  const incoterms =
+    typeof input.incoterms === 'string' && input.incoterms.trim().length > 0
+      ? input.incoterms.trim().toUpperCase()
+      : null
+  if (!incoterms) {
+    throw new ValidationError('Incoterms is required')
+  }
+
+  const paymentTerms =
+    typeof input.paymentTerms === 'string' && input.paymentTerms.trim().length > 0
+      ? input.paymentTerms.trim()
+      : null
+  if (!paymentTerms) {
+    throw new ValidationError('Payment Terms is required')
+  }
+
+  if (!input.lines || input.lines.length === 0) {
+    throw new ValidationError('At least one line item is required')
+  }
+
   if (input.lines && input.lines.length > 0) {
     const normalizedLines = input.lines.map(line => ({
       ...line,
@@ -788,6 +821,10 @@ export async function createPurchaseOrder(
 
       if (!line.batchLot || line.batchLot === 'DEFAULT') {
         throw new ValidationError(`Batch / lot is required for SKU ${line.skuCode}`)
+      }
+
+      if (typeof line.currency !== 'string' || line.currency.trim().length === 0) {
+        throw new ValidationError(`Currency is required for SKU ${line.skuCode}`)
       }
 
       computeCartonsOrdered({
@@ -830,30 +867,15 @@ export async function createPurchaseOrder(
   for (let attempt = 0; attempt < MAX_PO_NUMBER_ATTEMPTS; attempt += 1) {
     const poNumber = await generatePoNumber()
     const orderNumber = poNumber // Order number is just the PO number now
-    const expectedDate = resolveDateValue(input.expectedDate, 'Cargo Ready Date')
-    const incoterms =
-      typeof input.incoterms === 'string' && input.incoterms.trim().length > 0
-        ? input.incoterms.trim().toUpperCase()
-        : null
-    const paymentTerms =
-      typeof input.paymentTerms === 'string' && input.paymentTerms.trim().length > 0
-        ? input.paymentTerms.trim()
-        : null
 
 	    try {
 	      order = await prisma.$transaction(async tx => {
-          const counterpartyName =
-            typeof input.counterpartyName === 'string' && input.counterpartyName.trim().length > 0
-              ? input.counterpartyName.trim()
-              : null
           let counterpartyAddress: string | null = null
-          if (counterpartyName) {
-            const supplier = await tx.supplier.findUnique({
-              where: { name: counterpartyName },
-              select: { address: true },
-            })
-            counterpartyAddress = supplier?.address ?? null
-          }
+          const supplier = await tx.supplier.findUnique({
+            where: { name: counterpartyName },
+            select: { address: true },
+          })
+          counterpartyAddress = supplier?.address ?? null
 
           const skuByCode = new Map(skuRecordsForLines.map(sku => [sku.skuCode.toLowerCase(), sku]))
           const batchByKey = new Map<string, LineBatchRecord>()
@@ -995,7 +1017,7 @@ export async function createPurchaseOrder(
                         line.unitsOrdered > 0
                           ? (line.totalCost / line.unitsOrdered).toFixed(4)
                           : undefined,
-                      currency: line.currency || tenant.currency,
+                      currency: line.currency?.trim().toUpperCase() || tenant.currency,
                       lineNotes: line.notes,
                       status: 'PENDING',
                     })),

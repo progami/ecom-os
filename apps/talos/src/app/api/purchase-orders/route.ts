@@ -17,7 +17,7 @@ export const GET = withAuth(async (_request: NextRequest, _session) => {
 })
 
 const LineItemSchema = z.object({
-  skuCode: z.string().min(1),
+  skuCode: z.string().trim().min(1, 'SKU is required'),
   skuDescription: z.string().optional(),
   batchLot: z
     .string()
@@ -27,15 +27,19 @@ const LineItemSchema = z.object({
   unitsOrdered: z.number().int().positive(),
   unitsPerCarton: z.number().int().positive(),
   totalCost: z.number().min(0).optional(),
-  currency: z.string().optional(),
+  currency: z.string().trim().min(1, 'Currency is required'),
   notes: z.string().optional(),
 })
 
 const CreatePOSchema = z.object({
-  counterpartyName: z.string().min(1),
-  expectedDate: z.string().trim().optional(),
-  incoterms: z.string().trim().optional(),
-  paymentTerms: z.string().trim().optional(),
+  counterpartyName: z.string().trim().min(1),
+  expectedDate: z
+    .string()
+    .trim()
+    .min(1, 'Cargo ready date is required')
+    .refine(value => !Number.isNaN(new Date(value).getTime()), 'Invalid cargo ready date'),
+  incoterms: z.string().trim().min(1, 'Incoterms is required'),
+  paymentTerms: z.string().trim().min(1, 'Payment terms is required'),
   notes: z.string().optional(),
   lines: z.array(LineItemSchema).min(1, 'At least one line item is required'),
 })
