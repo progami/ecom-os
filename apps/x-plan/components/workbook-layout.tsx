@@ -397,6 +397,7 @@ export function WorkbookLayout({
         ...config,
         ...sheet,
         icon: config?.icon ?? FileText,
+        shortLabel: config?.shortLabel ?? sheet.label,
         href: buildSheetHref(sheet.slug),
       };
     });
@@ -443,10 +444,10 @@ export function WorkbookLayout({
         <section className="flex flex-1 overflow-hidden">
           <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
             <header
-              className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-2 py-1 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-3 lg:px-4"
+              className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-2 py-0.5 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-3 lg:px-4"
               role="banner"
             >
-              <div className="flex flex-wrap items-center justify-between gap-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-1">
                 <div className="flex min-w-0 flex-1 items-center">
                   <SheetTabs
                     sheets={sheetTabs}
@@ -455,15 +456,15 @@ export function WorkbookLayout({
                     onSheetSelect={goToSheet}
                   />
                 </div>
-                <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex shrink-0 items-center gap-1">
                   {/* Active strategy indicator */}
                   {ribbon}
 
                   {/* Loading state */}
                   {showLoadingIndicator && (
                     <div className="flex items-center gap-1">
-                      <div className="h-3 w-3 animate-spin rounded-full border-[1.5px] border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
-                      <span className="text-[9px] font-semibold uppercase tracking-[0.06em] text-cyan-700 dark:text-cyan-200/90">
+                      <div className="h-2.5 w-2.5 animate-spin rounded-full border-[1.5px] border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.06em] text-cyan-700 dark:text-cyan-200/90">
                         Loading…
                       </span>
                     </div>
@@ -473,24 +474,19 @@ export function WorkbookLayout({
                   <ThemeToggle />
 
                   {/* X-Plan branding */}
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-dark shadow-sm">
-                      <span className="text-xs font-bold text-white">X</span>
+                  <div className="flex items-center gap-1">
+                    <div className="flex h-5 w-5 items-center justify-center rounded bg-brand-dark shadow-sm">
+                      <span className="text-[10px] font-bold text-white">X</span>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-bold uppercase tracking-[0.06em] text-brand-teal-600 dark:text-brand-teal-400">
-                        X-Plan
-                      </span>
-                      <h1 className="text-sm font-semibold leading-tight text-slate-900 dark:text-white">
-                        {activeSheet?.label ?? 'Workbook'}
-                      </h1>
-                    </div>
+                    <h1 className="text-[13px] font-semibold text-slate-900 dark:text-white">
+                      {activeSheet?.label ?? 'Workbook'}
+                    </h1>
                   </div>
                 </div>
               </div>
 
               {hasControls && (
-                <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5 border-t border-slate-200 pt-1.5 dark:border-[#0b3a52]">
+                <div className="mt-1 flex flex-wrap items-center justify-end gap-1 border-t border-slate-200 pt-1 dark:border-[#0b3a52]">
                   {headerControls}
                   {yearSwitcher}
                 </div>
