@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
+  DisciplinaryActionsApi,
   EmployeeFilesApi,
   EmployeesApi,
   LeavesApi,
   MeApi,
   PerformanceReviewsApi,
   UploadsApi,
+  type DisciplinaryAction,
   type Employee,
   type EmployeeFile,
   type LeaveBalance,
@@ -16,11 +18,11 @@ import {
   type PerformanceReview,
 } from '@/lib/api-client'
 import {
-  BuildingIcon,
   CalendarDaysIcon,
   ClipboardDocumentCheckIcon,
   FolderIcon,
   PencilIcon,
+  ShieldExclamationIcon,
   UsersIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
@@ -29,12 +31,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { TabButton } from '@/components/ui/TabButton'
 import { EmployeeDocumentsTab } from '@/components/employee/profile/tabs/DocumentsTab'
-import { EmployeeJobOrgTab } from '@/components/employee/profile/tabs/JobOrgTab'
 import { EmployeeLeaveTab } from '@/components/employee/profile/tabs/LeaveTab'
 import { EmployeeOverviewTab } from '@/components/employee/profile/tabs/OverviewTab'
 import { EmployeePerformanceTab } from '@/components/employee/profile/tabs/PerformanceTab'
+import { EmployeeViolationsTab } from '@/components/employee/profile/tabs/ViolationsTab'
 
-type Tab = 'overview' | 'job' | 'documents' | 'performance' | 'leave'
+type Tab = 'overview' | 'documents' | 'performance' | 'leave' | 'violations'
 
 type EmployeeProfileVariant = 'employee' | 'hub'
 
@@ -51,10 +53,10 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const tabParam = (searchParams.get('tab') ?? '').toLowerCase()
   const normalizedTabParam = tabParam === 'timeoff' ? 'leave' : tabParam
   const initialTab: Tab =
-    normalizedTabParam === 'job' ||
     normalizedTabParam === 'documents' ||
     normalizedTabParam === 'performance' ||
-    normalizedTabParam === 'leave'
+    normalizedTabParam === 'leave' ||
+    normalizedTabParam === 'violations'
       ? (normalizedTabParam as Tab)
       : 'overview'
 
@@ -72,6 +74,9 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [leaveLoading, setLeaveLoading] = useState(false)
 
+  const [violations, setViolations] = useState<DisciplinaryAction[]>([])
+  const [violationsLoading, setViolationsLoading] = useState(false)
+
   const [files, setFiles] = useState<EmployeeFile[]>([])
   const [filesLoading, setFilesLoading] = useState(false)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
@@ -88,6 +93,7 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const canViewDocuments = isSelf || isHROrAbove
   const canViewPerformance = canViewSensitive
   const canViewLeave = canViewSensitive
+  const canViewViolations = canViewSensitive
   const permissionsReady = Boolean(employee && me && permissions)
 
   // Sync tab from URL only when it differs (e.g., browser back/forward navigation)
@@ -115,12 +121,12 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const tabs = useMemo(
     () => [
       { id: 'overview' as Tab, label: 'Overview', icon: UsersIcon, visible: true },
-      { id: 'job' as Tab, label: 'Job & Org', icon: BuildingIcon, visible: true },
       { id: 'documents' as Tab, label: 'Documents', icon: FolderIcon, visible: canViewDocuments },
       { id: 'performance' as Tab, label: 'Performance', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
       { id: 'leave' as Tab, label: 'Leave', icon: CalendarDaysIcon, visible: canViewLeave },
+      { id: 'violations' as Tab, label: 'Violations', icon: ShieldExclamationIcon, visible: canViewViolations },
     ],
-    [canViewDocuments, canViewPerformance, canViewLeave]
+    [canViewDocuments, canViewPerformance, canViewLeave, canViewViolations]
   )
 
   const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible), [tabs])
@@ -235,6 +241,23 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
     }
     loadFiles()
   }, [activeTab, canViewDocuments, employee])
+
+  useEffect(() => {
+    async function loadViolations() {
+      if (!employee || activeTab !== 'violations' || !canViewViolations) return
+      try {
+        setViolationsLoading(true)
+        const data = await DisciplinaryActionsApi.list({ employeeId: employee.id })
+        setViolations(data.items)
+      } catch (e) {
+        console.error('Failed to load violations', e)
+        setViolations([])
+      } finally {
+        setViolationsLoading(false)
+      }
+    }
+    loadViolations()
+  }, [activeTab, canViewViolations, employee])
 
   async function uploadDocument() {
     if (!employee || !uploadFile) return
@@ -408,9 +431,6 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
       {/* OVERVIEW TAB */}
       {activeTab === 'overview' ? <EmployeeOverviewTab employee={employee} /> : null}
 
-      {/* JOB & ORG TAB */}
-      {activeTab === 'job' ? <EmployeeJobOrgTab employee={employee} /> : null}
-
       {/* DOCUMENTS TAB */}
       {activeTab === 'documents' && canViewDocuments ? (
         <EmployeeDocumentsTab
@@ -445,6 +465,11 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           loading={leaveLoading}
           isSelf={isSelf}
         />
+      ) : null}
+
+      {/* VIOLATIONS TAB */}
+      {activeTab === 'violations' && canViewViolations ? (
+        <EmployeeViolationsTab violations={violations} loading={violationsLoading} />
       ) : null}
     </>
   )
