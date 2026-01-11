@@ -117,7 +117,7 @@ export function ProductSetupWorkspace({
         </div>
 
         <div className="p-4 sm:p-5">
-          <Tabs.Content value="products" forceMount>
+          <Tabs.Content value="products" forceMount className="data-[state=inactive]:hidden">
             <section className="space-y-4">
               <header className="space-y-1">
                 <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
@@ -129,7 +129,7 @@ export function ProductSetupWorkspace({
             </section>
           </Tabs.Content>
 
-          <Tabs.Content value="ops" forceMount>
+          <Tabs.Content value="ops" forceMount className="data-[state=inactive]:hidden">
             <section className="space-y-4">
               <header className="space-y-1">
                 <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
@@ -145,7 +145,7 @@ export function ProductSetupWorkspace({
             </section>
           </Tabs.Content>
 
-          <Tabs.Content value="sales" forceMount>
+          <Tabs.Content value="sales" forceMount className="data-[state=inactive]:hidden">
             <section className="space-y-4">
               <header className="space-y-1">
                 <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
@@ -161,7 +161,7 @@ export function ProductSetupWorkspace({
             </section>
           </Tabs.Content>
 
-          <Tabs.Content value="finance" forceMount>
+          <Tabs.Content value="finance" forceMount className="data-[state=inactive]:hidden">
             <section className="space-y-4">
               <header className="space-y-1">
                 <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
