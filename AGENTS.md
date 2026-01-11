@@ -19,13 +19,6 @@ Use app name as prefix: `atlas/`, `x-plan/`, `talos/`, `kairos/`, `hrms/`, `sso/
 
 Examples: `x-plan/fix-toolbar-visibility`, `talos/add-amazon-import`, `atlas/improve-loading`
 
-### Commit Messages
-
-Always include the co-author line:
-```
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
-```
-
 ### PR Workflow
 
 Once work is complete:
