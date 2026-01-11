@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Upload, FileSpreadsheet, X, CheckCircle, AlertCircle, Download } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 import { getImportConfig } from '@/lib/import-config'
@@ -24,6 +25,11 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
  const [file, setFile] = useState<File | null>(null)
  const [importing, setImporting] = useState(false)
  const [result, setResult] = useState<ImportResult | null>(null)
+ const [mounted, setMounted] = useState(false)
+
+ useEffect(() => {
+   setMounted(true)
+ }, [])
 
  const config = getImportConfig(entityName)
  if (!config) return null
@@ -118,12 +124,13 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
  {buttonText || `Import ${config.displayName}`}
  </Button>
 
- {isOpen && (
- <div className="fixed inset-0 z-50 overflow-y-auto">
- <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
- <div className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity" onClick={handleClose} />
+ {isOpen && mounted
+   ? createPortal(
+       <div className="fixed inset-0 z-[9998]">
+         <div className="flex h-full w-full items-center justify-center p-4">
+           <div className="fixed inset-0 bg-black/50" onClick={handleClose} aria-hidden="true" />
 
- <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+           <div className="relative w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-xl">
  <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
  <div className="flex items-center justify-between mb-4">
  <h3 className="text-lg font-medium text-slate-900">
@@ -279,11 +286,13 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
  >
  Cancel
  </button>
- </div>
- </div>
- </div>
- </div>
- )}
+             </div>
+           </div>
+         </div>
+       </div>,
+       document.body
+     )
+   : null}
  </>
  )
 }
