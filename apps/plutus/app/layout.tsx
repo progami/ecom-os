@@ -7,9 +7,17 @@ const inter = Inter({
   display: 'swap',
 })
 
+const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH || ''
+
 export const metadata: Metadata = {
   title: 'Plutus | Targon',
   description: 'Finance workspace for Targon (FCC rebrand).',
+  icons: {
+    icon: [
+      { url: `${appBasePath}/favicon.ico`, sizes: '48x48' },
+      { url: `${appBasePath}/favicon.svg`, type: 'image/svg+xml' },
+    ],
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
