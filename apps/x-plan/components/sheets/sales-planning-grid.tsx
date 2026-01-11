@@ -159,7 +159,7 @@ export function SalesPlanningFocusControl({
       <select
         value={focusProductId}
         onChange={(event) => setFocusProductId(event.target.value)}
-        className={`${SHEET_TOOLBAR_SELECT} min-w-[10rem]`}
+        className={SHEET_TOOLBAR_SELECT}
         aria-label="Focus on a single SKU"
       >
         <option value="ALL">Show all</option>
@@ -2232,7 +2232,7 @@ export function SalesPlanningGrid({
     <section className="space-y-4">
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
-        style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
+        style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
       >
         <textarea
           ref={clipboardRef}
