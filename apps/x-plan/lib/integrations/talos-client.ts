@@ -11,8 +11,7 @@ type GlobalWithTalosPrisma = typeof globalThis & {
 
 function talosDatabaseUrlForRegion(region: TalosRegion): string | null {
   const talosKey = region === 'UK' ? 'TALOS_DATABASE_URL_UK' : 'TALOS_DATABASE_URL_US';
-  const legacyKey = region === 'UK' ? 'WMS_DATABASE_URL_UK' : 'WMS_DATABASE_URL_US';
-  const url = process.env[talosKey]?.trim() || process.env[legacyKey]?.trim();
+  const url = process.env[talosKey]?.trim();
   return url && url.length > 0 ? url : null;
 }
 
