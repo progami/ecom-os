@@ -479,7 +479,7 @@ function mergeOrders(
         inboundEta: parseDateValue(row.portEta),
         availableDate: parseDateValue(row.availableDate),
         totalLeadDays: null,
-        status: (row.status as PurchaseOrderStatus) ?? 'PLANNED',
+        status: (row.status as PurchaseOrderStatus) ?? 'ISSUED',
         payments: [],
         overrideSellingPrice: parseNumber(row.sellingPrice),
         overrideManufacturingCost: parseNumber(row.manufacturingCost),

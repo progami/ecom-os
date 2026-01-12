@@ -280,23 +280,6 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
             </div>
           ) : null}
         </div>
-
-        {/* Status badges */}
-        {(item.isOverdue || item.isActionRequired) ? (
-          <div className="mt-3 flex items-center gap-2">
-            {item.isOverdue ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-100 dark:bg-red-900/30 rounded-full text-xs font-semibold text-red-700 dark:text-red-300">
-                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                {item.overdueDays ? `${item.overdueDays}d overdue` : 'Overdue'}
-              </span>
-            ) : item.isActionRequired ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-cyan-100 dark:bg-cyan-900/30 rounded-full text-xs font-semibold text-cyan-700 dark:text-cyan-300">
-                <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full" />
-                Action required
-              </span>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
       {/* Success feedback */}

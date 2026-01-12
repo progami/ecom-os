@@ -361,11 +361,14 @@ type ColumnDef = {
 };
 
 const PURCHASE_ORDER_STATUS_OPTIONS = [
-  { value: 'PLANNED', label: 'Planned' },
-  { value: 'PRODUCTION', label: 'Production' },
-  { value: 'IN_TRANSIT', label: 'Transit' },
-  { value: 'ARRIVED', label: 'Arrived' },
-  { value: 'CLOSED', label: 'Closed' },
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'ISSUED', label: 'Issued' },
+  { value: 'MANUFACTURING', label: 'Manufacturing' },
+  { value: 'OCEAN', label: 'Ocean' },
+  { value: 'WAREHOUSE', label: 'Warehouse' },
+  { value: 'SHIPPED', label: 'Shipped' },
+  { value: 'ARCHIVED', label: 'Archived' },
+  { value: 'REJECTED', label: 'Rejected' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ] as const;
 
@@ -376,17 +379,28 @@ function normalizePurchaseOrderStatus(value: string): PurchaseOrderStatusValue |
   if (!trimmed) return null;
   const normalized = trimmed.toUpperCase().replace(/[^A-Z]/g, '');
   switch (normalized) {
+    case 'DRAFT':
+      return 'DRAFT';
+    case 'ISSUED':
     case 'PLANNED':
-      return 'PLANNED';
+      return 'ISSUED';
+    case 'MANUFACTURING':
     case 'PRODUCTION':
-      return 'PRODUCTION';
+      return 'MANUFACTURING';
+    case 'OCEAN':
     case 'INTRANSIT':
     case 'TRANSIT':
-      return 'IN_TRANSIT';
+      return 'OCEAN';
+    case 'WAREHOUSE':
     case 'ARRIVED':
-      return 'ARRIVED';
+      return 'WAREHOUSE';
+    case 'SHIPPED':
+      return 'SHIPPED';
+    case 'ARCHIVED':
     case 'CLOSED':
-      return 'CLOSED';
+      return 'ARCHIVED';
+    case 'REJECTED':
+      return 'REJECTED';
     case 'CANCELLED':
     case 'CANCELED':
       return 'CANCELLED';
@@ -524,11 +538,7 @@ function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageM
 
   if (column.type === 'dropdown') {
     const currentValue = row[column.key] ?? '';
-    return (
-      normalizePurchaseOrderStatus(currentValue) ??
-      PURCHASE_ORDER_STATUS_OPTIONS[0]?.value ??
-      currentValue
-    );
+    return normalizePurchaseOrderStatus(currentValue) ?? 'ISSUED';
   }
 
   return row[column.key] ?? '';
@@ -705,6 +715,9 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                     dateFormat: 'Y-m-d',
                     allowInput: true,
                     disableMobile: true,
+                    onReady: (_selectedDates: Date[], _dateStr: string, instance: any) => {
+                      instance.open();
+                    },
                     onOpen: () => setIsDatePickerOpen(true),
                     onClose: (_dates: Date[], dateStr: string) => {
                       setIsDatePickerOpen(false);

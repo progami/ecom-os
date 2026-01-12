@@ -108,11 +108,14 @@ export interface PurchaseOrderDerived {
 }
 
 const STATUS_ICON_MAP: Record<PurchaseOrderStatus, string> = {
-  PLANNED: '📝',
-  PRODUCTION: '🛠',
-  IN_TRANSIT: '🚢',
-  ARRIVED: '✅',
-  CLOSED: '✔',
+  DRAFT: '📝',
+  ISSUED: '📤',
+  MANUFACTURING: '🛠',
+  OCEAN: '🚢',
+  WAREHOUSE: '📦',
+  SHIPPED: '🚚',
+  REJECTED: '⛔',
+  ARCHIVED: '🗄️',
   CANCELLED: '✖',
 };
 

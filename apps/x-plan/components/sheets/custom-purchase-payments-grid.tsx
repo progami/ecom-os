@@ -1349,6 +1349,9 @@ export function CustomPurchasePaymentsGrid({
                 dateFormat: 'Y-m-d',
                 allowInput: true,
                 disableMobile: true,
+                onReady: (_selectedDates: Date[], _dateStr: string, instance: any) => {
+                  instance.open();
+                },
                 onOpen: () => setIsDatePickerOpen(true),
                 onClose: (_dates: Date[], dateStr: string) => {
                   setIsDatePickerOpen(false);

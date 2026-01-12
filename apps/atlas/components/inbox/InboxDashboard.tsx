@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { Alert } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import type { WorkItemsResponse, WorkItemDTO, CompletedWorkItemsResponse, CompletedWorkItemDTO } from '@/lib/contracts/work-items'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import { InboxItemList } from './InboxItemList'
@@ -23,24 +24,7 @@ type InboxDashboardProps = {
   selectedId: string | null
   onSelect: (id: string) => void
   onAction: (actionId: ActionId, item: WorkItemDTO) => Promise<void> | void
-}
-
-function StatCard({ value, label, variant = 'default' }: { value: number; label: string; variant?: 'default' | 'action' | 'danger' }) {
-  const colors = {
-    default: 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100',
-    action: 'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300',
-    danger: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300',
-  }
-
-  return (
-    <div className={cn(
-      'flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all',
-      colors[variant]
-    )}>
-      <span className="text-2xl font-bold tabular-nums">{value}</span>
-      <span className="text-xs font-medium uppercase tracking-wider opacity-70">{label}</span>
-    </div>
-  )
+  onNewRequest?: () => void
 }
 
 function LoadingSkeleton() {
@@ -110,6 +94,7 @@ export function InboxDashboard({
   selectedId,
   onSelect,
   onAction,
+  onNewRequest,
 }: InboxDashboardProps) {
   const items = data?.items ?? []
   const meta = data?.meta
@@ -141,49 +126,56 @@ export function InboxDashboard({
   const isLoading = activeTab === 'pending' ? loading : completedLoading
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)] min-h-[500px]">
+    <div className="flex flex-col h-full">
       {error ? (
         <Alert variant="error" className="mb-4">
           {error}
         </Alert>
       ) : null}
 
-      {/* Tab switcher + Stats bar */}
-      <div className="flex items-center gap-6 mb-6 pb-6 border-b border-slate-200 dark:border-slate-700">
-        {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-          <TabButton
-            active={activeTab === 'pending'}
-            onClick={() => onTabChange('pending')}
-            count={meta?.totalCount}
-          >
-            Pending
-          </TabButton>
-          <TabButton
-            active={activeTab === 'completed'}
-            onClick={() => onTabChange('completed')}
-            count={completedMeta?.totalCount}
-          >
-            Completed
-          </TabButton>
+      {/* Compact header with title, tabs, and action */}
+      <div className="shrink-0 flex items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-4">
+          {/* Title */}
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">Inbox</h1>
+
+          {/* Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+            <TabButton
+              active={activeTab === 'pending'}
+              onClick={() => onTabChange('pending')}
+              count={meta?.totalCount}
+            >
+              Pending
+            </TabButton>
+            <TabButton
+              active={activeTab === 'completed'}
+              onClick={() => onTabChange('completed')}
+              count={completedMeta?.totalCount}
+            >
+              Completed
+            </TabButton>
+          </div>
+
+          {/* Zero inbox indicator */}
+          {activeTab === 'pending' && meta?.totalCount === 0 ? (
+            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm font-semibold">All clear</span>
+            </div>
+          ) : null}
         </div>
 
-        {/* Stats - only show for pending tab */}
-        {activeTab === 'pending' ? (
-          <>
-            <StatCard value={meta?.actionRequiredCount ?? 0} label="Action Required" variant="action" />
-            <StatCard value={meta?.overdueCount ?? 0} label="Overdue" variant="danger" />
-
-            {/* Zero inbox indicator when empty */}
-            {meta?.totalCount === 0 ? (
-              <div className="ml-auto flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-sm font-semibold">All clear</span>
-              </div>
-            ) : null}
-          </>
+        {/* New Request button */}
+        {onNewRequest ? (
+          <Button onClick={onNewRequest} variant="default" size="sm">
+            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            New Request
+          </Button>
         ) : null}
       </div>
 

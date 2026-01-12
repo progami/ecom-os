@@ -102,35 +102,7 @@ export default function WorkQueuePage() {
   }, [loadPending])
 
   return (
-    <>
-      {/* Hero header for Inbox */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 flex items-center justify-center shadow-lg">
-              <svg className="w-7 h-7 text-white dark:text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-                Inbox
-              </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Clear your pending tasks and approvals
-              </p>
-            </div>
-          </div>
-
-          <Button onClick={() => setCreateModalOpen(true)} variant="default" size="default">
-            <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            New Request
-          </Button>
-        </div>
-      </div>
-
+    <div className="h-[calc(100vh-theme(spacing.32))] flex flex-col -mt-4">
       <CreateRequestModal
         open={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
@@ -143,18 +115,21 @@ export default function WorkQueuePage() {
         </Alert>
       ) : null}
 
-      <InboxDashboard
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        data={data}
-        completedData={completedData}
-        loading={loading}
-        completedLoading={completedLoading}
-        error={null}
-        selectedId={activeTab === 'pending' ? selectedId : completedSelectedId}
-        onSelect={activeTab === 'pending' ? setSelectedId : setCompletedSelectedId}
-        onAction={handleAction}
-      />
-    </>
+      <div className="flex-1 min-h-0">
+        <InboxDashboard
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          data={data}
+          completedData={completedData}
+          loading={loading}
+          completedLoading={completedLoading}
+          error={null}
+          selectedId={activeTab === 'pending' ? selectedId : completedSelectedId}
+          onSelect={activeTab === 'pending' ? setSelectedId : setCompletedSelectedId}
+          onAction={handleAction}
+          onNewRequest={() => setCreateModalOpen(true)}
+        />
+      </div>
+    </div>
   )
 }
