@@ -557,17 +557,6 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     if (!description) description = skuCode
     description = truncateDescription(description)
 
-    if (!unitWeightKg) {
-      skipped += 1
-      errors.push(`Skipping ${skuCode}: Amazon did not provide a unit weight`)
-      details.push({
-        skuCode,
-        status: 'blocked',
-        message: 'Amazon did not provide a unit weight',
-      })
-      continue
-    }
-
     const unitDimensionsCm = unitTriplet ? formatDimensionTripletCm(unitTriplet) : null
 
     if (mode === 'validate') {
