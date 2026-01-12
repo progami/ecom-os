@@ -495,7 +495,7 @@ export default function PolicyDetailPage() {
           {policy.content && (
             <Card padding="lg">
               <h2 className="text-sm font-semibold text-foreground mb-4">Policy Content</h2>
-              <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h2:border-b prose-h2:border-border/50 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-muted/50 prose-th:text-foreground prose-th:p-2 prose-th:border prose-th:border-border prose-td:p-2 prose-td:border prose-td:border-border prose-strong:text-foreground prose-a:text-accent hover:prose-a:text-accent/80">
+              <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-headings:font-semibold prose-h1:text-xl prose-h2:text-lg prose-h2:border-b prose-h2:border-border/50 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-muted/50 prose-th:text-foreground prose-th:p-2 prose-th:border prose-th:border-border prose-td:p-2 prose-td:border prose-td:border-border prose-strong:text-foreground prose-a:text-accent hover:prose-a:text-accent/80 [&_mark]:bg-accent/20 [&_mark]:text-foreground [&_mark]:rounded [&_mark]:px-1">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {policy.content}
                 </ReactMarkdown>
