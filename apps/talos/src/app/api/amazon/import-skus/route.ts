@@ -26,7 +26,6 @@ const requestSchema = z.object({
   limit: z.number().int().positive().max(100).optional(),
   skuCodes: z.array(z.string().trim().min(1).max(50)).max(100).optional(),
   mode: z.enum(['import', 'validate']).default('import'),
-  updateExisting: z.boolean().default(false),
 })
 
 const DEFAULT_BATCH_CODE = 'BATCH 01'
@@ -267,7 +266,7 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
         asin,
         title,
         status: 'existing' as const,
-        reason: 'Already exists in Talos (will not be updated)',
+        reason: 'Already in Talos (will refresh Amazon data)',
         exists: true,
       }
     }
@@ -364,7 +363,6 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
   const importLimit = parsed.data.limit ?? 50
   const mode = parsed.data.mode
-  const updateExisting = parsed.data.updateExisting
   const tenantCode = await getCurrentTenantCode()
   const prisma = await getTenantPrisma()
 
@@ -479,15 +477,6 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     const isExistingSku = existingSet.has(skuCode.toUpperCase())
-    if (isExistingSku && !updateExisting) {
-      skipped += 1
-      details.push({
-        skuCode,
-        status: 'skipped',
-        message: 'Already exists in Talos (not updated)',
-      })
-      continue
-    }
 
     const asin = normalizeAsin(listing.asin)
     if (!asin) {
@@ -575,7 +564,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     try {
-      if (isExistingSku && updateExisting) {
+      if (isExistingSku) {
         // Update existing SKU with fresh Amazon data (only Amazon-sourced fields)
         await prisma.sku.update({
           where: { skuCode },
