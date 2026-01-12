@@ -394,13 +394,21 @@ export function POProfitabilitySection({
   // Summary stats
   const summary = useMemo(() => {
     if (filteredData.length === 0)
-      return { totalRevenue: 0, totalProfit: 0, totalCogs: 0, netMargin: 0, roi: 0 };
+      return {
+        totalRevenue: 0,
+        totalGrossProfit: 0,
+        totalProfit: 0,
+        totalCogs: 0,
+        netMargin: 0,
+        roi: 0,
+      };
     const totalRevenue = filteredData.reduce((sum, row) => sum + row.revenue, 0);
+    const totalGrossProfit = filteredData.reduce((sum, row) => sum + row.grossProfit, 0);
     const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0);
     const totalCogs = filteredData.reduce((sum, row) => sum + row.cogs, 0);
     const netMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const roi = totalCogs > 0 ? (totalProfit / totalCogs) * 100 : 0;
-    return { totalRevenue, totalProfit, totalCogs, netMargin, roi };
+    return { totalRevenue, totalGrossProfit, totalProfit, totalCogs, netMargin, roi };
   }, [filteredData]);
 
   if (data.length === 0) {
@@ -639,6 +647,14 @@ export function POProfitabilitySection({
                   </span>
                 </div>
                 <div>
+                  Total Gross Profit:{' '}
+                  <span
+                    className={`font-semibold ${summary.totalGrossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                  >
+                    {formatCurrency(summary.totalGrossProfit)}
+                  </span>
+                </div>
+                <div>
                   Total Profit:{' '}
                   <span
                     className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
@@ -700,6 +716,9 @@ export function POProfitabilitySection({
                   </TableHead>
                   <TableHead className="w-[90px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                     Amz Fees
+                  </TableHead>
+                  <TableHead className="w-[100px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    GP
                   </TableHead>
                   <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                     PPC
@@ -772,6 +791,11 @@ export function POProfitabilitySection({
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatCurrency(row.amazonFees)}
                     </TableCell>
+                    <TableCell
+                      className={`text-right tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                    >
+                      {formatCurrency(row.grossProfit)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatCurrency(row.ppcSpend)}
                     </TableCell>
@@ -812,6 +836,9 @@ export function POProfitabilitySection({
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {formatCurrency(filteredData.reduce((sum, row) => sum + row.amazonFees, 0))}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold">
+                    {formatCurrency(filteredData.reduce((sum, row) => sum + row.grossProfit, 0))}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcSpend, 0))}
