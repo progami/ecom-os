@@ -1,5 +1,11 @@
 import { ApiResponses, withRole, z } from '@/lib/api'
-import { getCatalogItem, getListingsItems, getProductFees } from '@/lib/amazon/client'
+import {
+  getCatalogItem,
+  getCatalogListingTypesByAsin,
+  getListingsItems,
+  getProductFees,
+  type AmazonCatalogListingType,
+} from '@/lib/amazon/client'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { parseAmazonProductFees } from '@/lib/amazon/fees'
@@ -50,40 +56,82 @@ function normalizeTitle(value: string | null): string | null {
 
 function parseCatalogDimensions(attributes: {
   item_dimensions?: Array<{
-    length?: { value?: number }
-    width?: { value?: number }
-    height?: { value?: number }
+    length?: { value?: number; unit?: string }
+    width?: { value?: number; unit?: string }
+    height?: { value?: number; unit?: string }
   }>
 }): { lengthCm: number; widthCm: number; heightCm: number } | null {
   const dims = attributes.item_dimensions?.[0]
   const length = dims?.length?.value
   const width = dims?.width?.value
   const height = dims?.height?.value
-  if (!length || !width || !height) return null
+  if (length === undefined || width === undefined || height === undefined) return null
+  if (!Number.isFinite(length) || !Number.isFinite(width) || !Number.isFinite(height)) return null
 
-  const lengthCm = Number((length * 2.54).toFixed(2))
-  const widthCm = Number((width * 2.54).toFixed(2))
-  const heightCm = Number((height * 2.54).toFixed(2))
+  const lengthUnit = dims?.length?.unit
+  const widthUnit = dims?.width?.unit
+  const heightUnit = dims?.height?.unit
+
+  const lengthCm = convertMeasurementToCm(length, lengthUnit)
+  const widthCm = convertMeasurementToCm(width, widthUnit)
+  const heightCm = convertMeasurementToCm(height, heightUnit)
+  if (lengthCm === null || widthCm === null || heightCm === null) return null
 
   const triplet = resolveDimensionTripletCm({ lengthCm, widthCm, heightCm })
   return triplet
 }
 
-function parseCatalogWeightKg(attributes: { item_weight?: Array<{ value?: number }> }): number | null {
-  const raw = attributes.item_weight?.[0]?.value
-  if (!raw || !Number.isFinite(raw)) return null
-  // Amazon returns weight in pounds for catalog items (convert to kg).
-  return Number((raw * 0.453592).toFixed(3))
+function convertMeasurementToCm(value: number, unit: string | undefined): number | null {
+  if (!Number.isFinite(value)) return null
+  if (typeof unit !== 'string') return null
+  const normalized = unit.trim().toLowerCase()
+  if (!normalized) return null
+  if (normalized === 'inches' || normalized === 'inch' || normalized === 'in') {
+    return Number((value * 2.54).toFixed(2))
+  }
+  if (normalized === 'centimeters' || normalized === 'centimetres' || normalized === 'cm') {
+    return Number(value.toFixed(2))
+  }
+  if (normalized === 'millimeters' || normalized === 'millimetres' || normalized === 'mm') {
+    return Number((value / 10).toFixed(2))
+  }
+  return null
 }
 
-function parseCatalogCategory(catalog: unknown): string | null {
-  if (!catalog || typeof catalog !== 'object') return null
-  const record = catalog as Record<string, unknown>
-  const item = record.item
-  if (!item || typeof item !== 'object') return null
-  const itemRecord = item as Record<string, unknown>
+function parseCatalogWeightKg(attributes: {
+  item_weight?: Array<{ value?: number; unit?: string }>
+}): number | null {
+  const measurement = attributes.item_weight?.[0]
+  const raw = measurement?.value
+  if (raw === undefined || raw === null) return null
+  if (!Number.isFinite(raw)) return null
 
-  const summaries = itemRecord.summaries
+  const unit = measurement?.unit
+  if (typeof unit !== 'string') return null
+  const normalized = unit.trim().toLowerCase()
+  if (!normalized) return null
+
+  if (normalized === 'kilograms' || normalized === 'kilogram' || normalized === 'kg') {
+    return Number(raw.toFixed(3))
+  }
+
+  if (normalized === 'pounds' || normalized === 'pound' || normalized === 'lb' || normalized === 'lbs') {
+    return Number((raw * 0.453592).toFixed(3))
+  }
+
+  if (normalized === 'grams' || normalized === 'gram' || normalized === 'g') {
+    return Number((raw / 1000).toFixed(3))
+  }
+
+  if (normalized === 'ounces' || normalized === 'ounce' || normalized === 'oz') {
+    return Number((raw * 0.0283495).toFixed(3))
+  }
+
+  return null
+}
+
+function parseCatalogCategory(catalog: { summaries?: unknown }): string | null {
+  const summaries = catalog.summaries
   if (Array.isArray(summaries) && summaries.length > 0) {
     const summary = summaries[0]
     if (summary && typeof summary === 'object') {
@@ -105,24 +153,6 @@ function parseCatalogCategory(catalog: unknown): string | null {
       }
     }
   }
-
-  const attributes = itemRecord.attributes
-  if (!attributes || typeof attributes !== 'object') return null
-  const attrRecord = attributes as Record<string, unknown>
-
-  const candidates = ['item_type_keyword', 'product_type', 'product_category', 'category']
-  for (const key of candidates) {
-    const value = attrRecord[key]
-    if (!Array.isArray(value) || value.length === 0) continue
-    const first = value[0]
-    if (!first || typeof first !== 'object') continue
-    const firstRecord = first as Record<string, unknown>
-    const raw = firstRecord.value
-    if (typeof raw !== 'string' || !raw.trim()) continue
-    const sanitized = sanitizeForDisplay(raw.trim())
-    if (sanitized) return sanitized
-  }
-
   return null
 }
 
@@ -180,7 +210,7 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
     else seen.add(key)
   }
 
-  const items = listings.map(listing => {
+  const rawItems = listings.map(listing => {
     const skuCode = normalizeSkuCode(listing.sellerSku)
     const asin = normalizeAsin(listing.asin)
     const title = normalizeTitle(listing.title)
@@ -242,6 +272,41 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
       reason: null as string | null,
       exists: false,
     }
+  })
+
+  const asinsForClassification: string[] = []
+  const seenAsins = new Set<string>()
+
+  for (const item of rawItems) {
+    if (!item.asin) continue
+    const key = item.asin.toUpperCase()
+    if (seenAsins.has(key)) continue
+    seenAsins.add(key)
+    asinsForClassification.push(key)
+  }
+
+  const listingTypesByAsin = asinsForClassification.length
+    ? await getCatalogListingTypesByAsin(asinsForClassification, tenantCode)
+    : new Map<string, AmazonCatalogListingType>()
+
+  const items = rawItems.map(item => {
+    const asinKey = item.asin ? item.asin.toUpperCase() : null
+    let listingType: AmazonCatalogListingType = 'UNKNOWN'
+    if (asinKey) {
+      const resolved = listingTypesByAsin.get(asinKey)
+      if (resolved) listingType = resolved
+    }
+
+    if (item.status === 'new' && listingType === 'PARENT') {
+      return {
+        ...item,
+        listingType,
+        status: 'blocked' as const,
+        reason: 'Variation parent ASIN (import child listings only)',
+      }
+    }
+
+    return { ...item, listingType }
   })
 
   const summary = items.reduce(
@@ -354,6 +419,26 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     })
   }
 
+  const targetAsins: string[] = []
+  const targetAsinSeen = new Set<string>()
+
+  for (const target of targets) {
+    const skuCode = normalizeSkuCode(target)
+    if (!skuCode) continue
+    const listing = listingBySkuCode.get(skuCode.toUpperCase())
+    if (!listing) continue
+    const asin = normalizeAsin(listing.asin)
+    if (!asin) continue
+    const key = asin.toUpperCase()
+    if (targetAsinSeen.has(key)) continue
+    targetAsinSeen.add(key)
+    targetAsins.push(key)
+  }
+
+  const listingTypesByAsin = targetAsins.length
+    ? await getCatalogListingTypesByAsin(targetAsins, tenantCode)
+    : new Map<string, AmazonCatalogListingType>()
+
   for (const targetSkuCode of targets) {
     if (mode === 'import' && imported >= importLimit) break
 
@@ -393,6 +478,19 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       continue
     }
 
+    let listingType: AmazonCatalogListingType = 'UNKNOWN'
+    const resolvedListingType = listingTypesByAsin.get(asin.toUpperCase())
+    if (resolvedListingType) listingType = resolvedListingType
+    if (listingType === 'PARENT') {
+      skipped += 1
+      details.push({
+        skuCode,
+        status: 'blocked',
+        message: 'Variation parent ASIN (import child listings only)',
+      })
+      continue
+    }
+
     let description = listing.title ? sanitizeForDisplay(listing.title.trim()) : ''
     let unitWeightKg: number | null = null
     let unitTriplet: { lengthCm: number; widthCm: number; heightCm: number } | null = null
@@ -402,10 +500,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
     try {
       const catalog = await getCatalogItem(asin, tenantCode)
-      const attributes = catalog?.item?.attributes
+      const attributes = catalog.attributes
       if (attributes) {
-        if (attributes.title?.[0]?.value) {
-          const sanitizedTitle = sanitizeForDisplay(attributes.title[0].value)
+        const title = attributes.item_name?.[0]?.value
+        if (title) {
+          const sanitizedTitle = sanitizeForDisplay(title)
           if (sanitizedTitle) {
             description = sanitizedTitle
           }

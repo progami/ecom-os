@@ -20,19 +20,48 @@ type AmazonInventorySummariesResponse = {
   inventorySummaries?: AmazonInventorySummary[]
 }
 
-type AmazonCatalogItemResponse = {
-  item?: {
-    attributes?: {
-      title?: Array<{ value?: string }>
-      item_dimensions?: Array<{
-        length?: { value?: number }
-        width?: { value?: number }
-        height?: { value?: number }
-      }>
-      item_weight?: Array<{ value?: number }>
-    }
-  }
+type AmazonCatalogMeasurement = {
+  value?: number
+  unit?: string
 }
+
+type AmazonCatalogItemAttributes = {
+  item_name?: Array<{ value?: string }>
+  item_dimensions?: Array<{
+    length?: AmazonCatalogMeasurement
+    width?: AmazonCatalogMeasurement
+    height?: AmazonCatalogMeasurement
+  }>
+  item_weight?: Array<AmazonCatalogMeasurement>
+}
+
+type AmazonCatalogItemSummary = {
+  itemName?: string
+  itemClassification?: string
+  browseClassification?: { displayName?: string }
+  websiteDisplayGroupName?: string
+}
+
+type AmazonCatalogItemRelationships = {
+  relationships?: Array<{
+    parentAsins?: string[]
+    childAsins?: string[]
+  }>
+}
+
+type AmazonCatalogItemResponse = {
+  asin?: string
+  attributes?: AmazonCatalogItemAttributes
+  summaries?: AmazonCatalogItemSummary[]
+  relationships?: AmazonCatalogItemRelationships[]
+}
+
+type AmazonSearchCatalogItemsResponse = {
+  numberOfResults?: number
+  items?: AmazonCatalogItemResponse[]
+}
+
+export type AmazonCatalogListingType = 'LISTING' | 'PARENT' | 'UNKNOWN'
 
 type AmazonListingItemSummary = {
   sellerSku: string
@@ -237,6 +266,74 @@ function isAddressLike(record: Record<string, unknown>): boolean {
     'country',
   ]
   return addressKeys.some(key => typeof getRecordValue(record, key) === 'string')
+}
+
+function normalizeAsinKey(value: string): string | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  return trimmed.toUpperCase()
+}
+
+function resolveListingTypeFromClassification(value: string | undefined): AmazonCatalogListingType {
+  if (typeof value !== 'string') return 'UNKNOWN'
+  const normalized = value.trim().toUpperCase()
+  if (!normalized) return 'UNKNOWN'
+  if (normalized === 'VARIATION_PARENT') return 'PARENT'
+  return 'LISTING'
+}
+
+export async function getCatalogListingTypesByAsin(
+  asins: string[],
+  tenantCode?: TenantCode
+): Promise<Map<string, AmazonCatalogListingType>> {
+  const results = new Map<string, AmazonCatalogListingType>()
+  const uniqueAsins: string[] = []
+  const seen = new Set<string>()
+
+  for (const asin of asins) {
+    const normalized = normalizeAsinKey(asin)
+    if (!normalized) continue
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    uniqueAsins.push(normalized)
+  }
+
+  const chunkSize = 20
+
+  for (let offset = 0; offset < uniqueAsins.length; offset += chunkSize) {
+    const chunk = uniqueAsins.slice(offset, offset + chunkSize)
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+
+    const response = await callAmazonApi<AmazonSearchCatalogItemsResponse>(tenantCode, {
+      operation: 'searchCatalogItems',
+      endpoint: 'catalogItems',
+      options: { version: '2022-04-01' },
+      query: {
+        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
+        identifiersType: 'ASIN',
+        identifiers: chunk,
+        includedData: 'summaries,relationships',
+      },
+    })
+
+    if (!response.items?.length) continue
+
+    for (const item of response.items) {
+      const asinValue = typeof item.asin === 'string' ? item.asin : ''
+      const normalized = normalizeAsinKey(asinValue)
+      if (!normalized) continue
+      const summary = item.summaries?.[0]
+      const classification = summary?.itemClassification
+      results.set(normalized, resolveListingTypeFromClassification(classification))
+    }
+  }
+
+  for (const asin of uniqueAsins) {
+    if (results.has(asin)) continue
+    results.set(asin, 'UNKNOWN')
+  }
+
+  return results
 }
 
 function getRecordField(record: Record<string, unknown> | null | undefined, keys: string[]): Record<string, unknown> | null {
@@ -827,11 +924,13 @@ export async function getCatalogItem(asin: string, tenantCode?: TenantCode) {
     const response = await callAmazonApi<AmazonCatalogItemResponse>(tenantCode, {
       operation: 'getCatalogItem',
       endpoint: 'catalogItems',
+      options: { version: '2022-04-01' },
       path: {
         asin,
       },
       query: {
         marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
+        includedData: 'summaries,attributes,relationships',
       },
     })
     return response
