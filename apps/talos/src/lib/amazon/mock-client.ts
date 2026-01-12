@@ -53,17 +53,25 @@ function getMockData(operation: string) {
  }
  case 'getCatalogItem':
  return {
- item: {
+ asin: 'B001TEST01',
  attributes: {
- title: [{ value: 'Sample Product Description' }],
- item_dimensions: [{
- length: { value: 10 },
- width: { value: 8 },
- height: { value: 6 }
- }],
- item_weight: [{ value: 2.5 }]
- }
- }
+ item_name: [{ value: 'Sample Product Description' }],
+ item_dimensions: [
+ {
+ length: { value: 10, unit: 'inches' },
+ width: { value: 8, unit: 'inches' },
+ height: { value: 6, unit: 'inches' },
+ },
+ ],
+ item_weight: [{ value: 2.5, unit: 'pounds' }],
+ },
+ summaries: [
+ {
+ itemName: 'Sample Product Description',
+ itemClassification: 'BASE_PRODUCT',
+ browseClassification: { displayName: 'Mock Category' },
+ },
+ ],
  }
  default:
  return {}
