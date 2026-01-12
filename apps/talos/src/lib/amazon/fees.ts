@@ -19,6 +19,59 @@ export function getMarketplaceCurrencyCode(tenantCode?: TenantCode): string {
   return 'USD'
 }
 
+/**
+ * Calculate Amazon FBA size tier from dimensions and weight.
+ * Based on Amazon US FBA size tier thresholds (2024).
+ * Dimensions in cm, weight in kg.
+ */
+export function calculateSizeTier(
+  lengthCm: number | null,
+  widthCm: number | null,
+  heightCm: number | null,
+  weightKg: number | null
+): string | null {
+  if (lengthCm === null || widthCm === null || heightCm === null) return null
+
+  // Convert to inches for Amazon's thresholds
+  const dims = [lengthCm, widthCm, heightCm].map(d => d / 2.54).sort((a, b) => b - a)
+  const longest = dims[0]
+  const median = dims[1]
+  const shortest = dims[2]
+  const weightLb = weightKg !== null ? weightKg * 2.20462 : 0
+
+  // Girth = 2 * (median + shortest)
+  const girth = 2 * (median + shortest)
+  const lengthPlusGirth = longest + girth
+
+  // Small Standard-Size: max 15" x 12" x 0.75", ≤ 1 lb
+  if (longest <= 15 && median <= 12 && shortest <= 0.75 && weightLb <= 1) {
+    return 'Small Standard-Size'
+  }
+
+  // Large Standard-Size: max 18" x 14" x 8", ≤ 20 lb
+  if (longest <= 18 && median <= 14 && shortest <= 8 && weightLb <= 20) {
+    return 'Large Standard-Size'
+  }
+
+  // Small Oversize: max 60" x 30", length + girth ≤ 130", ≤ 70 lb
+  if (longest <= 60 && median <= 30 && lengthPlusGirth <= 130 && weightLb <= 70) {
+    return 'Small Oversize'
+  }
+
+  // Medium Oversize: max 108" longest, length + girth ≤ 130", ≤ 150 lb
+  if (longest <= 108 && lengthPlusGirth <= 130 && weightLb <= 150) {
+    return 'Medium Oversize'
+  }
+
+  // Large Oversize: max 108" longest, length + girth ≤ 165", ≤ 150 lb
+  if (longest <= 108 && lengthPlusGirth <= 165 && weightLb <= 150) {
+    return 'Large Oversize'
+  }
+
+  // Special Oversize: anything larger
+  return 'Special Oversize'
+}
+
 function coerceNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string') {
