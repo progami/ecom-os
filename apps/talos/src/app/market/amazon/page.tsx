@@ -22,7 +22,6 @@ import {
 import { toast } from 'react-hot-toast'
 import { PageHeader } from '@/components/ui/page-header'
 import { redirectToPortal } from '@/lib/portal'
-import { SKU_FIELD_LIMITS, truncateForDisplay } from '@/lib/sku-constants'
 
 interface InventoryComparison {
  sku: string
@@ -555,8 +554,8 @@ export default function AmazonIntegrationPage() {
  )}
  </div>
  </td>
- <td className="px-6 py-4 text-sm text-slate-500" title={item.description}>
- {truncateForDisplay(item.description, SKU_FIELD_LIMITS.DESCRIPTION_DISPLAY_MAX)}
+ <td className="px-6 py-4 text-sm text-slate-500">
+ {item.description}
  </td>
  <td className={`px-6 py-4 whitespace-nowrap text-sm text-right ${
  item.warehouseQty === 0 ? 'text-slate-400' : 'text-slate-900'
