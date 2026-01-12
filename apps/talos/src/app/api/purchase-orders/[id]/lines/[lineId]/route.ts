@@ -12,9 +12,9 @@ const UpdateLineSchema = z.object({
   batchLot: z.string().trim().min(1).optional(),
   unitsOrdered: z.number().int().positive().optional(),
   unitsPerCarton: z.number().int().positive().optional(),
-  totalCost: z.number().min(0).optional(),
+  totalCost: z.number().min(0).nullable().optional(),
   currency: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().nullable().optional(),
   quantityReceived: z.number().int().min(0).optional(),
 })
 
@@ -193,10 +193,15 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
       result.data.totalCost !== undefined ? result.data.totalCost : existingTotalCost
 
     if (totalCostChanged) {
-      updateData.totalCost =
-        typeof nextTotalCost === 'number' && Number.isFinite(nextTotalCost)
-          ? nextTotalCost.toFixed(2)
-          : undefined
+      if (nextTotalCost === null) {
+        updateData.totalCost = null
+        updateData.unitCost = null
+      } else {
+        updateData.totalCost =
+          typeof nextTotalCost === 'number' && Number.isFinite(nextTotalCost)
+            ? nextTotalCost.toFixed(2)
+            : undefined
+      }
     }
 
     if (
