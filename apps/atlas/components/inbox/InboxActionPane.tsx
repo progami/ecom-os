@@ -102,32 +102,95 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
 }
 
-function parseMarkdownToSections(content: string): { title: string; content: string }[] {
-  const sections: { title: string; content: string }[] = []
+type MarkdownBlock =
+  | { type: 'heading'; level: number; text: string }
+  | { type: 'table'; headers: string[]; rows: string[][] }
+  | { type: 'list'; items: string[] }
+  | { type: 'paragraph'; text: string }
+
+function parseMarkdownContent(content: string): MarkdownBlock[] {
+  const blocks: MarkdownBlock[] = []
   const lines = content.split('\n')
-  let currentTitle = ''
-  let currentContent: string[] = []
+  let i = 0
 
-  for (const line of lines) {
-    const h1Match = line.match(/^#\s+(.+)$/)
-    const h2Match = line.match(/^##\s+(.+)$/)
+  while (i < lines.length) {
+    const line = lines[i].trim()
 
-    if (h1Match || h2Match) {
-      if (currentTitle || currentContent.length > 0) {
-        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+    // Skip empty lines
+    if (!line) {
+      i++
+      continue
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/)
+    if (headingMatch) {
+      blocks.push({ type: 'heading', level: headingMatch[1].length, text: headingMatch[2] })
+      i++
+      continue
+    }
+
+    // Tables - look for pipe-delimited content
+    if (line.includes('|') && line.startsWith('|')) {
+      const tableLines: string[] = []
+      while (i < lines.length && lines[i].includes('|')) {
+        tableLines.push(lines[i])
+        i++
       }
-      currentTitle = h1Match ? h1Match[1] : h2Match![1]
-      currentContent = []
-    } else {
-      currentContent.push(line)
+
+      if (tableLines.length >= 2) {
+        const parseRow = (row: string) =>
+          row.split('|').map(cell => cell.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+
+        const headers = parseRow(tableLines[0])
+        // Skip separator line (|---|---|)
+        const dataStartIdx = tableLines[1].includes('-') ? 2 : 1
+        const rows = tableLines.slice(dataStartIdx).map(parseRow).filter(row => row.some(cell => cell))
+
+        if (headers.length > 0) {
+          blocks.push({ type: 'table', headers, rows })
+        }
+      }
+      continue
+    }
+
+    // Bullet lists
+    if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
+      const items: string[] = []
+      while (i < lines.length) {
+        const listLine = lines[i].trim()
+        if (listLine.startsWith('- ') || listLine.startsWith('* ') || listLine.startsWith('• ')) {
+          items.push(listLine.slice(2))
+          i++
+        } else if (!listLine) {
+          i++
+          break
+        } else {
+          break
+        }
+      }
+      if (items.length > 0) {
+        blocks.push({ type: 'list', items })
+      }
+      continue
+    }
+
+    // Regular paragraph - collect until empty line or special element
+    const paragraphLines: string[] = []
+    while (i < lines.length) {
+      const pLine = lines[i].trim()
+      if (!pLine || pLine.startsWith('#') || pLine.startsWith('|') || pLine.startsWith('- ') || pLine.startsWith('* ')) {
+        break
+      }
+      paragraphLines.push(pLine)
+      i++
+    }
+    if (paragraphLines.length > 0) {
+      blocks.push({ type: 'paragraph', text: paragraphLines.join(' ') })
     }
   }
 
-  if (currentTitle || currentContent.length > 0) {
-    sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
-  }
-
-  return sections
+  return blocks
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -156,15 +219,94 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-// Policy Content - Document-style with sections
+// Render a markdown block
+function MarkdownBlockRenderer({ block }: { block: MarkdownBlock }) {
+  switch (block.type) {
+    case 'heading':
+      return (
+        <h4 className={cn(
+          'font-semibold text-slate-900 dark:text-slate-100',
+          block.level === 1 && 'text-base mb-2',
+          block.level === 2 && 'text-sm mb-1.5',
+          block.level === 3 && 'text-sm mb-1'
+        )}>
+          {block.text}
+        </h4>
+      )
+
+    case 'table':
+      return (
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-slate-100 dark:bg-slate-800">
+                {block.headers.map((header, idx) => (
+                  <th
+                    key={idx}
+                    className="px-3 py-2 text-left font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700"
+                  >
+                    {header.replace(/\*\*/g, '')}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, rowIdx) => (
+                <tr
+                  key={rowIdx}
+                  className={cn(
+                    'border-b border-slate-100 dark:border-slate-800 last:border-0',
+                    rowIdx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'
+                  )}
+                >
+                  {row.map((cell, cellIdx) => (
+                    <td
+                      key={cellIdx}
+                      className="px-3 py-2 text-slate-600 dark:text-slate-300"
+                    >
+                      {cell.replace(/\*\*/g, '')}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+
+    case 'list':
+      return (
+        <ul className="space-y-1 ml-1">
+          {block.items.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <span className="text-blue-500 mt-1.5">•</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      )
+
+    case 'paragraph':
+      return (
+        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          {block.text}
+        </p>
+      )
+
+    default:
+      return null
+  }
+}
+
+// Policy Content - Document-style with proper markdown rendering
 function PolicyContent({ entityData }: { entityData: WorkItemEntityData }) {
-  const sections = useMemo(() => {
+  const blocks = useMemo(() => {
     if (!entityData.content) return []
-    // Check if content is HTML or markdown
+    // Check if content is HTML
     if (entityData.content.includes('<') && entityData.content.includes('>')) {
       return [] // Return empty to use HTML rendering
     }
-    return parseMarkdownToSections(entityData.content)
+    return parseMarkdownContent(entityData.content)
   }, [entityData.content])
 
   const isHtml = entityData.content?.includes('<') && entityData.content?.includes('>')
@@ -193,27 +335,10 @@ function PolicyContent({ entityData }: { entityData: WorkItemEntityData }) {
         <div className="prose prose-slate dark:prose-invert prose-sm max-w-none prose-headings:text-base prose-headings:font-semibold prose-p:text-slate-600 dark:prose-p:text-slate-300">
           <div dangerouslySetInnerHTML={{ __html: entityData.content }} />
         </div>
-      ) : sections.length > 0 ? (
+      ) : blocks.length > 0 ? (
         <div className="space-y-4">
-          {sections.map((section, idx) => (
-            <div key={idx} className="border-l-2 border-blue-200 dark:border-blue-800 pl-4">
-              {section.title ? (
-                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1.5">
-                  {section.title}
-                </h4>
-              ) : null}
-              {section.content ? (
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                  {section.content.split(/[-•]\s/).filter(Boolean).map((item, i) => (
-                    item.trim() ? (
-                      <span key={i} className="block py-0.5">
-                        {item.trim().startsWith('-') || item.trim().startsWith('•') ? item.trim() : `• ${item.trim()}`}
-                      </span>
-                    ) : null
-                  ))}
-                </p>
-              ) : null}
-            </div>
+          {blocks.map((block, idx) => (
+            <MarkdownBlockRenderer key={idx} block={block} />
           ))}
         </div>
       ) : entityData.summary ? (
