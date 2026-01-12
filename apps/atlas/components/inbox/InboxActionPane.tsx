@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkItemDTO, WorkItemEntityData } from '@/lib/contracts/work-items'
-import { getWorkItemDueLabel } from '@/components/work-queue/work-item-utils'
+import { formatWorkItemWhen, getWorkItemDueLabel } from '@/components/work-queue/work-item-utils'
 import { cn } from '@/lib/utils'
 
 type InboxActionPaneProps = {
@@ -652,7 +652,12 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
             )}>
               {entityConfig.icon}
             </div>
-            <div className="min-w-0 flex flex-col justify-center">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-0.5">
+                <span className="font-medium">{item.typeLabel}</span>
+                <span className="text-slate-300 dark:text-slate-600">·</span>
+                <span>{item.stageLabel}</span>
+              </div>
               <h2 className="text-base font-bold text-slate-900 dark:text-slate-50 leading-snug line-clamp-2">
                 {item.title}
               </h2>
@@ -732,22 +737,35 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
         {/* Entity-specific content */}
         <EntityContent item={item} entityData={item.entityData} />
 
-        {/* Due date - only show if present */}
-        {item.dueAt ? (
-          <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
-              Due Date
-            </p>
-            <p className={cn(
-              'text-sm font-semibold',
-              item.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
-            )}>
-              {dueLabel}
-            </p>
+        {/* Metadata */}
+        {(item.dueAt || item.createdAt) ? (
+          <div className={cn('grid gap-2', item.dueAt ? 'grid-cols-2' : 'grid-cols-1')}>
+            {item.dueAt ? (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
+                  Due Date
+                </p>
+                <p className={cn(
+                  'text-sm font-semibold',
+                  item.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
+                )}>
+                  {dueLabel}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
+                Created
+              </p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {formatWorkItemWhen(item.createdAt)}
+              </p>
+            </div>
           </div>
         ) : null}
 
-        {/* Open record link */}
+        {/* Full details link */}
         <div className="pt-1">
           <a
             href={item.href}
@@ -756,7 +774,7 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
-            Open record
+            View full details
           </a>
         </div>
       </div>
