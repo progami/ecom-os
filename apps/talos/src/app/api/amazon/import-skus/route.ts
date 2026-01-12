@@ -185,10 +185,17 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
   // Test mode: fetch fees for a specific ASIN
   const testAsin = request.nextUrl.searchParams.get('test-fees')
   if (testAsin) {
-    const tenantCode = await getCurrentTenantCode()
-    const fees = await getProductFees(testAsin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
-    const parsedFees = parseAmazonProductFees(fees)
-    return ApiResponses.success({ raw: fees, parsed: parsedFees })
+    try {
+      const tenantCode = await getCurrentTenantCode()
+      const fees = await getProductFees(testAsin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
+      const parsedFees = parseAmazonProductFees(fees)
+      return ApiResponses.success({ raw: fees, parsed: parsedFees })
+    } catch (error) {
+      return ApiResponses.success({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      })
+    }
   }
 
   const parsed = previewQuerySchema.safeParse({
