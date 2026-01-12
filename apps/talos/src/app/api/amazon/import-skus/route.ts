@@ -11,6 +11,7 @@ import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { parseAmazonProductFees, calculateSizeTier } from '@/lib/amazon/fees'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
+import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@targon/prisma-talos'
 
@@ -33,7 +34,6 @@ const DEFAULT_PACK_SIZE = 1
 const DEFAULT_UNITS_PER_CARTON = 1
 const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
 const DEFAULT_FEE_ESTIMATE_PRICE = 10
-const MAX_DESCRIPTION_LENGTH = 60
 
 function normalizeSkuCode(value: string): string | null {
   const normalized = sanitizeForDisplay(value.trim().toUpperCase())
@@ -54,17 +54,6 @@ function normalizeTitle(value: string | null): string | null {
   if (!value) return null
   const normalized = sanitizeForDisplay(value.trim())
   return normalized ? normalized : null
-}
-
-function truncateDescription(value: string, maxLength: number = MAX_DESCRIPTION_LENGTH): string {
-  if (value.length <= maxLength) return value
-  // Truncate at word boundary if possible, no ellipsis
-  const truncated = value.slice(0, maxLength)
-  const lastSpace = truncated.lastIndexOf(' ')
-  if (lastSpace > maxLength * 0.7) {
-    return truncated.slice(0, lastSpace).trim()
-  }
-  return truncated.trim()
 }
 
 function parseCatalogDimensions(attributes: {
@@ -591,7 +580,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     if (!description) description = skuCode
-    description = truncateDescription(description)
+    if (description.length > SKU_FIELD_LIMITS.DESCRIPTION_MAX) {
+      description = description.substring(0, SKU_FIELD_LIMITS.DESCRIPTION_MAX)
+    }
 
     const unitDimensionsCm = unitTriplet ? formatDimensionTripletCm(unitTriplet) : null
 
