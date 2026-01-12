@@ -10,41 +10,22 @@ type InboxItemListProps = {
   onSelect: (id: string) => void
 }
 
-function getPriorityConfig(item: WorkItemDTO): { ring: string; dot: string; bg: string; label?: string } {
-  if (item.isOverdue) {
+function getPriorityConfig(item: WorkItemDTO): { dot: string; bg: string; label?: string; isUrgent: boolean } {
+  // Only 2 colors: red for urgent/overdue, slate for everything else
+  if (item.isOverdue || item.priority === 'URGENT') {
     return {
-      ring: 'ring-red-500/30',
       dot: 'bg-red-500',
       bg: 'bg-red-50 dark:bg-red-950/20',
-      label: item.overdueDays ? `${item.overdueDays}d overdue` : 'Overdue',
-    }
-  }
-  if (item.priority === 'URGENT') {
-    return {
-      ring: 'ring-amber-500/30',
-      dot: 'bg-amber-500',
-      bg: 'bg-amber-50 dark:bg-amber-950/20',
-      label: 'Urgent',
-    }
-  }
-  if (item.priority === 'HIGH') {
-    return {
-      ring: 'ring-orange-400/30',
-      dot: 'bg-orange-400',
-      bg: 'bg-orange-50 dark:bg-orange-950/20',
-    }
-  }
-  if (item.isActionRequired) {
-    return {
-      ring: 'ring-cyan-500/30',
-      dot: 'bg-cyan-500',
-      bg: 'bg-cyan-50 dark:bg-cyan-950/20',
+      label: item.isOverdue
+        ? (item.overdueDays ? `${item.overdueDays}d overdue` : 'Overdue')
+        : 'Urgent',
+      isUrgent: true,
     }
   }
   return {
-    ring: 'ring-slate-300/50 dark:ring-slate-600/50',
-    dot: 'bg-slate-400',
-    bg: 'bg-slate-50/50 dark:bg-slate-800/30',
+    dot: 'bg-slate-400 dark:bg-slate-500',
+    bg: 'bg-slate-50 dark:bg-slate-800/50',
+    isUrgent: false,
   }
 }
 
@@ -68,13 +49,11 @@ function InboxItem({
       onClick={onSelect}
       className={cn(
         'group relative w-full h-[104px] text-left transition-all duration-200 ease-out',
-        'rounded-xl border-2',
+        'rounded-xl border',
         selected
           ? 'border-slate-900 dark:border-slate-100 shadow-lg scale-[1.02]'
-          : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700',
+          : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600',
         config.bg,
-        'ring-2',
-        config.ring,
       )}
       style={{
         animationDelay: `${index * 30}ms`,
@@ -97,12 +76,7 @@ function InboxItem({
           </div>
 
           {config.label ? (
-            <span className={cn(
-              'shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-              item.isOverdue
-                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
-                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
-            )}>
+            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
               {config.label}
             </span>
           ) : null}
@@ -120,22 +94,13 @@ function InboxItem({
         <div className="mt-auto">
           {item.primaryAction ? (
             <div className="flex items-center gap-2">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className={cn(
-                  'absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping',
-                  config.dot
-                )} />
-                <span className={cn(
-                  'relative inline-flex h-2.5 w-2.5 rounded-full',
-                  config.dot
-                )} />
-              </span>
               <span className={cn(
-                'text-xs font-semibold',
-                item.isOverdue ? 'text-red-600 dark:text-red-400' :
-                item.priority === 'URGENT' ? 'text-amber-600 dark:text-amber-400' :
-                item.isActionRequired ? 'text-cyan-600 dark:text-cyan-400' :
-                'text-slate-600 dark:text-slate-300'
+                'h-2 w-2 rounded-full',
+                config.dot
+              )} />
+              <span className={cn(
+                'text-xs font-medium',
+                config.isUrgent ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-400'
               )}>
                 {item.primaryAction.label}
               </span>
@@ -162,23 +127,16 @@ export function InboxItemList({ items, selectedId, onSelect }: InboxItemListProp
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center px-8 py-16">
-          {/* Celebratory icon */}
-          <div className="relative mx-auto mb-6">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-              <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            {/* Sparkles */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping" style={{ animationDelay: '150ms' }} />
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
           </div>
-
-          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-            Inbox Zero
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
+            All caught up
           </h3>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 max-w-[200px] mx-auto">
-            You've cleared everything. Take a moment to celebrate.
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            No pending items
           </p>
         </div>
       </div>
