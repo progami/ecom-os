@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -98,6 +98,7 @@ type StatusFilter = 'ALL' | POStatus;
 type SortField = 'orderCode' | 'revenue' | 'netProfit' | 'netMarginPercent' | 'roi';
 type SortDirection = 'asc' | 'desc';
 type MetricKey = 'grossMarginPercent' | 'netMarginPercent' | 'roi';
+type ColumnGroup = 'cogs' | 'amzFees' | 'opex';
 
 const metricConfig: Record<MetricKey, { label: string; color: string; gradientId: string }> = {
   grossMarginPercent: {
@@ -308,6 +309,21 @@ export function POProfitabilitySection({
   ]);
   const [sortField, setSortField] = useState<SortField>('revenue');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [expandedGroups, setExpandedGroups] = useState<Set<ColumnGroup>>(new Set());
+
+  const toggleGroup = (group: ColumnGroup) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) {
+        next.delete(group);
+      } else {
+        next.add(group);
+      }
+      return next;
+    });
+  };
+
+  const isGroupExpanded = (group: ColumnGroup) => expandedGroups.has(group);
 
   // When "All SKUs" selected, aggregate to per-PO view
   // When specific SKU selected, show per-batch view filtered to that SKU
@@ -778,12 +794,12 @@ export function POProfitabilitySection({
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table className="min-w-[2100px] table-fixed w-full">
+              <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead
                       rowSpan={2}
-                      className="w-[200px] h-10 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-8 px-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80"
                     >
                       <SortButton
                         field="orderCode"
@@ -796,19 +812,19 @@ export function POProfitabilitySection({
                     </TableHead>
                     <TableHead
                       rowSpan={2}
-                      className="w-[100px] h-10 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-8 px-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80"
                     >
                       Status
                     </TableHead>
                     <TableHead
                       rowSpan={2}
-                      className="w-[90px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80"
                     >
                       Units
                     </TableHead>
                     <TableHead
                       rowSpan={2}
-                      className="w-[110px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80"
                     >
                       <SortButton
                         field="revenue"
@@ -821,75 +837,127 @@ export function POProfitabilitySection({
                       </SortButton>
                     </TableHead>
                     <TableHead
-                      colSpan={5}
-                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      colSpan={isGroupExpanded('cogs') ? 5 : 1}
+                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleGroup('cogs')}
                     >
-                      COGS
+                      <span className="inline-flex items-center gap-1">
+                        {isGroupExpanded('cogs') ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                        COGS
+                      </span>
                     </TableHead>
                     <TableHead
-                      colSpan={5}
-                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      colSpan={isGroupExpanded('amzFees') ? 5 : 1}
+                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleGroup('amzFees')}
                     >
-                      Amz Fees
+                      <span className="inline-flex items-center gap-1">
+                        {isGroupExpanded('amzFees') ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                        Amz Fees
+                      </span>
                     </TableHead>
                     <TableHead
-                      colSpan={2}
-                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      colSpan={isGroupExpanded('opex') ? 2 : 1}
+                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleGroup('opex')}
                     >
-                      Opex
+                      <span className="inline-flex items-center gap-1">
+                        {isGroupExpanded('opex') ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                        Opex
+                      </span>
                     </TableHead>
                     <TableHead
                       colSpan={4}
-                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80"
                     >
                       Profit
                     </TableHead>
                   </TableRow>
 
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Mfg
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Freight
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Tariff
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Adj
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Total
-                    </TableHead>
+                    {/* COGS sub-columns */}
+                    {isGroupExpanded('cogs') ? (
+                      <>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Mfg
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Freight
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Tariff
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Adj
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Total
+                        </TableHead>
+                      </>
+                    ) : (
+                      <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                        Total
+                      </TableHead>
+                    )}
 
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Ref
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      FBA
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Storage
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Adj
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Total
-                    </TableHead>
+                    {/* AMZ FEES sub-columns */}
+                    {isGroupExpanded('amzFees') ? (
+                      <>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Ref
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          FBA
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Storage
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Adj
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Total
+                        </TableHead>
+                      </>
+                    ) : (
+                      <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                        Total
+                      </TableHead>
+                    )}
 
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      PPC
-                    </TableHead>
-                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                      Fixed
-                    </TableHead>
+                    {/* OPEX sub-columns */}
+                    {isGroupExpanded('opex') ? (
+                      <>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          PPC
+                        </TableHead>
+                        <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                          Fixed
+                        </TableHead>
+                      </>
+                    ) : (
+                      <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
+                        Total
+                      </TableHead>
+                    )}
 
-                    <TableHead className="w-[110px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    {/* PROFIT sub-columns - always expanded */}
+                    <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
                       GP
                     </TableHead>
-                    <TableHead className="w-[110px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
                       <SortButton
                         field="netProfit"
                         current={sortField}
@@ -900,7 +968,7 @@ export function POProfitabilitySection({
                         Net
                       </SortButton>
                     </TableHead>
-                    <TableHead className="w-[90px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
                       <SortButton
                         field="netMarginPercent"
                         current={sortField}
@@ -911,7 +979,7 @@ export function POProfitabilitySection({
                         Margin
                       </SortButton>
                     </TableHead>
-                    <TableHead className="w-[80px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="h-8 px-2 text-right text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80">
                       <SortButton
                         field="roi"
                         current={sortField}
@@ -927,86 +995,114 @@ export function POProfitabilitySection({
                 <TableBody>
                   {tableSortedData.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell className="px-3">
-                        <div className="font-medium">{row.orderCode}</div>
+                      <TableCell className="px-2 py-1.5">
+                        <div className="text-[11px] font-medium">{row.orderCode}</div>
                         {skuFilter !== 'ALL' && row.batchCode ? (
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-[10px] text-muted-foreground">
                             Batch: {row.batchCode}
                           </div>
                         ) : null}
                         <div
-                          className="truncate text-xs text-muted-foreground max-w-[170px]"
+                          className="truncate text-[10px] text-muted-foreground max-w-[140px]"
                           title={row.productName}
                         >
                           {row.productName}
                         </div>
                       </TableCell>
-                      <TableCell className="px-3">
+                      <TableCell className="px-2 py-1.5">
                         <StatusBadge status={row.status} />
                       </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums">
+                      <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums">
                         {row.units.toLocaleString()}
                       </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums">
+                      <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums">
                         {formatMoney(row.revenue, row.units)}
                       </TableCell>
 
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.manufacturingCost, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.freightCost, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.tariffCost, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.cogsAdjustment, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.cogs, row.units)}
-                      </TableCell>
+                      {/* COGS columns */}
+                      {isGroupExpanded('cogs') ? (
+                        <>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.manufacturingCost, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.freightCost, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.tariffCost, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.cogsAdjustment, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.cogs, row.units)}
+                          </TableCell>
+                        </>
+                      ) : (
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(row.cogs, row.units)}
+                        </TableCell>
+                      )}
 
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.referralFees, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.fbaFees, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.storageFees, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.amazonFeesAdjustment, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.amazonFees, row.units)}
-                      </TableCell>
+                      {/* AMZ FEES columns */}
+                      {isGroupExpanded('amzFees') ? (
+                        <>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.referralFees, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.fbaFees, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.storageFees, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.amazonFeesAdjustment, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.amazonFees, row.units)}
+                          </TableCell>
+                        </>
+                      ) : (
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(row.amazonFees, row.units)}
+                        </TableCell>
+                      )}
 
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.ppcSpend, row.units)}
-                      </TableCell>
-                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                        {formatMoney(row.fixedCosts, row.units)}
-                      </TableCell>
+                      {/* OPEX columns */}
+                      {isGroupExpanded('opex') ? (
+                        <>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.ppcSpend, row.units)}
+                          </TableCell>
+                          <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                            {formatMoney(row.fixedCosts, row.units)}
+                          </TableCell>
+                        </>
+                      ) : (
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(row.ppcSpend + row.fixedCosts, row.units)}
+                        </TableCell>
+                      )}
 
+                      {/* PROFIT columns - always expanded */}
                       <TableCell
-                        className={`px-3 text-right tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                        className={`px-2 py-1.5 text-right text-[11px] tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                       >
                         {formatMoney(row.grossProfit, row.units)}
                       </TableCell>
                       <TableCell
-                        className={`px-3 text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                        className={`px-2 py-1.5 text-right text-[11px] tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                       >
                         {formatMoney(row.netProfit, row.units)}
                       </TableCell>
                       <TableCell
-                        className={`px-3 text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                        className={`px-2 py-1.5 text-right text-[11px] tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                       >
                         {formatPercent(row.netMarginPercent)}
                       </TableCell>
                       <TableCell
-                        className={`px-3 text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                        className={`px-2 py-1.5 text-right text-[11px] tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                       >
                         {formatPercent(row.roi)}
                       </TableCell>
@@ -1015,111 +1111,148 @@ export function POProfitabilitySection({
 
                   {/* Total row */}
                   <TableRow className="bg-muted/50">
-                    <TableCell className="px-3 font-semibold">
+                    <TableCell className="px-2 py-1.5 text-[11px] font-semibold">
                       {valueDisplay === 'PER_UNIT' ? 'Avg' : 'Total'} ({filteredData.length}{' '}
                       {skuFilter !== 'ALL' ? 'batches' : 'POs'})
                     </TableCell>
-                    <TableCell className="px-3" />
-                    <TableCell className="px-3 text-right tabular-nums font-semibold">
+                    <TableCell className="px-2 py-1.5" />
+                    <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums font-semibold">
                       {summary.totalUnits.toLocaleString()}
                     </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums font-semibold">
+                    <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums font-semibold">
                       {formatMoney(summary.totalRevenue, summary.totalUnits)}
                     </TableCell>
 
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.manufacturingCost, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.freightCost, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.tariffCost, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.cogsAdjustment, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.cogs, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
+                    {/* COGS total columns */}
+                    {isGroupExpanded('cogs') ? (
+                      <>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.manufacturingCost, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.freightCost, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.tariffCost, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.cogsAdjustment, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.cogs, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                        {formatMoney(
+                          filteredData.reduce((sum, row) => sum + row.cogs, 0),
+                          summary.totalUnits,
+                        )}
+                      </TableCell>
+                    )}
 
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.referralFees, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.fbaFees, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.storageFees, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.amazonFeesAdjustment, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
+                    {/* AMZ FEES total columns */}
+                    {isGroupExpanded('amzFees') ? (
+                      <>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.referralFees, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.fbaFees, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.storageFees, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.amazonFeesAdjustment, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                        {formatMoney(
+                          filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
+                          summary.totalUnits,
+                        )}
+                      </TableCell>
+                    )}
 
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.ppcSpend, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.fixedCosts, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
+                    {/* OPEX total columns */}
+                    {isGroupExpanded('opex') ? (
+                      <>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.ppcSpend, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                        <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                          {formatMoney(
+                            filteredData.reduce((sum, row) => sum + row.fixedCosts, 0),
+                            summary.totalUnits,
+                          )}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+                        {formatMoney(
+                          filteredData.reduce((sum, row) => sum + row.ppcSpend + row.fixedCosts, 0),
+                          summary.totalUnits,
+                        )}
+                      </TableCell>
+                    )}
 
-                    <TableCell className="px-3 text-right tabular-nums font-semibold">
+                    {/* PROFIT total columns - always expanded */}
+                    <TableCell className="px-2 py-1.5 text-right text-[11px] tabular-nums font-semibold">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.grossProfit, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
                     <TableCell
-                      className={`px-3 text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                      className={`px-2 py-1.5 text-right text-[11px] tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                     >
                       {formatMoney(summary.totalProfit, summary.totalUnits)}
                     </TableCell>
                     <TableCell
-                      className={`px-3 text-right tabular-nums font-semibold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      className={`px-2 py-1.5 text-right text-[11px] tabular-nums font-semibold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                     >
                       {formatPercent(summary.netMargin)}
                     </TableCell>
                     <TableCell
-                      className={`px-3 text-right tabular-nums font-semibold ${summary.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      className={`px-2 py-1.5 text-right text-[11px] tabular-nums font-semibold ${summary.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                     >
                       {formatPercent(summary.roi)}
                     </TableCell>
@@ -1177,7 +1310,7 @@ function StatusBadge({ status }: { status: POStatus }) {
     SHIPPED: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/35 dark:text-indigo-200',
   };
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
+    <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${styles[status]}`}>
       {statusLabels[status]}
     </span>
   );
