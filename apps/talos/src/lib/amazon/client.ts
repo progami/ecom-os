@@ -1054,7 +1054,7 @@ export async function testCompareApis(tenantCode?: TenantCode) {
     console.error('FBA Inventory API error:', error)
   }
 
-  // 2. Listings Items API (searchListingsItems)
+  // 2. Listings Items API (GET /listings/2021-08-01/items/{sellerId})
   let listingsSkus: Array<{ sku: string; asin: string | null; productType: string | null }> = []
   let listingsError: string | null = null
 
@@ -1063,24 +1063,24 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   } else {
     try {
       const listingsResponse = await callAmazonApi<{
-        listings?: Array<{
+        items?: Array<{
           sku?: string
           asin?: string
           productType?: string
-          status?: string
+          status?: string[]
         }>
-        nextToken?: string
+        pagination?: {
+          nextToken?: string
+        }
       }>(tenantCode, {
-        operation: 'searchListingsItems',
-        endpoint: 'listingsItems',
-        options: { version: '2021-08-01' },
+        api_path: `/listings/2021-08-01/items/${sellerId}`,
+        method: 'GET',
         query: {
-          sellerId,
-          marketplaceIds: [marketplaceId],
+          marketplaceIds: marketplaceId,
           pageSize: 100,
         },
       })
-      listingsSkus = (listingsResponse.listings ?? []).map(item => ({
+      listingsSkus = (listingsResponse.items ?? []).map(item => ({
         sku: item.sku ?? '',
         asin: item.asin ?? null,
         productType: item.productType ?? null,
