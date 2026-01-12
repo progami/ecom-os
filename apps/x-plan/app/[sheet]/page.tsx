@@ -1910,15 +1910,16 @@ function getPOProfitabilityView(financialData: FinancialData): { data: POProfita
       OCEAN: 'OCEAN',
       WAREHOUSE: 'WAREHOUSE',
       SHIPPED: 'SHIPPED',
-      ARCHIVED: 'ARCHIVED',
-      REJECTED: 'REJECTED',
-      CANCELLED: 'CANCELLED',
+      // Legacy statuses mapped to SHIPPED
+      ARCHIVED: 'SHIPPED',
+      REJECTED: 'SHIPPED',
+      CANCELLED: 'SHIPPED',
+      CLOSED: 'SHIPPED',
       // Legacy X-Plan statuses (backfilled by migration; kept as a safety net)
       PLANNED: 'ISSUED',
       PRODUCTION: 'MANUFACTURING',
       IN_TRANSIT: 'OCEAN',
       ARRIVED: 'WAREHOUSE',
-      CLOSED: 'ARCHIVED',
     };
     const status: POStatus = statusMap[input.status ?? ''] ?? 'ISSUED';
 
