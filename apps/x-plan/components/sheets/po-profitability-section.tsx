@@ -798,7 +798,7 @@ export function POProfitabilitySection({
                         onClick={handleSort}
                         align="right"
                       >
-                        Revenue
+                        {valueDisplay === 'PER_UNIT' ? 'Sell $' : 'Revenue'}
                       </SortButton>
                     </TableHead>
                     <TableHead

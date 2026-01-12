@@ -136,15 +136,6 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         relativeUpdatedAt: formatRelative(cashUpdatedAt ?? cashAgg._max.updatedAt),
         status: cashAgg._count.id > 0 ? 'complete' : 'todo',
       },
-      '7-po-profitability': {
-        slug: '7-po-profitability',
-        label: 'PO P&L',
-        description: '',
-        recordCount: purchaseOrderAgg._count.id,
-        lastUpdated: formatIso(purchaseOrderAgg._max.updatedAt),
-        relativeUpdatedAt: formatRelative(purchaseOrderAgg._max.updatedAt),
-        status: purchaseOrderAgg._count.id > 0 ? 'complete' : 'todo',
-      },
     };
 
     const items: WorkbookSheetStatus[] = SHEETS.map(
