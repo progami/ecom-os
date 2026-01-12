@@ -1904,14 +1904,23 @@ function getPOProfitabilityView(financialData: FinancialData): { data: POProfita
   for (const { derived, input } of derivedOrders) {
     // Map status
     const statusMap: Record<string, POStatus> = {
-      PLANNED: 'PLANNED',
-      PRODUCTION: 'PRODUCTION',
-      IN_TRANSIT: 'IN_TRANSIT',
-      ARRIVED: 'ARRIVED',
-      CLOSED: 'CLOSED',
+      DRAFT: 'DRAFT',
+      ISSUED: 'ISSUED',
+      MANUFACTURING: 'MANUFACTURING',
+      OCEAN: 'OCEAN',
+      WAREHOUSE: 'WAREHOUSE',
+      SHIPPED: 'SHIPPED',
+      ARCHIVED: 'ARCHIVED',
+      REJECTED: 'REJECTED',
       CANCELLED: 'CANCELLED',
+      // Legacy X-Plan statuses (backfilled by migration; kept as a safety net)
+      PLANNED: 'ISSUED',
+      PRODUCTION: 'MANUFACTURING',
+      IN_TRANSIT: 'OCEAN',
+      ARRIVED: 'WAREHOUSE',
+      CLOSED: 'ARCHIVED',
     };
-    const status: POStatus = statusMap[input.status ?? ''] ?? 'PLANNED';
+    const status: POStatus = statusMap[input.status ?? ''] ?? 'ISSUED';
 
     // Process each batch as a separate row
     for (const [batchIndex, batch] of derived.batches.entries()) {
