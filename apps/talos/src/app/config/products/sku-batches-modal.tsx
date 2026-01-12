@@ -7,7 +7,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PageTabs } from '@/components/ui/page-tabs'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Boxes, Edit2, Loader2, Plus, Trash2, X } from '@/lib/lucide-icons'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
@@ -261,7 +260,6 @@ function SkuBatchesManager({
   const [loading, setLoading] = useState(false)
 
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric')
-  const [dimensionsReferenceTab, setDimensionsReferenceTab] = useState<'product' | 'item'>('product')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingBatch, setEditingBatch] = useState<BatchRow | null>(null)
@@ -305,35 +303,6 @@ function SkuBatchesManager({
       }
     },
     [isFormOpen, measurements]
-  )
-
-  const productTriplet = useMemo(
-    () =>
-      resolveDimensionTripletCm({
-        legacy: sku.unitDimensionsCm,
-      }),
-    [sku.unitDimensionsCm]
-  )
-
-  const itemTriplet = useMemo(
-    () =>
-      resolveDimensionTripletCm({
-        lengthCm: sku.itemLengthCm,
-        widthCm: sku.itemWidthCm,
-        heightCm: sku.itemHeightCm,
-        legacy: sku.itemDimensionsCm,
-      }),
-    [sku.itemDimensionsCm, sku.itemHeightCm, sku.itemLengthCm, sku.itemWidthCm]
-  )
-
-  const productWeightKg = useMemo(
-    () => coerceFiniteNumber(sku.amazonReferenceWeightKg),
-    [sku.amazonReferenceWeightKg]
-  )
-
-  const itemWeightKg = useMemo(
-    () => coerceFiniteNumber(sku.itemWeightKg),
-    [sku.itemWeightKg]
   )
 
   const filteredBatches = useMemo(() => {
@@ -932,103 +901,8 @@ function SkuBatchesManager({
                     </select>
                   </div>
 
-                  <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <h4 className="text-sm font-semibold text-slate-900">Dimensions</h4>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Product Dimensions come from Amazon (used for FBA fees). Item Dimensions are the physical product. Unit Dimensions below are per-batch packaged specs.
-                        </p>
-                      </div>
-
-                      <PageTabs
-                        variant="pills"
-                        value={dimensionsReferenceTab}
-                        onChange={value => setDimensionsReferenceTab(value as 'product' | 'item')}
-                        tabs={[
-                          { value: 'product', label: 'Product Dimensions' },
-                          { value: 'item', label: 'Item Dimensions' },
-                        ]}
-                      />
-
-                      {dimensionsReferenceTab === 'product' ? (
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label>Product Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <Input
-                                disabled
-                                value={formatDimensionFromCm(productTriplet?.lengthCm ?? null, unitSystem)}
-                                placeholder="—"
-                                className="bg-white text-slate-700"
-                              />
-                              <Input
-                                disabled
-                                value={formatDimensionFromCm(productTriplet?.widthCm ?? null, unitSystem)}
-                                placeholder="—"
-                                className="bg-white text-slate-700"
-                              />
-                              <Input
-                                disabled
-                                value={formatDimensionFromCm(productTriplet?.heightCm ?? null, unitSystem)}
-                                placeholder="—"
-                                className="bg-white text-slate-700"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label>Product Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})</Label>
-                            <Input
-                              disabled
-                              value={formatWeightFromKg(productWeightKg, unitSystem)}
-                              placeholder="—"
-                              className="bg-white text-slate-700"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label>Item Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <Input
-                                disabled
-                                value={formatDimensionFromCm(itemTriplet?.lengthCm ?? null, unitSystem)}
-                                placeholder="—"
-                                className="bg-white text-slate-700"
-                              />
-                              <Input
-                                disabled
-                                value={formatDimensionFromCm(itemTriplet?.widthCm ?? null, unitSystem)}
-                                placeholder="—"
-                                className="bg-white text-slate-700"
-                              />
-                              <Input
-                                disabled
-                                value={formatDimensionFromCm(itemTriplet?.heightCm ?? null, unitSystem)}
-                                placeholder="—"
-                                className="bg-white text-slate-700"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label>Item Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})</Label>
-                            <Input
-                              disabled
-                              value={formatWeightFromKg(itemWeightKg, unitSystem)}
-                              placeholder="—"
-                              className="bg-white text-slate-700"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
                   <div className="space-y-1 md:col-span-2">
-                    <Label>Unit Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                    <Label>Item Package Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
                     <div className="grid grid-cols-3 gap-2">
                       <Input
                         value={formState.unitLength}
@@ -1053,7 +927,7 @@ function SkuBatchesManager({
 
                   <div className="space-y-1">
                     <Label htmlFor="unitWeight">
-                      Unit Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                      Item Package Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
                     </Label>
                     <Input
                       id="unitWeight"
