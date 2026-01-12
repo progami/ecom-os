@@ -61,11 +61,19 @@ const navigation: NavSection[] = [
     ],
   },
   {
-    title: 'Admin',
-    requireHR: true,
+    title: 'Management',
     items: [
-      { name: 'HR', href: '/hr', icon: UsersIcon, requireHR: true },
+      { name: 'Employees', href: '/employees', icon: UsersIcon },
+      { name: 'Leaves', href: '/leave', icon: CalendarDaysIcon },
+      { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
+      { name: 'Violations', href: '/performance/violations', icon: ExclamationTriangleIcon },
       { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon, requireHR: true },
+    ],
+  },
+  {
+    title: 'Admin',
+    requireSuperAdmin: true,
+    items: [
       { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
     ],
   },
