@@ -2392,12 +2392,23 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           {node}
         </POProfitabilityFiltersProvider>
       );
+      visualContent = (
+        <POProfitabilitySection
+          datasets={view}
+          productOptions={productOptions}
+          title="Margin trends"
+          description="Performance across purchase orders by arrival date"
+          showChart
+          showTable={false}
+        />
+      );
       tabularContent = (
         <POProfitabilitySection
           datasets={view}
-          title="PO P&L"
+          productOptions={productOptions}
+          title="P&L breakdown"
           description="FIFO-based PO-level P&L (Projected vs Real)"
-          showChart
+          showChart={false}
           showTable
         />
       );
@@ -2517,7 +2528,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
 
   // Only show view toggle if both tabular and visual content exist
   const hasVisualMode = Boolean(visualContent);
-  if (hasVisualMode && config.slug !== '6-po-profitability') {
+  if (hasVisualMode) {
     controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} slug={config.slug} />);
   }
   const headerControls = controls.length ? controls : undefined;

@@ -458,24 +458,12 @@ export function POProfitabilitySection({
     );
   }
 
-  // Only show internal toolbar if productOptions provided or view toggle needed
-  const showInternalToolbar = productOptions.length > 0 || (sheetSlug && viewMode);
-
-  // Determine what to show based on viewMode
-  const shouldShowChart = viewMode === 'visual' || (!viewMode && showChart);
-  const shouldShowTable = viewMode === 'tabular' || (!viewMode && showTable);
+  // Show chart/table based on props (page.tsx handles view mode separation)
+  const shouldShowChart = showChart;
+  const shouldShowTable = showTable;
 
   return (
     <div className="space-y-4">
-      {showInternalToolbar ? (
-        <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-white/5">
-          <div className="flex flex-wrap items-end gap-3">
-            <POProfitabilityHeaderControls productOptions={productOptions} />
-          </div>
-          {sheetSlug && viewMode ? <SheetViewToggle value={viewMode} slug={sheetSlug} /> : null}
-        </div>
-      ) : null}
-
       {shouldShowChart ? (
         <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
           <CardHeader className="pb-2">
