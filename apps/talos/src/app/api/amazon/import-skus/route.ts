@@ -68,13 +68,28 @@ function truncateDescription(value: string, maxLength: number = MAX_DESCRIPTION_
 }
 
 function parseCatalogDimensions(attributes: {
+  item_package_dimensions?: Array<{
+    length?: { value?: number; unit?: string }
+    width?: { value?: number; unit?: string }
+    height?: { value?: number; unit?: string }
+  }>
+  package_dimensions?: Array<{
+    length?: { value?: number; unit?: string }
+    width?: { value?: number; unit?: string }
+    height?: { value?: number; unit?: string }
+  }>
   item_dimensions?: Array<{
     length?: { value?: number; unit?: string }
     width?: { value?: number; unit?: string }
     height?: { value?: number; unit?: string }
   }>
 }): { lengthCm: number; widthCm: number; heightCm: number } | null {
-  const dims = attributes.item_dimensions?.[0]
+  const dims =
+    attributes.item_package_dimensions?.[0] ??
+    attributes.package_dimensions?.[0] ??
+    attributes.item_dimensions?.[0] ??
+    null
+  if (!dims) return null
   const length = dims?.length?.value
   const width = dims?.width?.value
   const height = dims?.height?.value
@@ -112,9 +127,13 @@ function convertMeasurementToCm(value: number, unit: string | undefined): number
 }
 
 function parseCatalogWeightKg(attributes: {
+  item_package_weight?: Array<{ value?: number; unit?: string }>
+  package_weight?: Array<{ value?: number; unit?: string }>
   item_weight?: Array<{ value?: number; unit?: string }>
 }): number | null {
-  const measurement = attributes.item_weight?.[0]
+  const measurement =
+    attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? attributes.item_weight?.[0] ?? null
+  if (!measurement) return null
   const raw = measurement?.value
   if (raw === undefined || raw === null) return null
   if (!Number.isFinite(raw)) return null
@@ -550,13 +569,19 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / DEFAULT_FEE_ESTIMATE_PRICE) * 100)
       }
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
-      // Use size tier from fees API if available, otherwise calculate from dimensions
-      amazonSizeTier = parsedFees.sizeTier ?? calculateSizeTier(
+      const calculatedSizeTier = calculateSizeTier(
         unitTriplet?.lengthCm ?? null,
         unitTriplet?.widthCm ?? null,
         unitTriplet?.heightCm ?? null,
         unitWeightKg
       )
+      if (calculatedSizeTier) {
+        amazonSizeTier = calculatedSizeTier
+      } else if (parsedFees.sizeTier) {
+        amazonSizeTier = parsedFees.sizeTier
+      } else {
+        amazonSizeTier = null
+      }
     } catch (error) {
       errors.push(
         `Amazon fee estimate failed for ${skuCode} (ASIN ${asin}): ${
