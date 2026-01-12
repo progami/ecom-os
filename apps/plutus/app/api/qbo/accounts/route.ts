@@ -31,18 +31,30 @@ export async function GET() {
 
     // Transform all accounts for frontend (matching QBO's Chart of Accounts view)
     const allAccounts = accounts
-      .map((a) => ({
-        id: a.Id,
-        name: a.Name,
-        type: a.AccountType,
-        subType: a.AccountSubType,
-        fullyQualifiedName: a.FullyQualifiedName,
-        acctNum: a.AcctNum,
-        balance: a.CurrentBalance ?? 0,
-        currency: a.CurrencyRef?.value ?? 'USD',
-        classification: a.Classification,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .map((a) => {
+        // Calculate depth from FullyQualifiedName (count colons)
+        const depth = (a.FullyQualifiedName?.split(':').length ?? 1) - 1;
+        // Extract parent name from FullyQualifiedName
+        const pathParts = a.FullyQualifiedName?.split(':') ?? [a.Name];
+        const parentName = pathParts.length > 1 ? pathParts.slice(0, -1).join(':') : null;
+
+        return {
+          id: a.Id,
+          name: a.Name,
+          type: a.AccountType,
+          subType: a.AccountSubType,
+          fullyQualifiedName: a.FullyQualifiedName,
+          acctNum: a.AcctNum,
+          balance: a.CurrentBalance ?? 0,
+          currency: a.CurrencyRef?.value ?? 'USD',
+          classification: a.Classification,
+          isSubAccount: a.SubAccount ?? false,
+          parentName,
+          depth,
+        };
+      })
+      // Sort by FullyQualifiedName to group hierarchies together
+      .sort((a, b) => (a.fullyQualifiedName ?? a.name).localeCompare(b.fullyQualifiedName ?? b.name));
 
     return NextResponse.json({ accounts: allAccounts, total: allAccounts.length });
   } catch (error) {

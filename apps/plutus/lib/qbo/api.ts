@@ -83,6 +83,11 @@ export interface QboAccount {
     name?: string;
   };
   Classification?: string;
+  SubAccount?: boolean;
+  ParentRef?: {
+    value: string;
+    name?: string;
+  };
 }
 
 export interface QboQueryResponse {
