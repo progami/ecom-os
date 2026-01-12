@@ -206,7 +206,7 @@ export default function ChartOfAccountsPage() {
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
-              href={basePath}
+              href="/"
               className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
             >
               <ArrowLeftIcon className="h-4 w-4" />
