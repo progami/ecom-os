@@ -268,18 +268,26 @@ export function SalesPlanningVisual({
   const activeForecastData =
     forecastViewMode === 'cumulative' ? forecastChartDataCumulative : forecastChartData;
 
-  // Y-axis bounds for forecast chart
+  // Y-axis bounds for forecast chart - only considers visible series
   const forecastYAxisBounds = useMemo(() => {
-    const allValues = activeForecastData
-      .flatMap((p) => [p.actual, p.forecast])
-      .filter(Number.isFinite);
-    if (allValues.length === 0) return { min: 0, max: 0 };
+    const allValues: number[] = [];
+    activeForecastData.forEach((p) => {
+      if (showActualLine && Number.isFinite(p.actual)) {
+        allValues.push(p.actual);
+      }
+      if (showForecastLine && Number.isFinite(p.forecast)) {
+        allValues.push(p.forecast);
+      }
+    });
+    if (allValues.length === 0) return { min: 0, max: 100 };
     const dataMin = Math.min(...allValues);
     const dataMax = Math.max(...allValues);
+    // Add 10% padding to the max for better visualization
+    const padding = (dataMax - dataMin) * 0.1;
     const min = Math.min(dataMin, 0);
-    const max = Math.max(dataMax, 0);
+    const max = dataMax + padding;
     return { min, max };
-  }, [activeForecastData]);
+  }, [activeForecastData, showActualLine, showForecastLine]);
 
   if (productOptions.length === 0) {
     return (
@@ -599,10 +607,11 @@ export function SalesPlanningVisual({
                   axisLine={false}
                   tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                   tickFormatter={(value) =>
-                    Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()
+                    Math.abs(value) >= 1000 ? `${(value / 1000).toFixed(1)}K` : value.toString()
                   }
                   width={60}
                   domain={[forecastYAxisBounds.min, forecastYAxisBounds.max]}
+                  allowDataOverflow={false}
                 />
                 <YAxis
                   yAxisId="error"
