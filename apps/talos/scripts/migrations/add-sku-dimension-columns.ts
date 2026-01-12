@@ -65,8 +65,8 @@ function showHelp() {
   console.log(`
 Add SKU Dimension Columns
 
-Adds unit/carton dimension columns (L/W/H) to skus and backfills from the legacy
-unit_dimensions_cm / carton_dimensions_cm strings when possible.
+Adds unit/carton/item dimension columns (L/W/H) to skus and backfills from the legacy
+unit_dimensions_cm / carton_dimensions_cm / item_dimensions_cm strings when possible.
 
 Usage:
   pnpm --filter @targon/talos tsx scripts/migrations/add-sku-dimension-columns.ts [options]
@@ -85,6 +85,11 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "unit_length_cm" DECIMAL(8,2)`,
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "unit_width_cm" DECIMAL(8,2)`,
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "unit_height_cm" DECIMAL(8,2)`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "item_dimensions_cm" TEXT`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "item_length_cm" DECIMAL(8,2)`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "item_width_cm" DECIMAL(8,2)`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "item_height_cm" DECIMAL(8,2)`,
+    `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "item_weight_kg" DECIMAL(8,3)`,
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "carton_length_cm" DECIMAL(8,2)`,
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "carton_width_cm" DECIMAL(8,2)`,
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "carton_height_cm" DECIMAL(8,2)`,
@@ -119,6 +124,30 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
           unit_length_cm = COALESCE(s.unit_length_cm, (p.m[1])::numeric),
           unit_width_cm = COALESCE(s.unit_width_cm, (p.m[2])::numeric),
           unit_height_cm = COALESCE(s.unit_height_cm, (p.m[3])::numeric)
+        FROM parsed p
+        WHERE s.id = p.id
+          AND p.m IS NOT NULL
+      `,
+    },
+    {
+      label: 'item dimensions',
+      sql: `
+        WITH parsed AS (
+          SELECT
+            id,
+            regexp_match(
+              regexp_replace(replace(item_dimensions_cm, '×', 'x'), '\\s+', '', 'g'),
+              '([0-9]+(?:\\.[0-9]+)?)[xX]([0-9]+(?:\\.[0-9]+)?)[xX]([0-9]+(?:\\.[0-9]+)?)'
+            ) AS m
+          FROM skus
+          WHERE item_dimensions_cm IS NOT NULL
+            AND (item_length_cm IS NULL OR item_width_cm IS NULL OR item_height_cm IS NULL)
+        )
+        UPDATE skus s
+        SET
+          item_length_cm = COALESCE(s.item_length_cm, (p.m[1])::numeric),
+          item_width_cm = COALESCE(s.item_width_cm, (p.m[2])::numeric),
+          item_height_cm = COALESCE(s.item_height_cm, (p.m[3])::numeric)
         FROM parsed p
         WHERE s.id = p.id
           AND p.m IS NOT NULL
