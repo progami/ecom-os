@@ -182,6 +182,15 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
     return ApiResponses.success({ testResult: result })
   }
 
+  // Test mode: fetch fees for a specific ASIN
+  const testAsin = request.nextUrl.searchParams.get('test-fees')
+  if (testAsin) {
+    const tenantCode = await getCurrentTenantCode()
+    const fees = await getProductFees(testAsin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
+    const parsedFees = parseAmazonProductFees(fees)
+    return ApiResponses.success({ raw: fees, parsed: parsedFees })
+  }
+
   const parsed = previewQuerySchema.safeParse({
     limit: request.nextUrl.searchParams.get('limit') ?? undefined,
   })
@@ -523,7 +532,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
     try {
       const fees = await getProductFees(asin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
+      console.log(`[Amazon Import] Fees API response for ${asin}:`, JSON.stringify(fees, null, 2))
       const parsedFees = parseAmazonProductFees(fees)
+      console.log(`[Amazon Import] Parsed fees for ${asin}:`, JSON.stringify(parsedFees, null, 2))
       // Calculate referral fee percent from amount if available
       if (parsedFees.referralFee !== null && Number.isFinite(parsedFees.referralFee)) {
         amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / DEFAULT_FEE_ESTIMATE_PRICE) * 100)
@@ -531,6 +542,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
       amazonSizeTier = parsedFees.sizeTier
     } catch (error) {
+      console.error(`[Amazon Import] Fees API error for ${asin}:`, error)
       errors.push(
         `Amazon fee estimate failed for ${skuCode} (ASIN ${asin}): ${
           error instanceof Error ? error.message : 'Unknown error'
