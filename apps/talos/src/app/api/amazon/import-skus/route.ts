@@ -58,13 +58,13 @@ function normalizeTitle(value: string | null): string | null {
 
 function truncateDescription(value: string, maxLength: number = MAX_DESCRIPTION_LENGTH): string {
   if (value.length <= maxLength) return value
-  // Truncate and add ellipsis, ensuring we don't cut in middle of a word if possible
-  const truncated = value.slice(0, maxLength - 3)
+  // Truncate at word boundary if possible, no ellipsis
+  const truncated = value.slice(0, maxLength)
   const lastSpace = truncated.lastIndexOf(' ')
   if (lastSpace > maxLength * 0.7) {
-    return truncated.slice(0, lastSpace) + '...'
+    return truncated.slice(0, lastSpace).trim()
   }
-  return truncated + '...'
+  return truncated.trim()
 }
 
 function parseCatalogDimensions(attributes: {
