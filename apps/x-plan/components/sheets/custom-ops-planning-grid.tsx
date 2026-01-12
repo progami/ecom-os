@@ -831,6 +831,7 @@ export function CustomOpsPlanningGrid({
   const selectionAnchorRef = useRef<CellCoords | null>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  const selectOnFocusRef = useRef(true);
   const clipboardRef = useRef<HTMLTextAreaElement | null>(null);
   const pasteStartRef = useRef<{ rowId: string; colKey: keyof OpsInputRow } | null>(null);
 
@@ -929,8 +930,16 @@ export function CustomOpsPlanningGrid({
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
       if (inputRef.current instanceof HTMLInputElement) {
-        inputRef.current.select();
+        if (selectOnFocusRef.current) {
+          inputRef.current.select();
+        } else {
+          // Position cursor at end when started by typing
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+        }
       }
+      // Reset for next edit
+      selectOnFocusRef.current = true;
     }
   }, [editingCell]);
 
@@ -1857,6 +1866,8 @@ export function CustomOpsPlanningGrid({
         if (!isGridEditableColumn(column, stageMode)) return;
 
         event.preventDefault();
+        // Don't select all when starting edit by typing - cursor at end
+        selectOnFocusRef.current = false;
         startEditing(
           row.id,
           column.key,
