@@ -43,10 +43,20 @@ export interface QboPurchase {
   };
 }
 
+export interface QboAccount {
+  Id: string;
+  Name: string;
+  AccountType: string;
+  AccountSubType?: string;
+  FullyQualifiedName?: string;
+  AcctNum?: string;
+  Active?: boolean;
+}
+
 export interface QboQueryResponse {
   QueryResponse: {
     Purchase?: QboPurchase[];
-    Account?: Array<{ Id: string; Name: string; AccountType: string; AccountSubType?: string }>;
+    Account?: QboAccount[];
     startPosition?: number;
     maxResults?: number;
     totalCount?: number;
@@ -246,12 +256,14 @@ export async function updatePurchase(
  */
 export async function fetchAccounts(
   connection: QboConnection
-): Promise<{ accounts: Array<{ Id: string; Name: string; AccountType: string; AccountSubType?: string }>; updatedConnection?: QboConnection }> {
+): Promise<{ accounts: QboAccount[]; updatedConnection?: QboConnection }> {
   const { accessToken, updatedConnection } = await getValidToken(connection);
   const baseUrl = getApiBaseUrl();
 
   const query = `SELECT * FROM Account WHERE Active = true MAXRESULTS 1000`;
   const queryUrl = `${baseUrl}/v3/company/${connection.realmId}/query?query=${encodeURIComponent(query)}`;
+
+  logger.info('Fetching accounts from QBO');
 
   const response = await fetch(queryUrl, {
     headers: {
