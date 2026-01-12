@@ -116,6 +116,12 @@ export function CompletedItemList({ items, selectedId, onSelect }: CompletedItem
     <div className="h-full flex flex-col min-h-0">
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto min-h-0 pr-2 -mr-2 space-y-2">
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm py-2 -mx-1 px-1">
+          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+            Completed <span className="text-slate-300 dark:text-slate-600">({items.length})</span>
+          </span>
+        </div>
         {items.map((item, idx) => (
           <CompletedItem
             key={item.id}
