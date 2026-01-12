@@ -11,10 +11,7 @@ declare module '@targon/prisma-x-plan' {
     | 'MANUFACTURING'
     | 'OCEAN'
     | 'WAREHOUSE'
-    | 'SHIPPED'
-    | 'REJECTED'
-    | 'ARCHIVED'
-    | 'CANCELLED';
+    | 'SHIPPED';
 
   export interface Strategy {
     id: string;

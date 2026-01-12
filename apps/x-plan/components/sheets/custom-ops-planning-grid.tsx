@@ -367,9 +367,6 @@ const PURCHASE_ORDER_STATUS_OPTIONS = [
   { value: 'OCEAN', label: 'Ocean' },
   { value: 'WAREHOUSE', label: 'Warehouse' },
   { value: 'SHIPPED', label: 'Shipped' },
-  { value: 'ARCHIVED', label: 'Archived' },
-  { value: 'REJECTED', label: 'Rejected' },
-  { value: 'CANCELLED', label: 'Cancelled' },
 ] as const;
 
 type PurchaseOrderStatusValue = (typeof PURCHASE_ORDER_STATUS_OPTIONS)[number]['value'];
@@ -395,15 +392,12 @@ function normalizePurchaseOrderStatus(value: string): PurchaseOrderStatusValue |
     case 'ARRIVED':
       return 'WAREHOUSE';
     case 'SHIPPED':
-      return 'SHIPPED';
     case 'ARCHIVED':
     case 'CLOSED':
-      return 'ARCHIVED';
     case 'REJECTED':
-      return 'REJECTED';
     case 'CANCELLED':
     case 'CANCELED':
-      return 'CANCELLED';
+      return 'SHIPPED';
     default:
       return null;
   }
