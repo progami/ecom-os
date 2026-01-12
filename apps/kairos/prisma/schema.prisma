@@ -113,6 +113,9 @@ enum TimeSeriesGranularity {
 enum ForecastModel {
   PROPHET
   ETS
+  ARIMA
+  THETA
+  NEURALPROPHET
 }
 
 enum ForecastStatus {

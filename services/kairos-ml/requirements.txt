@@ -1,3 +1,19 @@
+# Core web framework
 fastapi==0.115.8
 uvicorn[standard]==0.34.0
 
+# Data processing
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0,<3.0.0
+
+# Statistical forecasting (Nixtla - fast & reliable)
+statsforecast>=1.7.0,<2.0.0
+
+# Prophet (Meta/Facebook)
+prophet>=1.1.5,<2.0.0
+
+# Neural forecasting (optional - heavier dependencies)
+neuralprophet>=0.8.0,<1.0.0
+
+# Logging
+structlog>=24.0.0
