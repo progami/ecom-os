@@ -6,7 +6,6 @@ import { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface Account {
@@ -16,18 +15,20 @@ interface Account {
   subType?: string;
   fullyQualifiedName?: string;
   acctNum?: string;
+  balance: number;
+  currency: string;
+  classification?: string;
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
 
-async function fetchAccounts(): Promise<Account[]> {
+async function fetchAccounts(): Promise<{ accounts: Account[]; total: number }> {
   const res = await fetch(`${basePath}/api/qbo/accounts`);
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || 'Failed to fetch accounts');
   }
-  const data = await res.json();
-  return data.accounts;
+  return res.json();
 }
 
 function ArrowLeftIcon({ className }: { className?: string }) {
@@ -58,62 +59,116 @@ function SearchIcon({ className }: { className?: string }) {
   );
 }
 
-function FolderIcon({ className }: { className?: string }) {
+// Account type icons matching QBO style
+function BankIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
     </svg>
   );
 }
 
-function TypeBadge({ type }: { type: string }) {
-  const colorMap: Record<string, string> = {
-    'Expense': 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400',
-    'Other Expense': 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',
-    'Cost of Goods Sold': 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-  };
-
+function WalletIcon({ className }: { className?: string }) {
   return (
-    <span className={cn(
-      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap',
-      colorMap[type] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-    )}>
-      {type}
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+    </svg>
+  );
+}
+
+function CreditCardIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+    </svg>
+  );
+}
+
+function ChartIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    </svg>
+  );
+}
+
+function ReceiptIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+    </svg>
+  );
+}
+
+function getAccountTypeIcon(type: string) {
+  const iconClass = 'h-4 w-4';
+  switch (type) {
+    case 'Bank':
+      return <BankIcon className={iconClass} />;
+    case 'Credit Card':
+      return <CreditCardIcon className={iconClass} />;
+    case 'Other Current Asset':
+    case 'Other Current Assets':
+    case 'Fixed Asset':
+      return <WalletIcon className={iconClass} />;
+    case 'Income':
+    case 'Other Income':
+      return <ChartIcon className={iconClass} />;
+    case 'Expense':
+    case 'Other Expense':
+    case 'Cost of Goods Sold':
+      return <ReceiptIcon className={iconClass} />;
+    default:
+      return <WalletIcon className={iconClass} />;
+  }
+}
+
+function BalBadge() {
+  return (
+    <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-bold bg-emerald-500 text-white rounded">
+      BAL
     </span>
   );
 }
+
+function formatCurrency(amount: number, currency: string = 'USD') {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2,
+  }).format(amount);
+}
+
+// Account types that typically have balance tracking
+const BALANCE_TYPES = ['Bank', 'Credit Card', 'Accounts Receivable (A/R)', 'Accounts Payable (A/P)', 'Other Current Asset', 'Other Current Assets', 'Fixed Asset'];
 
 export default function ChartOfAccountsPage() {
   const [search, setSearch] = useState('');
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
-  const { data: accounts = [], isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['qbo-accounts-full'],
     queryFn: fetchAccounts,
     staleTime: 5 * 60 * 1000,
   });
+
+  const accounts = data?.accounts ?? [];
+  const total = data?.total ?? 0;
 
   const accountTypes = useMemo(() => {
     const types = new Set(accounts.map((a) => a.type));
     return Array.from(types).sort();
   }, [accounts]);
 
-  const typeCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: accounts.length };
-    accounts.forEach((a) => {
-      counts[a.type] = (counts[a.type] || 0) + 1;
-    });
-    return counts;
-  }, [accounts]);
-
   const filteredAccounts = useMemo(() => {
     return accounts.filter((account) => {
+      const searchLower = search.toLowerCase();
       const matchesSearch =
         !search ||
-        account.name.toLowerCase().includes(search.toLowerCase()) ||
-        account.acctNum?.toLowerCase().includes(search.toLowerCase()) ||
-        account.subType?.toLowerCase().includes(search.toLowerCase()) ||
-        account.fullyQualifiedName?.toLowerCase().includes(search.toLowerCase());
+        account.name.toLowerCase().includes(searchLower) ||
+        account.acctNum?.toLowerCase().includes(searchLower) ||
+        account.type.toLowerCase().includes(searchLower) ||
+        account.subType?.toLowerCase().includes(searchLower);
       const matchesType = !selectedType || account.type === selectedType;
       return matchesSearch && matchesType;
     });
@@ -122,58 +177,81 @@ export default function ChartOfAccountsPage() {
   const columns: ColumnDef<Account>[] = useMemo(
     () => [
       {
-        accessorKey: 'acctNum',
-        header: 'Number',
-        cell: ({ row }) =>
-          row.original.acctNum ? (
-            <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-xs font-mono text-slate-600 dark:text-slate-300">
-              {row.original.acctNum}
-            </code>
-          ) : (
-            <span className="text-slate-400 dark:text-slate-500 text-sm">—</span>
-          ),
-        enableSorting: true,
-      },
-      {
         accessorKey: 'name',
-        header: 'Account Name',
+        header: 'NAME',
         cell: ({ row }) => (
-          <span className="font-medium text-slate-900 dark:text-white">
-            {row.original.name}
-          </span>
+          <div className="flex items-center gap-2 min-w-[200px]">
+            <span className="font-medium text-slate-900 dark:text-white">
+              {row.original.name}
+              {row.original.acctNum && (
+                <span className="text-slate-500 dark:text-slate-400 ml-1">
+                  ({row.original.acctNum})
+                </span>
+              )}
+            </span>
+          </div>
         ),
         enableSorting: true,
       },
       {
         accessorKey: 'type',
-        header: 'Type',
-        cell: ({ row }) => <TypeBadge type={row.original.type} />,
+        header: 'ACCOUNT TYPE',
+        cell: ({ row }) => {
+          const hasBalance = BALANCE_TYPES.includes(row.original.type);
+          return (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 dark:text-slate-400">
+                {getAccountTypeIcon(row.original.type)}
+              </span>
+              <span className="text-slate-700 dark:text-slate-300">
+                {row.original.type}
+              </span>
+              {hasBalance && <BalBadge />}
+            </div>
+          );
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'subType',
-        header: 'Sub Type',
-        cell: ({ row }) =>
-          row.original.subType ? (
-            <span className="text-slate-600 dark:text-slate-400 text-sm">
-              {row.original.subType}
+        header: 'DETAIL TYPE',
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            {BALANCE_TYPES.includes(row.original.type) && (
+              <span className="text-slate-400 dark:text-slate-500">
+                {getAccountTypeIcon(row.original.type)}
+              </span>
+            )}
+            <span className="text-slate-600 dark:text-slate-400">
+              {row.original.subType || '—'}
             </span>
-          ) : (
-            <span className="text-slate-400 dark:text-slate-500 text-sm">—</span>
-          ),
+          </div>
+        ),
         enableSorting: true,
       },
       {
-        accessorKey: 'fullyQualifiedName',
-        header: 'Full Path',
-        cell: ({ row }) =>
-          row.original.fullyQualifiedName ? (
-            <span className="text-slate-500 dark:text-slate-400 text-sm truncate max-w-[250px] block" title={row.original.fullyQualifiedName}>
-              {row.original.fullyQualifiedName}
-            </span>
-          ) : (
-            <span className="text-slate-400 dark:text-slate-500 text-sm">—</span>
-          ),
+        accessorKey: 'currency',
+        header: 'CURRENCY',
+        cell: ({ row }) => (
+          <span className="text-slate-600 dark:text-slate-400">
+            {row.original.currency}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'balance',
+        header: 'BALANCE',
+        cell: ({ row }) => (
+          <span className={cn(
+            'font-mono text-sm',
+            row.original.balance < 0
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-slate-700 dark:text-slate-300'
+          )}>
+            {formatCurrency(row.original.balance, row.original.currency)}
+          </span>
+        ),
         enableSorting: true,
       },
     ],
@@ -184,9 +262,9 @@ export default function ChartOfAccountsPage() {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="rounded-xl border border-danger-200 bg-danger-50 dark:border-danger-900 dark:bg-danger-950/50 p-8 text-center">
-            <h2 className="text-lg font-semibold text-danger-700 dark:text-danger-400 mb-2">Error</h2>
-            <p className="text-danger-600 dark:text-danger-300 mb-4">
+          <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50 p-8 text-center">
+            <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Error</h2>
+            <p className="text-red-600 dark:text-red-300 mb-4">
               {error instanceof Error ? error.message : 'Failed to load accounts'}
             </p>
             <Button onClick={() => refetch()} variant="outline">
@@ -220,102 +298,66 @@ export default function ChartOfAccountsPage() {
           </Button>
         </header>
 
-        {/* Search and Filter */}
+        {/* Search and Filter Bar */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           {/* Search */}
           <div className="relative flex-1 max-w-md">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by name, number, or type..."
+              placeholder="Filter by name or number"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-teal-500/30 focus:border-brand-teal-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-brand-cyan/30 dark:focus:border-brand-cyan"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-teal-500/30 focus:border-brand-teal-500 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
 
-          {/* Type Filter Tabs */}
-          <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-lg">
-            <FilterTab
-              active={!selectedType}
-              onClick={() => setSelectedType(null)}
-              count={typeCounts.all}
-              label="All"
-            />
+          {/* Type Filter Dropdown */}
+          <select
+            value={selectedType || ''}
+            onChange={(e) => setSelectedType(e.target.value || null)}
+            className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-teal-500/30 focus:border-brand-teal-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
+          >
+            <option value="">All</option>
             {accountTypes.map((type) => (
-              <FilterTab
-                key={type}
-                active={selectedType === type}
-                onClick={() => setSelectedType(type)}
-                count={typeCounts[type] || 0}
-                label={type === 'Cost of Goods Sold' ? 'COGS' : type}
-              />
+              <option key={type} value={type}>
+                {type}
+              </option>
             ))}
+          </select>
+
+          {/* Pagination info */}
+          <div className="text-sm text-slate-500 dark:text-slate-400 ml-auto">
+            {filteredAccounts.length === total
+              ? `1 - ${total}`
+              : `Showing ${filteredAccounts.length} of ${total}`
+            }
           </div>
         </div>
 
         {/* Data Table */}
-        <DataTable
-          columns={columns}
-          data={filteredAccounts}
-          loading={isLoading}
-          skeletonRows={12}
-          initialSorting={[{ id: 'name', desc: false }]}
-          emptyState={
-            <div className="py-8 flex flex-col items-center">
-              <FolderIcon className="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" />
-              <p className="text-slate-500 dark:text-slate-400">
-                {search || selectedType ? 'No accounts match your filter' : 'No accounts found'}
-              </p>
-            </div>
-          }
-        />
+        <div className="rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden">
+          <DataTable
+            columns={columns}
+            data={filteredAccounts}
+            loading={isLoading}
+            skeletonRows={15}
+            initialSorting={[{ id: 'name', desc: false }]}
+            emptyState={
+              <div className="py-12 text-center">
+                <p className="text-slate-500 dark:text-slate-400">
+                  {search || selectedType ? 'No accounts match your filter' : 'No accounts found'}
+                </p>
+              </div>
+            }
+          />
+        </div>
 
-        {/* Footer Summary */}
-        {!isLoading && (
-          <div className="flex items-center justify-between pt-2 text-sm text-slate-500 dark:text-slate-400">
-            <span>
-              Showing {filteredAccounts.length} of {accounts.length} expense accounts
-            </span>
-            <span>
-              Synced from QuickBooks Online
-            </span>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="text-center text-sm text-slate-500 dark:text-slate-400">
+          Synced from QuickBooks Online
+        </div>
       </div>
     </div>
-  );
-}
-
-interface FilterTabProps {
-  active: boolean;
-  onClick: () => void;
-  count: number;
-  label: string;
-}
-
-function FilterTab({ active, onClick, count, label }: FilterTabProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap',
-        active
-          ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
-          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-      )}
-    >
-      {label}
-      <span
-        className={cn(
-          'ml-0.5 px-1.5 py-0.5 rounded text-xs',
-          active
-            ? 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300'
-            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 dark:text-slate-500'
-        )}
-      >
-        {count}
-      </span>
-    </button>
   );
 }
