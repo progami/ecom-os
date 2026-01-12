@@ -49,6 +49,8 @@ export type OpsBatchRow = {
   fbaFee: string;
   referralRate: string;
   storagePerMonth: string;
+  grossProfit?: string;
+  netProfit?: string;
 };
 
 interface CustomOpsCostGridProps {
@@ -142,6 +144,7 @@ type ColumnDef = {
   type: 'text' | 'numeric' | 'percent' | 'dropdown';
   editable: boolean;
   precision?: number;
+  computed?: boolean;
 };
 
 type CellCoords = { row: number; col: number };
@@ -238,6 +241,7 @@ const COLUMNS_AFTER_TARIFF: ColumnDef[] = [
 ];
 
 type TariffInputMode = 'rate' | 'cost';
+type ProfitDisplayMode = 'unit' | 'percent';
 
 const CELL_ID_PREFIX = 'xplan-ops-batch';
 
@@ -268,10 +272,62 @@ export function CustomOpsCostGrid({
     'xplan:ops:batch-tariff-mode',
     'rate',
   );
+  const [profitDisplayMode, setProfitDisplayMode] = usePersistentState<ProfitDisplayMode>(
+    'xplan:ops:batch-profit-display-mode',
+    'unit',
+  );
+
+  const toggleProfitDisplayMode = useCallback(() => {
+    setProfitDisplayMode((previous) => (previous === 'unit' ? 'percent' : 'unit'));
+  }, [setProfitDisplayMode]);
+
   const columns = useMemo(() => {
     const tariffColumn = tariffInputMode === 'cost' ? TARIFF_COST_COLUMN : TARIFF_RATE_COLUMN;
-    return [...COLUMNS_BEFORE_TARIFF, tariffColumn, ...COLUMNS_AFTER_TARIFF];
-  }, [tariffInputMode]);
+    const profitColumns: ColumnDef[] =
+      profitDisplayMode === 'percent'
+        ? [
+            {
+              key: 'grossProfit',
+              header: 'GP %',
+              width: 110,
+              type: 'percent',
+              editable: false,
+              precision: 2,
+              computed: true,
+            },
+            {
+              key: 'netProfit',
+              header: 'NP %',
+              width: 110,
+              type: 'percent',
+              editable: false,
+              precision: 2,
+              computed: true,
+            },
+          ]
+        : [
+            {
+              key: 'grossProfit',
+              header: 'GP $/unit',
+              width: 130,
+              type: 'numeric',
+              editable: false,
+              precision: 2,
+              computed: true,
+            },
+            {
+              key: 'netProfit',
+              header: 'NP $/unit',
+              width: 130,
+              type: 'numeric',
+              editable: false,
+              precision: 2,
+              computed: true,
+            },
+          ];
+
+    return [...COLUMNS_BEFORE_TARIFF, tariffColumn, ...COLUMNS_AFTER_TARIFF, ...profitColumns];
+  }, [profitDisplayMode, tariffInputMode]);
 
   const [localRows, setLocalRows] = useState<OpsBatchRow[]>(rows);
   const [editingCell, setEditingCell] = useState<{
@@ -1120,7 +1176,62 @@ export function CustomOpsCostGrid({
     commitEdit(nextValue);
   };
 
+  const computeProfitMetrics = useCallback((row: OpsBatchRow) => {
+    const toNumber = (value: string | undefined): number => {
+      if (!value) return 0;
+      const parsed = sanitizeNumeric(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const sellingPrice = toNumber(row.sellingPrice);
+    const manufacturingCost = toNumber(row.manufacturingCost);
+    const freightCost = toNumber(row.freightCost);
+    const tariffRate = toNumber(row.tariffRate);
+
+    const tariffCostRaw = (row.tariffCost ?? '').trim();
+    const tariffCostOverride = tariffCostRaw ? toNumber(tariffCostRaw) : null;
+    const tariffUnitCost = tariffCostOverride ?? manufacturingCost * tariffRate;
+    const landedUnitCost = manufacturingCost + freightCost + tariffUnitCost;
+
+    const fbaFee = toNumber(row.fbaFee);
+    const referralRate = toNumber(row.referralRate);
+    const amazonFeesPerUnit = fbaFee + sellingPrice * referralRate;
+
+    const tacosPercent = toNumber(row.tacosPercent);
+    const ppcPerUnit = sellingPrice * tacosPercent;
+
+    const grossProfitPerUnit = sellingPrice - landedUnitCost - amazonFeesPerUnit;
+    const netProfitPerUnit = grossProfitPerUnit - ppcPerUnit;
+
+    const grossMargin = sellingPrice === 0 ? 0 : grossProfitPerUnit / sellingPrice;
+    const netMargin = sellingPrice === 0 ? 0 : netProfitPerUnit / sellingPrice;
+
+    return { grossProfitPerUnit, netProfitPerUnit, grossMargin, netMargin };
+  }, []);
+
   const formatDisplayValue = (row: OpsBatchRow, column: ColumnDef): string => {
+    if (column.key === 'grossProfit' || column.key === 'netProfit') {
+      const metrics = computeProfitMetrics(row);
+      const precision = column.precision ?? 2;
+
+      const raw =
+        column.key === 'grossProfit'
+          ? column.type === 'percent'
+            ? metrics.grossMargin
+            : metrics.grossProfitPerUnit
+          : column.type === 'percent'
+            ? metrics.netMargin
+            : metrics.netProfitPerUnit;
+
+      if (column.type === 'percent') {
+        return `${(raw * 100).toFixed(precision)}%`;
+      }
+
+      const absolute = Math.abs(raw);
+      const formatted = `$${absolute.toFixed(precision)}`;
+      return raw < 0 ? `-${formatted}` : formatted;
+    }
+
     const value = row[column.key];
     if (!value) return '';
 
@@ -1164,7 +1275,9 @@ export function CustomOpsCostGrid({
         ? isDropdown
           ? 'cursor-pointer bg-accent/50 font-medium'
           : 'cursor-text bg-accent/50 font-medium'
-        : 'bg-muted/50 text-muted-foreground',
+        : column.computed
+          ? 'bg-muted/30'
+          : 'bg-muted/50 text-muted-foreground',
       isSelected && 'bg-accent',
       (isEditing || isCurrent) && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
       colIndex === columns.length - 1 && 'border-r-0',
@@ -1245,7 +1358,27 @@ export function CustomOpsCostGrid({
         }}
       >
         <div className={cn('flex h-8 min-w-0 items-center px-3', isNumericCell && 'justify-end')}>
-          <span className={cn('block min-w-0 truncate', isNumericCell && 'tabular-nums')}>
+          <span
+            className={cn(
+              'block min-w-0 truncate',
+              isNumericCell && 'tabular-nums',
+              (() => {
+                if (column.key !== 'grossProfit' && column.key !== 'netProfit') return '';
+                const metrics = computeProfitMetrics(row);
+                const raw =
+                  column.key === 'grossProfit'
+                    ? column.type === 'percent'
+                      ? metrics.grossMargin
+                      : metrics.grossProfitPerUnit
+                    : column.type === 'percent'
+                      ? metrics.netMargin
+                      : metrics.netProfitPerUnit;
+                if (raw > 0) return 'text-emerald-700 dark:text-emerald-300';
+                if (raw < 0) return 'text-rose-700 dark:text-rose-300';
+                return '';
+              })(),
+            )}
+          >
             {displayValue}
           </span>
         </div>
@@ -1334,6 +1467,23 @@ export function CustomOpsCostGrid({
                           tariffInputMode === 'rate'
                             ? 'Switch to Tariff $/unit'
                             : 'Switch to Tariff %'
+                        }
+                      >
+                        {column.header}
+                      </button>
+                    ) : column.key === 'grossProfit' || column.key === 'netProfit' ? (
+                      <button
+                        type="button"
+                        className="inline-flex w-full items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-extrabold uppercase tracking-[0.12em] text-emerald-700 transition hover:bg-emerald-500/20 dark:border-emerald-300/35 dark:bg-emerald-300/10 dark:text-emerald-200 dark:hover:bg-emerald-300/20"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          toggleProfitDisplayMode();
+                        }}
+                        title={
+                          profitDisplayMode === 'unit'
+                            ? 'Switch to profit %'
+                            : 'Switch to profit $/unit'
                         }
                       >
                         {column.header}
