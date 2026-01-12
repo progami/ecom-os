@@ -47,7 +47,6 @@ const navigation: NavSection[] = [
     title: 'Home',
     items: [
       { name: 'My Hub', href: '/hub', icon: HomeIcon },
-      { name: 'Inbox', href: '/work', icon: BellIcon },
     ],
   },
   {
