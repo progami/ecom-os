@@ -7,9 +7,15 @@ import {
   LeavesApi,
   WorkItemsApi,
   DashboardApi,
+  PerformanceReviewsApi,
+  DisciplinaryActionsApi,
+  EmployeeFilesApi,
   type Employee,
   type LeaveBalance,
   type DashboardData,
+  type PerformanceReview,
+  type DisciplinaryAction,
+  type EmployeeFile,
 } from '@/lib/api-client'
 import type { WorkItemsResponse, WorkItemDTO, CompletedWorkItemsResponse } from '@/lib/contracts/work-items'
 import type { ActionId } from '@/lib/contracts/action-ids'
@@ -139,40 +145,153 @@ function BentoCard({
   )
 }
 
-function ProfileCard({ employee }: { employee: Employee }) {
+function ProfileCard({
+  employee,
+  editingField,
+  editValue,
+  saving,
+  onStartEdit,
+  onEditChange,
+  onSave,
+  onCancel,
+}: {
+  employee: Employee
+  editingField: 'phone' | 'email' | null
+  editValue: string
+  saving: boolean
+  onStartEdit: (field: 'phone' | 'email', value: string) => void
+  onEditChange: (value: string) => void
+  onSave: () => void
+  onCancel: () => void
+}) {
   const joinDate = employee.joinDate ? new Date(employee.joinDate) : null
   const tenure = joinDate ? Math.floor((Date.now() - joinDate.getTime()) / (1000 * 60 * 60 * 24 * 365)) : null
 
   return (
-    <BentoCard className="p-5">
-      <div className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 flex items-center justify-center text-white dark:text-slate-900 text-lg font-bold shadow-lg shrink-0">
+    <BentoCard className="p-5" span={2}>
+      <div className="flex items-start gap-4">
+        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 flex items-center justify-center text-white dark:text-slate-900 text-xl font-bold shadow-lg shrink-0">
           {employee.firstName[0]}
           {employee.lastName[0]}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-50 truncate">
-            {employee.firstName} {employee.lastName}
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{employee.position}</p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-            <span>{employee.department}</span>
-            {tenure !== null && tenure >= 0 ? (
-              <>
-                <span>·</span>
-                <span>{tenure === 0 ? '< 1 year' : `${tenure}y tenure`}</span>
-              </>
-            ) : null}
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">
+                {employee.firstName} {employee.lastName}
+              </h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{employee.position}</p>
+              <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+                <span>{employee.department}</span>
+                {tenure !== null && tenure >= 0 ? (
+                  <>
+                    <span>·</span>
+                    <span>{tenure === 0 ? '< 1 year' : `${tenure}y tenure`}</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+            <Link
+              href={`/employees/${employee.id}/edit`}
+              className="shrink-0 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              title="Edit full profile"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </Link>
+          </div>
+
+          {/* Editable fields */}
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            {/* Phone */}
+            <div className="group">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Phone</label>
+              {editingField === 'phone' ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <input
+                    type="tel"
+                    value={editValue}
+                    onChange={(e) => onEditChange(e.target.value)}
+                    className="flex-1 px-2 py-1 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={onSave}
+                    disabled={saving}
+                    className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={onCancel}
+                    className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => onStartEdit('phone', employee.phone || '')}
+                  className="flex items-center gap-1.5 mt-0.5 text-sm text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                >
+                  <span>{employee.phone || 'Add phone'}</span>
+                  <svg className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Email */}
+            <div className="group">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Email</label>
+              {editingField === 'email' ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <input
+                    type="email"
+                    value={editValue}
+                    onChange={(e) => onEditChange(e.target.value)}
+                    className="flex-1 px-2 py-1 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={onSave}
+                    disabled={saving}
+                    className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={onCancel}
+                    className="p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => onStartEdit('email', employee.email || '')}
+                  className="flex items-center gap-1.5 mt-0.5 text-sm text-slate-700 dark:text-slate-200 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors truncate max-w-full"
+                >
+                  <span className="truncate">{employee.email}</span>
+                  <svg className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
-        <Link
-          href={`/employees/${employee.id}/edit`}
-          className="shrink-0 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-        </Link>
       </div>
     </BentoCard>
   )
@@ -413,58 +532,239 @@ function TimeOffCard({ balances }: { balances: LeaveBalance[] }) {
   )
 }
 
-function QuickActionsCard() {
+// Violations Card
+function ViolationsCard({ violations }: { violations: DisciplinaryAction[] }) {
+  const hasViolations = violations.length > 0
+
+  return (
+    <BentoCard className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          Violations
+        </h3>
+        {hasViolations ? (
+          <Link href="/performance/violations" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+            View all
+          </Link>
+        ) : null}
+      </div>
+
+      {hasViolations ? (
+        <div className="space-y-2">
+          {violations.slice(0, 2).map((v) => (
+            <Link
+              key={v.id}
+              href={`/performance/violations/${v.id}`}
+              className="flex items-center gap-3 p-2.5 rounded-xl bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-rose-600 dark:text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                  {v.violationType.replace(/_/g, ' ')}
+                </p>
+                <p className="text-[11px] text-rose-600 dark:text-rose-400">{v.severity}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
+            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">None on record</p>
+        </div>
+      )}
+    </BentoCard>
+  )
+}
+
+// My Reviews Card
+function MyReviewsCard({ reviews }: { reviews: PerformanceReview[] }) {
+  return (
+    <BentoCard className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          My Reviews
+        </h3>
+        <Link href="/performance/reviews" className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+          View all
+        </Link>
+      </div>
+
+      {reviews.length > 0 ? (
+        <div className="space-y-2">
+          {reviews.slice(0, 2).map((r) => (
+            <Link
+              key={r.id}
+              href={`/performance/reviews/${r.id}`}
+              className="flex items-center gap-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                  {r.reviewType.replace(/_/g, ' ')} Review
+                </p>
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  {r.status === 'COMPLETED' || r.status === 'ACKNOWLEDGED' ? `Rating: ${r.overallRating}/5` : r.status.replace(/_/g, ' ')}
+                </p>
+              </div>
+              {r.status === 'COMPLETED' || r.status === 'ACKNOWLEDGED' ? (
+                <div className="text-lg font-bold text-amber-600 dark:text-amber-400">{r.overallRating}</div>
+              ) : null}
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-400 p-3">No reviews yet</p>
+      )}
+    </BentoCard>
+  )
+}
+
+// Documents Card
+function DocumentsCard({ documents, employeeId }: { documents: EmployeeFile[]; employeeId: string }) {
+  return (
+    <BentoCard className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          My Documents
+        </h3>
+        <Link href={`/employees/${employeeId}/files`} className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline">
+          Manage
+        </Link>
+      </div>
+
+      {documents.length > 0 ? (
+        <div className="space-y-2">
+          {documents.slice(0, 3).map((doc) => (
+            <div
+              key={doc.id}
+              className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50"
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                  {doc.title}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  {new Date(doc.uploadedAt).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          ))}
+          {documents.length > 3 ? (
+            <Link
+              href={`/employees/${employeeId}/files`}
+              className="block text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1"
+            >
+              +{documents.length - 3} more
+            </Link>
+          ) : null}
+        </div>
+      ) : (
+        <div className="text-center py-4">
+          <p className="text-sm text-slate-400 mb-2">No documents uploaded</p>
+          <Link
+            href={`/employees/${employeeId}/files`}
+            className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
+          >
+            Upload documents
+          </Link>
+        </div>
+      )}
+    </BentoCard>
+  )
+}
+
+// Who's Out Card
+function WhosOutCard({ upcomingLeaves }: { upcomingLeaves: DashboardData['upcomingLeaves'] }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const outNow = upcomingLeaves.filter((l) => {
+    const start = new Date(l.startDate)
+    const end = new Date(l.endDate)
+    start.setHours(0, 0, 0, 0)
+    end.setHours(23, 59, 59, 999)
+    return start <= today && end >= today
+  })
+
+  const upcomingThisWeek = upcomingLeaves.filter((l) => {
+    const start = new Date(l.startDate)
+    start.setHours(0, 0, 0, 0)
+    const weekEnd = new Date(today)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+    return start > today && start <= weekEnd
+  })
+
+  if (outNow.length === 0 && upcomingThisWeek.length === 0) {
+    return null
+  }
+
   return (
     <BentoCard className="p-5">
       <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
-        Quick Actions
+        Who's Out
       </h3>
-      <div className="grid grid-cols-2 gap-2">
-        <Link
-          href="/leave/request"
-          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
-        >
-          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-          </svg>
-          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
-            Request Leave
-          </span>
-        </Link>
-        <Link
-          href="/resources"
-          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
-        >
-          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-          </svg>
-          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
-            Resources
-          </span>
-        </Link>
-        <Link
-          href="/calendar"
-          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
-        >
-          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
-          </svg>
-          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
-            Calendar
-          </span>
-        </Link>
-        <Link
-          href="/policies"
-          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
-        >
-          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-          </svg>
-          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
-            Policies
-          </span>
-        </Link>
-      </div>
+
+      {outNow.length > 0 ? (
+        <div className="mb-3">
+          <p className="text-[10px] font-semibold text-rose-500 uppercase tracking-wider mb-2">Out Today</p>
+          <div className="flex flex-wrap gap-2">
+            {outNow.slice(0, 4).map((l) => (
+              <Link
+                key={l.id}
+                href={`/employees/${l.employee.id}`}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-rose-200 dark:bg-rose-800 flex items-center justify-center text-[10px] font-bold text-rose-700 dark:text-rose-300">
+                  {l.employee.firstName[0]}{l.employee.lastName[0]}
+                </div>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                  {l.employee.firstName}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {upcomingThisWeek.length > 0 ? (
+        <div>
+          <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider mb-2">This Week</p>
+          <div className="flex flex-wrap gap-2">
+            {upcomingThisWeek.slice(0, 4).map((l) => (
+              <Link
+                key={l.id}
+                href={`/employees/${l.employee.id}`}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-amber-200 dark:bg-amber-800 flex items-center justify-center text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                  {l.employee.firstName[0]}{l.employee.lastName[0]}
+                </div>
+                <span className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                  {l.employee.firstName}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </BentoCard>
   )
 }
@@ -503,7 +803,13 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [myViolations, setMyViolations] = useState<DisciplinaryAction[]>([])
+  const [myReviews, setMyReviews] = useState<PerformanceReview[]>([])
+  const [myDocuments, setMyDocuments] = useState<EmployeeFile[]>([])
   const [overviewLoading, setOverviewLoading] = useState(false)
+  const [editingField, setEditingField] = useState<'phone' | 'email' | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [saving, setSaving] = useState(false)
 
   // Inbox data
   const [workItems, setWorkItems] = useState<WorkItemsResponse | null>(null)
@@ -563,14 +869,20 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
     try {
       setOverviewLoading(true)
       setError(null)
-      const [emp, balanceData, dashboard] = await Promise.all([
+      const [emp, balanceData, dashboard, violations, reviews, documents] = await Promise.all([
         EmployeesApi.get(employeeId),
         LeavesApi.getBalance({ employeeId }).catch(() => ({ balances: [] })),
         DashboardApi.get().catch(() => null),
+        DisciplinaryActionsApi.list({ employeeId, take: 10 }).catch(() => ({ items: [] })),
+        PerformanceReviewsApi.list({ employeeId, take: 5 }).catch(() => ({ items: [] })),
+        EmployeeFilesApi.list(employeeId).catch(() => ({ items: [] })),
       ])
       setEmployee(emp)
       setLeaveBalances(balanceData.balances)
       setDashboardData(dashboard)
+      setMyViolations(violations.items)
+      setMyReviews(reviews.items)
+      setMyDocuments(documents.items)
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load profile'
       setError(message)
@@ -578,6 +890,28 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
       setOverviewLoading(false)
     }
   }, [employeeId])
+
+  // Save profile field
+  const handleSaveField = useCallback(async () => {
+    if (!employee || !editingField) return
+    setSaving(true)
+    try {
+      const updated = await EmployeesApi.update(employee.id, { [editingField]: editValue })
+      setEmployee(updated)
+      setEditingField(null)
+      setEditValue('')
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to save'
+      setError(message)
+    } finally {
+      setSaving(false)
+    }
+  }, [employee, editingField, editValue])
+
+  const startEditing = useCallback((field: 'phone' | 'email', currentValue: string) => {
+    setEditingField(field)
+    setEditValue(currentValue)
+  }, [])
 
   // Initial load - inbox items
   useEffect(() => {
@@ -768,30 +1102,56 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
                 <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
               </div>
             ) : employee ? (
-              <div className="grid grid-cols-3 gap-4">
-                {/* Row 1: Profile + Team */}
-                <ProfileCard employee={employee} />
-                {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
-                  <TeamCard directReports={dashboardData.directReports} />
-                ) : (
-                  <>
+              <div className="h-full overflow-y-auto space-y-6 pb-8">
+                {/* Personal Section */}
+                <section>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                    Personal
+                  </h2>
+                  <div className="grid grid-cols-3 gap-4">
+                    <ProfileCard
+                      employee={employee}
+                      editingField={editingField}
+                      editValue={editValue}
+                      saving={saving}
+                      onStartEdit={startEditing}
+                      onEditChange={setEditValue}
+                      onSave={handleSaveField}
+                      onCancel={() => { setEditingField(null); setEditValue('') }}
+                    />
                     <TimeOffCard balances={leaveBalances} />
-                    <QuickActionsCard />
-                  </>
-                )}
+                    <ViolationsCard violations={myViolations} />
+                    <MyReviewsCard reviews={myReviews} />
+                    <DocumentsCard documents={myDocuments} employeeId={employeeId} />
+                  </div>
+                </section>
 
-                {/* Row 2: Conditionally show cards based on what data exists */}
-                {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
-                  <>
-                    <TimeOffCard balances={leaveBalances} />
-                    {dashboardData.pendingReviews && dashboardData.pendingReviews.length > 0 ? (
-                      <PendingReviewsCard reviews={dashboardData.pendingReviews} />
-                    ) : null}
-                    {dashboardData.pendingLeaveRequests && dashboardData.pendingLeaveRequests.length > 0 ? (
-                      <PendingLeaveCard requests={dashboardData.pendingLeaveRequests} />
-                    ) : null}
-                    <QuickActionsCard />
-                  </>
+                {/* Team Section - only show if user has manager duties */}
+                {dashboardData && (
+                  (dashboardData.directReports?.length > 0) ||
+                  (dashboardData.pendingReviews?.length > 0) ||
+                  (dashboardData.pendingLeaveRequests?.length > 0) ||
+                  (dashboardData.upcomingLeaves?.length > 0)
+                ) ? (
+                  <section>
+                    <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                      Team
+                    </h2>
+                    <div className="grid grid-cols-3 gap-4">
+                      {dashboardData.directReports && dashboardData.directReports.length > 0 ? (
+                        <TeamCard directReports={dashboardData.directReports} />
+                      ) : null}
+                      {dashboardData.upcomingLeaves && dashboardData.upcomingLeaves.length > 0 ? (
+                        <WhosOutCard upcomingLeaves={dashboardData.upcomingLeaves} />
+                      ) : null}
+                      {dashboardData.pendingReviews && dashboardData.pendingReviews.length > 0 ? (
+                        <PendingReviewsCard reviews={dashboardData.pendingReviews} />
+                      ) : null}
+                      {dashboardData.pendingLeaveRequests && dashboardData.pendingLeaveRequests.length > 0 ? (
+                        <PendingLeaveCard requests={dashboardData.pendingLeaveRequests} />
+                      ) : null}
+                    </div>
+                  </section>
                 ) : null}
               </div>
             ) : (
