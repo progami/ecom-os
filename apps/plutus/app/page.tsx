@@ -146,14 +146,14 @@ export default function HomePage() {
           {/* Feature Cards */}
           <div className="grid gap-4 sm:grid-cols-2">
             <FeatureCard
-              href="/plutus/transactions"
+              href="/transactions"
               icon={<DollarIcon className="h-6 w-6 text-brand-teal-600 dark:text-brand-cyan" />}
               title="Transactions"
               description="View purchases, check SOP compliance status, and update Reference/Memo fields in bulk."
             />
 
             <FeatureCard
-              href="/plutus/chart-of-accounts"
+              href="/chart-of-accounts"
               icon={<FolderIcon className="h-6 w-6 text-brand-teal-600 dark:text-brand-cyan" />}
               title="Chart of Accounts"
               description="Create custom account hierarchies and groupings that match your business structure."
@@ -162,7 +162,7 @@ export default function HomePage() {
             />
 
             <FeatureCard
-              href="/plutus/reports"
+              href="/reports"
               icon={<ChartIcon className="h-6 w-6 text-brand-teal-600 dark:text-brand-cyan" />}
               title="Custom Reports"
               description="Generate P&L, balance sheets, and cash flow reports with your own custom structure."
