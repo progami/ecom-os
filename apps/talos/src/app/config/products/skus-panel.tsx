@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PortalModal } from '@/components/ui/portal-modal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
 interface SkuBatchRow {
@@ -574,13 +575,19 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
-                  <Label htmlFor="description">Description</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="description">Description</Label>
+                    <span className={`text-xs ${formState.description.length > SKU_FIELD_LIMITS.DESCRIPTION_MAX ? 'text-red-500' : 'text-slate-400'}`}>
+                      {formState.description.length}/{SKU_FIELD_LIMITS.DESCRIPTION_MAX}
+                    </span>
+                  </div>
                   <Input
                     id="description"
                     value={formState.description}
                     onChange={event =>
                       setFormState(prev => ({ ...prev, description: event.target.value }))
                     }
+                    maxLength={SKU_FIELD_LIMITS.DESCRIPTION_MAX}
                     required
                   />
                 </div>
