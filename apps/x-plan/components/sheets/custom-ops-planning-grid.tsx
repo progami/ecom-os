@@ -580,7 +580,6 @@ type CustomOpsPlanningRowProps = {
   activeColKey: keyof OpsInputRow | null;
   editingColKey: keyof OpsInputRow | null;
   editValue: string;
-  isDatePickerOpen: boolean;
   selection: CellRange | null;
   inputRef: { current: HTMLInputElement | HTMLSelectElement | null };
   onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void;
@@ -588,7 +587,6 @@ type CustomOpsPlanningRowProps = {
   onSetEditValue: (value: string) => void;
   onCommitEdit?: (nextValue?: string) => void;
   onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  setIsDatePickerOpen: (open: boolean) => void;
   onPointerDown?: (
     e: PointerEvent<HTMLTableCellElement>,
     rowIndex: number,
@@ -610,7 +608,6 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   activeColKey,
   editingColKey,
   editValue,
-  isDatePickerOpen,
   selection,
   inputRef,
   onSelectCell,
@@ -618,13 +615,13 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   onSetEditValue,
   onCommitEdit,
   onInputKeyDown,
-  setIsDatePickerOpen,
   onPointerDown,
   onPointerMove,
   onPointerUp,
 }: CustomOpsPlanningRowProps) {
   const isEvenRow = rowIndex % 2 === 1;
   const selectionRange = selection ? normalizeRange(selection) : null;
+  const datePickerOpenRef = useRef(false);
 
   // Check if this cell is in selection range
   const isCellInSelection = (colIndex: number): boolean => {
@@ -716,11 +713,14 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                     allowInput: true,
                     disableMobile: true,
                     onReady: (_selectedDates: Date[], _dateStr: string, instance: any) => {
-                      instance.open();
+                      datePickerOpenRef.current = true;
+                      requestAnimationFrame(() => instance.open());
                     },
-                    onOpen: () => setIsDatePickerOpen(true),
+                    onOpen: () => {
+                      datePickerOpenRef.current = true;
+                    },
                     onClose: (_dates: Date[], dateStr: string) => {
-                      setIsDatePickerOpen(false);
+                      datePickerOpenRef.current = false;
                       onCommitEdit(dateStr || editValue);
                     },
                   }}
@@ -740,7 +740,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                       }
                       onKeyDown={onInputKeyDown}
                       onBlur={() => {
-                        if (!isDatePickerOpen) {
+                        if (!datePickerOpenRef.current) {
                           onCommitEdit();
                         }
                       }}
@@ -827,7 +827,6 @@ export function CustomOpsPlanningGrid({
     null,
   );
   const [editValue, setEditValue] = useState<string>('');
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [selection, setSelection] = useState<CellRange | null>(null);
   const selectionAnchorRef = useRef<CellCoords | null>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -947,7 +946,6 @@ export function CustomOpsPlanningGrid({
 
   const startEditing = useCallback(
     (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
-      setIsDatePickerOpen(false);
       setActiveCell({ rowId, colKey });
       setEditingCell({ rowId, colKey });
       setEditValue(currentValue);
@@ -965,7 +963,6 @@ export function CustomOpsPlanningGrid({
   );
 
   const cancelEditing = useCallback(() => {
-    setIsDatePickerOpen(false);
     setEditingCell(null);
     setEditValue('');
     requestAnimationFrame(() => {
@@ -1129,15 +1126,15 @@ export function CustomOpsPlanningGrid({
               const prevStage = STAGE_CONFIG[stageIndex - 1];
               startDate = parseIsoDate(row[prevStage.overrideKey]);
             }
-	          }
-	
-	          if (startDate && endDate.getTime() <= startDate.getTime()) {
-	            toast.error('End date must be after the start date');
-	            cancelEditing();
-	            return;
-	          }
+          }
 
-	          // Save the date
+          if (startDate && endDate.getTime() <= startDate.getTime()) {
+            toast.error('End date must be after the start date');
+            cancelEditing();
+            return;
+          }
+
+          // Save the date
           if ((row[overrideField] ?? '') !== iso) {
             entry.values[overrideField] = iso;
           }
@@ -1602,7 +1599,10 @@ export function CustomOpsPlanningGrid({
       const startColIndex = COLUMNS.findIndex((c) => c.key === start.colKey);
       if (startRowIndex < 0 || startColIndex < 0) return;
 
-      const updates: Array<{ rowId: string; colKey: keyof OpsInputRow; value: string }> = [];
+      const updatesByRowIndex = new Map<
+        number,
+        Array<{ colKey: keyof OpsInputRow; column: ColumnDef; value: string }>
+      >();
 
       for (let r = 0; r < pasteRows.length; r += 1) {
         for (let c = 0; c < pasteRows[r]!.length; c += 1) {
@@ -1617,71 +1617,76 @@ export function CustomOpsPlanningGrid({
           const row = rows[targetRowIndex];
           if (!row) continue;
 
-          updates.push({
-            rowId: row.id,
+          const rowUpdates = updatesByRowIndex.get(targetRowIndex) ?? [];
+          rowUpdates.push({
             colKey: column.key,
+            column,
             value: pasteRows[r]![c] ?? '',
           });
+          updatesByRowIndex.set(targetRowIndex, rowUpdates);
         }
       }
 
-      if (updates.length === 0) return;
+      if (updatesByRowIndex.size === 0) return;
 
       let updatedRows = [...rows];
       const undoEdits: CellEdit<string>[] = [];
+      const stageValidationErrors: string[] = [];
 
-      for (const update of updates) {
-        const rowIndex = updatedRows.findIndex((r) => r.id === update.rowId);
-        if (rowIndex < 0) continue;
-
-        const column = COLUMNS.find((c) => c.key === update.colKey);
-        if (!column) continue;
-
-        let finalValue = update.value;
-        const originalRow = rows.find((r) => r.id === update.rowId);
-
-        if (!pendingRef.current.has(update.rowId)) {
-          pendingRef.current.set(update.rowId, { id: update.rowId, values: {} });
+      for (const [rowIndex, rowUpdates] of updatesByRowIndex.entries()) {
+        const baseRow = updatedRows[rowIndex];
+        if (!baseRow) continue;
+        const rowId = baseRow.id;
+        const originalRow = rows[rowIndex];
+        if (!originalRow || originalRow.id !== rowId) {
+          // Fallback if indices drift (shouldn't happen)
+          // eslint-disable-next-line no-continue
+          continue;
         }
-        const entry = pendingRef.current.get(update.rowId)!;
 
-        // Stage columns: only allow paste in dates mode, weeks mode is read-only
-        if (column.type === 'stage') {
-          if (stageMode === 'weeks') {
-            // Skip - weeks are read-only (calculated from dates)
-            continue;
-          }
+        const nextValues: Record<string, string> = {};
+        let nextRow = { ...baseRow };
 
-          // Dates mode - paste date and calculate weeks
-          const stageField = column.key as StageWeeksKey;
-          const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
-          const row = updatedRows[rowIndex];
+        for (const update of rowUpdates) {
+          const { column, colKey } = update;
+          let rawValue = update.value;
 
-          const pastedDate = toIsoDate(finalValue);
-          if (pastedDate) {
-            undoEdits.push({
-              rowKey: update.rowId,
-              field: overrideField,
-              oldValue: originalRow?.[overrideField] ?? '',
-              newValue: pastedDate,
-            });
+          // Stage columns: only allow paste in dates mode, weeks mode is read-only
+          if (column.type === 'stage') {
+            if (stageMode === 'weeks') continue;
 
-            updatedRows[rowIndex] = { ...updatedRows[rowIndex], [overrideField]: pastedDate };
-            entry.values[overrideField] = pastedDate;
+            const stageField = colKey as StageWeeksKey;
+            const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+            const trimmed = rawValue.trim();
 
-            // Calculate weeks from dates (using new model)
+            if (!trimmed) {
+              const hadOverride = (nextRow[overrideField] ?? '') !== '';
+              const hadWeeks = (nextRow[stageField] ?? '') !== '';
+              if (!hadOverride && !hadWeeks) continue;
+
+              nextRow = { ...nextRow, [overrideField]: '', [stageField]: '' };
+              nextValues[overrideField] = '';
+              nextValues[stageField] = '';
+              continue;
+            }
+
+            const pastedDate = toIsoDate(rawValue);
+            if (!pastedDate) continue;
+
+            nextRow = { ...nextRow, [overrideField]: pastedDate };
+            nextValues[overrideField] = pastedDate;
+
+            // Calculate weeks from dates (for database consistency)
             const endDate = new Date(`${pastedDate}T00:00:00Z`);
             let startDate: Date | null = null;
 
             if (stageField === 'productionWeeks') {
-              // Manufacturing: from productionStart to productionComplete
-              startDate = parseIsoDate(row.productionStart);
+              startDate = parseIsoDate(nextRow.productionStart);
             } else {
-              // Other stages: from previous stage end date
               const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageField);
               if (stageIndex > 0) {
                 const prevStage = STAGE_CONFIG[stageIndex - 1];
-                startDate = parseIsoDate(row[prevStage.overrideKey]);
+                startDate = parseIsoDate(nextRow[prevStage.overrideKey]);
               }
             }
 
@@ -1689,62 +1694,83 @@ export function CustomOpsPlanningGrid({
               const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
               const weeks = Math.max(0, (endDate.getTime() - startDate.getTime()) / MS_PER_WEEK);
               const normalizedWeeks = formatNumericInput(weeks, 2);
+              nextRow = { ...nextRow, [stageField]: normalizedWeeks };
+              nextValues[stageField] = normalizedWeeks;
+            }
 
-              undoEdits.push({
-                rowKey: update.rowId,
-                field: stageField,
-                oldValue: originalRow?.[stageField] ?? '',
-                newValue: normalizedWeeks,
-              });
+            continue;
+          }
 
-              updatedRows[rowIndex] = { ...updatedRows[rowIndex], [stageField]: normalizedWeeks };
-              entry.values[stageField] = normalizedWeeks;
+          if (column.type === 'date') {
+            const trimmed = rawValue.trim();
+            if (!trimmed) {
+              rawValue = '';
+            } else {
+              const iso = toIsoDate(trimmed);
+              if (!iso) continue;
+              rawValue = iso;
             }
           }
+
+          if (column.type === 'numeric') {
+            const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
+            rawValue = normalizeNumeric(rawValue, precision);
+          }
+
+          if (column.type === 'dropdown') {
+            if (colKey === 'status') {
+              const normalized = normalizePurchaseOrderStatus(rawValue);
+              if (!normalized) continue;
+              rawValue = normalized;
+            } else if (column.options?.length) {
+              const isValid = column.options.some((option) => option.value === rawValue);
+              if (!isValid) continue;
+            }
+          }
+
+          if ((nextRow[colKey] ?? '') === rawValue) continue;
+
+          nextRow = { ...nextRow, [colKey]: rawValue } as OpsInputRow;
+          nextValues[colKey] = rawValue;
+        }
+
+        if (Object.keys(nextValues).length === 0) continue;
+
+        const stageError = validateStageDates(nextRow);
+        if (stageError) {
+          stageValidationErrors.push(stageError);
           continue;
         }
 
-        if (column.type === 'date') {
-          const pastedDate = toIsoDate(finalValue);
-          if (pastedDate) {
-            finalValue = pastedDate;
-          }
+        // Apply changes + queue for API update
+        if (!pendingRef.current.has(rowId)) {
+          pendingRef.current.set(rowId, { id: rowId, values: {} });
+        }
+        const entry = pendingRef.current.get(rowId)!;
+
+        for (const [field, newValue] of Object.entries(nextValues)) {
+          const oldValue = originalRow[field as keyof OpsInputRow] ?? '';
+          if (oldValue === newValue) continue;
+          undoEdits.push({ rowKey: rowId, field, oldValue, newValue });
+          entry.values[field] = newValue;
         }
 
-        if (column.type === 'numeric') {
-          const precision = column.precision ?? NUMERIC_PRECISION[update.colKey] ?? 2;
-          finalValue = normalizeNumeric(finalValue, precision);
-        }
+        updatedRows[rowIndex] = nextRow;
+      }
 
-        if (column.type === 'dropdown') {
-          if (update.colKey === 'status') {
-            const normalized = normalizePurchaseOrderStatus(finalValue);
-            if (!normalized) continue;
-            finalValue = normalized;
-          } else if (column.options?.length) {
-            const isValid = column.options.some((option) => option.value === finalValue);
-            if (!isValid) continue;
-          }
-        }
-
-        undoEdits.push({
-          rowKey: update.rowId,
-          field: update.colKey,
-          oldValue: originalRow?.[update.colKey] ?? '',
-          newValue: finalValue,
+      if (stageValidationErrors.length > 0) {
+        toast.error('Paste skipped: invalid stage date order', {
+          description: stageValidationErrors[0],
+          duration: 5000,
         });
-
-        updatedRows[rowIndex] = { ...updatedRows[rowIndex], [update.colKey]: finalValue };
-        entry.values[update.colKey] = finalValue;
       }
 
-      if (undoEdits.length > 0) {
-        recordEdits(undoEdits);
-      }
+      if (undoEdits.length === 0) return;
 
+      recordEdits(undoEdits);
       onRowsChange?.(updatedRows);
       scheduleFlush();
-      toast.success(`Pasted ${updates.length} cell${updates.length === 1 ? '' : 's'}`);
+      toast.success(`Pasted ${undoEdits.length} value${undoEdits.length === 1 ? '' : 's'}`);
       requestAnimationFrame(() => tableScrollRef.current?.focus());
     },
     [onRowsChange, pendingRef, recordEdits, rows, scheduleFlush, stageMode],
@@ -2115,7 +2141,6 @@ export function CustomOpsPlanningGrid({
                       activeColKey={activeCell?.rowId === row.id ? activeCell.colKey : null}
                       editingColKey={isEditingRow ? editingCell!.colKey : null}
                       editValue={isEditingRow ? editValue : ''}
-                      isDatePickerOpen={isEditingRow ? isDatePickerOpen : false}
                       selection={selection}
                       inputRef={inputRef}
                       onSelectCell={selectCell}
@@ -2123,7 +2148,6 @@ export function CustomOpsPlanningGrid({
                       onSetEditValue={setEditValue}
                       onCommitEdit={isEditingRow ? commitEdit : undefined}
                       onInputKeyDown={isEditingRow ? handleKeyDown : undefined}
-                      setIsDatePickerOpen={setIsDatePickerOpen}
                       onPointerDown={handlePointerDown}
                       onPointerMove={handlePointerMove}
                       onPointerUp={handlePointerUp}
