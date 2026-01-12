@@ -10,6 +10,7 @@ const resolvedVersion = process.env.NEXT_PUBLIC_VERSION || version
 const nextConfig: NextConfig = {
   basePath: appBasePath,
   assetPrefix: appBasePath,
+  transpilePackages: ['@targon/auth', '@targon/config', '@targon/logger'],
   env: {
     NEXT_PUBLIC_VERSION: resolvedVersion,
     NEXT_PUBLIC_BASE_PATH: appBasePath,
