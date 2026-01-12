@@ -979,18 +979,19 @@ export async function getProductFees(asin: string, price: number, tenantCode?: T
       operation: 'getMyFeesEstimateForASIN',
       endpoint: 'productFees',
       path: {
-        asin,
+        Asin: asin,
       },
       body: {
         FeesEstimateRequest: {
           MarketplaceId: config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID,
+          Identifier: `fee-estimate-${asin}`,
+          IsAmazonFulfilled: true,
           PriceToEstimateFees: {
             ListingPrice: {
               CurrencyCode: currencyCode,
               Amount: price,
             },
           },
-          IsAmazonFulfilled: true,
         },
       },
     })
