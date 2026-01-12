@@ -587,9 +587,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
                 <div className="md:col-span-2 pt-2">
                   <h3 className="text-sm font-semibold text-slate-900">Amazon Reference Data</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Synced from Amazon. Use Import from Amazon to refresh these values.
-                  </p>
+                  <p className="mt-1 text-xs text-slate-500">Re-import from Amazon to refresh.</p>
                 </div>
 
                 <div className="space-y-1">
@@ -693,21 +691,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   </select>
                 </div>
 
-                <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-                  {editingSku ? (
-                    <>
-                      Batch-specific specs (pack size, units/carton, dimensions, weights, packaging)
-                      are managed per batch. Click the SKU code (or use View Batches) to view or
-                      edit batches.
-                    </>
-                  ) : (
-                    <>
-                      An initial batch is required for every SKU. Define the batch code and basic
-                      packaging specs now; additional batches can be added later in Products →
-                      Batches.
-                    </>
-                  )}
-                </div>
 
                 {!editingSku ? (
                   <>
