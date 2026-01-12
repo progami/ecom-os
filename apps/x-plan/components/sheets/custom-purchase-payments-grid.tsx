@@ -247,7 +247,7 @@ export function CustomPurchasePaymentsGrid({
   const [editValue, setEditValue] = useState<string>('');
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const datePickerOpenRef = useRef(false);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const rowsRef = useRef<PurchasePaymentRow[]>(payments);
@@ -350,7 +350,7 @@ export function CustomPurchasePaymentsGrid({
   const summaryText = summaryLine ?? computedSummaryLine;
 
   const toggleScheduleMode = useCallback(() => {
-    setIsDatePickerOpen(false);
+    datePickerOpenRef.current = false;
     setEditingCell(null);
     setActiveCell(null);
     setEditValue('');
@@ -359,7 +359,7 @@ export function CustomPurchasePaymentsGrid({
 
   const startEditing = useCallback(
     (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
-      setIsDatePickerOpen(false);
+      datePickerOpenRef.current = false;
       setActiveCell({ rowId, colKey });
       setEditingCell({ rowId, colKey });
       setEditValue(currentValue);
@@ -404,7 +404,7 @@ export function CustomPurchasePaymentsGrid({
   const handlePointerUp = useCallback(() => {}, []);
 
   const cancelEditing = () => {
-    setIsDatePickerOpen(false);
+    datePickerOpenRef.current = false;
     setEditingCell(null);
     setEditValue('');
     requestAnimationFrame(() => {
@@ -1350,11 +1350,14 @@ export function CustomPurchasePaymentsGrid({
                 allowInput: true,
                 disableMobile: true,
                 onReady: (_selectedDates: Date[], _dateStr: string, instance: any) => {
-                  instance.open();
+                  datePickerOpenRef.current = true;
+                  requestAnimationFrame(() => instance.open());
                 },
-                onOpen: () => setIsDatePickerOpen(true),
+                onOpen: () => {
+                  datePickerOpenRef.current = true;
+                },
                 onClose: (_dates: Date[], dateStr: string) => {
-                  setIsDatePickerOpen(false);
+                  datePickerOpenRef.current = false;
                   commitEdit(dateStr || editValue);
                 },
               }}
@@ -1372,7 +1375,7 @@ export function CustomPurchasePaymentsGrid({
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   onBlur={() => {
-                    if (!isDatePickerOpen) {
+                    if (!datePickerOpenRef.current) {
                       handleCellBlur();
                     }
                   }}
