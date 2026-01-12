@@ -1,72 +1,53 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { clsx } from 'clsx';
 
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-})
+import { Providers } from '@/components/providers';
 
-const appBasePath = process.env.NEXT_PUBLIC_APP_BASE_PATH || ''
+const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
   title: 'Plutus | Targon',
-  description: 'Finance workspace for Targon (FCC rebrand).',
+  description: 'Finance workspace for custom financials from QuickBooks Online.',
   icons: {
     icon: [
       { url: `${appBasePath}/favicon.ico`, sizes: '48x48' },
       { url: `${appBasePath}/favicon.svg`, type: 'image/svg+xml' },
     ],
+    apple: `${appBasePath}/apple-touch-icon.png`,
   },
-}
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
-  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
-  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
-  const commitUrl = commitSha ? `https://github.com/progami/targonos/commit/${commitSha}` : undefined
-  const inferredReleaseUrl = `https://github.com/progami/targonos/releases/tag/v${version}`
-  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
+  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined;
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined;
+  const commitUrl = commitSha ? `https://github.com/progami/targonos/commit/${commitSha}` : undefined;
+  const inferredReleaseUrl = `https://github.com/progami/targonos/releases/tag/v${version}`;
+  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl;
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={inter.className}
-        style={{
-          margin: 0,
-          padding: 0,
-          WebkitFontSmoothing: 'antialiased',
-          MozOsxFontSmoothing: 'grayscale',
-          background: 'rgba(248, 250, 252, 1)',
-          color: 'rgba(15, 23, 42, 1)',
-        }}
+        className={clsx(
+          'min-h-screen bg-slate-50 font-sans antialiased dark:bg-slate-950',
+          inter.variable,
+        )}
       >
-        {children}
+        <Providers>{children}</Providers>
         <a
           href={versionHref}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            position: 'fixed',
-            right: 12,
-            bottom: 12,
-            zIndex: 50,
-            fontSize: 12,
-            lineHeight: 1.2,
-            padding: '6px 10px',
-            borderRadius: 9999,
-            border: '1px solid rgba(15, 23, 42, 0.18)',
-            background: 'rgba(255, 255, 255, 0.85)',
-            color: 'rgba(15, 23, 42, 0.75)',
-            textDecoration: 'none',
-            backdropFilter: 'blur(8px)',
-          }}
+          className="fixed bottom-3 right-3 z-50 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-600 shadow-sm backdrop-blur transition-colors hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400 dark:hover:text-slate-100"
           aria-label={`Plutus version v${version}`}
         >
           Plutus v{version}
         </a>
       </body>
     </html>
-  )
+  );
 }
-

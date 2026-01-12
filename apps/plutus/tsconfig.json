@@ -3,7 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@targon/auth": ["../../packages/auth/src"],
+      "@targon/config": ["../../packages/config/src"],
+      "@targon/logger": ["../../packages/logger/src"]
     },
     "moduleResolution": "Bundler",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -17,7 +20,7 @@
       }
     ]
   },
-  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", "next.config.ts", ".next/types/**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", "next.config.ts", ".next/types/**/*.ts", "types/**/*.d.ts"],
   "exclude": ["node_modules", "dist", "tests"]
 }
 
