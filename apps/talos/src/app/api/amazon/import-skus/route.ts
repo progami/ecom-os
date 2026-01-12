@@ -4,6 +4,7 @@ import {
   getCatalogListingTypesByAsin,
   getListingsItems,
   getProductFees,
+  testCompareApis,
   type AmazonCatalogListingType,
 } from '@/lib/amazon/client'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
@@ -175,6 +176,13 @@ function parseReferralFeePercent(feesResponse: unknown, listingPrice: number): n
 }
 
 export const GET = withRole(['admin', 'staff'], async (request, _session) => {
+  // Test mode: compare FBA Inventory API vs Listings API
+  if (request.nextUrl.searchParams.get('test') === 'compare-apis') {
+    const tenantCode = await getCurrentTenantCode()
+    const result = await testCompareApis(tenantCode)
+    return ApiResponses.success({ testResult: result })
+  }
+
   const parsed = previewQuerySchema.safeParse({
     limit: request.nextUrl.searchParams.get('limit') ?? undefined,
   })
