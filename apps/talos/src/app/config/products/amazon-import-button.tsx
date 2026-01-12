@@ -5,8 +5,17 @@ import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
 import { PortalModal } from '@/components/ui/portal-modal'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { AlertCircle, CheckCircle, Cloud, Loader2, Search, X } from '@/lib/lucide-icons'
+import {
+  AlertCircle,
+  Check,
+  CheckCircle,
+  ChevronRight,
+  Cloud,
+  Loader2,
+  RefreshCw,
+  Search,
+  X,
+} from '@/lib/lucide-icons'
 
 type AmazonListingType = 'LISTING' | 'PARENT' | 'UNKNOWN'
 
@@ -48,6 +57,8 @@ type ImportPreview = {
     exists: boolean
   }>
 }
+
+type WorkflowStep = 'select' | 'validate' | 'import'
 
 export function AmazonImportButton({ onImportComplete }: { onImportComplete?: () => void }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -215,9 +226,9 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
 
       const blocked = nextResult.details?.filter(detail => detail.status !== 'imported') ?? []
       if (blocked.length === 0) {
-        toast.success('Validation passed')
+        toast.success('All SKUs passed validation')
       } else {
-        toast.error('Some SKUs failed validation (deselect them to continue)')
+        toast.error(`${blocked.length} SKU${blocked.length === 1 ? '' : 's'} failed validation`)
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Validation failed')
@@ -286,6 +297,24 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
     }
   }
 
+  // Determine current workflow step
+  const currentStep: WorkflowStep = useMemo(() => {
+    if (result && result.imported > 0) return 'import'
+    if (validation && validatedKey === selectionKey) return 'import'
+    if (selectedSkuCodes.size > 0) return 'validate'
+    return 'select'
+  }, [result, validation, validatedKey, selectionKey, selectedSkuCodes.size])
+
+  const validCount = useMemo(() => {
+    if (!validation?.details) return 0
+    return validation.details.filter(d => d.status === 'imported').length
+  }, [validation])
+
+  const invalidCount = useMemo(() => {
+    if (!validation?.details) return 0
+    return validation.details.filter(d => d.status !== 'imported').length
+  }, [validation])
+
   return (
     <>
       <Button onClick={() => setIsOpen(true)} variant="outline" className="gap-2">
@@ -294,344 +323,438 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
       </Button>
 
       <PortalModal open={isOpen} className="items-center">
-        <div className="flex w-full max-w-4xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-xl bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
-            <div className="flex flex-col gap-0.5">
-              <h3 className="text-lg font-semibold text-slate-900">Import Products from Amazon</h3>
-              <p className="text-xs text-slate-500">
-                Preview → validate → import (existing SKUs are never updated).
-              </p>
+        <div className="flex w-full max-w-5xl max-h-[calc(100vh-2rem)] flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-orange-500">
+                <Cloud className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">Import from Amazon</h3>
+                <p className="text-sm text-slate-500">Select products to import into your catalog</p>
+              </div>
             </div>
-            <Button onClick={handleClose} variant="ghost" size="icon" className="h-8 w-8">
+            <Button onClick={handleClose} variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
               <X className="h-5 w-5" />
             </Button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-              <div className="rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-900">
-                <div className="font-medium">Safe import rules</div>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-cyan-900/80">
-                  <li>Existing SKUs are skipped (no overwrites).</li>
-                  <li>Each selected SKU is validated (ASIN + unit weight required) before import.</li>
-                  <li>Variation parent ASINs are blocked (import sellable listings only).</li>
-                  <li>Imports Amazon fields when available (title, unit weight/dimensions, category, fee estimates).</li>
-                  <li>
-                    A default batch (<span className="font-mono">{preview?.policy.defaultBatchCode ?? 'BATCH 01'}</span>)
-                    is created for each new SKU.
-                  </li>
-                </ul>
+          {/* Workflow Steps */}
+          <div className="border-b bg-slate-50 px-6 py-3">
+            <div className="flex items-center gap-2">
+              {/* Step 1: Select */}
+              <div className={`flex items-center gap-2 ${currentStep === 'select' ? 'text-cyan-600' : selectedSkuCodes.size > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                  currentStep === 'select'
+                    ? 'bg-cyan-100 text-cyan-700'
+                    : selectedSkuCodes.size > 0
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-500'
+                }`}>
+                  {selectedSkuCodes.size > 0 && currentStep !== 'select' ? <Check className="h-3.5 w-3.5" /> : '1'}
+                </div>
+                <span className="text-sm font-medium">Select</span>
+                {selectedSkuCodes.size > 0 && (
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                    {selectedSkuCodes.size}
+                  </span>
+                )}
               </div>
 
-              <div className="rounded-lg border bg-white p-3 text-xs text-slate-600">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-slate-900">Preview</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={loadPreview}
-                    disabled={loadingPreview || importing || validating}
-                  >
-                    Refresh
-                  </Button>
+              <ChevronRight className="h-4 w-4 text-slate-300" />
+
+              {/* Step 2: Validate */}
+              <div className={`flex items-center gap-2 ${
+                currentStep === 'validate'
+                  ? 'text-cyan-600'
+                  : validation && validatedKey === selectionKey
+                    ? 'text-emerald-600'
+                    : 'text-slate-400'
+              }`}>
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                  currentStep === 'validate'
+                    ? 'bg-cyan-100 text-cyan-700'
+                    : validation && validatedKey === selectionKey
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-200 text-slate-500'
+                }`}>
+                  {validation && validatedKey === selectionKey && currentStep === 'import' ? <Check className="h-3.5 w-3.5" /> : '2'}
                 </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  <div>
-                    <div className="text-slate-500">New</div>
-                    <div className="font-semibold text-emerald-700">{preview?.summary.newCount ?? '—'}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Existing</div>
-                    <div className="font-semibold text-slate-800">{preview?.summary.existingCount ?? '—'}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Blocked</div>
-                    <div className="font-semibold text-rose-700">{preview?.summary.blockedCount ?? '—'}</div>
-                  </div>
+                <span className="text-sm font-medium">Validate</span>
+                {validation && validatedKey === selectionKey && (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    invalidCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {validCount}/{selectedSkuCodes.size} ready
+                  </span>
+                )}
+              </div>
+
+              <ChevronRight className="h-4 w-4 text-slate-300" />
+
+              {/* Step 3: Import */}
+              <div className={`flex items-center gap-2 ${
+                result && result.imported > 0 ? 'text-emerald-600' : currentStep === 'import' ? 'text-cyan-600' : 'text-slate-400'
+              }`}>
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium ${
+                  result && result.imported > 0
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : currentStep === 'import'
+                      ? 'bg-cyan-100 text-cyan-700'
+                      : 'bg-slate-200 text-slate-500'
+                }`}>
+                  {result && result.imported > 0 ? <Check className="h-3.5 w-3.5" /> : '3'}
                 </div>
-                {preview?.hasMore ? (
-                  <div className="mt-2 text-[11px] text-slate-500">
-                    Amazon has more listings; showing the first {preview.limit}.
+                <span className="text-sm font-medium">Import</span>
+                {result && result.imported > 0 && (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    {result.imported} imported
+                  </span>
+                )}
+              </div>
+
+              {/* Spacer + Stats + Refresh */}
+              <div className="ml-auto flex items-center gap-3">
+                {preview && (
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span className="text-slate-600">{preview.summary.newCount} new</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-slate-400" />
+                      <span className="text-slate-600">{preview.summary.existingCount} existing</span>
+                    </div>
+                    {preview.summary.blockedCount > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-rose-500" />
+                        <span className="text-slate-600">{preview.summary.blockedCount} blocked</span>
+                      </div>
+                    )}
                   </div>
-                ) : null}
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadPreview}
+                  disabled={loadingPreview || importing || validating}
+                  className="gap-1.5 text-slate-600"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${loadingPreview ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
               </div>
             </div>
+          </div>
 
-            <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex flex-1 items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    placeholder="Search SKU, ASIN, title…"
-                    className="pl-9"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={filter === 'new' ? 'default' : 'outline'}
-                    onClick={() => setFilter('new')}
-                  >
-                    New
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={filter === 'existing' ? 'default' : 'outline'}
-                    onClick={() => setFilter('existing')}
-                  >
-                    Existing
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={filter === 'blocked' ? 'default' : 'outline'}
-                    onClick={() => setFilter('blocked')}
-                  >
-                    Blocked
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={filter === 'all' ? 'default' : 'outline'}
-                    onClick={() => setFilter('all')}
-                  >
-                    All
-                  </Button>
-                </div>
-              </div>
+          {/* Search and Filters */}
+          <div className="flex items-center gap-3 border-b bg-white px-6 py-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Search SKU, ASIN, title..."
+                className="pl-9 h-9"
+              />
+            </div>
 
-              <div className="flex items-center gap-2">
-                <Button
+            <div className="flex items-center rounded-lg border bg-slate-50 p-0.5">
+              {(['new', 'existing', 'blocked', 'all'] as const).map(f => (
+                <button
+                  key={f}
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={selectAllNew}
-                  disabled={!preview || importing || validating || loadingPreview}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    filter === f
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
                 >
-                  Select all new
-                </Button>
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  {f === 'new' && preview ? ` (${preview.summary.newCount})` : ''}
+                </button>
+              ))}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={selectAllNew}
+                disabled={!preview || importing || validating || loadingPreview || selectableItems.length === 0}
+                className="text-slate-600"
+              >
+                Select all new
+              </Button>
+              {selectedSkuCodes.size > 0 && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={clearSelection}
-                  disabled={selectedSkuCodes.size === 0 || importing || validating}
+                  disabled={importing || validating}
+                  className="text-slate-600"
                 >
                   Clear
                 </Button>
-              </div>
+              )}
             </div>
-
-            <div className="mt-4 overflow-hidden rounded-lg border">
-              <div className="max-h-[42vh] overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-white border-b">
-                    <tr className="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="w-10 px-3 py-2"> </th>
-                      <th className="px-3 py-2">SKU</th>
-                      <th className="px-3 py-2">ASIN</th>
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2">Title</th>
-                      <th className="px-3 py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loadingPreview ? (
-                      <tr>
-                        <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
-                          <span className="inline-flex items-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" /> Loading Amazon listings…
-                          </span>
-                        </td>
-                      </tr>
-                    ) : previewError ? (
-                      <tr>
-                        <td colSpan={6} className="px-3 py-10 text-center text-rose-700">
-                          {previewError}
-                        </td>
-                      </tr>
-                    ) : !preview || preview.items.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
-                          No listings found.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredItems.map(item => {
-                        const skuKey = item.skuCode?.toUpperCase() ?? null
-                        const isSelectable = item.status === 'new' && Boolean(skuKey)
-                        const checked = skuKey ? selectedSkuCodes.has(skuKey) : false
-                        const validationDetail = skuKey ? validationBySku.get(skuKey) : undefined
-                        const validationStatus = validationDetail?.status
-
-                        return (
-                          <tr key={`${item.sellerSku}-${item.asin ?? ''}`} className="border-b last:border-b-0">
-                            <td className="px-3 py-2 align-top">
-                              <input
-                                type="checkbox"
-                                className="mt-1 h-4 w-4 accent-cyan-600"
-                                disabled={!isSelectable || importing || validating}
-                                checked={checked}
-                                onChange={() => skuKey && toggleSkuCode(skuKey)}
-                              />
-                            </td>
-                            <td className="px-3 py-2 align-top">
-                              <div className="font-medium text-slate-900">{item.skuCode ?? '—'}</div>
-                              <div className="text-xs text-slate-500">Amazon: {item.sellerSku}</div>
-                              {validationDetail?.unitWeightKg ? (
-                                <div className="mt-1 text-xs text-slate-600">
-                                  Unit: {validationDetail.unitWeightKg.toFixed(3)} kg
-                                  {validationDetail.unitDimensionsCm ? ` • ${validationDetail.unitDimensionsCm}` : ''}
-                                </div>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-2 align-top font-mono text-xs text-slate-700">
-                              {item.asin ?? '—'}
-                            </td>
-                            <td className="px-3 py-2 align-top">
-                              {item.listingType === 'LISTING' ? (
-                                <Badge variant="secondary">Listing</Badge>
-                              ) : item.listingType === 'PARENT' ? (
-                                <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-100">
-                                  Parent
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline">Unknown</Badge>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 align-top">
-                              <div className="text-slate-700">{item.title ?? '—'}</div>
-                              {item.reason ? (
-                                <div className="mt-1 text-xs text-slate-500">{item.reason}</div>
-                              ) : null}
-                              {validationStatus && validationStatus !== 'imported' ? (
-                                <div className="mt-1 text-xs text-rose-700">
-                                  {validationDetail?.message ?? 'Failed validation'}
-                                </div>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-2 align-top">
-                              {item.status === 'new' ? (
-                                <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                                  New
-                                </Badge>
-                              ) : item.status === 'existing' ? (
-                                <Badge variant="secondary">Existing</Badge>
-                              ) : (
-                                <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-100">
-                                  Blocked
-                                </Badge>
-                              )}
-                              {validatedKey === selectionKey && checked ? (
-                                <div className="mt-2 text-xs text-slate-500">
-                                  {validationStatus === 'imported' ? (
-                                    <span className="inline-flex items-center gap-1 text-emerald-700">
-                                      <CheckCircle className="h-3.5 w-3.5" /> Valid
-                                    </span>
-                                  ) : validationStatus ? (
-                                    <span className="inline-flex items-center gap-1 text-rose-700">
-                                      <AlertCircle className="h-3.5 w-3.5" /> Blocked
-                                    </span>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                            </td>
-                          </tr>
-                        )
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {result ? (
-              <div className="mt-4 rounded-lg border p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <h4 className="font-medium">Import Results</h4>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      result.errors.length === 0
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}
-                  >
-                    {result.errors.length === 0 ? (
-                      <>
-                        <CheckCircle className="mr-1 h-3 w-3" />
-                        Success
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="mr-1 h-3 w-3" />
-                        Partial
-                      </>
-                    )}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-slate-500">Imported:</span>{' '}
-                    <span className="font-medium">{result.imported}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Skipped:</span>{' '}
-                    <span className="font-medium">{result.skipped}</span>
-                  </div>
-                </div>
-
-                {result.errors.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="mb-2 text-xs font-medium text-slate-700">Notes</p>
-                    <ul className="max-h-32 space-y-1 overflow-auto text-xs text-slate-600">
-                      {result.errors.map((error, idx) => (
-                        <li key={`${error}-${idx}`} className="flex gap-2">
-                          <span className="mt-0.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
-                          <span>{error}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
 
-          <div className="flex flex-col gap-3 border-t bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-slate-600">
-              Selected:{' '}
-              <span className="font-semibold text-slate-900">{selectedSkuCodes.size}</span>
-              {validatedKey === selectionKey && validation ? (
-                <span className="ml-2 text-slate-500">
-                  • Valid:{' '}
-                  <span className="font-semibold text-emerald-700">{validation.imported}</span>
+          {/* Table */}
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-slate-50 border-b">
+                  <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <th className="w-12 px-4 py-3">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 accent-cyan-600"
+                        checked={selectableItems.length > 0 && selectableItems.every(item => item.skuCode && selectedSkuCodes.has(item.skuCode.toUpperCase()))}
+                        onChange={e => {
+                          if (e.target.checked) selectAllNew()
+                          else clearSelection()
+                        }}
+                        disabled={!preview || importing || validating || loadingPreview || selectableItems.length === 0}
+                      />
+                    </th>
+                    <th className="px-4 py-3 w-[180px]">SKU</th>
+                    <th className="px-4 py-3 w-[120px]">ASIN</th>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3 w-[100px] text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loadingPreview ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-16 text-center">
+                        <div className="flex flex-col items-center gap-3 text-slate-500">
+                          <Loader2 className="h-6 w-6 animate-spin text-cyan-600" />
+                          <span>Loading Amazon listings...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : previewError ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-16 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <AlertCircle className="h-8 w-8 text-rose-400" />
+                          <span className="text-rose-700">{previewError}</span>
+                          <Button variant="outline" size="sm" onClick={loadPreview}>
+                            Try again
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : !preview || preview.items.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-16 text-center">
+                        <div className="flex flex-col items-center gap-2 text-slate-500">
+                          <Cloud className="h-8 w-8 text-slate-300" />
+                          <span>No listings found in Amazon</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-16 text-center">
+                        <div className="flex flex-col items-center gap-2 text-slate-500">
+                          <Search className="h-8 w-8 text-slate-300" />
+                          <span>No results match your search</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredItems.map(item => {
+                      const skuKey = item.skuCode?.toUpperCase() ?? null
+                      const isSelectable = item.status === 'new' && Boolean(skuKey)
+                      const checked = skuKey ? selectedSkuCodes.has(skuKey) : false
+                      const validationDetail = skuKey ? validationBySku.get(skuKey) : undefined
+                      const validationStatus = validationDetail?.status
+                      const isValid = validationStatus === 'imported'
+                      const isInvalid = validationStatus && validationStatus !== 'imported'
+
+                      return (
+                        <tr
+                          key={`${item.sellerSku}-${item.asin ?? ''}`}
+                          className={`transition-colors ${
+                            checked
+                              ? isInvalid
+                                ? 'bg-rose-50'
+                                : isValid
+                                  ? 'bg-emerald-50'
+                                  : 'bg-cyan-50'
+                              : 'hover:bg-slate-50'
+                          } ${!isSelectable ? 'opacity-60' : ''}`}
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-slate-300 accent-cyan-600"
+                              disabled={!isSelectable || importing || validating}
+                              checked={checked}
+                              onChange={() => skuKey && toggleSkuCode(skuKey)}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-900">{item.skuCode ?? '—'}</div>
+                            <div className="text-xs text-slate-500 truncate max-w-[160px]" title={item.sellerSku}>
+                              {item.sellerSku}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-mono text-xs text-slate-600">{item.asin ?? '—'}</span>
+                            {item.listingType === 'PARENT' && (
+                              <div className="mt-0.5">
+                                <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-rose-100 text-rose-700">
+                                  Parent
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-slate-700 line-clamp-2 text-sm" title={item.title ?? undefined}>
+                              {item.title ?? '—'}
+                            </div>
+                            {isInvalid && validationDetail?.message && (
+                              <div className="mt-1 flex items-center gap-1 text-xs text-rose-600">
+                                <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">{validationDetail.message}</span>
+                              </div>
+                            )}
+                            {item.reason && !isInvalid && (
+                              <div className="mt-1 text-xs text-slate-500 truncate">{item.reason}</div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {checked && validatedKey === selectionKey ? (
+                              isValid ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  Ready
+                                </span>
+                              ) : isInvalid ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                  Failed
+                                </span>
+                              ) : (
+                                <StatusBadge status={item.status} />
+                              )
+                            ) : (
+                              <StatusBadge status={item.status} />
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Import Results */}
+          {result && (
+            <div className={`border-t px-6 py-4 ${result.errors.length > 0 ? 'bg-amber-50' : 'bg-emerald-50'}`}>
+              <div className="flex items-start gap-3">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                  result.errors.length > 0 ? 'bg-amber-100' : 'bg-emerald-100'
+                }`}>
+                  {result.errors.length > 0 ? (
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 text-emerald-600" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-slate-900">
+                    {result.errors.length > 0 ? 'Import completed with warnings' : 'Import successful'}
+                  </div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {result.imported} SKU{result.imported !== 1 ? 's' : ''} imported
+                    {result.skipped > 0 && `, ${result.skipped} skipped`}
+                  </div>
+                  {result.errors.length > 0 && (
+                    <div className="mt-2 text-xs text-slate-600">
+                      {result.errors.slice(0, 3).map((err, i) => (
+                        <div key={i} className="truncate">{err}</div>
+                      ))}
+                      {result.errors.length > 3 && (
+                        <div className="text-slate-500">+{result.errors.length - 3} more</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between border-t bg-slate-50 px-6 py-4">
+            <div className="text-sm text-slate-600">
+              {selectedSkuCodes.size > 0 ? (
+                <span>
+                  <span className="font-semibold text-slate-900">{selectedSkuCodes.size}</span> selected
+                  {validation && validatedKey === selectionKey && validCount > 0 && (
+                    <span className="ml-2 text-emerald-600">
+                      ({validCount} ready to import)
+                    </span>
+                  )}
                 </span>
-              ) : null}
+              ) : (
+                <span className="text-slate-500">Select products to import</span>
+              )}
             </div>
 
-            <div className="flex justify-end gap-3">
+            <div className="flex items-center gap-3">
               <Button onClick={handleClose} variant="outline" disabled={importing || validating}>
-                Close
+                {result && result.imported > 0 ? 'Done' : 'Cancel'}
               </Button>
+
+              {currentStep === 'select' || currentStep === 'validate' ? (
+                <Button
+                  onClick={validateSelection}
+                  disabled={selectedSkuCodes.size === 0 || validating || importing}
+                  variant={validation && validatedKey === selectionKey ? 'outline' : 'default'}
+                  className="gap-2 min-w-[120px]"
+                >
+                  {validating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Validating...
+                    </>
+                  ) : validation && validatedKey === selectionKey ? (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      Re-validate
+                    </>
+                  ) : (
+                    'Validate'
+                  )}
+                </Button>
+              ) : null}
+
               <Button
-                type="button"
-                variant="outline"
-                onClick={validateSelection}
-                disabled={selectedSkuCodes.size === 0 || validating || importing}
-                className="gap-2"
+                onClick={handleImport}
+                disabled={!canImport}
+                className="gap-2 min-w-[120px]"
               >
-                {validating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {validating ? 'Validating…' : 'Validate'}
-              </Button>
-              <Button onClick={handleImport} disabled={!canImport} className="gap-2">
-                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {importing ? 'Importing…' : 'Import'}
+                {importing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    Import{canImport ? ` (${validCount})` : ''}
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -639,4 +762,27 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
       </PortalModal>
     </>
   )
+}
+
+function StatusBadge({ status }: { status: 'new' | 'existing' | 'blocked' }) {
+  switch (status) {
+    case 'new':
+      return (
+        <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+          New
+        </span>
+      )
+    case 'existing':
+      return (
+        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+          Existing
+        </span>
+      )
+    case 'blocked':
+      return (
+        <span className="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
+          Blocked
+        </span>
+      )
+  }
 }
