@@ -710,16 +710,18 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Tabs>
                     <TabsList className="w-full">
                       <TabsTrigger
+                        type="button"
                         data-state={modalTab === 'reference' ? 'active' : 'inactive'}
                         onClick={() => setModalTab('reference')}
-                        className="flex-1"
+                        className={`flex-1 ${modalTab === 'reference' ? 'bg-cyan-600 text-white' : ''}`}
                       >
                         Reference
                       </TabsTrigger>
                       <TabsTrigger
+                        type="button"
                         data-state={modalTab === 'amazon' ? 'active' : 'inactive'}
                         onClick={() => setModalTab('amazon')}
-                        className="flex-1"
+                        className={`flex-1 ${modalTab === 'amazon' ? 'bg-cyan-600 text-white' : ''}`}
                       >
                         Amazon
                       </TabsTrigger>
