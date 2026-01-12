@@ -241,7 +241,7 @@ const COLUMNS_AFTER_TARIFF: ColumnDef[] = [
 ];
 
 type TariffInputMode = 'rate' | 'cost';
-type ProfitDisplayMode = 'unit' | 'percent';
+type ProfitDisplayMode = 'unit' | 'total' | 'percent';
 
 const CELL_ID_PREFIX = 'xplan-ops-batch';
 
@@ -277,9 +277,12 @@ export function CustomOpsCostGrid({
     'unit',
   );
 
-  const toggleProfitDisplayMode = useCallback(() => {
-    setProfitDisplayMode((previous) => (previous === 'unit' ? 'percent' : 'unit'));
-  }, [setProfitDisplayMode]);
+  const setProfitMode = useCallback(
+    (next: ProfitDisplayMode) => {
+      setProfitDisplayMode(next);
+    },
+    [setProfitDisplayMode],
+  );
 
   const columns = useMemo(() => {
     const tariffColumn = tariffInputMode === 'cost' ? TARIFF_COST_COLUMN : TARIFF_RATE_COLUMN;
@@ -305,26 +308,47 @@ export function CustomOpsCostGrid({
               computed: true,
             },
           ]
-        : [
-            {
-              key: 'grossProfit',
-              header: 'GP $/unit',
-              width: 130,
-              type: 'numeric',
-              editable: false,
-              precision: 2,
-              computed: true,
-            },
-            {
-              key: 'netProfit',
-              header: 'NP $/unit',
-              width: 130,
-              type: 'numeric',
-              editable: false,
-              precision: 2,
-              computed: true,
-            },
-          ];
+        : profitDisplayMode === 'total'
+          ? [
+              {
+                key: 'grossProfit',
+                header: 'GP $',
+                width: 130,
+                type: 'numeric',
+                editable: false,
+                precision: 0,
+                computed: true,
+              },
+              {
+                key: 'netProfit',
+                header: 'NP $',
+                width: 130,
+                type: 'numeric',
+                editable: false,
+                precision: 0,
+                computed: true,
+              },
+            ]
+          : [
+              {
+                key: 'grossProfit',
+                header: 'GP $/unit',
+                width: 130,
+                type: 'numeric',
+                editable: false,
+                precision: 2,
+                computed: true,
+              },
+              {
+                key: 'netProfit',
+                header: 'NP $/unit',
+                width: 130,
+                type: 'numeric',
+                editable: false,
+                precision: 2,
+                computed: true,
+              },
+            ];
 
     return [...COLUMNS_BEFORE_TARIFF, tariffColumn, ...COLUMNS_AFTER_TARIFF, ...profitColumns];
   }, [profitDisplayMode, tariffInputMode]);
@@ -1194,6 +1218,7 @@ export function CustomOpsCostGrid({
       return Number.isFinite(parsed) ? parsed : 0;
     };
 
+    const quantity = toNumber(row.quantity);
     const sellingPrice = toNumber(row.sellingPrice);
     const manufacturingCost = toNumber(row.manufacturingCost);
     const freightCost = toNumber(row.freightCost);
@@ -1214,11 +1239,20 @@ export function CustomOpsCostGrid({
 
     const grossProfitPerUnit = sellingPrice - landedUnitCost - amazonFeesPerUnit;
     const netProfitPerUnit = grossProfitPerUnit - ppcPerUnit;
+    const grossProfitTotal = grossProfitPerUnit * quantity;
+    const netProfitTotal = netProfitPerUnit * quantity;
 
     const grossMargin = sellingPrice === 0 ? 0 : grossProfitPerUnit / sellingPrice;
     const netMargin = sellingPrice === 0 ? 0 : netProfitPerUnit / sellingPrice;
 
-    return { grossProfitPerUnit, netProfitPerUnit, grossMargin, netMargin };
+    return {
+      grossProfitPerUnit,
+      netProfitPerUnit,
+      grossProfitTotal,
+      netProfitTotal,
+      grossMargin,
+      netMargin,
+    };
   }, []);
 
   const formatDisplayValue = (row: OpsBatchRow, column: ColumnDef): string => {
@@ -1230,18 +1264,25 @@ export function CustomOpsCostGrid({
         column.key === 'grossProfit'
           ? column.type === 'percent'
             ? metrics.grossMargin
-            : metrics.grossProfitPerUnit
+            : profitDisplayMode === 'total'
+              ? metrics.grossProfitTotal
+              : metrics.grossProfitPerUnit
           : column.type === 'percent'
             ? metrics.netMargin
-            : metrics.netProfitPerUnit;
+            : profitDisplayMode === 'total'
+              ? metrics.netProfitTotal
+              : metrics.netProfitPerUnit;
 
       if (column.type === 'percent') {
         return `${(raw * 100).toFixed(precision)}%`;
       }
 
-      const absolute = Math.abs(raw);
-      const formatted = `$${absolute.toFixed(precision)}`;
-      return raw < 0 ? `-${formatted}` : formatted;
+      const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: precision,
+      });
+      return formatter.format(raw);
     }
 
     const value = row[column.key];
@@ -1381,10 +1422,14 @@ export function CustomOpsCostGrid({
                   column.key === 'grossProfit'
                     ? column.type === 'percent'
                       ? metrics.grossMargin
-                      : metrics.grossProfitPerUnit
+                      : profitDisplayMode === 'total'
+                        ? metrics.grossProfitTotal
+                        : metrics.grossProfitPerUnit
                     : column.type === 'percent'
                       ? metrics.netMargin
-                      : metrics.netProfitPerUnit;
+                      : profitDisplayMode === 'total'
+                        ? metrics.netProfitTotal
+                        : metrics.netProfitPerUnit;
                 if (raw > 0) return 'text-emerald-700 dark:text-emerald-300';
                 if (raw < 0) return 'text-rose-700 dark:text-rose-300';
                 return '';
@@ -1412,7 +1457,51 @@ export function CustomOpsCostGrid({
             Batch Table
           </h2>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-emerald-500/25 bg-emerald-500/10 p-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-800 shadow-sm dark:border-emerald-300/35 dark:bg-emerald-300/10 dark:text-emerald-100">
+            <button
+              type="button"
+              onClick={() => setProfitMode('unit')}
+              className={cn(
+                'rounded-md px-2 py-1 transition',
+                profitDisplayMode === 'unit'
+                  ? 'bg-white text-emerald-900 shadow-sm dark:bg-slate-900/60 dark:text-emerald-100'
+                  : 'text-emerald-800/80 hover:text-emerald-900 dark:text-emerald-100/80 dark:hover:text-emerald-100',
+              )}
+              aria-pressed={profitDisplayMode === 'unit'}
+              title="Show profit per unit"
+            >
+              Per unit
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfitMode('total')}
+              className={cn(
+                'rounded-md px-2 py-1 transition',
+                profitDisplayMode === 'total'
+                  ? 'bg-white text-emerald-900 shadow-sm dark:bg-slate-900/60 dark:text-emerald-100'
+                  : 'text-emerald-800/80 hover:text-emerald-900 dark:text-emerald-100/80 dark:hover:text-emerald-100',
+              )}
+              aria-pressed={profitDisplayMode === 'total'}
+              title="Show total profit for the batch"
+            >
+              Absolute
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfitMode('percent')}
+              className={cn(
+                'rounded-md px-2 py-1 transition',
+                profitDisplayMode === 'percent'
+                  ? 'bg-white text-emerald-900 shadow-sm dark:bg-slate-900/60 dark:text-emerald-100'
+                  : 'text-emerald-800/80 hover:text-emerald-900 dark:text-emerald-100/80 dark:hover:text-emerald-100',
+              )}
+              aria-pressed={profitDisplayMode === 'percent'}
+              title="Show profit margins (%)"
+            >
+              %
+            </button>
+          </div>
           {onAddBatch ? (
             <button
               type="button"
@@ -1479,23 +1568,6 @@ export function CustomOpsCostGrid({
                           tariffInputMode === 'rate'
                             ? 'Switch to Tariff $/unit'
                             : 'Switch to Tariff %'
-                        }
-                      >
-                        {column.header}
-                      </button>
-                    ) : column.key === 'grossProfit' || column.key === 'netProfit' ? (
-                      <button
-                        type="button"
-                        className="inline-flex w-full items-center justify-center rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-xs font-extrabold uppercase tracking-[0.12em] text-emerald-700 transition hover:bg-emerald-500/20 dark:border-emerald-300/35 dark:bg-emerald-300/10 dark:text-emerald-200 dark:hover:bg-emerald-300/20"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          toggleProfitDisplayMode();
-                        }}
-                        title={
-                          profitDisplayMode === 'unit'
-                            ? 'Switch to profit %'
-                            : 'Switch to profit $/unit'
                         }
                       >
                         {column.header}
