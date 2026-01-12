@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -19,15 +20,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
-  ACCOUNTS,
   FIELDS,
   DEFAULT_SERVICE_TYPE,
+  SERVICE_TYPES,
   generateReference,
   generateMemo,
-  getServiceTypesForAccount,
-  findAccountByName,
   type ServiceTypeConfig,
 } from '@/lib/sop/config';
 
@@ -44,6 +44,15 @@ interface Purchase {
   accountId?: string;
 }
 
+interface QboAccount {
+  id: string;
+  name: string;
+  type: string;
+  subType?: string;
+  fullyQualifiedName?: string;
+  acctNum?: string;
+}
+
 interface TransactionEditModalProps {
   purchase: Purchase;
   onClose: () => void;
@@ -52,22 +61,62 @@ interface TransactionEditModalProps {
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
 
+async function fetchQboAccounts(): Promise<QboAccount[]> {
+  const res = await fetch(`${basePath}/api/qbo/accounts`);
+  if (!res.ok) throw new Error('Failed to fetch accounts');
+  const data = await res.json();
+  return data.accounts;
+}
+
 export function TransactionEditModal({ purchase, onClose, onSave }: TransactionEditModalProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Detect account from transaction
-  const detectedAccount = useMemo(() => findAccountByName(purchase.account), [purchase.account]);
+  // Fetch QBO accounts
+  const { data: qboAccounts = [], isLoading: accountsLoading } = useQuery({
+    queryKey: ['qbo-accounts'],
+    queryFn: fetchQboAccounts,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // Find matching account from QBO accounts based on transaction's account name
+  const detectedAccount = useMemo(() => {
+    if (!qboAccounts.length) return undefined;
+    const txnAccountName = purchase.account.toLowerCase();
+    return qboAccounts.find((acc) =>
+      txnAccountName.includes(acc.name.toLowerCase()) ||
+      (acc.acctNum && txnAccountName.includes(acc.acctNum))
+    );
+  }, [qboAccounts, purchase.account]);
 
   // Form state
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(detectedAccount?.id || '');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<string>('');
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
-  // Get service types for selected account
+  // Set detected account when accounts load
+  useEffect(() => {
+    if (detectedAccount && !selectedAccountId) {
+      setSelectedAccountId(detectedAccount.id);
+    }
+  }, [detectedAccount, selectedAccountId]);
+
+  // Get selected QBO account
+  const selectedQboAccount = useMemo(() => {
+    return qboAccounts.find((acc) => acc.id === selectedAccountId);
+  }, [qboAccounts, selectedAccountId]);
+
+  // Get service types for selected account (match by account name or use default)
   const serviceTypes = useMemo(() => {
-    return selectedAccountId ? getServiceTypesForAccount(selectedAccountId) : [DEFAULT_SERVICE_TYPE];
-  }, [selectedAccountId]);
+    if (!selectedQboAccount) return [DEFAULT_SERVICE_TYPE];
+    // Try to match by account number or name to existing SERVICE_TYPES config
+    const acctNum = selectedQboAccount.acctNum;
+    if (acctNum && SERVICE_TYPES[acctNum]) {
+      return SERVICE_TYPES[acctNum];
+    }
+    // Fallback to default
+    return [DEFAULT_SERVICE_TYPE];
+  }, [selectedQboAccount]);
 
   // Get selected service type config
   const selectedServiceType = useMemo<ServiceTypeConfig | undefined>(() => {
@@ -296,18 +345,22 @@ export function TransactionEditModal({ purchase, onClose, onSave }: TransactionE
               <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Account Type
               </label>
-              <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Account Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ACCOUNTS.map((acc) => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      {acc.code} - {acc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {accountsLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Account Type" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {qboAccounts.map((acc) => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.acctNum ? `${acc.acctNum} - ` : ''}{acc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {selectedAccountId && (
