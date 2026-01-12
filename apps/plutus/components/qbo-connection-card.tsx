@@ -11,13 +11,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { QboConnectionStatus } from '@/lib/qbo/types';
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
+
 async function fetchQboStatus(): Promise<QboConnectionStatus> {
-  const res = await fetch('/api/qbo/status');
+  const res = await fetch(`${basePath}/api/qbo/status`);
   return res.json();
 }
 
 async function disconnectQbo(): Promise<{ success: boolean }> {
-  const res = await fetch('/api/qbo/disconnect', { method: 'POST' });
+  const res = await fetch(`${basePath}/api/qbo/disconnect`, { method: 'POST' });
   return res.json();
 }
 
@@ -64,7 +66,7 @@ export function QboConnectionCard() {
   }, [searchParams, queryClient]);
 
   const handleConnect = () => {
-    window.location.href = '/api/qbo/connect';
+    window.location.href = `${basePath}/api/qbo/connect`;
   };
 
   const handleDisconnect = () => {
