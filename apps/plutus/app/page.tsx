@@ -66,24 +66,26 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        <Card className="card-hover">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-teal-500/10 dark:bg-brand-cyan/15">
-                <DollarSign className="h-5 w-5 text-brand-teal-600 dark:text-brand-cyan" />
+        <a href="/plutus/transactions" className="block">
+          <Card className="card-hover cursor-pointer transition-all hover:border-brand-cyan/30">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-teal-500/10 dark:bg-brand-cyan/15">
+                  <DollarSign className="h-5 w-5 text-brand-teal-600 dark:text-brand-cyan" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Transactions</CardTitle>
+                  <CardDescription>SOP compliance checker</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-base">Transactions</CardTitle>
-                <CardDescription>Detailed transaction view</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              View and analyze all your transactions with advanced filtering and search.
-            </p>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                View transactions, check SOP compliance, and update Reference/Memo fields.
+              </p>
+            </CardContent>
+          </Card>
+        </a>
 
         <Card className="card-hover">
           <CardHeader>
