@@ -685,26 +685,6 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
             </TabButton>
           </div>
 
-          {/* Inbox sub-tabs */}
-          {activeTab === 'inbox' ? (
-            <div className="flex items-center gap-1 p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg">
-              <SubTabButton
-                active={inboxSubTab === 'pending'}
-                onClick={() => setInboxSubTab('pending')}
-                count={meta?.totalCount}
-              >
-                Pending
-              </SubTabButton>
-              <SubTabButton
-                active={inboxSubTab === 'completed'}
-                onClick={() => setInboxSubTab('completed')}
-                count={completedMeta?.totalCount}
-              >
-                Completed
-              </SubTabButton>
-            </div>
-          ) : null}
-
           {/* Zero inbox indicator */}
           {activeTab === 'inbox' && inboxSubTab === 'pending' && meta?.totalCount === 0 ? (
             <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
@@ -730,32 +710,53 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
       {/* Tab content */}
       <div className="flex-1 min-h-0">
         {activeTab === 'inbox' ? (
-          isInboxLoading ? (
-            <InboxLoadingSkeleton />
-          ) : inboxSubTab === 'pending' ? (
-            <div className="flex gap-6 h-full">
-              <div className="w-[380px] shrink-0 flex flex-col min-h-0">
-                <InboxItemList items={items} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
-              </div>
-              <div className="flex-1 min-h-0">
-                <InboxActionPane
-                  item={selected}
-                  onAction={handleAction}
-                  currentIndex={selectedIndex}
-                  totalCount={items.length}
-                />
-              </div>
+          <div className="flex flex-col h-full">
+            {/* Inbox sub-tabs */}
+            <div className="shrink-0 flex items-center gap-1 p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg w-fit mb-4">
+              <SubTabButton
+                active={inboxSubTab === 'pending'}
+                onClick={() => setInboxSubTab('pending')}
+                count={meta?.totalCount}
+              >
+                Pending
+              </SubTabButton>
+              <SubTabButton
+                active={inboxSubTab === 'completed'}
+                onClick={() => setInboxSubTab('completed')}
+                count={completedMeta?.totalCount}
+              >
+                Completed
+              </SubTabButton>
             </div>
-          ) : (
-            <div className="flex gap-6 h-full">
-              <div className="w-[380px] shrink-0 flex flex-col min-h-0">
-                <CompletedItemList items={completedList} selectedId={selectedCompleted?.id ?? null} onSelect={setCompletedSelectedId} />
+
+            {/* Inbox content */}
+            {isInboxLoading ? (
+              <InboxLoadingSkeleton />
+            ) : inboxSubTab === 'pending' ? (
+              <div className="flex gap-6 flex-1 min-h-0">
+                <div className="w-[380px] shrink-0 flex flex-col min-h-0">
+                  <InboxItemList items={items} selectedId={selected?.id ?? null} onSelect={setSelectedId} />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <InboxActionPane
+                    item={selected}
+                    onAction={handleAction}
+                    currentIndex={selectedIndex}
+                    totalCount={items.length}
+                  />
+                </div>
               </div>
-              <div className="flex-1 min-h-0">
-                <CompletedActionPane item={selectedCompleted} />
+            ) : (
+              <div className="flex gap-6 flex-1 min-h-0">
+                <div className="w-[380px] shrink-0 flex flex-col min-h-0">
+                  <CompletedItemList items={completedList} selectedId={selectedCompleted?.id ?? null} onSelect={setCompletedSelectedId} />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <CompletedActionPane item={selectedCompleted} />
+                </div>
               </div>
-            </div>
-          )
+            )}
+          </div>
         ) : activeTab === 'overview' ? (
           overviewLoading ? (
             <div className="grid grid-cols-3 gap-4 animate-pulse">
