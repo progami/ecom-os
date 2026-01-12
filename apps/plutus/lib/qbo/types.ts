@@ -125,4 +125,5 @@ export interface QboConnectionStatus {
   realmId?: string;
   companyName?: string;
   lastSyncAt?: Date;
+  error?: string;
 }
