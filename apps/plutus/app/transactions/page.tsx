@@ -1,8 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import styles from './transactions.module.css';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
+import { DataTable, ColumnMeta } from '@/components/ui/data-table';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { TransactionEditModal } from '@/components/transaction-edit-modal';
+import { cn } from '@/lib/utils';
 
 interface Purchase {
   id: string;
@@ -34,6 +38,91 @@ interface Pagination {
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
+
+function StatusBadge({ status }: { status: string }) {
+  switch (status) {
+    case 'compliant':
+      return (
+        <Badge variant="success" className="gap-1">
+          <CheckIcon className="h-3 w-3" />
+          Compliant
+        </Badge>
+      );
+    case 'partial':
+      return (
+        <Badge variant="default" className="gap-1">
+          <PartialIcon className="h-3 w-3" />
+          Partial
+        </Badge>
+      );
+    case 'non-compliant':
+      return (
+        <Badge variant="destructive" className="gap-1">
+          <XIcon className="h-3 w-3" />
+          Missing
+        </Badge>
+      );
+    default:
+      return null;
+  }
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+function PartialIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth={2} />
+      <path d="M12 2a10 10 0 0 1 0 20V2z" />
+    </svg>
+  );
+}
+
+function XIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+      />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    </svg>
+  );
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+      />
+    </svg>
+  );
+}
 
 export default function TransactionsPage() {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -100,30 +189,19 @@ export default function TransactionsPage() {
     setSelectedPurchase(null);
   };
 
-  const filteredPurchases = purchases.filter((p) => {
-    if (filter === 'all') return true;
-    return p.complianceStatus === filter;
-  });
+  const filteredPurchases = useMemo(() => {
+    return purchases.filter((p) => {
+      if (filter === 'all') return true;
+      return p.complianceStatus === filter;
+    });
+  }, [purchases, filter]);
 
-  const complianceCounts = {
+  const complianceCounts = useMemo(() => ({
     all: purchases.length,
     compliant: purchases.filter((p) => p.complianceStatus === 'compliant').length,
     partial: purchases.filter((p) => p.complianceStatus === 'partial').length,
     'non-compliant': purchases.filter((p) => p.complianceStatus === 'non-compliant').length,
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'compliant':
-        return <span className={styles.statusIconCompliant}>✓</span>;
-      case 'partial':
-        return <span className={styles.statusIconPartial}>◐</span>;
-      case 'non-compliant':
-        return <span className={styles.statusIconNonCompliant}>✗</span>;
-      default:
-        return null;
-    }
-  };
+  }), [purchases]);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -140,144 +218,219 @@ export default function TransactionsPage() {
     }).format(amount);
   };
 
+  const columns: ColumnDef<Purchase>[] = useMemo(
+    () => [
+      {
+        accessorKey: 'complianceStatus',
+        header: 'Status',
+        cell: ({ row }) => <StatusBadge status={row.original.complianceStatus} />,
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'date',
+        header: 'Date',
+        cell: ({ row }) => (
+          <span className="text-slate-700 dark:text-slate-300 whitespace-nowrap">
+            {formatDate(row.original.date)}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'vendor',
+        header: 'Vendor',
+        cell: ({ row }) => (
+          <span className="font-medium text-slate-900 dark:text-white truncate max-w-[180px] block">
+            {row.original.vendor}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'account',
+        header: 'Account',
+        cell: ({ row }) => (
+          <span className="text-slate-600 dark:text-slate-400 truncate max-w-[150px] block">
+            {row.original.account}
+          </span>
+        ),
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'amount',
+        header: 'Amount',
+        cell: ({ row }) => (
+          <span className="font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">
+            {formatAmount(row.original.amount)}
+          </span>
+        ),
+        meta: { align: 'right' } as ColumnMeta,
+        enableSorting: true,
+      },
+      {
+        accessorKey: 'reference',
+        header: 'Reference',
+        cell: ({ row }) =>
+          row.original.reference ? (
+            <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-xs font-mono text-slate-700 dark:text-slate-300">
+              {row.original.reference}
+            </code>
+          ) : (
+            <span className="text-slate-400 dark:text-slate-500 italic text-sm">Empty</span>
+          ),
+        enableSorting: false,
+      },
+      {
+        accessorKey: 'memo',
+        header: 'Memo',
+        cell: ({ row }) =>
+          row.original.memo ? (
+            <span className="text-slate-600 dark:text-slate-400 text-sm truncate max-w-[200px] block">
+              {row.original.memo}
+            </span>
+          ) : (
+            <span className="text-slate-400 dark:text-slate-500 italic text-sm">Empty</span>
+          ),
+        enableSorting: false,
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(row.original);
+            }}
+            className="h-8 w-8 p-0"
+          >
+            <PencilIcon className="h-4 w-4" />
+          </Button>
+        ),
+        enableSorting: false,
+      },
+    ],
+    []
+  );
+
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.error}>
-          <h2>Error</h2>
-          <p>{error}</p>
-          <button onClick={() => fetchPurchases()} className={styles.retryButton}>
-            Retry
-          </button>
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="rounded-xl border border-danger-200 bg-danger-50 dark:border-danger-900 dark:bg-danger-950/50 p-8 text-center">
+            <h2 className="text-lg font-semibold text-danger-700 dark:text-danger-400 mb-2">Error</h2>
+            <p className="text-danger-600 dark:text-danger-300 mb-4">{error}</p>
+            <Button onClick={() => fetchPurchases()} variant="outline">
+              <RefreshIcon className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <a href={basePath} className={styles.backLink}>
-            ← Back
-          </a>
-          <h1 className={styles.title}>Transactions</h1>
-        </div>
-        <div className={styles.headerRight}>
-          <button onClick={() => fetchPurchases(pagination.page)} className={styles.refreshButton}>
-            Refresh
-          </button>
-        </div>
-      </header>
-
-      <div className={styles.filters}>
-        <div className={styles.filterTabs}>
-          <button
-            className={`${styles.filterTab} ${filter === 'all' ? styles.filterTabActive : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All ({complianceCounts.all})
-          </button>
-          <button
-            className={`${styles.filterTab} ${filter === 'non-compliant' ? styles.filterTabActive : ''}`}
-            onClick={() => setFilter('non-compliant')}
-          >
-            <span className={styles.statusIconNonCompliant}>✗</span>
-            Missing ({complianceCounts['non-compliant']})
-          </button>
-          <button
-            className={`${styles.filterTab} ${filter === 'partial' ? styles.filterTabActive : ''}`}
-            onClick={() => setFilter('partial')}
-          >
-            <span className={styles.statusIconPartial}>◐</span>
-            Partial ({complianceCounts.partial})
-          </button>
-          <button
-            className={`${styles.filterTab} ${filter === 'compliant' ? styles.filterTabActive : ''}`}
-            onClick={() => setFilter('compliant')}
-          >
-            <span className={styles.statusIconCompliant}>✓</span>
-            Compliant ({complianceCounts.compliant})
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className={styles.loading}>Loading transactions...</div>
-      ) : (
-        <>
-          <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Vendor</th>
-                  <th>Account</th>
-                  <th>Amount</th>
-                  <th>Reference</th>
-                  <th>Memo</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPurchases.map((purchase) => (
-                  <tr key={purchase.id} className={styles.tableRow}>
-                    <td>{getStatusIcon(purchase.complianceStatus)}</td>
-                    <td>{formatDate(purchase.date)}</td>
-                    <td className={styles.vendorCell}>{purchase.vendor}</td>
-                    <td className={styles.accountCell}>{purchase.account}</td>
-                    <td className={styles.amountCell}>{formatAmount(purchase.amount)}</td>
-                    <td className={styles.referenceCell}>
-                      {purchase.reference || <span className={styles.empty}>Empty</span>}
-                    </td>
-                    <td className={styles.memoCell}>
-                      {purchase.memo ? (
-                        <span className={styles.memoText}>{purchase.memo}</span>
-                      ) : (
-                        <span className={styles.empty}>Empty</span>
-                      )}
-                    </td>
-                    <td>
-                      <button className={styles.editButton} onClick={() => handleEdit(purchase)}>
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <a
+              href={basePath}
+              className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+            >
+              <ArrowLeftIcon className="h-4 w-4" />
+              Back
+            </a>
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Transactions</h1>
           </div>
+          <Button onClick={() => fetchPurchases(pagination.page)} variant="outline" size="sm">
+            <RefreshIcon className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </header>
 
-          {filteredPurchases.length === 0 && (
-            <div className={styles.emptyState}>
-              <p>No transactions found matching the filter.</p>
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-lg w-fit">
+          <FilterTab
+            active={filter === 'all'}
+            onClick={() => setFilter('all')}
+            count={complianceCounts.all}
+            label="All"
+          />
+          <FilterTab
+            active={filter === 'non-compliant'}
+            onClick={() => setFilter('non-compliant')}
+            count={complianceCounts['non-compliant']}
+            label="Missing"
+            icon={<XIcon className="h-3.5 w-3.5" />}
+            variant="destructive"
+          />
+          <FilterTab
+            active={filter === 'partial'}
+            onClick={() => setFilter('partial')}
+            count={complianceCounts.partial}
+            label="Partial"
+            icon={<PartialIcon className="h-3.5 w-3.5" />}
+            variant="default"
+          />
+          <FilterTab
+            active={filter === 'compliant'}
+            onClick={() => setFilter('compliant')}
+            count={complianceCounts.compliant}
+            label="Compliant"
+            icon={<CheckIcon className="h-3.5 w-3.5" />}
+            variant="success"
+          />
+        </div>
+
+        {/* Table */}
+        <DataTable
+          columns={columns}
+          data={filteredPurchases}
+          loading={loading}
+          skeletonRows={10}
+          initialSorting={[{ id: 'date', desc: true }]}
+          emptyState={
+            <div className="py-8">
+              <p className="text-slate-500 dark:text-slate-400">No transactions found matching the filter.</p>
             </div>
-          )}
+          }
+        />
 
-          {pagination.totalPages > 1 && (
-            <div className={styles.pagination}>
-              <button
-                className={styles.pageButton}
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Showing {filteredPurchases.length} of {pagination.totalCount} transactions
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
               >
                 Previous
-              </button>
-              <span className={styles.pageInfo}>
-                Page {pagination.page} of {pagination.totalPages} ({pagination.totalCount} total)
+              </Button>
+              <span className="text-sm text-slate-600 dark:text-slate-400 px-2">
+                Page {pagination.page} of {pagination.totalPages}
               </span>
-              <button
-                className={styles.pageButton}
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.totalPages}
               >
                 Next
-              </button>
+              </Button>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+      </div>
 
       {selectedPurchase && (
         <TransactionEditModal
@@ -287,5 +440,51 @@ export default function TransactionsPage() {
         />
       )}
     </div>
+  );
+}
+
+interface FilterTabProps {
+  active: boolean;
+  onClick: () => void;
+  count: number;
+  label: string;
+  icon?: React.ReactNode;
+  variant?: 'default' | 'success' | 'destructive';
+}
+
+function FilterTab({ active, onClick, count, label, icon, variant }: FilterTabProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+        active
+          ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm'
+          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+      )}
+    >
+      {icon && (
+        <span
+          className={cn(
+            variant === 'success' && 'text-success-600 dark:text-success-400',
+            variant === 'destructive' && 'text-danger-600 dark:text-danger-400',
+            variant === 'default' && 'text-brand-teal-600 dark:text-brand-cyan'
+          )}
+        >
+          {icon}
+        </span>
+      )}
+      {label}
+      <span
+        className={cn(
+          'ml-1 px-1.5 py-0.5 rounded text-xs',
+          active
+            ? 'bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300'
+            : 'bg-slate-200/50 dark:bg-white/5 text-slate-500 dark:text-slate-500'
+        )}
+      >
+        {count}
+      </span>
+    </button>
   );
 }
