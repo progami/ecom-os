@@ -44,11 +44,17 @@ interface SkuRow {
   skuCode: string
   description: string
   asin: string | null
+  unitDimensionsCm?: string | null
   amazonCategory?: string | null
   amazonSizeTier?: string | null
   amazonReferralFeePercent?: number | string | null
   amazonFbaFulfillmentFee?: number | string | null
   amazonReferenceWeightKg?: number | string | null
+  itemDimensionsCm?: string | null
+  itemLengthCm?: number | string | null
+  itemWidthCm?: number | string | null
+  itemHeightCm?: number | string | null
+  itemWeightKg?: number | string | null
   packSize: number | null
   defaultSupplierId?: string | null
   secondarySupplierId?: string | null
@@ -65,11 +71,16 @@ interface SkuFormState {
   skuCode: string
   description: string
   asin: string
+  productDimensionsCm: string
   amazonCategory: string
   amazonSizeTier: string
   amazonReferralFeePercent: string
   amazonFbaFulfillmentFee: string
   amazonReferenceWeightKg: string
+  itemLengthCm: string
+  itemWidthCm: string
+  itemHeightCm: string
+  itemWeightKg: string
   defaultSupplierId: string
   secondarySupplierId: string
   initialBatch: {
@@ -86,11 +97,16 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     skuCode: sku?.skuCode ?? '',
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
+    productDimensionsCm: sku?.unitDimensionsCm ?? '',
     amazonCategory: sku?.amazonCategory ?? '',
     amazonSizeTier: sku?.amazonSizeTier ?? '',
     amazonReferralFeePercent: sku?.amazonReferralFeePercent?.toString?.() ?? '',
     amazonFbaFulfillmentFee: sku?.amazonFbaFulfillmentFee?.toString?.() ?? '',
     amazonReferenceWeightKg: sku?.amazonReferenceWeightKg?.toString?.() ?? '',
+    itemLengthCm: sku?.itemLengthCm?.toString?.() ?? '',
+    itemWidthCm: sku?.itemWidthCm?.toString?.() ?? '',
+    itemHeightCm: sku?.itemHeightCm?.toString?.() ?? '',
+    itemWeightKg: sku?.itemWeightKg?.toString?.() ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
     initialBatch: {
@@ -249,6 +265,51 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
+    const itemLengthRaw = formState.itemLengthCm.trim()
+    const itemWidthRaw = formState.itemWidthCm.trim()
+    const itemHeightRaw = formState.itemHeightCm.trim()
+    const itemWeightRaw = formState.itemWeightKg.trim()
+
+    const anyItemDimensions = Boolean(itemLengthRaw) || Boolean(itemWidthRaw) || Boolean(itemHeightRaw)
+    const allItemDimensions = Boolean(itemLengthRaw) && Boolean(itemWidthRaw) && Boolean(itemHeightRaw)
+
+    if (anyItemDimensions && !allItemDimensions) {
+      toast.error('Item dimensions require length, width, and height')
+      return
+    }
+
+    let itemLengthCm: number | null = null
+    let itemWidthCm: number | null = null
+    let itemHeightCm: number | null = null
+
+    if (allItemDimensions) {
+      itemLengthCm = Number.parseFloat(itemLengthRaw)
+      itemWidthCm = Number.parseFloat(itemWidthRaw)
+      itemHeightCm = Number.parseFloat(itemHeightRaw)
+
+      if (!Number.isFinite(itemLengthCm) || itemLengthCm <= 0) {
+        toast.error('Item length must be a positive number')
+        return
+      }
+      if (!Number.isFinite(itemWidthCm) || itemWidthCm <= 0) {
+        toast.error('Item width must be a positive number')
+        return
+      }
+      if (!Number.isFinite(itemHeightCm) || itemHeightCm <= 0) {
+        toast.error('Item height must be a positive number')
+        return
+      }
+    }
+
+    let itemWeightKg: number | null = null
+    if (itemWeightRaw) {
+      itemWeightKg = Number.parseFloat(itemWeightRaw)
+      if (!Number.isFinite(itemWeightKg) || itemWeightKg <= 0) {
+        toast.error('Item weight (kg) must be a positive number')
+        return
+      }
+    }
+
     const isCreating = !editingSku
     let initialBatchPayload: Record<string, unknown> | null = null
 
@@ -294,6 +355,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         description,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
+        itemLengthCm,
+        itemWidthCm,
+        itemHeightCm,
+        itemWeightKg,
       }
 
       if (initialBatchPayload) {
@@ -593,6 +658,58 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="md:col-span-2 pt-2">
+                  <h3 className="text-sm font-semibold text-slate-900">Item Dimensions</h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Physical product (unpackaged). Used for reference only.
+                  </p>
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Item Dimensions (cm)</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      value={formState.itemLengthCm}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, itemLengthCm: event.target.value }))
+                      }
+                      placeholder="L"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.itemWidthCm}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, itemWidthCm: event.target.value }))
+                      }
+                      placeholder="W"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.itemHeightCm}
+                      onChange={event =>
+                        setFormState(prev => ({ ...prev, itemHeightCm: event.target.value }))
+                      }
+                      placeholder="H"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label htmlFor="itemWeightKg">Item Weight (kg)</Label>
+                  <Input
+                    id="itemWeightKg"
+                    type="number"
+                    step="0.001"
+                    min={0.001}
+                    value={formState.itemWeightKg}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="md:col-span-2 pt-2">
                   <h3 className="text-sm font-semibold text-slate-900">Amazon Reference Data</h3>
                   <p className="mt-1 text-xs text-slate-500">Re-import from Amazon to refresh.</p>
                 </div>
@@ -644,7 +761,18 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="amazonReferenceWeightKg">Amazon Reference Weight (kg)</Label>
+                  <Label htmlFor="productDimensionsCm">Product Dimensions (cm)</Label>
+                  <Input
+                    id="productDimensionsCm"
+                    value={formState.productDimensionsCm}
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                    placeholder="—"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="amazonReferenceWeightKg">Product Weight (kg)</Label>
                   <Input
                     id="amazonReferenceWeightKg"
                     type="number"

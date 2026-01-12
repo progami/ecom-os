@@ -18,6 +18,13 @@ type SkuSummary = {
   id: string
   skuCode: string
   description: string
+  unitDimensionsCm: string | null
+  amazonReferenceWeightKg: number | string | null
+  itemDimensionsCm: string | null
+  itemLengthCm: number | string | null
+  itemWidthCm: number | string | null
+  itemHeightCm: number | string | null
+  itemWeightKg: number | string | null
 }
 
 export default function ProductBatchesPage() {
@@ -90,6 +97,13 @@ function ProductBatchesPageInner() {
           id: data.id,
           skuCode: data.skuCode,
           description: data.description,
+          unitDimensionsCm: data.unitDimensionsCm ?? null,
+          amazonReferenceWeightKg: data.amazonReferenceWeightKg ?? null,
+          itemDimensionsCm: data.itemDimensionsCm ?? null,
+          itemLengthCm: data.itemLengthCm ?? null,
+          itemWidthCm: data.itemWidthCm ?? null,
+          itemHeightCm: data.itemHeightCm ?? null,
+          itemWeightKg: data.itemWeightKg ?? null,
         })
       })
       .catch(error => {

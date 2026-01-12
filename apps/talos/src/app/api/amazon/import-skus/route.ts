@@ -98,6 +98,34 @@ function parseCatalogDimensions(attributes: {
   return triplet
 }
 
+function parseCatalogItemDimensions(attributes: {
+  item_dimensions?: Array<{
+    length?: { value?: number; unit?: string }
+    width?: { value?: number; unit?: string }
+    height?: { value?: number; unit?: string }
+  }>
+}): { lengthCm: number; widthCm: number; heightCm: number } | null {
+  const dims = attributes.item_dimensions?.[0] ?? null
+  if (!dims) return null
+  const length = dims?.length?.value
+  const width = dims?.width?.value
+  const height = dims?.height?.value
+  if (length === undefined || width === undefined || height === undefined) return null
+  if (!Number.isFinite(length) || !Number.isFinite(width) || !Number.isFinite(height)) return null
+
+  const lengthUnit = dims?.length?.unit
+  const widthUnit = dims?.width?.unit
+  const heightUnit = dims?.height?.unit
+
+  const lengthCm = convertMeasurementToCm(length, lengthUnit)
+  const widthCm = convertMeasurementToCm(width, widthUnit)
+  const heightCm = convertMeasurementToCm(height, heightUnit)
+  if (lengthCm === null || widthCm === null || heightCm === null) return null
+
+  const triplet = resolveDimensionTripletCm({ lengthCm, widthCm, heightCm })
+  return triplet
+}
+
 function convertMeasurementToCm(value: number, unit: string | undefined): number | null {
   if (!Number.isFinite(value)) return null
   if (typeof unit !== 'string') return null
@@ -122,6 +150,39 @@ function parseCatalogWeightKg(attributes: {
 }): number | null {
   const measurement =
     attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? attributes.item_weight?.[0] ?? null
+  if (!measurement) return null
+  const raw = measurement?.value
+  if (raw === undefined || raw === null) return null
+  if (!Number.isFinite(raw)) return null
+
+  const unit = measurement?.unit
+  if (typeof unit !== 'string') return null
+  const normalized = unit.trim().toLowerCase()
+  if (!normalized) return null
+
+  if (normalized === 'kilograms' || normalized === 'kilogram' || normalized === 'kg') {
+    return Number(raw.toFixed(3))
+  }
+
+  if (normalized === 'pounds' || normalized === 'pound' || normalized === 'lb' || normalized === 'lbs') {
+    return Number((raw * 0.453592).toFixed(3))
+  }
+
+  if (normalized === 'grams' || normalized === 'gram' || normalized === 'g') {
+    return Number((raw / 1000).toFixed(3))
+  }
+
+  if (normalized === 'ounces' || normalized === 'ounce' || normalized === 'oz') {
+    return Number((raw * 0.0283495).toFixed(3))
+  }
+
+  return null
+}
+
+function parseCatalogItemWeightKg(attributes: {
+  item_weight?: Array<{ value?: number; unit?: string }>
+}): number | null {
+  const measurement = attributes.item_weight?.[0] ?? null
   if (!measurement) return null
   const raw = measurement?.value
   if (raw === undefined || raw === null) return null
@@ -412,8 +473,19 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
   const existingSkus = await prisma.sku.findMany({
     where: { skuCode: { in: candidateSkus } },
-    select: { skuCode: true },
+    select: {
+      skuCode: true,
+      itemDimensionsCm: true,
+      itemLengthCm: true,
+      itemWidthCm: true,
+      itemHeightCm: true,
+      itemWeightKg: true,
+    },
   })
+  const existingSkuByCode = new Map<string, (typeof existingSkus)[number]>()
+  for (const sku of existingSkus) {
+    existingSkuByCode.set(sku.skuCode.toUpperCase(), sku)
+  }
   const existingSet = new Set(existingSkus.map(sku => sku.skuCode.toUpperCase()))
 
   let imported = 0
@@ -522,6 +594,8 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     let description = listing.title ? sanitizeForDisplay(listing.title.trim()) : ''
     let unitWeightKg: number | null = null
     let unitTriplet: { lengthCm: number; widthCm: number; heightCm: number } | null = null
+    let itemWeightKg: number | null = null
+    let itemTriplet: { lengthCm: number; widthCm: number; heightCm: number } | null = null
     let amazonCategory: string | null = null
     let amazonReferralFeePercent: number | null = null
     let amazonFbaFulfillmentFee: number | null = null
@@ -540,6 +614,8 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         }
         unitWeightKg = parseCatalogWeightKg(attributes)
         unitTriplet = parseCatalogDimensions(attributes)
+        itemWeightKg = parseCatalogItemWeightKg(attributes)
+        itemTriplet = parseCatalogItemDimensions(attributes)
       }
       amazonCategory = parseCatalogCategory(catalog)
     } catch (error) {
@@ -585,6 +661,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     const unitDimensionsCm = unitTriplet ? formatDimensionTripletCm(unitTriplet) : null
+    const itemDimensionsCm = itemTriplet ? formatDimensionTripletCm(itemTriplet) : null
 
     if (mode === 'validate') {
       imported += 1
@@ -600,22 +677,62 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
     try {
       if (isExistingSku) {
+        const existingSku = existingSkuByCode.get(skuCode.toUpperCase()) ?? null
+        let shouldSetItemDimensions = false
+        let shouldSetItemWeight = false
+
+        if (existingSku) {
+          const hasItemDimensions =
+            existingSku.itemDimensionsCm !== null ||
+            existingSku.itemLengthCm !== null ||
+            existingSku.itemWidthCm !== null ||
+            existingSku.itemHeightCm !== null
+
+          if (!hasItemDimensions && itemTriplet && itemDimensionsCm) {
+            shouldSetItemDimensions = true
+          }
+
+          if (existingSku.itemWeightKg === null && itemWeightKg !== null) {
+            shouldSetItemWeight = true
+          }
+        } else {
+          if (itemTriplet && itemDimensionsCm) {
+            shouldSetItemDimensions = true
+          }
+          if (itemWeightKg !== null) {
+            shouldSetItemWeight = true
+          }
+        }
+
+        const skuUpdateData: Prisma.SkuUpdateInput = {
+          description,
+          amazonCategory,
+          amazonSizeTier,
+          amazonReferralFeePercent,
+          amazonFbaFulfillmentFee,
+          amazonReferenceWeightKg: unitWeightKg,
+          unitDimensionsCm,
+          unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+          unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+          unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+          unitWeightKg,
+        }
+
+        if (shouldSetItemDimensions && itemTriplet) {
+          skuUpdateData.itemDimensionsCm = itemDimensionsCm
+          skuUpdateData.itemLengthCm = itemTriplet.lengthCm
+          skuUpdateData.itemWidthCm = itemTriplet.widthCm
+          skuUpdateData.itemHeightCm = itemTriplet.heightCm
+        }
+
+        if (shouldSetItemWeight) {
+          skuUpdateData.itemWeightKg = itemWeightKg
+        }
+
         // Update existing SKU with fresh Amazon data (only Amazon-sourced fields)
         await prisma.sku.update({
           where: { skuCode },
-          data: {
-            description,
-            amazonCategory,
-            amazonSizeTier,
-            amazonReferralFeePercent,
-            amazonFbaFulfillmentFee,
-            amazonReferenceWeightKg: unitWeightKg,
-            unitDimensionsCm,
-            unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-            unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-            unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-            unitWeightKg,
-          },
+          data: skuUpdateData,
         })
 
         imported += 1
@@ -653,6 +770,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
               unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
               unitWeightKg,
+              itemDimensionsCm,
+              itemLengthCm: itemTriplet ? itemTriplet.lengthCm : null,
+              itemWidthCm: itemTriplet ? itemTriplet.widthCm : null,
+              itemHeightCm: itemTriplet ? itemTriplet.heightCm : null,
+              itemWeightKg,
               unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
               cartonDimensionsCm: null,
               cartonLengthCm: null,
