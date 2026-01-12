@@ -9,7 +9,7 @@ import { buildKairosOwnershipWhere, getKairosActor } from '@/lib/access';
 import { parseEtsConfig, parseProphetConfig } from '@/lib/forecasts/config';
 import { runMlForecast } from '@/lib/models/ml-service';
 
-type ForecastModel = 'ETS' | 'PROPHET';
+type ForecastModel = 'ETS' | 'PROPHET' | 'ARIMA' | 'THETA' | 'NEURALPROPHET';
 
 type RunResult = {
   forecast: {
@@ -135,6 +135,42 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
         try {
           const parsedConfig = parseProphetConfig(config) ?? undefined;
           return await runMlForecast({ model: 'PROPHET', ds, y, horizon, config: parsedConfig });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
+          }
+          throw error;
+        }
+      }
+
+      if (model === 'ARIMA') {
+        try {
+          const parsedConfig = parseEtsConfig(config) ?? undefined;
+          return await runMlForecast({ model: 'ARIMA', ds, y, horizon, config: parsedConfig });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
+          }
+          throw error;
+        }
+      }
+
+      if (model === 'THETA') {
+        try {
+          const parsedConfig = parseEtsConfig(config) ?? undefined;
+          return await runMlForecast({ model: 'THETA', ds, y, horizon, config: parsedConfig });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
+          }
+          throw error;
+        }
+      }
+
+      if (model === 'NEURALPROPHET') {
+        try {
+          const parsedConfig = parseProphetConfig(config) ?? undefined;
+          return await runMlForecast({ model: 'NEURALPROPHET', ds, y, horizon, config: parsedConfig });
         } catch (error) {
           if (error instanceof ZodError) {
             throw new Error(error.issues.at(0)?.message ?? 'Invalid forecast configuration.');
