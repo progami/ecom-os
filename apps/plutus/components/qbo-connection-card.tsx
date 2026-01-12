@@ -4,10 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { QboConnectionStatus } from '@/lib/qbo/types';
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
@@ -22,18 +19,31 @@ async function disconnectQbo(): Promise<{ success: boolean }> {
   return res.json();
 }
 
-function QboIcon({ className }: { className?: string }) {
+function QboLogo({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 12h8M12 8v8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
 
-function CheckIcon({ className }: { className?: string }) {
+function CheckCircleIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.15" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M8 12l2.5 2.5L16 9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -66,7 +76,6 @@ export function QboConnectionCard() {
     },
   });
 
-  // Handle URL params from OAuth callback
   useEffect(() => {
     const connected = searchParams.get('connected');
     const error = searchParams.get('error');
@@ -97,83 +106,89 @@ export function QboConnectionCard() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <Skeleton className="h-12 w-12 rounded-xl" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <Skeleton className="h-9 w-28" />
+      <div className="rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-sm p-6 dark:border-white/10 dark:bg-white/5">
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-2xl bg-slate-100 dark:bg-white/10 animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-5 w-48 bg-slate-100 dark:bg-white/10 rounded animate-pulse" />
+            <div className="h-4 w-32 bg-slate-100 dark:bg-white/10 rounded animate-pulse" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="h-10 w-28 bg-slate-100 dark:bg-white/10 rounded-xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  if (status?.connected) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-50/80 to-green-50/80 backdrop-blur-sm p-6 dark:border-emerald-500/20 dark:from-emerald-950/30 dark:to-green-950/30">
+        {/* Success glow */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+
+        <div className="relative flex items-center gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 ring-1 ring-emerald-500/30 dark:bg-emerald-500/10 dark:ring-emerald-500/20">
+            <CheckCircleIcon className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <h3 className="font-semibold text-slate-900 dark:text-white">
+                QuickBooks Online
+              </h3>
+              <span className="inline-flex items-center text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full bg-emerald-500/15 dark:bg-emerald-500/20">
+                Connected
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
+              {status.companyName}
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDisconnect}
+            disabled={disconnectMutation.isPending}
+            className="shrink-0 rounded-xl border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
+          >
+            {disconnectMutation.isPending ? (
+              <>
+                <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
+                <span>Disconnecting</span>
+              </>
+            ) : (
+              'Disconnect'
+            )}
+          </Button>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className={status?.connected ? 'border-green-200 dark:border-green-900/50 bg-green-50/50 dark:bg-green-950/20' : ''}>
-      <CardContent className="p-6">
-        <div className="flex items-center gap-4">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
-            status?.connected
-              ? 'bg-green-100 dark:bg-green-900/30 ring-1 ring-green-200 dark:ring-green-800'
-              : 'bg-slate-100 dark:bg-white/10 ring-1 ring-slate-200 dark:ring-white/10'
-          }`}>
-            {status?.connected ? (
-              <CheckIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
-            ) : (
-              <QboIcon className="h-6 w-6 text-slate-500 dark:text-slate-400" />
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-slate-900 dark:text-white">
-                QuickBooks Online
-              </h3>
-              {status?.connected && (
-                <Badge className="bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400 border-0">
-                  Connected
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 truncate">
-              {status?.connected && status.companyName
-                ? status.companyName
-                : 'Connect to sync your financial data'}
-            </p>
-          </div>
-
-          {status?.connected ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDisconnect}
-              disabled={disconnectMutation.isPending}
-              className="shrink-0"
-            >
-              {disconnectMutation.isPending ? (
-                <>
-                  <LoaderIcon className="mr-2 h-4 w-4 animate-spin" />
-                  Disconnecting
-                </>
-              ) : (
-                'Disconnect'
-              )}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleConnect}
-              size="sm"
-              className="shrink-0 bg-brand-teal-600 hover:bg-brand-teal-700 dark:bg-brand-cyan dark:hover:bg-brand-cyan/90"
-            >
-              Connect
-            </Button>
-          )}
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-sm p-6 dark:border-white/10 dark:bg-white/5">
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200/50 dark:bg-white/5 dark:ring-white/10">
+          <QboLogo className="h-7 w-7 text-slate-400 dark:text-slate-500" />
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-900 dark:text-white mb-0.5">
+            QuickBooks Online
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Connect to sync your financial data
+          </p>
+        </div>
+
+        <Button
+          onClick={handleConnect}
+          size="sm"
+          className="shrink-0 rounded-xl bg-brand-teal-600 hover:bg-brand-teal-700 dark:bg-brand-cyan dark:hover:bg-brand-cyan/90 text-white shadow-lg shadow-brand-teal-500/25 dark:shadow-brand-cyan/20"
+        >
+          Connect
+        </Button>
+      </div>
+    </div>
   );
 }
