@@ -912,9 +912,11 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
     setEditValue(currentValue)
   }, [])
 
-  // Initial load - inbox items
+  // Initial load - inbox items and dashboard data (for Team tab visibility)
   useEffect(() => {
     loadPending()
+    // Load dashboard data to determine Team tab visibility
+    DashboardApi.get().then(setDashboardData).catch(() => null)
   }, [loadPending])
 
   // Load completed when switching to completed sub-tab
