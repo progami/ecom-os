@@ -238,44 +238,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     const description = formState.description.trim()
     const asinValue = formState.asin.trim() ? formState.asin.trim() : null
 
-    const amazonCategory = formState.amazonCategory.trim() ? formState.amazonCategory.trim() : null
-    const amazonSizeTier = formState.amazonSizeTier.trim() ? formState.amazonSizeTier.trim() : null
-
-    const amazonReferralFeePercent = formState.amazonReferralFeePercent.trim()
-      ? Number.parseFloat(formState.amazonReferralFeePercent.trim())
-      : null
-    if (
-      amazonReferralFeePercent !== null &&
-      (!Number.isFinite(amazonReferralFeePercent) ||
-        amazonReferralFeePercent < 0 ||
-        amazonReferralFeePercent > 100)
-    ) {
-      toast.error('Amazon referral fee must be between 0 and 100')
-      return
-    }
-
-    const amazonFbaFulfillmentFee = formState.amazonFbaFulfillmentFee.trim()
-      ? Number.parseFloat(formState.amazonFbaFulfillmentFee.trim())
-      : null
-    if (
-      amazonFbaFulfillmentFee !== null &&
-      (!Number.isFinite(amazonFbaFulfillmentFee) || amazonFbaFulfillmentFee < 0)
-    ) {
-      toast.error('Amazon FBA fulfillment fee must be 0 or higher')
-      return
-    }
-
-    const amazonReferenceWeightKg = formState.amazonReferenceWeightKg.trim()
-      ? Number.parseFloat(formState.amazonReferenceWeightKg.trim())
-      : null
-    if (
-      amazonReferenceWeightKg !== null &&
-      (!Number.isFinite(amazonReferenceWeightKg) || amazonReferenceWeightKg <= 0)
-    ) {
-      toast.error('Amazon reference weight (kg) must be a positive number')
-      return
-    }
-
     if (!skuCode) {
       toast.error('SKU code is required')
       return
@@ -329,11 +291,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         skuCode,
         asin: asinValue,
         description,
-        amazonCategory,
-        amazonSizeTier,
-        amazonReferralFeePercent,
-        amazonFbaFulfillmentFee,
-        amazonReferenceWeightKg,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
       }
@@ -629,12 +586,9 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="md:col-span-2 pt-2">
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Amazon Listing Defaults{' '}
-                    <span className="text-slate-400 font-normal">(optional)</span>
-                  </h3>
+                  <h3 className="text-sm font-semibold text-slate-900">Amazon Reference Data</h3>
                   <p className="mt-1 text-xs text-slate-500">
-                    Used by Amazon → FBA Fee Discrepancies as your reference values.
+                    Synced from Amazon. Use Import from Amazon to refresh these values.
                   </p>
                 </div>
 
@@ -643,10 +597,9 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="amazonCategory"
                     value={formState.amazonCategory}
-                    onChange={event =>
-                      setFormState(prev => ({ ...prev, amazonCategory: event.target.value }))
-                    }
-                    placeholder="e.g. Home & Kitchen"
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                    placeholder="—"
                   />
                 </div>
 
@@ -655,17 +608,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="amazonReferralFeePercent"
                     type="number"
-                    min={0}
-                    max={100}
-                    step={0.01}
                     value={formState.amazonReferralFeePercent}
-                    onChange={event =>
-                      setFormState(prev => ({
-                        ...prev,
-                        amazonReferralFeePercent: event.target.value,
-                      }))
-                    }
-                    placeholder="e.g. 15"
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                    placeholder="—"
                   />
                 </div>
 
@@ -674,10 +620,9 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="amazonSizeTier"
                     value={formState.amazonSizeTier}
-                    onChange={event =>
-                      setFormState(prev => ({ ...prev, amazonSizeTier: event.target.value }))
-                    }
-                    placeholder="e.g. Large Standard"
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                    placeholder="—"
                   />
                 </div>
 
@@ -686,16 +631,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="amazonFbaFulfillmentFee"
                     type="number"
-                    min={0}
-                    step={0.01}
                     value={formState.amazonFbaFulfillmentFee}
-                    onChange={event =>
-                      setFormState(prev => ({
-                        ...prev,
-                        amazonFbaFulfillmentFee: event.target.value,
-                      }))
-                    }
-                    placeholder="Marketplace currency"
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                    placeholder="—"
                   />
                 </div>
 
@@ -704,16 +643,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="amazonReferenceWeightKg"
                     type="number"
-                    min={0}
-                    step={0.001}
                     value={formState.amazonReferenceWeightKg}
-                    onChange={event =>
-                      setFormState(prev => ({
-                        ...prev,
-                        amazonReferenceWeightKg: event.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
+                    disabled
+                    className="bg-slate-50 text-slate-500"
+                    placeholder="—"
                   />
                 </div>
 
