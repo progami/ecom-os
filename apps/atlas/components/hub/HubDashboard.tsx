@@ -1049,37 +1049,36 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
           ) : null}
         </div>
 
-        {/* New Request button (only on inbox tab) */}
-        {activeTab === 'inbox' ? (
-          <Button onClick={() => setCreateModalOpen(true)} variant="default" size="sm">
-            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            New Request
-          </Button>
-        ) : null}
       </div>
 
       {/* Tab content with transition */}
       <div className="flex-1 min-h-0">
         {activeTab === 'inbox' ? (
           <div key={`inbox-${inboxSubTab}`} className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Inbox sub-tabs */}
-            <div className="shrink-0 flex items-center gap-1 p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg w-fit mb-4">
-              <SubTabButton
-                active={inboxSubTab === 'pending'}
-                onClick={() => setInboxSubTab('pending')}
-                count={meta?.totalCount}
-              >
-                Pending
-              </SubTabButton>
-              <SubTabButton
-                active={inboxSubTab === 'completed'}
-                onClick={() => setInboxSubTab('completed')}
-                count={completedMeta?.totalCount}
-              >
-                Completed
-              </SubTabButton>
+            {/* Inbox sub-tabs and actions */}
+            <div className="shrink-0 flex items-center justify-between mb-4">
+              <div className="flex items-center gap-1 p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg">
+                <SubTabButton
+                  active={inboxSubTab === 'pending'}
+                  onClick={() => setInboxSubTab('pending')}
+                  count={meta?.totalCount}
+                >
+                  Pending
+                </SubTabButton>
+                <SubTabButton
+                  active={inboxSubTab === 'completed'}
+                  onClick={() => setInboxSubTab('completed')}
+                  count={completedMeta?.totalCount}
+                >
+                  Completed
+                </SubTabButton>
+              </div>
+              <Button onClick={() => setCreateModalOpen(true)} variant="outline" size="sm">
+                <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                New Request
+              </Button>
             </div>
 
             {/* Inbox content */}
