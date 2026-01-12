@@ -630,8 +630,8 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="overflow-hidden rounded-xl border">
+            <CardContent className="space-y-3 px-0 sm:px-6">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     {table.getHeaderGroups().map((headerGroup) => (
@@ -678,7 +678,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+              <div className="flex flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-0">
                 <div className="text-xs text-muted-foreground">{table.getFilteredRowModel().rows.length} row(s)</div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>

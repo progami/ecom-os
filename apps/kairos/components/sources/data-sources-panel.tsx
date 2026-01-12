@@ -1051,8 +1051,8 @@ export function DataSourcesPanel() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-3">
-          <div className="overflow-hidden rounded-xl border">
+        <CardContent className="space-y-3 px-0 sm:px-6">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -1127,7 +1127,7 @@ export function DataSourcesPanel() {
           </div>
 
           {totalCount > 0 && (
-            <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+            <div className="flex flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-0">
               <div className="text-xs text-muted-foreground">
                 {totalCount} series • Page {pageIndex + 1} of {totalPages}
               </div>
