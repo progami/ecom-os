@@ -9,6 +9,8 @@ export type AmazonProductFeesParseResult = {
   currencyCode: string | null
   totalFees: number | null
   fbaFees: number | null
+  referralFee: number | null
+  sizeTier: string | null
   feeBreakdown: Array<{ feeType: string; amount: number | null; currencyCode: string | null }>
 }
 
@@ -90,10 +92,56 @@ export function parseAmazonProductFees(response: unknown): AmazonProductFeesPars
   const fbaFees = fbaExact?.amount ?? (fbaCandidates.length ? fbaCandidates.map(row => row.amount ?? 0).reduce((a, b) => a + b, 0) : null)
   const currencyCode = fbaExact?.currencyCode ?? fbaCandidates.find(row => row.currencyCode)?.currencyCode ?? totalFeesMoney.currencyCode
 
+  // Extract referral fee
+  const referralFeeRow = feeBreakdown.find(row => {
+    const normalized = row.feeType.toUpperCase().replace(/[^A-Z]/g, '')
+    return normalized === 'REFERRALFEE'
+  })
+  const referralFee = referralFeeRow?.amount ?? null
+
+  // Extract size tier from FBA fee types (e.g., "FBAPickAndPackFee-Standard-Size" or "FBAFulfillmentFee")
+  // Amazon returns size tier info in the FeesEstimateIdentifier or in the fee breakdown
+  let sizeTier: string | null = null
+
+  // Check FeesEstimateIdentifier for size tier
+  const feesIdentifier =
+    estimateResult && typeof estimateResult.FeesEstimateIdentifier === 'object' && estimateResult.FeesEstimateIdentifier !== null
+      ? (estimateResult.FeesEstimateIdentifier as Record<string, unknown>)
+      : null
+  if (feesIdentifier) {
+    const program = coerceString(feesIdentifier.OptionalFulfillmentProgram)
+    if (program) sizeTier = program
+  }
+
+  // Try to infer size tier from FBA fee type names if not found
+  if (!sizeTier) {
+    for (const row of feeBreakdown) {
+      const upperType = row.feeType.toUpperCase()
+      if (upperType.includes('SMALL') && upperType.includes('LIGHT')) {
+        sizeTier = 'Small and Light'
+        break
+      }
+      if (upperType.includes('STANDARD')) {
+        sizeTier = 'Standard-Size'
+        break
+      }
+      if (upperType.includes('OVERSIZE') || upperType.includes('OVER-SIZE')) {
+        if (upperType.includes('SMALL')) sizeTier = 'Small Oversize'
+        else if (upperType.includes('MEDIUM')) sizeTier = 'Medium Oversize'
+        else if (upperType.includes('LARGE')) sizeTier = 'Large Oversize'
+        else if (upperType.includes('SPECIAL')) sizeTier = 'Special Oversize'
+        else sizeTier = 'Oversize'
+        break
+      }
+    }
+  }
+
   return {
     currencyCode,
     totalFees: totalFeesMoney.amount,
     fbaFees,
+    referralFee,
+    sizeTier,
     feeBreakdown,
   }
 }
