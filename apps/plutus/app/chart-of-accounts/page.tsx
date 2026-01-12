@@ -18,6 +18,9 @@ interface Account {
   balance: number;
   currency: string;
   classification?: string;
+  isSubAccount: boolean;
+  parentName: string | null;
+  depth: number;
 }
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
@@ -179,18 +182,39 @@ export default function ChartOfAccountsPage() {
       {
         accessorKey: 'name',
         header: 'NAME',
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2 min-w-[200px]">
-            <span className="font-medium text-slate-900 dark:text-white">
-              {row.original.name}
-              {row.original.acctNum && (
-                <span className="text-slate-500 dark:text-slate-400 ml-1">
-                  ({row.original.acctNum})
+        cell: ({ row }) => {
+          const { depth, isSubAccount, parentName, fullyQualifiedName } = row.original;
+          const indent = depth * 20; // 20px per level
+
+          return (
+            <div
+              className="flex items-center gap-2 min-w-[250px]"
+              style={{ paddingLeft: `${indent}px` }}
+              title={fullyQualifiedName || row.original.name}
+            >
+              {isSubAccount && (
+                <span className="text-slate-400 dark:text-slate-500 text-xs">
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </span>
               )}
-            </span>
-          </div>
-        ),
+              <span className="font-medium text-slate-900 dark:text-white">
+                {row.original.name}
+                {row.original.acctNum && (
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">
+                    ({row.original.acctNum})
+                  </span>
+                )}
+              </span>
+              {isSubAccount && parentName && (
+                <span className="text-xs text-slate-400 dark:text-slate-500 hidden lg:inline">
+                  in {parentName}
+                </span>
+              )}
+            </div>
+          );
+        },
         enableSorting: true,
       },
       {
