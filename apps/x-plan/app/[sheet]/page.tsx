@@ -19,6 +19,7 @@ import {
   type FinancialMetricDefinition,
 } from '@/components/sheets/financial-trends-section';
 import {
+  POProfitabilitySection,
   POProfitabilityFiltersProvider,
   POProfitabilityHeaderControls,
   type POProfitabilityData,
@@ -1998,11 +1999,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   if (canonicalSlug !== routeParams.sheet) {
     const nextParams = toQueryString(parsedSearch);
     const query = nextParams.toString();
-    const anchor =
-      routeParams.sheet === '7-po-profitability' || routeParams.sheet === '6-po-profitability'
-        ? '#po-pnl'
-        : '';
-    redirect(`/${canonicalSlug}${query ? `?${query}` : ''}${anchor}`);
+    redirect(`/${canonicalSlug}${query ? `?${query}` : ''}`);
   }
 
   const config = getSheetConfig(canonicalSlug);
@@ -2220,23 +2217,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     }
     case '3-ops-planning': {
       const activeStrategyId = requireStrategyId();
-      const [view, financialData] = await Promise.all([
-        getOpsPlanningView(activeStrategyId, planningCalendar, activeSegment),
-        getFinancialData(),
-      ]);
-      const poPnlDatasets = getPOProfitabilityView(financialData, planningCalendar);
-      const productOptions = financialData.operations.productInputs
-        .map((product) => ({ id: product.id, name: productLabel(product) }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      controls.push(
-        <POProfitabilityHeaderControls key="po-pnl-controls" productOptions={productOptions} />,
-      );
-      wrapLayout = (node) => (
-        <POProfitabilityFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
-          {node}
-        </POProfitabilityFiltersProvider>
-      );
+      const view = await getOpsPlanningView(activeStrategyId, planningCalendar, activeSegment);
       tabularContent = (
         <OpsPlanningWorkspace
           strategyId={activeStrategyId}
@@ -2249,7 +2230,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           payments={view.payments}
           calculator={view.calculator}
           timelineMonths={view.timelineMonths}
-          poPnlDatasets={poPnlDatasets}
           mode="tabular"
         />
       );
@@ -2265,7 +2245,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           payments={view.payments}
           calculator={view.calculator}
           timelineMonths={view.timelineMonths}
-          poPnlDatasets={poPnlDatasets}
           mode="visual"
         />
       );
@@ -2394,7 +2373,46 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       break;
     }
-    case '6-fin-planning-cash-flow': {
+    case '6-po-profitability': {
+      const activeStrategyId = requireStrategyId();
+      const data = await getFinancialData();
+      const view = getPOProfitabilityView(data, planningCalendar);
+      const productOptions = data.operations.productInputs
+        .map((product) => ({ id: product.id, name: productLabel(product) }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      controls.push(
+        <POProfitabilityHeaderControls
+          key="po-profitability-controls"
+          productOptions={productOptions}
+        />,
+      );
+      wrapLayout = (node) => (
+        <POProfitabilityFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
+          {node}
+        </POProfitabilityFiltersProvider>
+      );
+      tabularContent = (
+        <POProfitabilitySection
+          datasets={view}
+          title="PO P&L"
+          description="FIFO-based PO-level P&L (Projected vs Real)"
+          showChart={false}
+          showTable
+        />
+      );
+      visualContent = (
+        <POProfitabilitySection
+          datasets={view}
+          title="PO P&L charts"
+          description=""
+          showChart
+          showTable={false}
+        />
+      );
+      break;
+    }
+    case '7-fin-planning-cash-flow': {
       const activeStrategyId = requireStrategyId();
       if (activeSegment && activeSegment.weekCount === 0) {
         tabularContent = (
