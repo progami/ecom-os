@@ -19,7 +19,7 @@ export type TimeSeriesListItem = {
   updatedAt: string;
 };
 
-export type ForecastModel = 'PROPHET' | 'ETS';
+export type ForecastModel = 'PROPHET' | 'ETS' | 'ARIMA' | 'THETA' | 'NEURALPROPHET';
 
 export type ForecastStatus = 'DRAFT' | 'RUNNING' | 'READY' | 'FAILED';
 

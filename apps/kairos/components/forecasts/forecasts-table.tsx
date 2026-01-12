@@ -615,8 +615,11 @@ export function ForecastsTable() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="PROPHET">PROPHET</SelectItem>
+                          <SelectItem value="PROPHET">Prophet</SelectItem>
                           <SelectItem value="ETS">ETS (Auto)</SelectItem>
+                          <SelectItem value="ARIMA">Auto-ARIMA</SelectItem>
+                          <SelectItem value="THETA">Theta</SelectItem>
+                          <SelectItem value="NEURALPROPHET">NeuralProphet</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -637,7 +640,7 @@ export function ForecastsTable() {
                     </div>
                   </div>
 
-                  {createModel === 'PROPHET' ? (
+                  {createModel === 'PROPHET' || createModel === 'NEURALPROPHET' ? (
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Interval width</div>
