@@ -218,6 +218,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         effectiveDate: true,
         summary: true,
         category: true,
+        content: true,
       },
     })
 
@@ -255,6 +256,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         entityData: {
           summary: policy.summary ?? undefined,
           category: policy.category ?? undefined,
+          content: policy.content ?? undefined,
         },
         stageLabel: toStageLabel('POLICY_ACK_REQUIRED'),
         createdAt,
@@ -790,6 +792,7 @@ export async function getCompletedWorkItems(employeeId: string): Promise<Complet
             title: true,
             summary: true,
             category: true,
+            content: true,
           },
         },
       },
@@ -807,6 +810,7 @@ export async function getCompletedWorkItems(employeeId: string): Promise<Complet
         entityData: {
           summary: ack.policy.summary ?? undefined,
           category: ack.policy.category ?? undefined,
+          content: ack.policy.content ?? undefined,
         },
         completedAt: iso(ack.acknowledgedAt),
         completedLabel: 'Acknowledged',

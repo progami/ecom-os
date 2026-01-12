@@ -20,6 +20,7 @@ export type WorkItemEntityData = {
   // Policy
   summary?: string
   category?: string
+  content?: string
   // Leave Request
   reason?: string
   // Disciplinary Action
