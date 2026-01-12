@@ -3,6 +3,31 @@ import { createLogger } from '@targon/logger';
 
 const logger = createLogger({ name: 'qbo-api' });
 
+// Default timeout for QBO API calls (60 seconds)
+const QBO_TIMEOUT_MS = 60000;
+
+/**
+ * Fetch with timeout support
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = QBO_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export interface QboConnection {
   realmId: string;
   accessToken: string;
@@ -130,7 +155,7 @@ export async function fetchPurchases(
 
   logger.info('Fetching purchases from QBO', { query });
 
-  const response = await fetch(queryUrl, {
+  const response = await fetchWithTimeout(queryUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
@@ -153,12 +178,12 @@ export async function fetchPurchases(
     const countUrl = `${baseUrl}/v3/company/${connection.realmId}/query?query=${encodeURIComponent(countQuery)}`;
 
     try {
-      const countResponse = await fetch(countUrl, {
+      const countResponse = await fetchWithTimeout(countUrl, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           Accept: 'application/json',
         },
-      });
+      }, 30000); // 30 second timeout for count query
       if (countResponse.ok) {
         const countData = await countResponse.json();
         totalCount = countData.QueryResponse?.totalCount || purchases.length;
@@ -183,7 +208,7 @@ export async function fetchPurchaseById(
 
   const url = `${baseUrl}/v3/company/${connection.realmId}/purchase/${purchaseId}`;
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
@@ -231,7 +256,7 @@ export async function updatePurchase(
 
   logger.info('Updating purchase in QBO', { purchaseId, updates });
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -265,7 +290,7 @@ export async function fetchAccounts(
 
   logger.info('Fetching accounts from QBO');
 
-  const response = await fetch(queryUrl, {
+  const response = await fetchWithTimeout(queryUrl, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/json',
