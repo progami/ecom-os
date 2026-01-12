@@ -7,6 +7,7 @@ import {
   weekNumberForDate,
 } from '@/lib/calculations/calendar'
 import {
+  buildPoPnlRows,
   buildProductCostIndex,
   computeCashFlow,
   computeDashboardSummary,
@@ -394,6 +395,142 @@ describe('computeSalesPlan', () => {
     expect(week53).toBeDefined()
     expect(week53?.stockStart).toBe(30)
     expect(week53?.finalSales).toBe(0)
+  })
+
+  it('supports projected vs real sales modes', () => {
+    const input: SalesWeekInput[] = [
+      {
+        id: 'm1',
+        productId: product.id,
+        weekNumber: 1,
+        weekDate: new Date('2024-01-01T00:00:00.000Z'),
+        stockStart: 100,
+        actualSales: 10,
+        forecastSales: 20,
+        systemForecastSales: 30,
+      },
+      {
+        id: 'm2',
+        productId: product.id,
+        weekNumber: 2,
+        weekDate: new Date('2024-01-08T00:00:00.000Z'),
+        stockStart: 90,
+        forecastSales: 20,
+        systemForecastSales: 30,
+      },
+    ]
+
+    const defaultPlan = computeSalesPlan(input, [], { mode: 'DEFAULT' })
+    expect(defaultPlan.find((row) => row.weekNumber === 1)?.finalSalesSource).toBe('ACTUAL')
+    expect(defaultPlan.find((row) => row.weekNumber === 1)?.finalSales).toBe(10)
+
+    const projected = computeSalesPlan(input, [], { mode: 'PROJECTED' })
+    expect(projected.find((row) => row.weekNumber === 1)?.finalSalesSource).toBe('PLANNER')
+    expect(projected.find((row) => row.weekNumber === 1)?.finalSales).toBe(20)
+
+    const real = computeSalesPlan(input, [], { mode: 'REAL' })
+    expect(real.find((row) => row.weekNumber === 2)?.finalSalesSource).toBe('ZERO')
+    expect(real.find((row) => row.weekNumber === 2)?.finalSales).toBe(0)
+  })
+})
+
+describe('buildPoPnlRows', () => {
+  it('allocates weekly fixed costs by revenue share and preserves totals', () => {
+    const ledger = [
+      {
+        weekNumber: 1,
+        weekDate: null,
+        productId: 'p1',
+        orderCode: 'PO-A',
+        batchCode: 'B1',
+        units: 10,
+        revenue: 100,
+        cogs: 50,
+        amazonFees: 0,
+        ppcSpend: 0,
+      },
+      {
+        weekNumber: 1,
+        weekDate: null,
+        productId: 'p1',
+        orderCode: 'PO-B',
+        batchCode: 'B1',
+        units: 10,
+        revenue: 100,
+        cogs: 50,
+        amazonFees: 0,
+        ppcSpend: 0,
+      },
+    ]
+
+    const weeklyTargets = [
+      {
+        weekNumber: 1,
+        weekDate: null,
+        units: 20,
+        revenue: 220,
+        cogs: 110,
+        grossProfit: 110,
+        grossMargin: 0.5,
+        amazonFees: 0,
+        ppcSpend: 0,
+        fixedCosts: 100,
+        totalOpex: 100,
+        netProfit: 10,
+      },
+    ]
+
+    const orderMetaByCode = new Map([
+      [
+        'PO-A',
+        {
+          orderCode: 'PO-A',
+          status: 'ISSUED',
+          productionStart: null,
+          availableDate: null,
+          totalLeadDays: null,
+        },
+      ],
+      [
+        'PO-B',
+        {
+          orderCode: 'PO-B',
+          status: 'ISSUED',
+          productionStart: null,
+          availableDate: null,
+          totalLeadDays: null,
+        },
+      ],
+    ])
+
+    const productNameById = new Map([['p1', 'SKU-1']])
+
+    const result = buildPoPnlRows({
+      ledger,
+      weeklyTargets,
+      orderMetaByCode,
+      productNameById,
+    })
+
+    const rowA = result.rows.find((row) => row.orderCode === 'PO-A')
+    const rowB = result.rows.find((row) => row.orderCode === 'PO-B')
+    expect(rowA?.revenue).toBeCloseTo(110)
+    expect(rowB?.revenue).toBeCloseTo(110)
+    expect(rowA?.fixedCosts).toBeCloseTo(50)
+    expect(rowB?.fixedCosts).toBeCloseTo(50)
+
+    const totals = result.rows.reduce(
+      (acc, row) => ({
+        revenue: acc.revenue + row.revenue,
+        cogs: acc.cogs + row.cogs,
+        fixedCosts: acc.fixedCosts + row.fixedCosts,
+      }),
+      { revenue: 0, cogs: 0, fixedCosts: 0 },
+    )
+
+    expect(totals.revenue).toBeCloseTo(weeklyTargets[0].revenue)
+    expect(totals.cogs).toBeCloseTo(weeklyTargets[0].cogs)
+    expect(totals.fixedCosts).toBeCloseTo(weeklyTargets[0].fixedCosts)
   })
 })
 

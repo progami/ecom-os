@@ -465,8 +465,8 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
       if (!touchesStageDates) continue;
 
       const stageError = validatePurchaseOrderStageDates({
-        poDate: ('poDate' in update.data ? (update.data.poDate as Date | null) : existing.poDate) ??
-          null,
+        poDate:
+          ('poDate' in update.data ? (update.data.poDate as Date | null) : existing.poDate) ?? null,
         productionStart:
           ('productionStart' in update.data
             ? (update.data.productionStart as Date | null)

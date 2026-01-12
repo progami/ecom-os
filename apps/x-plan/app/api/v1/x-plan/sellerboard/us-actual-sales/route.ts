@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import {
-  safeEqual,
-} from '@/lib/integrations/sellerboard-orders';
+import { safeEqual } from '@/lib/integrations/sellerboard-orders';
 import { syncSellerboardUsActualSales } from '@/lib/integrations/sellerboard-us-actual-sales-sync';
 
 export const runtime = 'nodejs';
@@ -15,10 +13,7 @@ function extractBearerToken(header: string | null): string | null {
 function requireSyncAuth(request: Request): NextResponse | null {
   const expected = process.env.SELLERBOARD_SYNC_TOKEN?.trim();
   if (!expected) {
-    return NextResponse.json(
-      { error: 'Missing SELLERBOARD_SYNC_TOKEN' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Missing SELLERBOARD_SYNC_TOKEN' }, { status: 500 });
   }
 
   const provided = extractBearerToken(request.headers.get('authorization'));

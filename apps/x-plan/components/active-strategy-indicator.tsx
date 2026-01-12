@@ -9,12 +9,7 @@ interface ActiveStrategyIndicatorProps {
 
 export function ActiveStrategyIndicator({ strategyName, className }: ActiveStrategyIndicatorProps) {
   return (
-    <div
-      className={cn(
-        'flex items-center gap-1 px-1 py-px',
-        className,
-      )}
-    >
+    <div className={cn('flex items-center gap-1 px-1 py-px', className)}>
       {/* Green pulse indicator */}
       <div className="relative flex h-1.5 w-1.5 shrink-0 items-center justify-center">
         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60 dark:bg-emerald-500" />

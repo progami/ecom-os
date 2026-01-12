@@ -138,7 +138,7 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       },
       '7-po-profitability': {
         slug: '7-po-profitability',
-        label: 'PO Profitability',
+        label: 'PO P&L',
         description: '',
         recordCount: purchaseOrderAgg._count.id,
         lastUpdated: formatIso(purchaseOrderAgg._max.updatedAt),

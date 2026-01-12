@@ -23,7 +23,6 @@ import {
   POProfitabilityFiltersProvider,
   POProfitabilityHeaderControls,
   type POProfitabilityData,
-  type POStatus,
 } from '@/components/sheets/po-profitability-section';
 import type { OpsInputRow } from '@/components/sheets/custom-ops-planning-grid';
 import type { OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid';
@@ -78,6 +77,9 @@ import {
   computeSalesPlan,
   computeProfitAndLoss,
   computeCashFlow,
+  buildAllocationLedger,
+  buildPoPnlRows,
+  type PoPnlOrderMeta,
   type SalesWeekDerived,
   type PurchaseOrderDerived,
   type PurchaseOrderInput,
@@ -600,8 +602,7 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
     case 'finalSales':
       return {
         label: 'Demand',
-        title:
-          'Demand precedence: Override (if set) → Actual → Planner → System.',
+        title: 'Demand precedence: Override (if set) → Actual → Planner → System.',
       };
     case 'finalSalesError':
       return {
@@ -1222,7 +1223,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     cashOverrides,
     { calendar: planning.calendar },
   );
-  return { operations, derivedOrders, salesPlan, profit, cash };
+  return { operations, derivedOrders, salesOverrides, profitOverrides, salesPlan, profit, cash };
 }
 
 type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>;
@@ -1894,102 +1895,79 @@ function getCashFlowView(
   };
 }
 
-function getPOProfitabilityView(financialData: FinancialData): { data: POProfitabilityData[] } {
-  const { derivedOrders, operations } = financialData;
-  const { productNameById } = operations;
+type POProfitabilityDataset = {
+  data: POProfitabilityData[];
+  totals: {
+    units: number;
+    revenue: number;
+    cogs: number;
+    amazonFees: number;
+    ppcSpend: number;
+    fixedCosts: number;
+    grossProfit: number;
+    netProfit: number;
+  };
+  unattributed: {
+    units: number;
+    revenue: number;
+    cogs: number;
+    amazonFees: number;
+    ppcSpend: number;
+    fixedCosts: number;
+    grossProfit: number;
+    netProfit: number;
+  };
+};
 
-  // Flatten to per-batch rows for proper per-SKU filtering
-  const data: POProfitabilityData[] = [];
+function getPOProfitabilityView(
+  financialData: FinancialData,
+  planning: PlanningCalendar,
+): { projected: POProfitabilityDataset; real: POProfitabilityDataset } {
+  const productIds = financialData.operations.productInputs.map((product) => product.id);
+  const orders = financialData.derivedOrders.map((item) => item.derived);
 
-  for (const { derived, input } of derivedOrders) {
-    // Map status
-    const statusMap: Record<string, POStatus> = {
-      DRAFT: 'DRAFT',
-      ISSUED: 'ISSUED',
-      MANUFACTURING: 'MANUFACTURING',
-      OCEAN: 'OCEAN',
-      WAREHOUSE: 'WAREHOUSE',
-      SHIPPED: 'SHIPPED',
-      // Legacy statuses mapped to SHIPPED
-      ARCHIVED: 'SHIPPED',
-      REJECTED: 'SHIPPED',
-      CANCELLED: 'SHIPPED',
-      CLOSED: 'SHIPPED',
-      // Legacy X-Plan statuses (backfilled by migration; kept as a safety net)
-      PLANNED: 'ISSUED',
-      PRODUCTION: 'MANUFACTURING',
-      IN_TRANSIT: 'OCEAN',
-      ARRIVED: 'WAREHOUSE',
-    };
-    const status: POStatus = statusMap[input.status ?? ''] ?? 'ISSUED';
-
-    // Process each batch as a separate row
-    for (const [batchIndex, batch] of derived.batches.entries()) {
-      const quantity = batch.quantity;
-      const sellingPrice = batch.sellingPrice;
-      const grossRevenue = sellingPrice * quantity;
-
-      // Per-unit costs from batch
-      const manufacturingCost = batch.manufacturingCost;
-      const freightCost = batch.freightCost;
-      const landedUnitCost = batch.landedUnitCost;
-      const tariffCost = batch.tariffRate * batch.manufacturingCost;
-
-      // Supplier cost total (COGS)
-      const supplierCostTotal = landedUnitCost * quantity;
-
-      // Amazon fees
-      const fbaFee = batch.fbaFee;
-      const amazonReferralRate = batch.amazonReferralRate;
-      const amazonFeesPerUnit = fbaFee + sellingPrice * amazonReferralRate;
-      const amazonFeesTotal = amazonFeesPerUnit * quantity;
-
-      // PPC/Advertising
-      const tacosPercent = batch.tacosPercent;
-      const ppcCost = sellingPrice * tacosPercent * quantity;
-
-      // Profit calculations
-      const grossProfit = grossRevenue - supplierCostTotal - amazonFeesTotal;
-      const grossMarginPercent = grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0;
-      const netProfit = grossProfit - ppcCost;
-      const netMarginPercent = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0;
-
-      // ROI = Net Profit / Total Investment (supplier cost)
-      const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0;
-
-      data.push({
-        id: `${derived.id}:${batch.batchCode ?? 'batch'}:${batch.productId}:${batchIndex}`,
-        orderCode: derived.orderCode,
-        batchCode: batch.batchCode ?? null,
-        productId: batch.productId,
-        productName: productNameById.get(batch.productId) ?? batch.productId,
-        quantity,
-        status,
-        sellingPrice,
-        manufacturingCost,
-        freightCost,
-        tariffCost,
-        landedUnitCost,
-        supplierCostTotal,
-        grossRevenue,
-        fbaFee,
-        amazonReferralRate,
-        amazonFeesTotal,
-        tacosPercent,
-        ppcCost,
-        grossProfit,
-        grossMarginPercent,
-        netProfit,
-        netMarginPercent,
-        roi,
-        productionStart: derived.productionStart ?? null,
-        availableDate: derived.availableDate ?? null,
-        totalLeadDays: derived.totalLeadDays ?? 0,
-      });
-    }
+  const orderMetaByCode = new Map<string, PoPnlOrderMeta>();
+  for (const order of orders) {
+    orderMetaByCode.set(order.orderCode, {
+      orderCode: order.orderCode,
+      status: order.status,
+      productionStart: order.productionStart ?? null,
+      availableDate: order.availableDate ?? null,
+      totalLeadDays: order.totalLeadDays ?? null,
+    });
   }
 
-  return { data };
+  const buildDataset = (mode: 'PROJECTED' | 'REAL'): POProfitabilityDataset => {
+    const salesPlan = computeSalesPlan(financialData.salesOverrides, orders, {
+      productIds,
+      calendar: planning.calendar,
+      mode,
+    });
+    const profit = computeProfitAndLoss(
+      salesPlan,
+      financialData.operations.productIndex,
+      financialData.operations.parameters,
+      financialData.profitOverrides,
+    );
+    const ledger = buildAllocationLedger(salesPlan, financialData.operations.productIndex);
+    const result = buildPoPnlRows({
+      ledger,
+      weeklyTargets: profit.weekly,
+      productNameById: financialData.operations.productNameById,
+      orderMetaByCode,
+    });
+
+    return {
+      data: result.rows,
+      totals: result.totals,
+      unattributed: result.unattributed,
+    };
+  };
+
+  return {
+    projected: buildDataset('PROJECTED'),
+    real: buildDataset('REAL'),
+  };
 }
 
 export default async function SheetPage({ params, searchParams }: SheetPageProps) {
@@ -2498,7 +2476,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '7-po-profitability': {
       const activeStrategyId = requireStrategyId();
       const data = await getFinancialData();
-      const view = getPOProfitabilityView(data);
+      const view = getPOProfitabilityView(data, planningCalendar);
       const productOptions = data.operations.productInputs
         .map((product) => ({ id: product.id, name: productLabel(product) }))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -2514,15 +2492,24 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           {node}
         </POProfitabilityFiltersProvider>
       );
-      // PO Profitability shows chart + table in one unified view, no toggle needed
       tabularContent = (
         <POProfitabilitySection
-          data={view.data}
-          title="PO Profitability Analysis"
-          description="Compare purchase order performance and profitability metrics"
+          datasets={view}
+          title="PO P&L"
+          description="FIFO-based PO-level P&L (Projected vs Real)"
+          showChart={false}
+          showTable
         />
       );
-      visualContent = null;
+      visualContent = (
+        <POProfitabilitySection
+          datasets={view}
+          title="PO P&L charts"
+          description=""
+          showChart
+          showTable={false}
+        />
+      );
       break;
     }
     default: {

@@ -72,7 +72,10 @@ export function ProductSetupWorkspace({
             </p>
           </div>
 
-          <Tabs.List className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Product setup tabs">
+          <Tabs.List
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            aria-label="Product setup tabs"
+          >
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.value;
@@ -99,7 +102,9 @@ export function ProductSetupWorkspace({
                       <Icon className="h-4 w-4" aria-hidden="true" />
                     </span>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold leading-tight">{tab.label}</div>
+                      <div className="truncate text-sm font-semibold leading-tight">
+                        {tab.label}
+                      </div>
                       <div
                         className={cn(
                           'truncate text-xs',
