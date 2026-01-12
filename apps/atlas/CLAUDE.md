@@ -27,3 +27,7 @@ You are only allowed to work on the `apps/atlas` folder. Do not modify files out
 - no OR statements as fallbacks - let the code fail
 - Use TypeScript strict mode
 - Follow existing patterns in the codebase
+
+## Troubleshooting
+
+- Do NOT suggest "cached version" or "clear cache" as a troubleshooting step - investigate the actual issue instead

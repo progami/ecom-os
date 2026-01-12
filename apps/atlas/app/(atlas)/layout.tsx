@@ -50,29 +50,21 @@ const navigation: NavSection[] = [
     ],
   },
   {
-    title: 'People',
+    title: 'Company',
     items: [
-      { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon },
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
-      { name: 'Employees', href: '/employees', icon: UsersIcon },
-      { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
-      { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
-      { name: 'Violations', href: '/performance/violations', icon: ExclamationTriangleIcon },
+      { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
       { name: 'Resources', href: '/resources', icon: FolderIcon },
-      { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     ],
   },
   {
     title: 'Admin',
-    requireSuperAdmin: true,
+    requireHR: true,
     items: [
-      {
-        name: 'Access Management',
-        href: '/admin/access',
-        icon: LockClosedIcon,
-        requireSuperAdmin: true,
-      },
+      { name: 'Employees', href: '/employees', icon: UsersIcon, requireHR: true },
+      { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon, requireHR: true },
+      { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
     ],
   },
 ];

@@ -44,4 +44,4 @@ When `dev` and `main` diverge with conflicts:
 
 ## Deployment & Caching
 
-Do **not** suggest "hard refresh" as a troubleshooting step. Instead, use the in-app version badge (bottom-right) to confirm the deployed version and wait for the deploy pipeline if the version hasn't updated yet.
+Do **not** suggest "hard refresh" or "cached version" as a troubleshooting step. Instead, use the in-app version badge (bottom-right) to confirm the deployed version and wait for the deploy pipeline if the version hasn't updated yet. If something isn't working, investigate the actual issue - don't blame caching.
