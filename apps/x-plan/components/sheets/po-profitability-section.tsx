@@ -838,10 +838,10 @@ export function POProfitabilitySection({
                     </TableHead>
                     <TableHead
                       colSpan={isGroupExpanded('cogs') ? 5 : 1}
-                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors"
+                      className={`h-8 px-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors ${isGroupExpanded('cogs') ? 'text-center' : 'text-right'}`}
                       onClick={() => toggleGroup('cogs')}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className={`inline-flex items-center gap-1 ${isGroupExpanded('cogs') ? '' : 'justify-end'}`}>
                         {isGroupExpanded('cogs') ? (
                           <ChevronDown className="h-3 w-3" />
                         ) : (
@@ -852,10 +852,10 @@ export function POProfitabilitySection({
                     </TableHead>
                     <TableHead
                       colSpan={isGroupExpanded('amzFees') ? 5 : 1}
-                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors"
+                      className={`h-8 px-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors ${isGroupExpanded('amzFees') ? 'text-center' : 'text-right'}`}
                       onClick={() => toggleGroup('amzFees')}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className={`inline-flex items-center gap-1 ${isGroupExpanded('amzFees') ? '' : 'justify-end'}`}>
                         {isGroupExpanded('amzFees') ? (
                           <ChevronDown className="h-3 w-3" />
                         ) : (
@@ -866,10 +866,10 @@ export function POProfitabilitySection({
                     </TableHead>
                     <TableHead
                       colSpan={isGroupExpanded('opex') ? 2 : 1}
-                      className="h-8 px-2 text-center text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors"
+                      className={`h-8 px-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300/80 cursor-pointer hover:bg-muted/50 transition-colors ${isGroupExpanded('opex') ? 'text-center' : 'text-right'}`}
                       onClick={() => toggleGroup('opex')}
                     >
-                      <span className="inline-flex items-center gap-1">
+                      <span className={`inline-flex items-center gap-1 ${isGroupExpanded('opex') ? '' : 'justify-end'}`}>
                         {isGroupExpanded('opex') ? (
                           <ChevronDown className="h-3 w-3" />
                         ) : (
