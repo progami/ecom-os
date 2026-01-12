@@ -129,7 +129,7 @@ const GOOGLE_TRENDS_TIME_RANGE_OPTIONS: Array<{ value: GoogleTrendsTimeRange; la
 ];
 
 const GOOGLE_TRENDS_REGION_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '', label: 'Worldwide' },
+  { value: 'WORLDWIDE', label: 'Worldwide' },
   { value: 'US', label: 'United States' },
   { value: 'GB', label: 'United Kingdom' },
   { value: 'CA', label: 'Canada' },
@@ -299,14 +299,16 @@ function GoogleTrendsForm({
   isPending: boolean;
 }) {
   const [keyword, setKeyword] = useState('');
-  const [geo, setGeo] = useState('');
+  const [geo, setGeo] = useState('WORLDWIDE');
   const [timeRange, setTimeRange] = useState<GoogleTrendsTimeRange>('PAST_2_YEARS');
   const [name, setName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
-    onSubmit({ keyword, geo, timeRange, name, force: true });
+    // Convert 'WORLDWIDE' back to empty string for API
+    const geoValue = geo === 'WORLDWIDE' ? '' : geo;
+    onSubmit({ keyword, geo: geoValue, timeRange, name, force: true });
   };
 
   return (
@@ -646,12 +648,12 @@ function CSVUploadForm({
               <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
                 Product Column <span className="font-normal text-slate-400">(optional)</span>
               </label>
-              <Select value={productColumn} onValueChange={setProductColumn}>
+              <Select value={productColumn || '__NONE__'} onValueChange={(v) => setProductColumn(v === '__NONE__' ? '' : v)}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="None - import as single series" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None - import as single series</SelectItem>
+                  <SelectItem value="__NONE__">None - import as single series</SelectItem>
                   {preview.headers.map((header) => (
                     <SelectItem key={header} value={header}>
                       {header}

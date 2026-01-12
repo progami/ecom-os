@@ -23,14 +23,13 @@ import { executeAction } from '@/lib/actions/execute-action'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { ActivityTimeline } from './ActivityTimeline'
 import { InboxItemList } from '@/components/inbox/InboxItemList'
 import { CompletedItemList } from '@/components/inbox/CompletedItemList'
 import { InboxActionPane } from '@/components/inbox/InboxActionPane'
 import { CompletedActionPane } from '@/components/inbox/CompletedActionPane'
 import { CreateRequestModal } from '@/components/inbox/CreateRequestModal'
 
-type HubTab = 'inbox' | 'overview' | 'activity'
+type HubTab = 'inbox' | 'overview' | 'leave' | 'reviews' | 'violations' | 'team'
 type InboxSubTab = 'pending' | 'completed'
 
 type HubDashboardProps = {
@@ -1012,11 +1011,31 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
               Overview
             </TabButton>
             <TabButton
-              active={activeTab === 'activity'}
-              onClick={() => setActiveTab('activity')}
+              active={activeTab === 'leave'}
+              onClick={() => setActiveTab('leave')}
             >
-              Activity
+              Leave
             </TabButton>
+            <TabButton
+              active={activeTab === 'reviews'}
+              onClick={() => setActiveTab('reviews')}
+            >
+              Reviews
+            </TabButton>
+            <TabButton
+              active={activeTab === 'violations'}
+              onClick={() => setActiveTab('violations')}
+            >
+              Violations
+            </TabButton>
+            {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
+              <TabButton
+                active={activeTab === 'team'}
+                onClick={() => setActiveTab('team')}
+              >
+                Team
+              </TabButton>
+            ) : null}
           </div>
 
           {/* Zero inbox indicator */}
@@ -1160,11 +1179,363 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
               </div>
             )}
           </div>
-        ) : (
-          <div key="activity" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <ActivityTimeline employeeId={employeeId} />
+        ) : activeTab === 'leave' ? (
+          <div key="leave" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {overviewLoading ? (
+              <div className="space-y-4 animate-pulse">
+                <div className="h-32 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-64 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ) : (
+              <div className="h-full overflow-y-auto space-y-6 pb-8">
+                {/* Leave Balances */}
+                <section>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                    Leave Balances
+                  </h2>
+                  {leaveBalances.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-4">
+                      {leaveBalances.map((balance) => (
+                        <div
+                          key={balance.leaveType}
+                          className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5"
+                        >
+                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                            {balance.leaveType}
+                          </p>
+                          <p className="text-3xl font-bold text-slate-900 dark:text-slate-50">
+                            {balance.available}
+                            <span className="text-lg font-normal text-slate-400 ml-1">days</span>
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {balance.used} used · {balance.allocated} allocated
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-8 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-500">No leave balances configured</p>
+                    </div>
+                  )}
+                </section>
+
+                {/* Request Leave Button */}
+                <div className="flex justify-center">
+                  <Link
+                    href="/leave/new"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold text-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Request Leave
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        ) : activeTab === 'reviews' ? (
+          <div key="reviews" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {overviewLoading ? (
+              <div className="space-y-4 animate-pulse">
+                <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ) : (
+              <div className="h-full overflow-y-auto space-y-6 pb-8">
+                <section>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                    My Performance Reviews
+                  </h2>
+                  {myReviews.length > 0 ? (
+                    <div className="space-y-3">
+                      {myReviews.map((review) => (
+                        <Link
+                          key={review.id}
+                          href={`/reviews/${review.id}`}
+                          className="block rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {review.reviewPeriod}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1">
+                                By {review.reviewerName}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                'px-2.5 py-1 rounded-full text-xs font-semibold',
+                                review.status === 'COMPLETED' || review.status === 'ACKNOWLEDGED'
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                  : review.status === 'DRAFT'
+                                    ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              )}>
+                                {review.status}
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-500">No performance reviews yet</p>
+                      <p className="text-xs text-slate-400 mt-1">Reviews will appear here when created</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'violations' ? (
+          <div key="violations" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {overviewLoading ? (
+              <div className="space-y-4 animate-pulse">
+                <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ) : (
+              <div className="h-full overflow-y-auto space-y-6 pb-8">
+                <section>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                    Disciplinary Actions
+                  </h2>
+                  {myViolations.length > 0 ? (
+                    <div className="space-y-3">
+                      {myViolations.map((violation) => (
+                        <Link
+                          key={violation.id}
+                          href={`/violations/${violation.id}`}
+                          className="block rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {violation.violationType}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                                {violation.violationReason}
+                              </p>
+                              <p className="text-xs text-slate-400 mt-2">
+                                {new Date(violation.incidentDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={cn(
+                              'shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold',
+                              violation.severity === 'TERMINATION'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                : violation.severity === 'FINAL_WARNING'
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                  : violation.severity === 'WRITTEN_WARNING'
+                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                    : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                            )}>
+                              {violation.severity.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Clean record</p>
+                      <p className="text-xs text-slate-400 mt-1">No disciplinary actions on file</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'team' ? (
+          <div key="team" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {overviewLoading ? (
+              <div className="grid grid-cols-3 gap-4 animate-pulse">
+                <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ) : dashboardData ? (
+              <div className="h-full overflow-y-auto space-y-6 pb-8">
+                {/* Direct Reports */}
+                {dashboardData.directReports && dashboardData.directReports.length > 0 ? (
+                  <section>
+                    <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                      Direct Reports ({dashboardData.directReports.length})
+                    </h2>
+                    <div className="grid grid-cols-4 gap-4">
+                      {dashboardData.directReports.map((report) => (
+                        <Link
+                          key={report.id}
+                          href={`/employees/${report.id}`}
+                          className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors text-center"
+                        >
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 flex items-center justify-center mx-auto mb-3">
+                            <span className="text-lg font-bold text-slate-600 dark:text-slate-200">
+                              {report.firstName[0]}{report.lastName[0]}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-50 truncate">
+                            {report.firstName} {report.lastName}
+                          </p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {report.position}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {/* Who's Out */}
+                {dashboardData.upcomingLeaves && dashboardData.upcomingLeaves.length > 0 ? (
+                  <section>
+                    <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                      Team Leave Schedule
+                    </h2>
+                    <div className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden">
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {dashboardData.upcomingLeaves.slice(0, 5).map((leave) => (
+                          <div key={leave.id} className="flex items-center justify-between px-5 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                                  {leave.employee.firstName[0]}{leave.employee.lastName[0]}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                                  {leave.employee.firstName} {leave.employee.lastName}
+                                </p>
+                                <p className="text-xs text-slate-500">{leave.leaveType}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
+                {/* Pending Reviews to Complete */}
+                {dashboardData.pendingReviews && dashboardData.pendingReviews.length > 0 ? (
+                  <section>
+                    <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                      Reviews I Owe
+                    </h2>
+                    <div className="space-y-3">
+                      {dashboardData.pendingReviews.map((review) => (
+                        <Link
+                          key={review.id}
+                          href={`/reviews/${review.id}`}
+                          className="flex items-center justify-between rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                              <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                                {review.employee.firstName[0]}{review.employee.lastName[0]}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {review.employee.firstName} {review.employee.lastName}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {review.reviewPeriod}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs font-semibold">
+                            Pending
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {/* Pending Leave Approvals */}
+                {dashboardData.pendingLeaveRequests && dashboardData.pendingLeaveRequests.length > 0 ? (
+                  <section>
+                    <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                      Leave Requests to Approve
+                    </h2>
+                    <div className="space-y-3">
+                      {dashboardData.pendingLeaveRequests.map((request) => (
+                        <Link
+                          key={request.id}
+                          href={`/leave/${request.id}`}
+                          className="flex items-center justify-between rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+                              <span className="text-sm font-bold text-cyan-700 dark:text-cyan-400">
+                                {request.employee.firstName[0]}{request.employee.lastName[0]}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                                {request.employee.firstName} {request.employee.lastName}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {request.leaveType} · {new Date(request.startDate).toLocaleDateString()} - {new Date(request.endDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1.5 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 text-xs font-semibold">
+                            Pending
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                {/* Empty state if no team data */}
+                {(!dashboardData.directReports || dashboardData.directReports.length === 0) &&
+                 (!dashboardData.upcomingLeaves || dashboardData.upcomingLeaves.length === 0) &&
+                 (!dashboardData.pendingReviews || dashboardData.pendingReviews.length === 0) &&
+                 (!dashboardData.pendingLeaveRequests || dashboardData.pendingLeaveRequests.length === 0) ? (
+                  <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-slate-500">No team management tasks</p>
+                    <p className="text-xs text-slate-400 mt-1">Team activities will appear here</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                <p className="text-slate-500">Could not load team data</p>
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
     </div>
   )
