@@ -7,11 +7,14 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Boxes, Edit2, Loader2, Plus, Trash2, X } from '@/lib/lucide-icons'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 import { cn } from '@/lib/utils'
 import { coerceFiniteNumber, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
+
+type BatchModalTab = 'reference' | 'amazon'
 
 interface SkuSummary {
   id: string
@@ -271,6 +274,7 @@ function SkuBatchesManager({
   )
 
   const [confirmDelete, setConfirmDelete] = useState<BatchRow | null>(null)
+  const [batchModalTab, setBatchModalTab] = useState<BatchModalTab>('reference')
 
   useEffect(() => {
     try {
@@ -347,6 +351,7 @@ function SkuBatchesManager({
     setMeasurements(nextMeasurements)
     const nextFormState = buildBatchFormState(null, unitSystem, nextMeasurements)
     setFormState(nextFormState)
+    setBatchModalTab('reference')
     setIsFormOpen(true)
   }
 
@@ -355,6 +360,7 @@ function SkuBatchesManager({
     setEditingBatch(batch)
     setMeasurements(nextMeasurements)
     setFormState(buildBatchFormState(batch, unitSystem, nextMeasurements))
+    setBatchModalTab('reference')
     setIsFormOpen(true)
   }
 
@@ -901,87 +907,140 @@ function SkuBatchesManager({
                     </select>
                   </div>
 
-                  <div className="space-y-1 md:col-span-2">
-                    <Label>Item Package Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Input
-                        value={formState.unitLength}
-                        onChange={event => handleDimensionChange('unitLength', event.target.value)}
-                        placeholder="L"
-                        inputMode="decimal"
-                      />
-                      <Input
-                        value={formState.unitWidth}
-                        onChange={event => handleDimensionChange('unitWidth', event.target.value)}
-                        placeholder="W"
-                        inputMode="decimal"
-                      />
-                      <Input
-                        value={formState.unitHeight}
-                        onChange={event => handleDimensionChange('unitHeight', event.target.value)}
-                        placeholder="H"
-                        inputMode="decimal"
-                      />
-                    </div>
-                  </div>
+                  <div className="md:col-span-2 pt-2">
+                    <Tabs>
+                      <TabsList className="w-full">
+                        <TabsTrigger
+                          data-state={batchModalTab === 'reference' ? 'active' : 'inactive'}
+                          onClick={() => setBatchModalTab('reference')}
+                          className="flex-1"
+                        >
+                          Reference
+                        </TabsTrigger>
+                        <TabsTrigger
+                          data-state={batchModalTab === 'amazon' ? 'active' : 'inactive'}
+                          onClick={() => setBatchModalTab('amazon')}
+                          className="flex-1"
+                        >
+                          Amazon
+                        </TabsTrigger>
+                      </TabsList>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="unitWeight">
-                      Item Package Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
-                    </Label>
-                    <Input
-                      id="unitWeight"
-                      type="number"
-                      step="0.001"
-                      min={0.001}
-                      required
-                      value={formState.unitWeight}
-                      onChange={event => handleWeightChange('unitWeight', event.target.value)}
-                      placeholder="Required"
-                    />
-                  </div>
+                      <TabsContent data-state={batchModalTab === 'reference' ? 'active' : 'inactive'} className={batchModalTab === 'reference' ? '' : 'hidden'}>
+                        <div className="space-y-4 pt-4">
+                          <p className="text-xs text-slate-500">
+                            Team reference values for batch dimensions and weight.
+                          </p>
+                          <div className="space-y-1">
+                            <Label>Item Package Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Input
+                                value={formState.unitLength}
+                                onChange={event => handleDimensionChange('unitLength', event.target.value)}
+                                placeholder="L"
+                                inputMode="decimal"
+                              />
+                              <Input
+                                value={formState.unitWidth}
+                                onChange={event => handleDimensionChange('unitWidth', event.target.value)}
+                                placeholder="W"
+                                inputMode="decimal"
+                              />
+                              <Input
+                                value={formState.unitHeight}
+                                onChange={event => handleDimensionChange('unitHeight', event.target.value)}
+                                placeholder="H"
+                                inputMode="decimal"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="unitWeight">
+                              Item Package Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                            </Label>
+                            <Input
+                              id="unitWeight"
+                              type="number"
+                              step="0.001"
+                              min={0.001}
+                              required
+                              value={formState.unitWeight}
+                              onChange={event => handleWeightChange('unitWeight', event.target.value)}
+                              placeholder="Required"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Input
+                                value={formState.cartonLength}
+                                onChange={event =>
+                                  handleDimensionChange('cartonLength', event.target.value)
+                                }
+                                placeholder="L"
+                                inputMode="decimal"
+                              />
+                              <Input
+                                value={formState.cartonWidth}
+                                onChange={event => handleDimensionChange('cartonWidth', event.target.value)}
+                                placeholder="W"
+                                inputMode="decimal"
+                              />
+                              <Input
+                                value={formState.cartonHeight}
+                                onChange={event =>
+                                  handleDimensionChange('cartonHeight', event.target.value)
+                                }
+                                placeholder="H"
+                                inputMode="decimal"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="cartonWeight">
+                              Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                            </Label>
+                            <Input
+                              id="cartonWeight"
+                              type="number"
+                              step="0.001"
+                              min={0.001}
+                              value={formState.cartonWeight}
+                              onChange={event => handleWeightChange('cartonWeight', event.target.value)}
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+                      </TabsContent>
 
-                  <div className="space-y-1 md:col-span-2">
-                    <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Input
-                        value={formState.cartonLength}
-                        onChange={event =>
-                          handleDimensionChange('cartonLength', event.target.value)
-                        }
-                        placeholder="L"
-                        inputMode="decimal"
-                      />
-                      <Input
-                        value={formState.cartonWidth}
-                        onChange={event => handleDimensionChange('cartonWidth', event.target.value)}
-                        placeholder="W"
-                        inputMode="decimal"
-                      />
-                      <Input
-                        value={formState.cartonHeight}
-                        onChange={event =>
-                          handleDimensionChange('cartonHeight', event.target.value)
-                        }
-                        placeholder="H"
-                        inputMode="decimal"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="cartonWeight">
-                      Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
-                    </Label>
-                    <Input
-                      id="cartonWeight"
-                      type="number"
-                      step="0.001"
-                      min={0.001}
-                      value={formState.cartonWeight}
-                      onChange={event => handleWeightChange('cartonWeight', event.target.value)}
-                      placeholder="Optional"
-                    />
+                      <TabsContent data-state={batchModalTab === 'amazon' ? 'active' : 'inactive'} className={batchModalTab === 'amazon' ? '' : 'hidden'}>
+                        <div className="space-y-4 pt-4">
+                          <p className="text-xs text-slate-500">
+                            Amazon item package data from SKU (read-only, for comparison).
+                          </p>
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label>Item Package Dimensions (cm)</Label>
+                              <Input
+                                value={sku.unitDimensionsCm ?? ''}
+                                disabled
+                                className="bg-slate-50 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Item Package Weight (kg)</Label>
+                              <Input
+                                value={sku.amazonReferenceWeightKg?.toString() ?? ''}
+                                disabled
+                                className="bg-slate-50 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   </div>
                 </div>
               </div>

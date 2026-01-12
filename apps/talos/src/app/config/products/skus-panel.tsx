@@ -9,9 +9,12 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PortalModal } from '@/components/ui/portal-modal'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
+
+type SkuModalTab = 'reference' | 'amazon'
 
 interface SkuBatchRow {
   id: string
@@ -138,6 +141,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [formState, setFormState] = useState<SkuFormState>(() => buildFormState())
 
   const [confirmDelete, setConfirmDelete] = useState<SkuRow | null>(null)
+  const [modalTab, setModalTab] = useState<SkuModalTab>('reference')
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -221,12 +225,14 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const openCreate = () => {
     setEditingSku(null)
     setFormState(buildFormState(null))
+    setModalTab('reference')
     setIsModalOpen(true)
   }
 
   const openEdit = (sku: SkuRow) => {
     setEditingSku(sku)
     setFormState(buildFormState(sku))
+    setModalTab('reference')
     setIsModalOpen(true)
   }
 
@@ -657,132 +663,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   />
                 </div>
 
-                <div className="md:col-span-2 pt-2">
-                  <h3 className="text-sm font-semibold text-slate-900">Item Dimensions</h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Physical product (unpackaged). Used for reference only.
-                  </p>
-                </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Item Dimensions (cm)</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Input
-                      value={formState.itemLengthCm}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, itemLengthCm: event.target.value }))
-                      }
-                      placeholder="L"
-                      inputMode="decimal"
-                    />
-                    <Input
-                      value={formState.itemWidthCm}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, itemWidthCm: event.target.value }))
-                      }
-                      placeholder="W"
-                      inputMode="decimal"
-                    />
-                    <Input
-                      value={formState.itemHeightCm}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, itemHeightCm: event.target.value }))
-                      }
-                      placeholder="H"
-                      inputMode="decimal"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1 md:col-span-2">
-                  <Label htmlFor="itemWeightKg">Item Weight (kg)</Label>
-                  <Input
-                    id="itemWeightKg"
-                    type="number"
-                    step="0.001"
-                    min={0.001}
-                    value={formState.itemWeightKg}
-                    onChange={event =>
-                      setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
-                    }
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div className="md:col-span-2 pt-2">
-                  <h3 className="text-sm font-semibold text-slate-900">Amazon Reference Data</h3>
-                  <p className="mt-1 text-xs text-slate-500">Re-import from Amazon to refresh.</p>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="amazonCategory">Category</Label>
-                  <Input
-                    id="amazonCategory"
-                    value={formState.amazonCategory}
-                    disabled
-                    className="bg-slate-50 text-slate-500"
-                    placeholder="—"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
-                  <Input
-                    id="amazonReferralFeePercent"
-                    type="number"
-                    value={formState.amazonReferralFeePercent}
-                    disabled
-                    className="bg-slate-50 text-slate-500"
-                    placeholder="—"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="amazonSizeTier">Size Tier</Label>
-                  <Input
-                    id="amazonSizeTier"
-                    value={formState.amazonSizeTier}
-                    disabled
-                    className="bg-slate-50 text-slate-500"
-                    placeholder="—"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
-                  <Input
-                    id="amazonFbaFulfillmentFee"
-                    type="number"
-                    value={formState.amazonFbaFulfillmentFee}
-                    disabled
-                    className="bg-slate-50 text-slate-500"
-                    placeholder="—"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="productDimensionsCm">Item Package Dimensions (cm)</Label>
-                  <Input
-                    id="productDimensionsCm"
-                    value={formState.productDimensionsCm}
-                    disabled
-                    className="bg-slate-50 text-slate-500"
-                    placeholder="—"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="amazonReferenceWeightKg">Item Package Weight (kg)</Label>
-                  <Input
-                    id="amazonReferenceWeightKg"
-                    type="number"
-                    value={formState.amazonReferenceWeightKg}
-                    disabled
-                    className="bg-slate-50 text-slate-500"
-                    placeholder="—"
-                  />
-                </div>
-
                 <div className="space-y-1">
                   <Label htmlFor="defaultSupplierId">Default Supplier</Label>
                   <select
@@ -826,6 +706,150 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   </select>
                 </div>
 
+                <div className="md:col-span-2 pt-2">
+                  <Tabs>
+                    <TabsList className="w-full">
+                      <TabsTrigger
+                        data-state={modalTab === 'reference' ? 'active' : 'inactive'}
+                        onClick={() => setModalTab('reference')}
+                        className="flex-1"
+                      >
+                        Reference
+                      </TabsTrigger>
+                      <TabsTrigger
+                        data-state={modalTab === 'amazon' ? 'active' : 'inactive'}
+                        onClick={() => setModalTab('amazon')}
+                        className="flex-1"
+                      >
+                        Amazon
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent data-state={modalTab === 'reference' ? 'active' : 'inactive'} className={modalTab === 'reference' ? '' : 'hidden'}>
+                      <div className="space-y-4 pt-4">
+                        <p className="text-xs text-slate-500">
+                          Team reference values for item dimensions (unpackaged product).
+                        </p>
+                        <div className="space-y-1">
+                          <Label>Item Dimensions (cm)</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Input
+                              value={formState.itemLengthCm}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, itemLengthCm: event.target.value }))
+                              }
+                              placeholder="L"
+                              inputMode="decimal"
+                            />
+                            <Input
+                              value={formState.itemWidthCm}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, itemWidthCm: event.target.value }))
+                              }
+                              placeholder="W"
+                              inputMode="decimal"
+                            />
+                            <Input
+                              value={formState.itemHeightCm}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, itemHeightCm: event.target.value }))
+                              }
+                              placeholder="H"
+                              inputMode="decimal"
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="itemWeightKg">Item Weight (kg)</Label>
+                          <Input
+                            id="itemWeightKg"
+                            type="number"
+                            step="0.001"
+                            min={0.001}
+                            value={formState.itemWeightKg}
+                            onChange={event =>
+                              setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent data-state={modalTab === 'amazon' ? 'active' : 'inactive'} className={modalTab === 'amazon' ? '' : 'hidden'}>
+                      <div className="space-y-4 pt-4">
+                        <p className="text-xs text-slate-500">
+                          Imported from Amazon. Re-import to refresh.
+                        </p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="amazonCategory">Category</Label>
+                            <Input
+                              id="amazonCategory"
+                              value={formState.amazonCategory}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="amazonSizeTier">Size Tier</Label>
+                            <Input
+                              id="amazonSizeTier"
+                              value={formState.amazonSizeTier}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
+                            <Input
+                              id="amazonReferralFeePercent"
+                              type="number"
+                              value={formState.amazonReferralFeePercent}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                            <Input
+                              id="amazonFbaFulfillmentFee"
+                              type="number"
+                              value={formState.amazonFbaFulfillmentFee}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="productDimensionsCm">Item Package Dimensions (cm)</Label>
+                            <Input
+                              id="productDimensionsCm"
+                              value={formState.productDimensionsCm}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="amazonReferenceWeightKg">Item Package Weight (kg)</Label>
+                            <Input
+                              id="amazonReferenceWeightKg"
+                              type="number"
+                              value={formState.amazonReferenceWeightKg}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </Tabs>
+                </div>
 
                 {!editingSku ? (
                   <>
