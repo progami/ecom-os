@@ -35,7 +35,10 @@ function parseGoogleTrendsJson(raw: string) {
   if (trimmed.startsWith('<')) {
     // Log first 1000 chars to diagnose what Google is returning
     console.error('[google-trends] Received HTML instead of JSON:', trimmed.slice(0, 1000));
-    throw new Error('Google Trends returned HTML instead of JSON. Please retry in a minute.');
+    // Extract title from HTML if present for better error message
+    const titleMatch = trimmed.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch?.[1]?.trim() || 'Unknown page';
+    throw new Error(`Google Trends blocked: "${title}". This usually means consent/captcha required.`);
   }
 
   try {
