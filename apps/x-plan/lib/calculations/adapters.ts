@@ -154,7 +154,7 @@ export function mapPurchaseOrders(
       availableDate: order.availableDate ?? null,
       availableWeekNumber: order.availableWeekNumber ?? null,
       totalLeadDays: order.totalLeadDays ?? null,
-      status: (typeof order.status === 'string' ? order.status : 'PLANNED') as PurchaseOrderStatus,
+      status: (typeof order.status === 'string' ? order.status : 'ISSUED') as PurchaseOrderStatus,
       statusIcon: typeof order.statusIcon === 'string' ? order.statusIcon : null,
       notes:
         typeof order.notes === 'string'

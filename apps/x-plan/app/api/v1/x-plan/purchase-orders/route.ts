@@ -619,7 +619,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
     finalWeeks: new Prisma.Decimal(
       resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.final),
     ),
-    status: 'PLANNED' as const,
+    status: 'ISSUED' as const,
   };
 
   try {

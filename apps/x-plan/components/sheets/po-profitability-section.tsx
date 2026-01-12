@@ -27,7 +27,16 @@ import {
 } from '@/components/sheet-toolbar';
 import { usePersistentState } from '@/hooks/usePersistentState';
 
-export type POStatus = 'PLANNED' | 'PRODUCTION' | 'IN_TRANSIT' | 'ARRIVED' | 'CLOSED' | 'CANCELLED';
+export type POStatus =
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'MANUFACTURING'
+  | 'OCEAN'
+  | 'WAREHOUSE'
+  | 'SHIPPED'
+  | 'ARCHIVED'
+  | 'REJECTED'
+  | 'CANCELLED';
 
 // Each row represents a single product/batch within a PO
 export interface POProfitabilityData {
@@ -86,21 +95,28 @@ const metricConfig: Record<MetricKey, { label: string; color: string; gradientId
 };
 
 const statusLabels: Record<POStatus, string> = {
-  PLANNED: 'Planned',
-  PRODUCTION: 'Production',
-  IN_TRANSIT: 'Transit',
-  ARRIVED: 'Arrived',
-  CLOSED: 'Closed',
+  DRAFT: 'Draft',
+  ISSUED: 'Issued',
+  MANUFACTURING: 'Manufacturing',
+  OCEAN: 'Ocean',
+  WAREHOUSE: 'Warehouse',
+  SHIPPED: 'Shipped',
+  ARCHIVED: 'Archived',
+  REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
 };
 
 const statusFilters: StatusFilter[] = [
   'ALL',
-  'PLANNED',
-  'PRODUCTION',
-  'IN_TRANSIT',
-  'ARRIVED',
-  'CLOSED',
+  'DRAFT',
+  'ISSUED',
+  'MANUFACTURING',
+  'OCEAN',
+  'WAREHOUSE',
+  'SHIPPED',
+  'ARCHIVED',
+  'REJECTED',
+  'CANCELLED',
 ];
 
 type POProfitabilityFiltersContextValue = {
@@ -800,11 +816,14 @@ function SortButton({
 
 function StatusBadge({ status }: { status: POStatus }) {
   const styles: Record<POStatus, string> = {
-    ARRIVED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-200',
-    CLOSED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/35 dark:text-blue-200',
-    IN_TRANSIT: 'bg-sky-100 text-sky-700 dark:bg-sky-900/35 dark:text-sky-200',
-    PRODUCTION: 'bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200',
-    PLANNED: 'bg-slate-100 text-slate-600 dark:bg-slate-700/35 dark:text-slate-200',
+    DRAFT: 'bg-slate-100 text-slate-600 dark:bg-slate-700/35 dark:text-slate-200',
+    ISSUED: 'bg-violet-100 text-violet-700 dark:bg-violet-900/35 dark:text-violet-200',
+    MANUFACTURING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200',
+    OCEAN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/35 dark:text-sky-200',
+    WAREHOUSE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-200',
+    SHIPPED: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/35 dark:text-indigo-200',
+    ARCHIVED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/35 dark:text-blue-200',
+    REJECTED: 'bg-orange-100 text-orange-700 dark:bg-orange-900/35 dark:text-orange-200',
     CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200',
   };
   return (

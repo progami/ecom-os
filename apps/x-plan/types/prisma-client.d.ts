@@ -6,11 +6,14 @@ declare module '@targon/prisma-x-plan' {
   export type StrategyRegion = 'US' | 'UK';
 
   export type PurchaseOrderStatus =
-    | 'PLANNED'
-    | 'PRODUCTION'
-    | 'IN_TRANSIT'
-    | 'ARRIVED'
-    | 'CLOSED'
+    | 'DRAFT'
+    | 'ISSUED'
+    | 'MANUFACTURING'
+    | 'OCEAN'
+    | 'WAREHOUSE'
+    | 'SHIPPED'
+    | 'REJECTED'
+    | 'ARCHIVED'
     | 'CANCELLED';
 
   export interface Strategy {
