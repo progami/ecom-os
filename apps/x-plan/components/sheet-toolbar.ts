@@ -1,7 +1,6 @@
 // Toolbar styling - readable and consistent
 
-export const SHEET_TOOLBAR_GROUP =
-  'flex items-center gap-1.5';
+export const SHEET_TOOLBAR_GROUP = 'flex items-center gap-1.5';
 
 export const SHEET_TOOLBAR_LABEL =
   'text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400';

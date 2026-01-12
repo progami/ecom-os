@@ -80,8 +80,8 @@ export const SHEETS: SheetConfig[] = [
   },
   {
     slug: '7-po-profitability',
-    label: 'PO Profitability',
-    shortLabel: 'PO Prof',
+    label: 'PO P&L',
+    shortLabel: 'PO P&L',
     description: '',
     icon: TrendingUp,
   },

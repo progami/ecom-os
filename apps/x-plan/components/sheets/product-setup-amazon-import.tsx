@@ -100,7 +100,8 @@ export function ProductSetupAmazonImport({
           .then(async (response) => {
             const json = (await response.json().catch(() => null)) as any;
             if (!response.ok) {
-              const message = typeof json?.error === 'string' ? json.error : 'Failed to load catalog';
+              const message =
+                typeof json?.error === 'string' ? json.error : 'Failed to load catalog';
               throw new Error(message);
             }
             const products = Array.isArray(json?.products)
@@ -329,9 +330,7 @@ export function ProductSetupAmazonImport({
                     Loading catalog…
                   </div>
                 ) : results.length === 0 ? (
-                  <div className="p-6 text-sm text-slate-600 dark:text-slate-300">
-                    No matches.
-                  </div>
+                  <div className="p-6 text-sm text-slate-600 dark:text-slate-300">No matches.</div>
                 ) : (
                   <ul className="divide-y divide-slate-200 dark:divide-[#1a3a54]">
                     {results.map((row) => {

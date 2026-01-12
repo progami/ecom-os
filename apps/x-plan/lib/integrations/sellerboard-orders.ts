@@ -140,7 +140,9 @@ export function parseSellerboardOrdersWeeklyUnits(
   const purchaseDateHeader = options.purchaseDateHeader ?? 'PurchaseDate(UTC)';
   const unitsHeader = options.unitsHeader ?? 'NumberOfItems';
   const statusHeader = options.statusHeader ?? 'OrderStatus';
-  const excluded = new Set((options.excludeStatuses ?? ['Cancelled']).map((item) => item.toLowerCase()));
+  const excluded = new Set(
+    (options.excludeStatuses ?? ['Cancelled']).map((item) => item.toLowerCase()),
+  );
 
   const rows = parseCsv(csv);
   if (rows.length === 0) {

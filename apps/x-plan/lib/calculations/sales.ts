@@ -7,6 +7,7 @@ import type { SalesWeekInput } from './types';
 interface ComputeSalesPlanOptions {
   productIds?: string[];
   calendar?: ReturnType<typeof buildWeekCalendar>;
+  mode?: 'DEFAULT' | 'PROJECTED' | 'REAL';
 }
 
 const PLANNING_PLACEHOLDER_PRODUCT_ID = '__planning__';
@@ -216,6 +217,7 @@ export function computeSalesPlan(
   const sortedWeeks = [...salesWeeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const calendar = options.calendar ?? buildWeekCalendar(sortedWeeks);
   const arrivalSchedule = buildArrivalSchedule(purchaseOrders, calendar);
+  const mode = options.mode ?? 'DEFAULT';
 
   const results: SalesWeekDerived[] = [];
   const productIds = new Set<string>(options.productIds ?? []);
@@ -280,18 +282,28 @@ export function computeSalesPlan(
       if (week?.finalSales != null) {
         computedFinalSales = clampNonNegative(coerceNumber(week.finalSales));
         finalSalesSource = 'OVERRIDE';
-      } else if (actualSales != null) {
-        computedFinalSales = clampNonNegative(actualSales);
-        finalSalesSource = 'ACTUAL';
-      } else if (forecastSales != null) {
-        computedFinalSales = clampNonNegative(forecastSales);
-        finalSalesSource = 'PLANNER';
-      } else if (systemForecastSales != null) {
-        computedFinalSales = clampNonNegative(systemForecastSales);
-        finalSalesSource = 'SYSTEM';
       } else {
-        computedFinalSales = 0;
-        finalSalesSource = 'ZERO';
+        const candidates: Array<{
+          value: number | null;
+          source: SalesWeekDerived['finalSalesSource'];
+        }> = [];
+
+        if (mode === 'DEFAULT' || mode === 'REAL') {
+          candidates.push({ value: actualSales, source: 'ACTUAL' });
+        }
+        if (mode === 'DEFAULT' || mode === 'PROJECTED') {
+          candidates.push({ value: forecastSales, source: 'PLANNER' });
+          candidates.push({ value: systemForecastSales, source: 'SYSTEM' });
+        }
+
+        const match = candidates.find((candidate) => candidate.value != null);
+        if (match && match.value != null) {
+          computedFinalSales = clampNonNegative(match.value);
+          finalSalesSource = match.source;
+        } else {
+          computedFinalSales = 0;
+          finalSalesSource = 'ZERO';
+        }
       }
 
       // Allocate sales using FIFO
