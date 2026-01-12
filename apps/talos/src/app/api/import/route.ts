@@ -61,6 +61,13 @@ export const POST = withAuth(async (request, session) => {
         errors.push(...warehouseResult.errors)
         break
 
+      case 'suppliers':
+        const supplierResult = await importSuppliers(data, session.user.id, prisma)
+        imported = supplierResult.imported
+        skipped = supplierResult.skipped
+        errors.push(...supplierResult.errors)
+        break
+
       default:
         return NextResponse.json(
           { error: 'Import not implemented for this entity' },
@@ -211,6 +218,65 @@ async function importWarehouses(data: ExcelRow[], _userId: string, prisma: Prism
       const warehouseLabel = String(row['Code'] ?? 'unknown')
       errors.push(
         `Warehouse ${warehouseLabel}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
+      )
+      skipped++
+    }
+  }
+
+  return { imported, skipped, errors }
+}
+
+async function importSuppliers(data: ExcelRow[], _userId: string, prisma: PrismaClient) {
+  const config = getImportConfig('suppliers')!
+  let imported = 0
+  let skipped = 0
+  const errors: string[] = []
+  const allowedSupplierFields = new Set([
+    'name',
+    'contactName',
+    'email',
+    'phone',
+    'address',
+    'notes',
+    'defaultPaymentTerms',
+    'defaultIncoterms',
+  ])
+
+  for (const row of data) {
+    try {
+      const { data: mappedData, errors: mappingErrors } = mapExcelRowToEntity(row, config)
+
+      if (mappingErrors.length > 0) {
+        const supplierLabel = String(row['Name'] ?? mappedData.name ?? 'unknown')
+        errors.push(`Row ${supplierLabel}: ${mappingErrors.join(', ')}`)
+        skipped++
+        continue
+      }
+
+      const name = mappedData.name as string | undefined
+
+      if (!name) {
+        errors.push('Row unknown: Missing supplier name')
+        skipped++
+        continue
+      }
+
+      const supplierPayload = Object.fromEntries(
+        Object.entries(mappedData).filter(
+          ([key, value]) => allowedSupplierFields.has(key) && value !== undefined
+        )
+      )
+
+      await prisma.supplier.upsert({
+        where: { name },
+        update: supplierPayload as unknown as Prisma.SupplierUpdateInput,
+        create: supplierPayload as unknown as Prisma.SupplierCreateInput,
+      })
+      imported++
+    } catch (_error) {
+      const supplierLabel = String(row['Name'] ?? 'unknown')
+      errors.push(
+        `Supplier ${supplierLabel}: ${_error instanceof Error ? _error.message : 'Unknown error'}`
       )
       skipped++
     }

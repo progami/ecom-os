@@ -76,7 +76,7 @@ const purchaseOrderInput: PurchaseOrderInput = {
   productionStart,
   availableDate: arrivalDate,
   inboundEta: arrivalDate,
-  status: 'PLANNED',
+  status: 'ISSUED',
   payments: [],
 }
 
@@ -250,7 +250,7 @@ describe('computeSalesPlan', () => {
       productionStart,
       availableDate: arrivalDate,
       inboundEta: arrivalDate,
-      status: 'PLANNED',
+      status: 'ISSUED',
       payments: [],
       batchTableRows: [
         { id: 'b1', purchaseOrderId: 'po-multi', productId: product.id, quantity: 120, batchCode: 'B1' },
@@ -511,7 +511,7 @@ describe.skip('computeDashboardSummary', () => {
     )
     expect(dashboard.revenueYtd).toBeCloseTo(1800)
     expect(dashboard.cashBalance).toBeCloseTo(1385)
-    expect(dashboard.pipeline).toEqual([{ status: 'PLANNED', quantity: 100 }])
+    expect(dashboard.pipeline).toEqual([{ status: 'ISSUED', quantity: 100 }])
     expect(dashboard.inventory[0]?.stockEnd).toBe(420)
   })
 })

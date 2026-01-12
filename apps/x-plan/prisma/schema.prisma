@@ -156,7 +156,7 @@ model PurchaseOrder {
   availableDate             DateTime?
   availableWeekNumber       Int?
   totalLeadDays             Int?
-  status                    PurchaseOrderStatus    @default(PLANNED)
+  status                    PurchaseOrderStatus    @default(ISSUED)
   statusIcon                String?
   weeksUntilArrival         Int?
   notes                     String?
@@ -383,11 +383,14 @@ model ScenarioSnapshot {
 }
 
 enum PurchaseOrderStatus {
-  PLANNED
-  PRODUCTION
-  IN_TRANSIT
-  ARRIVED
-  CLOSED
+  DRAFT
+  ISSUED
+  MANUFACTURING
+  OCEAN
+  WAREHOUSE
+  SHIPPED
+  REJECTED
+  ARCHIVED
   CANCELLED
 }
 
