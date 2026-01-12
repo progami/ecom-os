@@ -114,9 +114,6 @@ const STATUS_ICON_MAP: Record<PurchaseOrderStatus, string> = {
   OCEAN: '🚢',
   WAREHOUSE: '📦',
   SHIPPED: '🚚',
-  REJECTED: '⛔',
-  ARCHIVED: '🗄️',
-  CANCELLED: '✖',
 };
 
 const PAY_PERCENT_FIELDS = ['pay1Percent', 'pay2Percent', 'pay3Percent'] as const;

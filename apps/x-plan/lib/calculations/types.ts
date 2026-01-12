@@ -71,10 +71,7 @@ export type PurchaseOrderStatus =
   | 'MANUFACTURING'
   | 'OCEAN'
   | 'WAREHOUSE'
-  | 'SHIPPED'
-  | 'REJECTED'
-  | 'ARCHIVED'
-  | 'CANCELLED';
+  | 'SHIPPED';
 
 export interface PurchaseOrderInput {
   id: string;

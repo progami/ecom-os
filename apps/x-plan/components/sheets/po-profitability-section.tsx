@@ -33,10 +33,7 @@ export type POStatus =
   | 'MANUFACTURING'
   | 'OCEAN'
   | 'WAREHOUSE'
-  | 'SHIPPED'
-  | 'ARCHIVED'
-  | 'REJECTED'
-  | 'CANCELLED';
+  | 'SHIPPED';
 
 // Each row represents a single product/batch within a PO
 export interface POProfitabilityData {
@@ -101,9 +98,6 @@ const statusLabels: Record<POStatus, string> = {
   OCEAN: 'Ocean',
   WAREHOUSE: 'Warehouse',
   SHIPPED: 'Shipped',
-  ARCHIVED: 'Archived',
-  REJECTED: 'Rejected',
-  CANCELLED: 'Cancelled',
 };
 
 const statusFilters: StatusFilter[] = [
@@ -114,9 +108,6 @@ const statusFilters: StatusFilter[] = [
   'OCEAN',
   'WAREHOUSE',
   'SHIPPED',
-  'ARCHIVED',
-  'REJECTED',
-  'CANCELLED',
 ];
 
 type POProfitabilityFiltersContextValue = {
@@ -822,9 +813,6 @@ function StatusBadge({ status }: { status: POStatus }) {
     OCEAN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/35 dark:text-sky-200',
     WAREHOUSE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/35 dark:text-emerald-200',
     SHIPPED: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/35 dark:text-indigo-200',
-    ARCHIVED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/35 dark:text-blue-200',
-    REJECTED: 'bg-orange-100 text-orange-700 dark:bg-orange-900/35 dark:text-orange-200',
-    CANCELLED: 'bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200',
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${styles[status]}`}>
