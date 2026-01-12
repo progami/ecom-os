@@ -1018,3 +1018,70 @@ export async function getInventoryAgedData(tenantCode?: TenantCode) {
     throw _error
   }
 }
+
+// Test function to compare FBA Inventory API vs Listings API
+export async function testCompareApis(tenantCode?: TenantCode) {
+  const config = getAmazonSpApiConfigFromEnv(tenantCode)
+  const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
+
+  // 1. FBA Inventory API (current approach)
+  let inventorySkus: Array<{ sellerSku: string; asin: string | null; fnSku: string | null }> = []
+  try {
+    const inventoryResponse = await callAmazonApi<AmazonInventorySummariesResponse>(tenantCode, {
+      operation: 'getInventorySummaries',
+      endpoint: 'fbaInventory',
+      query: {
+        marketplaceIds: [marketplaceId],
+        granularityType: 'Marketplace',
+        granularityId: marketplaceId,
+      },
+    })
+    inventorySkus = (inventoryResponse.inventorySummaries ?? []).map(item => ({
+      sellerSku: item.sellerSku ?? '',
+      asin: item.asin ?? null,
+      fnSku: item.fnSku ?? null,
+    }))
+  } catch (error) {
+    console.error('FBA Inventory API error:', error)
+  }
+
+  // 2. Listings Items API (searchListingsItems)
+  let listingsSkus: Array<{ sku: string; asin: string | null; productType: string | null }> = []
+  let listingsError: string | null = null
+  try {
+    const listingsResponse = await callAmazonApi<{
+      items?: Array<{
+        sku?: string
+        summaries?: Array<{ asin?: string; productType?: string }>
+      }>
+    }>(tenantCode, {
+      operation: 'searchListingsItems',
+      endpoint: 'listingsItems',
+      options: { version: '2021-08-01' },
+      body: {
+        marketplaceIds: [marketplaceId],
+        pageSize: 100,
+        includedData: ['summaries'],
+      },
+    })
+    listingsSkus = (listingsResponse.items ?? []).map(item => ({
+      sku: item.sku ?? '',
+      asin: item.summaries?.[0]?.asin ?? null,
+      productType: item.summaries?.[0]?.productType ?? null,
+    }))
+  } catch (error) {
+    listingsError = error instanceof Error ? error.message : 'Unknown error'
+  }
+
+  return {
+    fbaInventoryApi: {
+      count: inventorySkus.length,
+      skus: inventorySkus,
+    },
+    listingsApi: {
+      count: listingsSkus.length,
+      skus: listingsSkus,
+      error: listingsError,
+    },
+  }
+}
