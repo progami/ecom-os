@@ -16,7 +16,6 @@ import { SectionHeader } from '@/components/dashboard/section-header'
 import { MarketSection } from '@/components/dashboard/market-section'
 import { toast } from 'react-hot-toast'
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns'
-import { withBasePath } from '@/lib/utils/base-path'
 
 interface DashboardStats {
  totalInventory: number
@@ -167,8 +166,8 @@ export default function DashboardPage() {
  
 	 // Check if it's an authentication error
 	 if (_error instanceof Error && _error.message.includes('401')) {
-	 const callbackUrl = withBasePath('/dashboard')
-	 router.push(withBasePath(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`))
+	 const callbackUrl = '/dashboard'
+	 router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`)
 	 } else {
 	 toast.error(_error instanceof Error ? _error.message : 'Failed to load dashboard stats')
 	 }
