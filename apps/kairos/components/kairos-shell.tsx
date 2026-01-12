@@ -16,9 +16,9 @@ import {
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { href: '/forecasts', label: 'Forecasts', icon: BarChart3 },
   { href: '/sources', label: 'Data Sources', icon: Database },
-  { href: '/models', label: 'Model Library', icon: Sparkles },
+  { href: '/models', label: 'Models', icon: Sparkles },
+  { href: '/forecasts', label: 'Forecasts', icon: BarChart3 },
 ] as const;
 
 const APP_VERSION = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
