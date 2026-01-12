@@ -9,7 +9,8 @@ const footerSections = [
   {
     title: "Quick Links",
     links: [
-      { href: "/policy", label: "Policy" },
+      { href: "/legal/privacy", label: "Privacy Policy" },
+      { href: "/legal/eula", label: "Terms of Service" },
       { href: "/targon", label: "Targon" },
       { href: "/coelum-star", label: "Coelum Star" },
     ],
