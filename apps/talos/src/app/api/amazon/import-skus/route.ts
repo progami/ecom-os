@@ -33,6 +33,7 @@ const DEFAULT_PACK_SIZE = 1
 const DEFAULT_UNITS_PER_CARTON = 1
 const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
 const DEFAULT_FEE_ESTIMATE_PRICE = 10
+const MAX_DESCRIPTION_LENGTH = 255
 
 function normalizeSkuCode(value: string): string | null {
   const normalized = sanitizeForDisplay(value.trim().toUpperCase())
@@ -53,6 +54,17 @@ function normalizeTitle(value: string | null): string | null {
   if (!value) return null
   const normalized = sanitizeForDisplay(value.trim())
   return normalized ? normalized : null
+}
+
+function truncateDescription(value: string, maxLength: number = MAX_DESCRIPTION_LENGTH): string {
+  if (value.length <= maxLength) return value
+  // Truncate and add ellipsis, ensuring we don't cut in middle of a word if possible
+  const truncated = value.slice(0, maxLength - 3)
+  const lastSpace = truncated.lastIndexOf(' ')
+  if (lastSpace > maxLength * 0.7) {
+    return truncated.slice(0, lastSpace) + '...'
+  }
+  return truncated + '...'
 }
 
 function parseCatalogDimensions(attributes: {
@@ -543,6 +555,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     if (!description) description = skuCode
+    description = truncateDescription(description)
 
     if (!unitWeightKg) {
       skipped += 1
