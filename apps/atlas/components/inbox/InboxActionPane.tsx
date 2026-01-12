@@ -80,7 +80,7 @@ function EntityContent({ entityType, entityData }: { entityType: string; entityD
   switch (entityType) {
     case 'POLICY':
       return (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {entityData.category ? (
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
@@ -88,7 +88,14 @@ function EntityContent({ entityType, entityData }: { entityType: string; entityD
               </span>
             </div>
           ) : null}
-          {entityData.summary ? (
+          {entityData.content ? (
+            <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
+              <div
+                className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: entityData.content }}
+              />
+            </div>
+          ) : entityData.summary ? (
             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
               <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
                 Summary
