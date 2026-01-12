@@ -26,7 +26,6 @@ import {
 } from '@/lib/algorithms/restock-algorithm'
 import { RestockAlertCard } from '@/components/operations/restock-alert-card'
 import { redirectToPortal } from '@/lib/portal'
-import { SKU_FIELD_LIMITS, truncateForDisplay } from '@/lib/sku-constants'
 
 interface FBAStockItem {
  skuId: string
@@ -523,8 +522,8 @@ export default function ShipmentPlanningPage() {
  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
  {item.skuCode}
  </td>
- <td className="px-6 py-4 text-sm text-slate-500" title={item.description}>
- {truncateForDisplay(item.description, SKU_FIELD_LIMITS.DESCRIPTION_DISPLAY_MAX)}
+ <td className="px-6 py-4 text-sm text-slate-500">
+ {item.description}
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
  {item.warehouseStock.toLocaleString()}
