@@ -1206,7 +1206,8 @@ export function CustomOpsCostGrid({
 
     const fbaFee = toNumber(row.fbaFee);
     const referralRate = toNumber(row.referralRate);
-    const amazonFeesPerUnit = fbaFee + sellingPrice * referralRate;
+    const storagePerMonth = toNumber(row.storagePerMonth);
+    const amazonFeesPerUnit = fbaFee + storagePerMonth + sellingPrice * referralRate;
 
     const tacosPercent = toNumber(row.tacosPercent);
     const ppcPerUnit = sellingPrice * tacosPercent;
