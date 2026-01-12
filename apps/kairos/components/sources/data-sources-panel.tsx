@@ -128,6 +128,26 @@ const GOOGLE_TRENDS_TIME_RANGE_OPTIONS: Array<{ value: GoogleTrendsTimeRange; la
   { value: 'ALL_TIME', label: 'All time (2004-present)' },
 ];
 
+const GOOGLE_TRENDS_REGION_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '', label: 'Worldwide' },
+  { value: 'US', label: 'United States' },
+  { value: 'GB', label: 'United Kingdom' },
+  { value: 'CA', label: 'Canada' },
+  { value: 'AU', label: 'Australia' },
+  { value: 'DE', label: 'Germany' },
+  { value: 'FR', label: 'France' },
+  { value: 'ES', label: 'Spain' },
+  { value: 'IT', label: 'Italy' },
+  { value: 'NL', label: 'Netherlands' },
+  { value: 'BR', label: 'Brazil' },
+  { value: 'MX', label: 'Mexico' },
+  { value: 'IN', label: 'India' },
+  { value: 'JP', label: 'Japan' },
+  { value: 'KR', label: 'South Korea' },
+  { value: 'SG', label: 'Singapore' },
+  { value: 'AE', label: 'United Arab Emirates' },
+];
+
 const DATA_SOURCES: DataSource[] = [
   {
     id: 'google-trends',
@@ -282,12 +302,11 @@ function GoogleTrendsForm({
   const [geo, setGeo] = useState('');
   const [timeRange, setTimeRange] = useState<GoogleTrendsTimeRange>('PAST_2_YEARS');
   const [name, setName] = useState('');
-  const [force, setForce] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
-    onSubmit({ keyword, geo, timeRange, name, force });
+    onSubmit({ keyword, geo, timeRange, name, force: true });
   };
 
   return (
@@ -330,14 +349,20 @@ function GoogleTrendsForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-              Region <span className="font-normal text-slate-400">(optional)</span>
+              Region
             </label>
-            <Input
-              value={geo}
-              onChange={(e) => setGeo(e.target.value)}
-              placeholder="e.g. US, GB, DE"
-              className="h-10"
-            />
+            <Select value={geo} onValueChange={setGeo}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Select region" />
+              </SelectTrigger>
+              <SelectContent>
+                {GOOGLE_TRENDS_REGION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value || 'worldwide'} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
@@ -357,24 +382,6 @@ function GoogleTrendsForm({
               </SelectContent>
             </Select>
           </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            Import Mode
-          </label>
-          <Select value={force ? 'force' : 'cache'} onValueChange={(v) => setForce(v === 'force')}>
-            <SelectTrigger className="h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cache">Use cache if available</SelectItem>
-              <SelectItem value="force">Force refresh (replace existing points)</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500">
-            Force refresh overwrites points for an existing series (same keyword + range).
-          </p>
         </div>
 
         <div className="space-y-1.5">
