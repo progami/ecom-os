@@ -23,6 +23,7 @@ import { executeAction } from '@/lib/actions/execute-action'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { getLeaveTypeLabel } from '@/components/employee/profile/utils'
 import { InboxItemList } from '@/components/inbox/InboxItemList'
 import { CompletedItemList } from '@/components/inbox/CompletedItemList'
 import { InboxActionPane } from '@/components/inbox/InboxActionPane'
@@ -529,6 +530,151 @@ function TimeOffCard({ balances }: { balances: LeaveBalance[] }) {
       </div>
     </BentoCard>
   )
+}
+
+// Leave Balance with Arc Progress
+function LeaveBalanceArc({ balance }: { balance: LeaveBalance }) {
+  const available = balance.available
+  const total = balance.allocated
+  const used = total - available
+  const percentage = total > 0 ? (available / total) * 100 : 0
+  const isLow = total > 0 && available <= Math.ceil(total * 0.2) && available > 0
+  const isEmpty = available === 0
+
+  const size = 72
+  const strokeWidth = 6
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const strokeDashoffset = circumference - (percentage / 100) * circumference
+
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-cyan-500/30 transition-colors">
+      <div className="relative flex-shrink-0">
+        <svg width={size} height={size} className="-rotate-90">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-slate-100 dark:text-slate-700"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            className={cn(
+              'transition-all duration-500',
+              isEmpty ? 'text-slate-300' : isLow ? 'text-amber-500' : 'text-cyan-500'
+            )}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={cn(
+            'text-lg font-bold tabular-nums',
+            isEmpty ? 'text-slate-400' : isLow ? 'text-amber-600' : 'text-slate-900 dark:text-slate-50'
+          )}>
+            {available}
+          </span>
+          <span className="text-[9px] text-slate-400 font-medium">left</span>
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-semibold text-slate-900 dark:text-slate-50 truncate">
+            {getLeaveTypeLabel(balance.leaveType)}
+          </h4>
+          {balance.pending > 0 && (
+            <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+              {balance.pending} pending
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <span>{used} used</span>
+          <span className="text-slate-300 dark:text-slate-600">•</span>
+          <span>{total} total</span>
+        </div>
+        <div className="mt-2 h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all',
+              isEmpty ? 'bg-slate-300' : isLow ? 'bg-amber-500' : 'bg-cyan-500'
+            )}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Compact Leave Balance Card
+function CompactLeaveBalance({ balance }: { balance: LeaveBalance }) {
+  const available = balance.available
+  const total = balance.allocated
+  const percentage = total > 0 ? (available / total) * 100 : 0
+  const isLow = total > 0 && available <= Math.ceil(total * 0.2) && available > 0
+  const isEmpty = available === 0
+
+  return (
+    <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+          {getLeaveTypeLabel(balance.leaveType)}
+        </span>
+        {balance.pending > 0 && (
+          <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+            {balance.pending}
+          </span>
+        )}
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className={cn(
+          'text-xl font-bold tabular-nums',
+          isEmpty ? 'text-slate-400' : isLow ? 'text-amber-600' : 'text-slate-900 dark:text-slate-50'
+        )}>
+          {available}
+        </span>
+        <span className="text-xs text-slate-400">/ {total}</span>
+      </div>
+      <div className="mt-2 h-1 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+        <div
+          className={cn(
+            'h-full rounded-full transition-all',
+            isEmpty ? 'bg-slate-300' : isLow ? 'bg-amber-500' : 'bg-cyan-500'
+          )}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// Group leave balances by category
+function groupLeaveBalances(balances: LeaveBalance[]) {
+  const filtered = balances.filter(b => b.leaveType !== 'UNPAID')
+  const coreTypes = ['PTO']
+  const parentalTypes = ['PARENTAL', 'MATERNITY', 'PATERNITY']
+  const bereavementTypes = ['BEREAVEMENT', 'BEREAVEMENT_IMMEDIATE', 'BEREAVEMENT_EXTENDED']
+
+  return {
+    core: filtered.filter(b => coreTypes.includes(b.leaveType)),
+    parental: filtered.filter(b => parentalTypes.includes(b.leaveType)),
+    bereavement: filtered.filter(b => bereavementTypes.includes(b.leaveType)),
+    other: filtered.filter(b =>
+      !coreTypes.includes(b.leaveType) &&
+      !parentalTypes.includes(b.leaveType) &&
+      !bereavementTypes.includes(b.leaveType)
+    ),
+  }
 }
 
 // Violations Card
@@ -1187,59 +1333,69 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
                 <div className="h-32 rounded-2xl bg-slate-100 dark:bg-slate-800" />
                 <div className="h-64 rounded-2xl bg-slate-100 dark:bg-slate-800" />
               </div>
-            ) : (
-              <div className="h-full overflow-y-auto space-y-6 pb-8">
-                {/* Leave Balances */}
-                <section>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
-                    Leave Balances
-                  </h2>
-                  {leaveBalances.length > 0 ? (
-                    <div className="grid grid-cols-4 gap-4">
-                      {leaveBalances.map((balance) => (
-                        <div
-                          key={balance.leaveType}
-                          className="rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5"
-                        >
-                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                            {balance.leaveType}
-                          </p>
-                          <p className="text-3xl font-bold text-slate-900 dark:text-slate-50">
-                            {balance.available}
-                            <span className="text-lg font-normal text-slate-400 ml-1">days</span>
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {balance.used} used · {balance.allocated} allocated
-                          </p>
-                        </div>
-                      ))}
+            ) : (() => {
+              const grouped = groupLeaveBalances(leaveBalances)
+              const hasBalances = leaveBalances.filter(b => b.leaveType !== 'UNPAID').length > 0
+              const additionalBalances = [...grouped.parental, ...grouped.bereavement, ...grouped.other]
+
+              return (
+                <div className="h-full overflow-y-auto space-y-6 pb-8">
+                  {/* Leave Balances Header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Leave Balances</h2>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Your available time off for this year</p>
                     </div>
+                    <Link
+                      href="/leave/request"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-medium text-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Request Leave
+                    </Link>
+                  </div>
+
+                  {hasBalances ? (
+                    <>
+                      {/* Core Leave (PTO) - Large Arc Display */}
+                      {grouped.core.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {grouped.core.map((balance) => (
+                            <LeaveBalanceArc key={balance.leaveType} balance={balance} />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Additional Leave Types - Compact Grid */}
+                      {additionalBalances.length > 0 && (
+                        <div>
+                          <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3">
+                            Additional Leave Types
+                          </h3>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {additionalBalances.map((balance) => (
+                              <CompactLeaveBalance key={balance.leaveType} balance={balance} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-8 text-center">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
-                        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <p className="text-sm font-medium text-slate-500">No leave balances configured</p>
+                      <p className="text-base font-medium text-slate-700 dark:text-slate-300">No leave balances configured</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Contact HR to set up your leave allocation</p>
                     </div>
                   )}
-                </section>
-
-                {/* Request Leave Button */}
-                <div className="flex justify-center">
-                  <Link
-                    href="/leave/request"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold text-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Request Leave
-                  </Link>
                 </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
         ) : activeTab === 'reviews' ? (
           <div key="reviews" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
