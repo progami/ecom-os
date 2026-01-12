@@ -280,9 +280,9 @@ export default function HomePage() {
         <footer className="mt-20 text-center">
           <p className="text-sm text-slate-400 dark:text-slate-500">
             Part of the{' '}
-            <a href="/" className="text-brand-teal-600 dark:text-brand-cyan hover:underline underline-offset-2 transition-colors">
+            <Link href="/" className="text-brand-teal-600 dark:text-brand-cyan hover:underline underline-offset-2 transition-colors">
               Targonos
-            </a>
+            </Link>
             {' '}suite
           </p>
         </footer>
