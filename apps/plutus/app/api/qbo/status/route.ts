@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createLogger } from '@targon/logger';
 import { getApiBaseUrl } from '@/lib/qbo/client';
+import { getValidToken, type QboConnection } from '@/lib/qbo/api';
 import type { QboConnectionStatus, QboCompanyInfoResponse } from '@/lib/qbo/types';
 
 const logger = createLogger({ name: 'qbo-status' });
@@ -17,21 +18,26 @@ export async function GET() {
       });
     }
 
-    const connection = JSON.parse(connectionCookie);
-    const { realmId, accessToken, expiresAt } = connection;
+    const connection: QboConnection = JSON.parse(connectionCookie);
 
-    // Check if token is expired
-    if (new Date(expiresAt) < new Date()) {
-      logger.warn('QBO access token expired');
-      return NextResponse.json<QboConnectionStatus>({
-        connected: false,
+    // Get valid token (auto-refreshes if expired)
+    const { accessToken, updatedConnection } = await getValidToken(connection);
+
+    // Update cookie if token was refreshed
+    if (updatedConnection) {
+      cookieStore.set('qbo_connection', JSON.stringify(updatedConnection), {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 100, // 100 days
+        path: '/',
       });
     }
 
     // Fetch company info to get company name
     const baseUrl = getApiBaseUrl();
     const response = await fetch(
-      `${baseUrl}/v3/company/${realmId}/query?query=select * from CompanyInfo`,
+      `${baseUrl}/v3/company/${connection.realmId}/query?query=select * from CompanyInfo`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -44,7 +50,7 @@ export async function GET() {
       logger.error('Failed to fetch company info', { status: response.status });
       return NextResponse.json<QboConnectionStatus>({
         connected: true,
-        realmId,
+        realmId: connection.realmId,
       });
     }
 
@@ -53,7 +59,7 @@ export async function GET() {
 
     return NextResponse.json<QboConnectionStatus>({
       connected: true,
-      realmId,
+      realmId: connection.realmId,
       companyName: companyInfo?.CompanyName,
     });
   } catch (error) {
