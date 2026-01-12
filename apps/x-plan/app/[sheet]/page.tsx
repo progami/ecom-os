@@ -1839,8 +1839,8 @@ function getProfitAndLossView(
       grossMargin: formatPercentDecimal(entry.grossMargin),
       amazonFees: formatNumeric(entry.amazonFees),
       ppcSpend: formatNumeric(entry.ppcSpend),
+      // OPEX = Fixed Costs only (PPC is part of GP calculation, not OPEX)
       fixedCosts: formatNumeric(entry.fixedCosts),
-      totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
       netMargin: formatPercentDecimal(entry.revenue === 0 ? 0 : entry.netProfit / entry.revenue),
     })),
@@ -1852,7 +1852,6 @@ function getProfitAndLossView(
       amazonFees: formatNumeric(entry.amazonFees),
       ppcSpend: formatNumeric(entry.ppcSpend),
       fixedCosts: formatNumeric(entry.fixedCosts),
-      totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
     })),
     quarterlySummary: quarterlySummary.map((entry) => ({
@@ -1863,7 +1862,6 @@ function getProfitAndLossView(
       amazonFees: formatNumeric(entry.amazonFees),
       ppcSpend: formatNumeric(entry.ppcSpend),
       fixedCosts: formatNumeric(entry.fixedCosts),
-      totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
     })),
   };

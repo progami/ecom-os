@@ -435,9 +435,10 @@ export function buildPoPnlRows(options: {
       aggregate.cogs - aggregate.manufacturingCost - aggregate.freightCost - aggregate.tariffCost;
     const amazonFeesAdjustment =
       aggregate.amazonFees - aggregate.referralFees - aggregate.fbaFees - aggregate.storageFees;
+    // GP = Revenue - COGS - Amazon Fees (before PPC)
     const grossProfit = revenue - aggregate.cogs - aggregate.amazonFees;
-    const totalOpex = aggregate.ppcSpend + aggregate.fixedCosts;
-    const netProfit = grossProfit - totalOpex;
+    // NP = GP - PPC - Fixed Costs (OPEX = Fixed Costs only, PPC is part of GP calculation)
+    const netProfit = grossProfit - aggregate.ppcSpend - aggregate.fixedCosts;
     const grossMarginPercent = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
     const netMarginPercent = revenue > 0 ? (netProfit / revenue) * 100 : 0;
     const roi = aggregate.cogs > 0 ? (netProfit / aggregate.cogs) * 100 : 0;
@@ -487,9 +488,10 @@ export function buildPoPnlRows(options: {
 
   const unattributedSummary: PoPnlSummary = (() => {
     const revenue = unattributedTotals.revenue;
+    // GP = Revenue - COGS - Amazon Fees (before PPC)
     const grossProfit = revenue - unattributedTotals.cogs - unattributedTotals.amazonFees;
-    const totalOpex = unattributedTotals.ppcSpend + unattributedTotals.fixedCosts;
-    const netProfit = grossProfit - totalOpex;
+    // NP = GP - PPC - Fixed Costs (OPEX = Fixed Costs only)
+    const netProfit = grossProfit - unattributedTotals.ppcSpend - unattributedTotals.fixedCosts;
     return {
       units: unattributedTotals.units,
       revenue: unattributedTotals.revenue,
