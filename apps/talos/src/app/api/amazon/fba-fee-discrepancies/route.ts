@@ -97,16 +97,13 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
       amazonSizeTier: true,
       amazonReferralFeePercent: true,
       amazonFbaFulfillmentFee: true,
+      amazonReferenceWeightKg: true,
       batches: {
         where: { isActive: true },
         orderBy: { createdAt: 'desc' },
         take: 1,
         select: {
           batchCode: true,
-          amazonSizeTier: true,
-          amazonFbaFulfillmentFee: true,
-          amazonReferenceWeightKg: true,
-          unitWeightKg: true,
         },
       },
       amazonFbaFeeAlert: {
@@ -124,18 +121,10 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
     },
   })
 
-  const resolvedSkus = skus.map(({ batches, ...sku }) => {
-    const latestBatch = batches[0] ?? null
-    return {
-      ...sku,
-      latestBatchCode: latestBatch?.batchCode ?? null,
-      amazonSizeTier: latestBatch?.amazonSizeTier ?? sku.amazonSizeTier ?? null,
-      amazonFbaFulfillmentFee:
-        latestBatch?.amazonFbaFulfillmentFee ?? sku.amazonFbaFulfillmentFee ?? null,
-      amazonReferenceWeightKg:
-        latestBatch?.amazonReferenceWeightKg ?? latestBatch?.unitWeightKg ?? null,
-    }
-  })
+  const resolvedSkus = skus.map(({ batches, ...sku }) => ({
+    ...sku,
+    latestBatchCode: batches[0]?.batchCode ?? null,
+  }))
 
   return ApiResponses.success({ currencyCode, skus: resolvedSkus })
 })
@@ -155,24 +144,13 @@ export const POST = withRole(['admin', 'staff'], async (request, session) => {
       asin: true,
       amazonSizeTier: true,
       amazonFbaFulfillmentFee: true,
-      batches: {
-        where: { isActive: true },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: {
-          batchCode: true,
-          amazonSizeTier: true,
-          amazonFbaFulfillmentFee: true,
-        },
-      },
     },
   })
 
   if (!sku) return ApiResponses.notFound('SKU not found')
 
-  const latestBatch = sku.batches[0] ?? null
-  const referenceSizeTier = latestBatch?.amazonSizeTier ?? sku.amazonSizeTier ?? null
-  const referenceFeeRaw = latestBatch?.amazonFbaFulfillmentFee ?? sku.amazonFbaFulfillmentFee
+  const referenceSizeTier = sku.amazonSizeTier ?? null
+  const referenceFeeRaw = sku.amazonFbaFulfillmentFee
   const referenceFbaFulfillmentFee = parseDecimalNumber(referenceFeeRaw)
 
   const checkedAt = new Date()

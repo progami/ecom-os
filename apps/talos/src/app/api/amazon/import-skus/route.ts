@@ -1,7 +1,8 @@
 import { ApiResponses, withRole, z } from '@/lib/api'
-import { getCatalogItem, getListingsItems } from '@/lib/amazon/client'
+import { getCatalogItem, getListingsItems, getProductFees } from '@/lib/amazon/client'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
+import { parseAmazonProductFees } from '@/lib/amazon/fees'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@targon/prisma-talos'
@@ -24,6 +25,7 @@ const DEFAULT_BATCH_CODE = 'BATCH 01'
 const DEFAULT_PACK_SIZE = 1
 const DEFAULT_UNITS_PER_CARTON = 1
 const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
+const DEFAULT_FEE_ESTIMATE_PRICE = 10
 
 function normalizeSkuCode(value: string): string | null {
   const normalized = sanitizeForDisplay(value.trim().toUpperCase())
@@ -72,6 +74,74 @@ function parseCatalogWeightKg(attributes: { item_weight?: Array<{ value?: number
   if (!raw || !Number.isFinite(raw)) return null
   // Amazon returns weight in pounds for catalog items (convert to kg).
   return Number((raw * 0.453592).toFixed(3))
+}
+
+function parseCatalogCategory(catalog: unknown): string | null {
+  if (!catalog || typeof catalog !== 'object') return null
+  const record = catalog as Record<string, unknown>
+  const item = record.item
+  if (!item || typeof item !== 'object') return null
+  const itemRecord = item as Record<string, unknown>
+
+  const summaries = itemRecord.summaries
+  if (Array.isArray(summaries) && summaries.length > 0) {
+    const summary = summaries[0]
+    if (summary && typeof summary === 'object') {
+      const summaryRecord = summary as Record<string, unknown>
+      const browse = summaryRecord.browseClassification
+      if (browse && typeof browse === 'object') {
+        const browseRecord = browse as Record<string, unknown>
+        const display = browseRecord.displayName
+        if (typeof display === 'string' && display.trim()) {
+          const sanitized = sanitizeForDisplay(display.trim())
+          return sanitized ? sanitized : null
+        }
+      }
+
+      const displayGroup = summaryRecord.websiteDisplayGroupName
+      if (typeof displayGroup === 'string' && displayGroup.trim()) {
+        const sanitized = sanitizeForDisplay(displayGroup.trim())
+        return sanitized ? sanitized : null
+      }
+    }
+  }
+
+  const attributes = itemRecord.attributes
+  if (!attributes || typeof attributes !== 'object') return null
+  const attrRecord = attributes as Record<string, unknown>
+
+  const candidates = ['item_type_keyword', 'product_type', 'product_category', 'category']
+  for (const key of candidates) {
+    const value = attrRecord[key]
+    if (!Array.isArray(value) || value.length === 0) continue
+    const first = value[0]
+    if (!first || typeof first !== 'object') continue
+    const firstRecord = first as Record<string, unknown>
+    const raw = firstRecord.value
+    if (typeof raw !== 'string' || !raw.trim()) continue
+    const sanitized = sanitizeForDisplay(raw.trim())
+    if (sanitized) return sanitized
+  }
+
+  return null
+}
+
+function roundToTwoDecimals(value: number): number | null {
+  if (!Number.isFinite(value)) return null
+  return Number(value.toFixed(2))
+}
+
+function parseReferralFeePercent(feesResponse: unknown, listingPrice: number): number | null {
+  if (!Number.isFinite(listingPrice) || listingPrice <= 0) return null
+  const parsed = parseAmazonProductFees(feesResponse)
+  for (const fee of parsed.feeBreakdown) {
+    const normalized = fee.feeType.trim().toUpperCase().replace(/[^A-Z]/g, '')
+    if (normalized !== 'REFERRALFEE') continue
+    if (fee.amount === null || fee.amount === undefined) return null
+    const percent = (fee.amount / listingPrice) * 100
+    return roundToTwoDecimals(percent)
+  }
+  return null
 }
 
 export const GET = withRole(['admin', 'staff'], async (request, _session) => {
@@ -326,6 +396,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     let description = listing.title ? sanitizeForDisplay(listing.title.trim()) : ''
     let unitWeightKg: number | null = null
     let unitTriplet: { lengthCm: number; widthCm: number; heightCm: number } | null = null
+    let amazonCategory: string | null = null
+    let amazonReferralFeePercent: number | null = null
+    let amazonFbaFulfillmentFee: number | null = null
 
     try {
       const catalog = await getCatalogItem(asin, tenantCode)
@@ -340,9 +413,23 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         unitWeightKg = parseCatalogWeightKg(attributes)
         unitTriplet = parseCatalogDimensions(attributes)
       }
+      amazonCategory = parseCatalogCategory(catalog)
     } catch (error) {
       errors.push(
         `Amazon catalog lookup failed for ${skuCode} (ASIN ${asin}): ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      )
+    }
+
+    try {
+      const fees = await getProductFees(asin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
+      const parsedFees = parseAmazonProductFees(fees)
+      amazonReferralFeePercent = parseReferralFeePercent(fees, DEFAULT_FEE_ESTIMATE_PRICE)
+      amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
+    } catch (error) {
+      errors.push(
+        `Amazon fee estimate failed for ${skuCode} (ASIN ${asin}): ${
           error instanceof Error ? error.message : 'Unknown error'
         }`
       )
@@ -381,8 +468,10 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
             skuCode,
             asin,
             description,
-            amazonCategory: null,
-            amazonReferralFeePercent: null,
+            amazonCategory,
+            amazonReferralFeePercent,
+            amazonFbaFulfillmentFee,
+            amazonReferenceWeightKg: unitWeightKg,
             packSize: DEFAULT_PACK_SIZE,
             defaultSupplierId: null,
             secondarySupplierId: null,

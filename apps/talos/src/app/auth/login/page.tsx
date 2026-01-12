@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { portalOrigin } from '@/lib/portal'
+import { withoutBasePath } from '@/lib/utils/base-path'
 
 type SearchParamsInput =
  | { callbackUrl?: string }
@@ -9,9 +10,15 @@ type SearchParamsInput =
 
 export default async function LoginPage({ searchParams }: { searchParams?: SearchParamsInput }) {
  const resolved = await Promise.resolve(searchParams)
- const desired = typeof resolved?.callbackUrl === 'string' && resolved.callbackUrl.trim().length > 0
- ? resolved.callbackUrl
- : '/dashboard'
+ const desiredRaw =
+  typeof resolved?.callbackUrl === 'string' && resolved.callbackUrl.trim().length > 0
+   ? resolved.callbackUrl.trim()
+   : '/dashboard'
+ const desiredRelative = desiredRaw.startsWith('/') ? desiredRaw : `/${desiredRaw}`
+ const desired =
+  desiredRaw.startsWith('http://') || desiredRaw.startsWith('https://')
+   ? desiredRaw
+   : withoutBasePath(desiredRelative)
 
  const session = await auth()
  if (session) {

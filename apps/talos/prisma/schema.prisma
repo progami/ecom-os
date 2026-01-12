@@ -93,6 +93,7 @@ model Sku {
   amazonSizeTier       String?    @map("amazon_size_tier")
   amazonReferralFeePercent Decimal? @map("amazon_referral_fee_percent") @db.Decimal(5, 2)
   amazonFbaFulfillmentFee Decimal? @map("amazon_fba_fulfillment_fee") @db.Decimal(12, 2)
+  amazonReferenceWeightKg Decimal? @map("amazon_reference_weight_kg") @db.Decimal(8, 3)
   description         String
   packSize            Int?       @map("pack_size")
   defaultSupplierId   String?    @map("default_supplier_id")

@@ -75,7 +75,21 @@ const skuSchemaBase = z.object({
       const sanitized = sanitizeForDisplay(val)
       return sanitized ? sanitized : null
     }),
+  amazonSizeTier: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
   amazonReferralFeePercent: z.number().min(0).max(100).optional().nullable(),
+  amazonFbaFulfillmentFee: z.number().min(0).optional().nullable(),
+  amazonReferenceWeightKg: z.number().positive().optional().nullable(),
   packSize: z.number().int().positive().optional().nullable(),
   defaultSupplierId: supplierIdSchema,
   secondarySupplierId: supplierIdSchema,
@@ -309,7 +323,13 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         skuCode: validatedData.skuCode,
         asin: validatedData.asin ?? null,
         amazonCategory: validatedData.amazonCategory ?? null,
+        amazonSizeTier: validatedData.amazonSizeTier ?? null,
         amazonReferralFeePercent: validatedData.amazonReferralFeePercent ?? null,
+        amazonFbaFulfillmentFee: validatedData.amazonFbaFulfillmentFee ?? null,
+        amazonReferenceWeightKg:
+          validatedData.amazonReferenceWeightKg === undefined
+            ? validatedData.initialBatch.unitWeightKg
+            : validatedData.amazonReferenceWeightKg,
         description: validatedData.description,
         packSize: validatedData.initialBatch.packSize,
         defaultSupplierId: validatedData.defaultSupplierId ?? null,

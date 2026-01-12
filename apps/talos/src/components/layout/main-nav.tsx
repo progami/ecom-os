@@ -21,6 +21,7 @@ import {
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { portalUrl } from '@/lib/portal'
+import { withBasePath } from '@/lib/utils/base-path'
 import { TenantIndicator } from '@/components/tenant/TenantIndicator'
 
 interface NavSection {
@@ -157,7 +158,7 @@ export function MainNav() {
  <button
  onClick={() => {
  const url = portalUrl('/api/auth/signout')
- url.searchParams.set('callbackUrl', `${window.location.origin}/auth/login`)
+ url.searchParams.set('callbackUrl', `${window.location.origin}${withBasePath('/auth/login')}`)
  window.location.href = url.toString()
  }}
  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
