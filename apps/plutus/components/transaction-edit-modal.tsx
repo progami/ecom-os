@@ -1,10 +1,27 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import styles from './transaction-edit-modal.module.css';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   ACCOUNTS,
-  SERVICE_TYPES,
   FIELDS,
   DEFAULT_SERVICE_TYPE,
   generateReference,
@@ -145,6 +162,19 @@ export function TransactionEditModal({ purchase, onClose, onSave }: TransactionE
     }).format(amount);
   };
 
+  // Generate period options (last 12 months)
+  const periodOptions = useMemo(() => {
+    const periods: string[] = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear().toString().slice(-2);
+      periods.push(`${monthName}${year}`);
+    }
+    return periods;
+  }, []);
+
   const renderField = (fieldId: string) => {
     const fieldConfig = FIELDS[fieldId];
     if (!fieldConfig) return null;
@@ -153,60 +183,55 @@ export function TransactionEditModal({ purchase, onClose, onSave }: TransactionE
 
     if (fieldConfig.type === 'select' && fieldConfig.options) {
       return (
-        <div key={fieldId} className={styles.field}>
-          <label className={styles.fieldLabel}>{fieldConfig.label}</label>
-          <select
-            className={styles.fieldSelect}
-            value={value}
-            onChange={(e) => handleFieldChange(fieldId, e.target.value)}
-          >
-            <option value="">Select {fieldConfig.label}</option>
-            {fieldConfig.options.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+        <div key={fieldId} className="space-y-2">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            {fieldConfig.label}
+          </label>
+          <Select value={value} onValueChange={(v) => handleFieldChange(fieldId, v)}>
+            <SelectTrigger>
+              <SelectValue placeholder={`Select ${fieldConfig.label}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {fieldConfig.options.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       );
     }
 
     if (fieldConfig.type === 'period') {
-      // Generate period options (last 12 months)
-      const periods: string[] = [];
-      const now = new Date();
-      for (let i = 0; i < 12; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = d.toLocaleString('en-US', { month: 'short' });
-        const year = d.getFullYear().toString().slice(-2);
-        periods.push(`${monthName}${year}`);
-      }
-
       return (
-        <div key={fieldId} className={styles.field}>
-          <label className={styles.fieldLabel}>{fieldConfig.label}</label>
-          <select
-            className={styles.fieldSelect}
-            value={value}
-            onChange={(e) => handleFieldChange(fieldId, e.target.value)}
-          >
-            <option value="">Select Period</option>
-            {periods.map((period) => (
-              <option key={period} value={period}>
-                {period}
-              </option>
-            ))}
-          </select>
+        <div key={fieldId} className="space-y-2">
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            {fieldConfig.label}
+          </label>
+          <Select value={value} onValueChange={(v) => handleFieldChange(fieldId, v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select Period" />
+            </SelectTrigger>
+            <SelectContent>
+              {periodOptions.map((period) => (
+                <SelectItem key={period} value={period}>
+                  {period}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       );
     }
 
     return (
-      <div key={fieldId} className={styles.field}>
-        <label className={styles.fieldLabel}>{fieldConfig.label}</label>
-        <input
+      <div key={fieldId} className="space-y-2">
+        <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          {fieldConfig.label}
+        </label>
+        <Input
           type="text"
-          className={styles.fieldInput}
           value={value}
           onChange={(e) => handleFieldChange(fieldId, e.target.value)}
           placeholder={fieldConfig.placeholder}
@@ -217,80 +242,95 @@ export function TransactionEditModal({ purchase, onClose, onSave }: TransactionE
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>Edit Transaction</h2>
-          <button className={styles.closeButton} onClick={onClose}>
-            &times;
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="text-xl">Edit Transaction</DialogTitle>
+          <DialogDescription>
+            Configure SOP compliance fields for this transaction
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className={styles.modalBody}>
-          {/* Transaction Info */}
-          <div className={styles.transactionInfo}>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Date:</span>
-              <span className={styles.infoValue}>{formatDate(purchase.date)}</span>
-            </div>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Vendor:</span>
-              <span className={styles.infoValue}>{purchase.vendor}</span>
-            </div>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Account:</span>
-              <span className={styles.infoValue}>{purchase.account}</span>
-            </div>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Amount:</span>
-              <span className={styles.infoValue}>{formatAmount(purchase.amount)}</span>
-            </div>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Current Ref:</span>
-              <span className={styles.infoValueMono}>{purchase.reference || '(empty)'}</span>
-            </div>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Current Memo:</span>
-              <span className={styles.infoValueMono}>{purchase.memo || '(empty)'}</span>
+        <div className="flex-1 overflow-y-auto py-4 space-y-6">
+          {/* Transaction Summary */}
+          <div className="rounded-lg border bg-slate-50 dark:bg-white/5 p-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Date</span>
+                <span className="font-medium text-slate-900 dark:text-white">{formatDate(purchase.date)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Amount</span>
+                <span className="font-mono font-medium text-slate-900 dark:text-white">{formatAmount(purchase.amount)}</span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-slate-500 dark:text-slate-400">Vendor</span>
+                <span className="font-medium text-slate-900 dark:text-white">{purchase.vendor}</span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-slate-500 dark:text-slate-400">Account</span>
+                <span className="text-slate-700 dark:text-slate-300">{purchase.account}</span>
+              </div>
+              <div className="flex justify-between col-span-2 pt-2 border-t border-slate-200 dark:border-white/10">
+                <span className="text-slate-500 dark:text-slate-400">Current Ref</span>
+                <code className="text-xs px-2 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-slate-300">
+                  {purchase.reference || '(empty)'}
+                </code>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-slate-500 dark:text-slate-400">Current Memo</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
+                  {purchase.memo || <span className="italic text-slate-400">(empty)</span>}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* SOP Selection */}
-          <div className={styles.sopSection}>
-            <h3 className={styles.sectionTitle}>SOP Configuration</h3>
+          {/* SOP Configuration */}
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              SOP Configuration
+            </h4>
 
-            <div className={styles.field}>
-              <label className={styles.fieldLabel}>Account Type</label>
-              <select
-                className={styles.fieldSelect}
-                value={selectedAccountId}
-                onChange={(e) => setSelectedAccountId(e.target.value)}
-              >
-                <option value="">Select Account Type</option>
-                {ACCOUNTS.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.code} - {acc.name}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Account Type
+              </label>
+              <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Account Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCOUNTS.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.code} - {acc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {selectedAccountId && (
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Service Type</label>
-                <select
-                  className={styles.fieldSelect}
-                  value={selectedServiceTypeId}
-                  onChange={(e) => setSelectedServiceTypeId(e.target.value)}
-                >
-                  {serviceTypes.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Service Type
+                </label>
+                <Select value={selectedServiceTypeId} onValueChange={setSelectedServiceTypeId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Service Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceTypes.map((st) => (
+                      <SelectItem key={st.id} value={st.id}>
+                        {st.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {selectedServiceType?.note && (
-                  <p className={styles.fieldNote}>{selectedServiceType.note}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                    {selectedServiceType.note}
+                  </p>
                 )}
               </div>
             )}
@@ -298,50 +338,75 @@ export function TransactionEditModal({ purchase, onClose, onSave }: TransactionE
 
           {/* Dynamic Fields */}
           {selectedServiceType && requiredFields.length > 0 && (
-            <div className={styles.fieldsSection}>
-              <h3 className={styles.sectionTitle}>Fill in Details</h3>
-              <div className={styles.fieldsGrid}>{requiredFields.map(renderField)}</div>
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Fill in Details
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                {requiredFields.map(renderField)}
+              </div>
             </div>
           )}
 
           {/* Preview */}
           {selectedServiceType && (
-            <div className={styles.previewSection}>
-              <h3 className={styles.sectionTitle}>Preview</h3>
-              <div className={styles.preview}>
-                <div className={styles.previewRow}>
-                  <span className={styles.previewLabel}>Reference:</span>
-                  <span className={styles.previewValue}>
-                    {preview.reference || <span className={styles.previewEmpty}>(empty)</span>}
-                  </span>
-                  <span className={styles.previewLimit}>{preview.reference.length}/21</span>
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Preview
+              </h4>
+              <div className="rounded-lg border border-brand-teal-200 dark:border-brand-cyan/30 bg-brand-teal-50/50 dark:bg-brand-cyan/5 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-500 dark:text-slate-400 min-w-[70px]">Reference</span>
+                    <code className={cn(
+                      "text-sm font-mono px-2 py-1 rounded",
+                      preview.reference
+                        ? "bg-brand-teal-100 dark:bg-brand-cyan/20 text-brand-teal-700 dark:text-brand-cyan"
+                        : "bg-slate-100 dark:bg-white/10 text-slate-400 italic"
+                    )}>
+                      {preview.reference || '(empty)'}
+                    </code>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-mono">
+                    {preview.reference.length}/21
+                  </Badge>
                 </div>
-                <div className={styles.previewRow}>
-                  <span className={styles.previewLabel}>Memo:</span>
-                  <span className={styles.previewValue}>
-                    {preview.memo || <span className={styles.previewEmpty}>(empty)</span>}
+                <div className="flex items-start gap-2">
+                  <span className="text-sm text-slate-500 dark:text-slate-400 min-w-[70px]">Memo</span>
+                  <span className={cn(
+                    "text-sm",
+                    preview.memo
+                      ? "text-brand-teal-700 dark:text-brand-cyan"
+                      : "text-slate-400 italic"
+                  )}>
+                    {preview.memo || '(empty)'}
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {error && <div className={styles.error}>{error}</div>}
+          {/* Error */}
+          {error && (
+            <div className="rounded-lg border border-danger-200 dark:border-danger-900 bg-danger-50 dark:bg-danger-950/50 p-4">
+              <p className="text-sm text-danger-700 dark:text-danger-400">{error}</p>
+            </div>
+          )}
         </div>
 
-        <div className={styles.modalFooter}>
-          <button className={styles.cancelButton} onClick={onClose} disabled={saving}>
+        <DialogFooter className="border-t pt-4">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
-          </button>
-          <button
-            className={styles.saveButton}
+          </Button>
+          <Button
             onClick={handleSave}
             disabled={saving || !preview.reference || !preview.memo}
+            className="bg-brand-teal-600 hover:bg-brand-teal-700 dark:bg-brand-cyan dark:hover:bg-brand-cyan/90 text-white"
           >
-            {saving ? 'Saving...' : 'Save to QBO'}
-          </button>
-        </div>
-      </div>
-    </div>
+            {saving ? 'Saving...' : 'Save to QuickBooks'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
