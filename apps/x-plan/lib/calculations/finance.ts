@@ -183,10 +183,14 @@ export function computeProfitAndLoss(
       override?.fixedCosts != null
         ? coerceNumber(override.fixedCosts)
         : businessParams.weeklyFixedCosts;
+    // OPEX = Fixed Costs only (PPC is part of GP calculation, not OPEX)
     const totalOpex =
-      override?.totalOpex != null ? coerceNumber(override.totalOpex) : ppcSpend + fixedCosts;
+      override?.totalOpex != null ? coerceNumber(override.totalOpex) : fixedCosts;
+    // Net Profit = Gross Profit - PPC - Fixed Costs
     const netProfit =
-      override?.netProfit != null ? coerceNumber(override.netProfit) : grossProfit - totalOpex;
+      override?.netProfit != null
+        ? coerceNumber(override.netProfit)
+        : grossProfit - ppcSpend - fixedCosts;
     const grossMargin = revenue === 0 ? 0 : grossProfit / revenue;
 
     weekly.push({

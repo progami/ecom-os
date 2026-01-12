@@ -47,7 +47,6 @@ type WeeklyRow = {
   amazonFees: string;
   ppcSpend: string;
   fixedCosts: string;
-  totalOpex: string;
   netProfit: string;
   netMargin: string;
 };
@@ -119,10 +118,12 @@ const columnConfig: Array<{
     editable: true,
     align: 'right',
   },
+  // PPC moved before GP - it's part of GP calculation, not OPEX
+  { key: 'ppcSpend', label: 'PPC', width: 110, format: 'currency', editable: true, align: 'right' },
   {
     key: 'grossProfit',
-    label: 'Order GP',
-    width: 110,
+    label: 'Gross Profit',
+    width: 120,
     format: 'currency',
     editable: false,
     align: 'right',
@@ -135,21 +136,13 @@ const columnConfig: Array<{
     editable: false,
     align: 'right',
   },
-  { key: 'ppcSpend', label: 'PPC', width: 110, format: 'currency', editable: true, align: 'right' },
+  // OPEX = Fixed Costs only (PPC is part of GP, not OPEX)
   {
     key: 'fixedCosts',
-    label: 'Fixed Costs',
+    label: 'OPEX (est.)',
     width: 110,
     format: 'currency',
     editable: true,
-    align: 'right',
-  },
-  {
-    key: 'totalOpex',
-    label: 'Total OpEx',
-    width: 120,
-    format: 'currency',
-    editable: false,
     align: 'right',
   },
   {
