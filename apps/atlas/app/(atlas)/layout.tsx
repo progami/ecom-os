@@ -64,7 +64,7 @@ const navigation: NavSection[] = [
     title: 'Admin',
     requireHR: true,
     items: [
-      { name: 'Employees', href: '/employees', icon: UsersIcon, requireHR: true },
+      { name: 'HR', href: '/hr', icon: UsersIcon, requireHR: true },
       { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon, requireHR: true },
       { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
     ],
