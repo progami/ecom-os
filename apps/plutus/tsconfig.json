@@ -3,7 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@targon/auth": ["../../packages/auth/src"],
+      "@targon/config": ["../../packages/config/src"],
+      "@targon/logger": ["../../packages/logger/src"]
     },
     "moduleResolution": "Bundler",
     "lib": ["dom", "dom.iterable", "esnext"],
