@@ -66,7 +66,7 @@ function DonutChart({
       {/* Center text */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-bold text-slate-900 dark:text-slate-50">{value}</span>
-        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">of {max}</span>
+        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">days</span>
       </div>
     </div>
   )
@@ -152,28 +152,21 @@ function TimeOffCard({ balances }: { balances: LeaveBalance[] }) {
         <DonutChart value={mainBalance.available} max={mainBalance.allocated} color={color} />
 
         <div className="flex-1 space-y-3">
-          <div>
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500 uppercase">Available</p>
-            <p className="text-xl font-bold text-slate-900 dark:text-slate-50">
-              {mainBalance.available} <span className="text-sm font-normal text-slate-400">days</span>
-            </p>
-          </div>
-
-          <div className="flex gap-4 text-xs">
+          <div className="flex gap-4 text-sm">
             <div>
-              <span className="text-slate-400">Used: </span>
-              <span className="font-semibold text-slate-600 dark:text-slate-300">{mainBalance.used}</span>
+              <span className="text-slate-400">Used </span>
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{mainBalance.used}</span>
             </div>
             <div>
-              <span className="text-slate-400">Pending: </span>
+              <span className="text-slate-400">Pending </span>
               <span className="font-semibold text-amber-600 dark:text-amber-400">{mainBalance.pending}</span>
             </div>
           </div>
 
           {sickBalance ? (
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-xs text-slate-400">
-                Sick leave: <span className="font-semibold text-slate-600 dark:text-slate-300">{sickBalance.available}</span> of {sickBalance.allocated}
+              <p className="text-sm text-slate-500">
+                Sick: <span className="font-semibold text-slate-700 dark:text-slate-200">{sickBalance.available}</span>/{sickBalance.allocated}
               </p>
             </div>
           ) : null}
@@ -189,16 +182,9 @@ function QuickProfileCard({ employee }: { employee: Employee }) {
     <BentoCard className="p-6" span={2}>
       <div className="flex items-start gap-5">
         {/* Avatar */}
-        <div className="relative">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 flex items-center justify-center text-white dark:text-slate-900 text-2xl font-bold shadow-lg">
-            {employee.firstName[0]}
-            {employee.lastName[0]}
-          </div>
-          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 flex items-center justify-center">
-            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 dark:from-slate-200 dark:to-slate-400 flex items-center justify-center text-white dark:text-slate-900 text-2xl font-bold shadow-lg">
+          {employee.firstName[0]}
+          {employee.lastName[0]}
         </div>
 
         {/* Info */}
@@ -253,17 +239,9 @@ function QuickProfileCard({ employee }: { employee: Employee }) {
 function ContactCard({ employee }: { employee: Employee }) {
   return (
     <BentoCard className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-          Contact
-        </h3>
-        <Link
-          href={`/employees/${employee.id}/edit`}
-          className="text-xs font-medium text-cyan-600 dark:text-cyan-400 hover:underline"
-        >
-          Edit
-        </Link>
-      </div>
+      <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+        Contact
+      </h3>
 
       <div className="space-y-3">
         <div className="flex items-center gap-3">
@@ -303,43 +281,39 @@ function EmploymentCard({ employee }: { employee: Employee }) {
 
   return (
     <BentoCard className="p-6">
-      <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
-        Employment
-      </h3>
-
-      <div className="space-y-4">
-        <div>
-          <p className="text-[10px] font-medium text-slate-400 uppercase mb-1">Status</p>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          Employment
+        </h3>
+        <span className={cn(
+          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
+          employee.status === 'ACTIVE'
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+        )}>
           <span className={cn(
-            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold',
-            employee.status === 'ACTIVE'
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-          )}>
-            <span className={cn(
-              'w-1.5 h-1.5 rounded-full',
-              employee.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'
-            )} />
-            {employee.status}
-          </span>
-        </div>
+            'w-1.5 h-1.5 rounded-full',
+            employee.status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'
+          )} />
+          {employee.status}
+        </span>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] font-medium text-slate-400 uppercase mb-1">Type</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            {employee.employmentType.replace(/_/g, ' ')}
+          </p>
+        </div>
+        {tenure !== null && tenure >= 0 ? (
           <div>
-            <p className="text-[10px] font-medium text-slate-400 uppercase mb-1">Type</p>
+            <p className="text-[10px] font-medium text-slate-400 uppercase mb-1">Tenure</p>
             <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              {employee.employmentType.replace(/_/g, ' ')}
+              {tenure === 0 ? '< 1 year' : `${tenure} year${tenure !== 1 ? 's' : ''}`}
             </p>
           </div>
-          {tenure !== null && tenure >= 0 ? (
-            <div>
-              <p className="text-[10px] font-medium text-slate-400 uppercase mb-1">Tenure</p>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                {tenure === 0 ? '< 1 year' : `${tenure} year${tenure !== 1 ? 's' : ''}`}
-              </p>
-            </div>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </BentoCard>
   )
@@ -363,30 +337,24 @@ function DocumentsCard({ employeeId }: { employeeId: string }) {
 
       <div className="space-y-2">
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">Employment Contract</p>
-            <p className="text-xs text-slate-400">PDF Document</p>
-          </div>
+          <p className="flex-1 text-sm font-medium text-slate-900 dark:text-slate-50 truncate">Employment Contract</p>
           <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
         </div>
 
         <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
             </svg>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">ID Badge</p>
-            <p className="text-xs text-slate-400">PDF Document</p>
-          </div>
+          <p className="flex-1 text-sm font-medium text-slate-900 dark:text-slate-50 truncate">ID Badge</p>
           <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
@@ -396,39 +364,66 @@ function DocumentsCard({ employeeId }: { employeeId: string }) {
   )
 }
 
-// Quick Links Card
-function QuickLinksCard() {
-  const links = [
-    { href: '/resources', label: 'Team Resources', icon: '01', description: 'Tools & shared logins' },
-    { href: '/leave', label: 'Request Leave', icon: '02', description: 'Book time off' },
-    { href: '/policies', label: 'Policies', icon: '03', description: 'Company guidelines' },
-    { href: '/org-chart', label: 'Org Chart', icon: '04', description: 'Team structure' },
+// Quick Actions Card
+function QuickActionsCard() {
+  const actions = [
+    {
+      href: '/leave/request',
+      label: 'Request Time Off',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+    },
+    {
+      href: '/work',
+      label: 'View Inbox',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+        </svg>
+      ),
+    },
+    {
+      href: '/resources',
+      label: 'Team Resources',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      ),
+    },
+    {
+      href: '/calendar',
+      label: 'Team Calendar',
+      icon: (
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+    },
   ]
 
   return (
     <BentoCard className="p-6">
       <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
-        Quick Links
+        Quick Actions
       </h3>
 
       <div className="grid grid-cols-2 gap-2">
-        {links.map((link) => (
+        {actions.map((action) => (
           <Link
-            key={link.href}
-            href={link.href}
-            className="group flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all duration-200"
+            key={action.href}
+            href={action.href}
+            className="group flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all duration-200"
           >
-            <span className="font-mono text-[10px] font-bold text-slate-300 dark:text-slate-600 group-hover:text-white/50 dark:group-hover:text-slate-900/50 transition-colors">
-              {link.icon}
+            <span className="text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
+              {action.icon}
             </span>
-            <div>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
-                {link.label}
-              </p>
-              <p className="text-[10px] text-slate-400 group-hover:text-white/70 dark:group-hover:text-slate-900/70 transition-colors">
-                {link.description}
-              </p>
-            </div>
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
+              {action.label}
+            </span>
           </Link>
         ))}
       </div>
@@ -514,29 +509,32 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Tab switcher */}
-      <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
-        <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
-          Overview
-        </TabButton>
-        <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')}>
-          Activity
-        </TabButton>
+      {/* Header with title and tabs */}
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-50">My Hub</h1>
+        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+          <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')}>
+            Overview
+          </TabButton>
+          <TabButton active={activeTab === 'activity'} onClick={() => setActiveTab('activity')}>
+            Activity
+          </TabButton>
+        </div>
       </div>
 
       {activeTab === 'overview' ? (
         <div className="grid grid-cols-3 gap-4">
-          {/* Row 1 */}
+          {/* Row 1: Profile + Time Off */}
           <QuickProfileCard employee={employee} />
           <TimeOffCard balances={leaveBalances} />
 
-          {/* Row 2 */}
+          {/* Row 2: Contact + Employment + Quick Actions */}
           <ContactCard employee={employee} />
           <EmploymentCard employee={employee} />
-          <DocumentsCard employeeId={employeeId} />
+          <QuickActionsCard />
 
-          {/* Row 3 */}
-          <QuickLinksCard />
+          {/* Row 3: Documents */}
+          <DocumentsCard employeeId={employeeId} />
         </div>
       ) : (
         <ActivityTimeline employeeId={employeeId} />
