@@ -473,8 +473,10 @@ function PerformanceReviewContent({ entityData }: { entityData: WorkItemEntityDa
 function DisciplinaryActionContent({ entityData }: { entityData: WorkItemEntityData }) {
   const severityConfig: Record<string, { bg: string; text: string; border: string }> = {
     CRITICAL: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-300 dark:border-red-800' },
-    HIGH: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-300 dark:border-orange-800' },
-    MEDIUM: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800' },
+    MAJOR: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300', border: 'border-rose-300 dark:border-rose-800' },
+    HIGH: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300', border: 'border-rose-300 dark:border-rose-800' },
+    MEDIUM: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
+    MINOR: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
     LOW: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
   }
 
@@ -504,8 +506,10 @@ function DisciplinaryActionContent({ entityData }: { entityData: WorkItemEntityD
             </div>
             <p className={cn('mt-1 text-sm font-medium', config.text)}>
               {severity === 'CRITICAL' && 'Requires immediate attention'}
+              {severity === 'MAJOR' && 'Serious violation'}
               {severity === 'HIGH' && 'Serious violation'}
               {severity === 'MEDIUM' && 'Moderate concern'}
+              {severity === 'MINOR' && 'Minor issue'}
               {severity === 'LOW' && 'Minor issue'}
             </p>
           </div>
