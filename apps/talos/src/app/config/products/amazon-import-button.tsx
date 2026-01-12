@@ -311,6 +311,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-cyan-900/80">
                   <li>Existing SKUs are skipped (no overwrites).</li>
                   <li>Each selected SKU is validated (ASIN + unit weight required) before import.</li>
+                  <li>Imports Amazon fields when available (title, unit weight/dimensions, category, fee estimates).</li>
                   <li>
                     A default batch (<span className="font-mono">{preview?.policy.defaultBatchCode ?? 'BATCH 01'}</span>)
                     is created for each new SKU.
