@@ -1063,7 +1063,7 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   } else {
     try {
       const listingsResponse = await callAmazonApi<{
-        items?: Array<{
+        listings?: Array<{
           sku?: string
           asin?: string
           productType?: string
@@ -1080,7 +1080,7 @@ export async function testCompareApis(tenantCode?: TenantCode) {
           pageSize: 100,
         },
       })
-      listingsSkus = (listingsResponse.items ?? []).map(item => ({
+      listingsSkus = (listingsResponse.listings ?? []).map(item => ({
         sku: item.sku ?? '',
         asin: item.asin ?? null,
         productType: item.productType ?? null,
