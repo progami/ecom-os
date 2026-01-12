@@ -778,12 +778,12 @@ export function POProfitabilitySection({
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table className="min-w-[1520px] table-fixed w-full">
+              <Table className="min-w-[2100px] table-fixed w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead
                       rowSpan={2}
-                      className="w-[190px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="w-[200px] h-10 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       <SortButton
                         field="orderCode"
@@ -796,19 +796,19 @@ export function POProfitabilitySection({
                     </TableHead>
                     <TableHead
                       rowSpan={2}
-                      className="w-[92px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="w-[100px] h-10 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       Status
                     </TableHead>
                     <TableHead
                       rowSpan={2}
-                      className="w-[84px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="w-[90px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       Units
                     </TableHead>
                     <TableHead
                       rowSpan={2}
-                      className="w-[112px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="w-[110px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       <SortButton
                         field="revenue"
@@ -822,74 +822,74 @@ export function POProfitabilitySection({
                     </TableHead>
                     <TableHead
                       colSpan={5}
-                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       COGS
                     </TableHead>
                     <TableHead
                       colSpan={5}
-                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       Amz Fees
                     </TableHead>
                     <TableHead
                       colSpan={2}
-                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       Opex
                     </TableHead>
                     <TableHead
                       colSpan={4}
-                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                      className="h-10 px-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
                       Profit
                     </TableHead>
                   </TableRow>
 
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Mfg
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Freight
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Tariff
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Adj
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Total
                     </TableHead>
 
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Ref
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       FBA
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Storage
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Adj
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Total
                     </TableHead>
 
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       PPC
                     </TableHead>
-                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[100px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       Fixed
                     </TableHead>
 
-                    <TableHead className="w-[112px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[110px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       GP
                     </TableHead>
-                    <TableHead className="w-[112px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[110px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       <SortButton
                         field="netProfit"
                         current={sortField}
@@ -900,7 +900,7 @@ export function POProfitabilitySection({
                         Net
                       </SortButton>
                     </TableHead>
-                    <TableHead className="w-[86px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[90px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       <SortButton
                         field="netMarginPercent"
                         current={sortField}
@@ -911,7 +911,7 @@ export function POProfitabilitySection({
                         Margin
                       </SortButton>
                     </TableHead>
-                    <TableHead className="w-[76px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                    <TableHead className="w-[80px] h-10 px-3 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
                       <SortButton
                         field="roi"
                         current={sortField}
@@ -927,7 +927,7 @@ export function POProfitabilitySection({
                 <TableBody>
                   {tableSortedData.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell>
+                      <TableCell className="px-3">
                         <div className="font-medium">{row.orderCode}</div>
                         {skuFilter !== 'ALL' && row.batchCode ? (
                           <div className="text-xs text-muted-foreground">
@@ -941,72 +941,72 @@ export function POProfitabilitySection({
                           {row.productName}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-3">
                         <StatusBadge status={row.status} />
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="px-3 text-right tabular-nums">
                         {row.units.toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="px-3 text-right tabular-nums">
                         {formatMoney(row.revenue, row.units)}
                       </TableCell>
 
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.manufacturingCost, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.freightCost, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.tariffCost, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.cogsAdjustment, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.cogs, row.units)}
                       </TableCell>
 
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.referralFees, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.fbaFees, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.storageFees, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.amazonFeesAdjustment, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.amazonFees, row.units)}
                       </TableCell>
 
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.ppcSpend, row.units)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                      <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                         {formatMoney(row.fixedCosts, row.units)}
                       </TableCell>
 
                       <TableCell
-                        className={`text-right tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                        className={`px-3 text-right tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                       >
                         {formatMoney(row.grossProfit, row.units)}
                       </TableCell>
                       <TableCell
-                        className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                        className={`px-3 text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                       >
                         {formatMoney(row.netProfit, row.units)}
                       </TableCell>
                       <TableCell
-                        className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                        className={`px-3 text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                       >
                         {formatPercent(row.netMarginPercent)}
                       </TableCell>
                       <TableCell
-                        className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                        className={`px-3 text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                       >
                         {formatPercent(row.roi)}
                       </TableCell>
@@ -1015,111 +1015,111 @@ export function POProfitabilitySection({
 
                   {/* Total row */}
                   <TableRow className="bg-muted/50">
-                    <TableCell className="font-semibold">
+                    <TableCell className="px-3 font-semibold">
                       {valueDisplay === 'PER_UNIT' ? 'Avg' : 'Total'} ({filteredData.length}{' '}
                       {skuFilter !== 'ALL' ? 'batches' : 'POs'})
                     </TableCell>
-                    <TableCell />
-                    <TableCell className="text-right tabular-nums font-semibold">
+                    <TableCell className="px-3" />
+                    <TableCell className="px-3 text-right tabular-nums font-semibold">
                       {summary.totalUnits.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums font-semibold">
+                    <TableCell className="px-3 text-right tabular-nums font-semibold">
                       {formatMoney(summary.totalRevenue, summary.totalUnits)}
                     </TableCell>
 
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.manufacturingCost, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.freightCost, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.tariffCost, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.cogsAdjustment, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.cogs, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
 
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.referralFees, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.fbaFees, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.storageFees, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.amazonFeesAdjustment, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
 
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.ppcSpend, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                    <TableCell className="px-3 text-right tabular-nums text-muted-foreground">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.fixedCosts, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
 
-                    <TableCell className="text-right tabular-nums font-semibold">
+                    <TableCell className="px-3 text-right tabular-nums font-semibold">
                       {formatMoney(
                         filteredData.reduce((sum, row) => sum + row.grossProfit, 0),
                         summary.totalUnits,
                       )}
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                      className={`px-3 text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                     >
                       {formatMoney(summary.totalProfit, summary.totalUnits)}
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums font-semibold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      className={`px-3 text-right tabular-nums font-semibold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                     >
                       {formatPercent(summary.netMargin)}
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums font-semibold ${summary.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      className={`px-3 text-right tabular-nums font-semibold ${summary.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                     >
                       {formatPercent(summary.roi)}
                     </TableCell>
