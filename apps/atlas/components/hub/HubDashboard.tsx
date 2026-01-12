@@ -414,31 +414,56 @@ function TimeOffCard({ balances }: { balances: LeaveBalance[] }) {
 }
 
 function QuickActionsCard() {
-  const actions = [
-    { href: '/leave/request', label: 'Request Leave', icon: '📅' },
-    { href: '/resources', label: 'Resources', icon: '📁' },
-    { href: '/calendar', label: 'Calendar', icon: '🗓️' },
-    { href: '/policies', label: 'Policies', icon: '📋' },
-  ]
-
   return (
     <BentoCard className="p-5">
       <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
         Quick Actions
       </h3>
       <div className="grid grid-cols-2 gap-2">
-        {actions.map((action) => (
-          <Link
-            key={action.href}
-            href={action.href}
-            className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
-          >
-            <span className="text-sm">{action.icon}</span>
-            <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
-              {action.label}
-            </span>
-          </Link>
-        ))}
+        <Link
+          href="/leave/request"
+          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
+        >
+          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
+            Request Leave
+          </span>
+        </Link>
+        <Link
+          href="/resources"
+          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
+        >
+          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+          </svg>
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
+            Resources
+          </span>
+        </Link>
+        <Link
+          href="/calendar"
+          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
+        >
+          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+          </svg>
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
+            Calendar
+          </span>
+        </Link>
+        <Link
+          href="/policies"
+          className="group flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-900 dark:hover:bg-white transition-all"
+        >
+          <svg className="w-4 h-4 text-slate-400 group-hover:text-white dark:group-hover:text-slate-900 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+          <span className="text-xs font-medium text-slate-700 dark:text-slate-200 group-hover:text-white dark:group-hover:text-slate-900 transition-colors">
+            Policies
+          </span>
+        </Link>
       </div>
     </BentoCard>
   )
