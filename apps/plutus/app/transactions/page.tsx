@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
+import Link from 'next/link';
 import { DataTable, ColumnMeta } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -338,13 +339,13 @@ export default function TransactionsPage() {
         {/* Header */}
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a
-              href={basePath}
+            <Link
+              href="/"
               className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Back
-            </a>
+            </Link>
             <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Transactions</h1>
           </div>
           <Button onClick={() => fetchPurchases(pagination.page)} variant="outline" size="sm">
