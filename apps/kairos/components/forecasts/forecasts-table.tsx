@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowUpDown, ExternalLink, Loader2, Play, Plus, RefreshCw, Trash2, X } from 'lucide-react';
+import { ArrowUpDown, Check, ExternalLink, Loader2, Play, Plus, RefreshCw, Trash2, X } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -18,8 +18,8 @@ import {
 } from '@tanstack/react-table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { ForecastListItem, ForecastModel, TimeSeriesListItem } from '@/types/kairos';
-import { StatusBadge } from '@/components/ui/badge';
+import type { ForecastListItem, ForecastModel, RegressorFutureMode, TimeSeriesListItem } from '@/types/kairos';
+import { Badge, StatusBadge } from '@/components/ui/badge';
 import { SkeletonTable } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { fetchJson } from '@/lib/api/client';
+
+type RegressorSelection = {
+  seriesId: string;
+  futureMode: RegressorFutureMode;
+};
 
 const FORECASTS_QUERY_KEY = ['kairos', 'forecasts'] as const;
 const SERIES_QUERY_KEY = ['kairos', 'time-series'] as const;
@@ -235,6 +240,7 @@ export function ForecastsTable() {
   const [createSeriesId, setCreateSeriesId] = useState('');
   const [createHorizon, setCreateHorizon] = useState('26');
   const [createModel, setCreateModel] = useState<ForecastModel>('PROPHET');
+  const [selectedRegressors, setSelectedRegressors] = useState<RegressorSelection[]>([]);
 
   const [prophetIntervalWidth, setProphetIntervalWidth] = useState('0.8');
   const [prophetUncertaintySamples, setProphetUncertaintySamples] = useState('200');
@@ -268,6 +274,40 @@ export function ForecastsTable() {
     const series = seriesQuery.data?.series ?? [];
     return series.find((s) => s.id === createSeriesId) ?? null;
   }, [seriesQuery.data, createSeriesId]);
+
+  // Available regressors = all series except the selected target
+  const availableRegressors = useMemo(() => {
+    const series = seriesQuery.data?.series ?? [];
+    if (!createSeriesId) return series;
+    return series.filter((s) => s.id !== createSeriesId);
+  }, [seriesQuery.data, createSeriesId]);
+
+  // Clear regressors when target changes or when switching to ETS
+  useEffect(() => {
+    setSelectedRegressors([]);
+  }, [createSeriesId]);
+
+  useEffect(() => {
+    if (createModel === 'ETS') {
+      setSelectedRegressors([]);
+    }
+  }, [createModel]);
+
+  const toggleRegressor = (seriesId: string) => {
+    setSelectedRegressors((prev) => {
+      const existing = prev.find((r) => r.seriesId === seriesId);
+      if (existing) {
+        return prev.filter((r) => r.seriesId !== seriesId);
+      }
+      return [...prev, { seriesId, futureMode: 'FORECAST' as RegressorFutureMode }];
+    });
+  };
+
+  const updateRegressorMode = (seriesId: string, futureMode: RegressorFutureMode) => {
+    setSelectedRegressors((prev) =>
+      prev.map((r) => (r.seriesId === seriesId ? { ...r, futureMode } : r)),
+    );
+  };
 
   useEffect(() => {
     if (!selectedSeries) return;
@@ -311,7 +351,7 @@ export function ForecastsTable() {
         body: JSON.stringify({
           name,
           targetSeriesId: createSeriesId,
-          regressorSeriesIds: [],
+          regressorSeriesIds: selectedRegressors.map((r) => r.seriesId),
           model: createModel,
           horizon,
           runNow: true,
@@ -325,6 +365,7 @@ export function ForecastsTable() {
       setCreateName('');
       setCreateHorizon('26');
       setCreateModel('PROPHET');
+      setSelectedRegressors([]);
       setProphetIntervalWidth('0.8');
       setProphetUncertaintySamples('200');
       await queryClient.invalidateQueries({ queryKey: FORECASTS_QUERY_KEY });
@@ -475,11 +516,12 @@ export function ForecastsTable() {
                 </DialogHeader>
 
                 <div className="grid gap-4">
+                  {/* Target Series Section */}
                   <div className="space-y-2">
-                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Time series</div>
+                    <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Target series (what to predict)</div>
                     <Select value={createSeriesId} onValueChange={setCreateSeriesId}>
-                      <SelectTrigger aria-label="Select a time series">
-                        <SelectValue placeholder="Select a series" />
+                      <SelectTrigger aria-label="Select a target series">
+                        <SelectValue placeholder="Select target series" />
                       </SelectTrigger>
                       <SelectContent>
                         {(seriesQuery.data?.series ?? []).map((series) => (
@@ -501,6 +543,59 @@ export function ForecastsTable() {
                       </div>
                     ) : null}
                   </div>
+
+                  {/* Regressors Section - Only for Prophet */}
+                  {createModel === 'PROPHET' && createSeriesId && availableRegressors.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                        Regressors <span className="font-normal text-slate-400">(optional - features that help predict)</span>
+                      </div>
+                      <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-white/10">
+                        {availableRegressors.map((series) => {
+                          const isSelected = selectedRegressors.some((r) => r.seriesId === series.id);
+                          const regressor = selectedRegressors.find((r) => r.seriesId === series.id);
+                          return (
+                            <div key={series.id} className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleRegressor(series.id)}
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors ${
+                                  isSelected
+                                    ? 'border-brand-teal-500 bg-brand-teal-500 text-white dark:border-brand-cyan dark:bg-brand-cyan'
+                                    : 'border-slate-300 dark:border-slate-600'
+                                }`}
+                              >
+                                {isSelected && <Check className="h-3 w-3" />}
+                              </button>
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="truncate text-sm">{series.name}</span>
+                                <Badge variant="outline" className="shrink-0 text-[10px]">
+                                  {series.source === 'GOOGLE_TRENDS' ? 'Trends' : series.source === 'CSV_UPLOAD' ? 'CSV' : series.source}
+                                </Badge>
+                              </div>
+                              {isSelected && (
+                                <Select
+                                  value={regressor?.futureMode ?? 'FORECAST'}
+                                  onValueChange={(value) => updateRegressorMode(series.id, value as RegressorFutureMode)}
+                                >
+                                  <SelectTrigger className="h-7 w-32 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="FORECAST">Auto-forecast</SelectItem>
+                                    <SelectItem value="USER_INPUT">User provides</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        <strong>Auto-forecast:</strong> System forecasts this regressor first. <strong>User provides:</strong> You&apos;ll enter future values.
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <div className="text-xs font-medium text-slate-700 dark:text-slate-200">Name (optional)</div>
