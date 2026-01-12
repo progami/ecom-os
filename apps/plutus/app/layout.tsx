@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { DM_Sans, Instrument_Serif } from 'next/font/google';
 import './globals.css';
 import { clsx } from 'clsx';
 
@@ -7,7 +7,18 @@ import { Providers } from '@/components/providers';
 
 const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  weight: ['400', '500', '600', '700'],
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ['latin'],
+  variable: '--font-display',
+  weight: ['400'],
+  style: ['normal', 'italic'],
+});
 
 export const metadata: Metadata = {
   title: 'Plutus | Targon',
@@ -34,7 +45,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={clsx(
           'min-h-screen bg-slate-50 font-sans antialiased dark:bg-slate-950',
-          inter.variable,
+          dmSans.variable,
+          instrumentSerif.variable,
         )}
       >
         <Providers>{children}</Providers>
