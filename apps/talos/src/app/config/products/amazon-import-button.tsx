@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AlertCircle, CheckCircle, Cloud, Loader2, Search, X } from '@/lib/lucide-icons'
 
+type AmazonListingType = 'LISTING' | 'PARENT' | 'UNKNOWN'
+
 type ImportResult = {
   imported: number
   skipped: number
@@ -40,6 +42,7 @@ type ImportPreview = {
     skuCode: string | null
     asin: string | null
     title: string | null
+    listingType: AmazonListingType
     status: 'new' | 'existing' | 'blocked'
     reason: string | null
     exists: boolean
@@ -311,6 +314,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-cyan-900/80">
                   <li>Existing SKUs are skipped (no overwrites).</li>
                   <li>Each selected SKU is validated (ASIN + unit weight required) before import.</li>
+                  <li>Variation parent ASINs are blocked (import sellable listings only).</li>
                   <li>Imports Amazon fields when available (title, unit weight/dimensions, category, fee estimates).</li>
                   <li>
                     A default batch (<span className="font-mono">{preview?.policy.defaultBatchCode ?? 'BATCH 01'}</span>)
@@ -431,6 +435,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                       <th className="w-10 px-3 py-2"> </th>
                       <th className="px-3 py-2">SKU</th>
                       <th className="px-3 py-2">ASIN</th>
+                      <th className="px-3 py-2">Type</th>
                       <th className="px-3 py-2">Title</th>
                       <th className="px-3 py-2">Status</th>
                     </tr>
@@ -438,7 +443,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                   <tbody>
                     {loadingPreview ? (
                       <tr>
-                        <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
+                        <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
                           <span className="inline-flex items-center gap-2">
                             <Loader2 className="h-4 w-4 animate-spin" /> Loading Amazon listings…
                           </span>
@@ -446,13 +451,13 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                       </tr>
                     ) : previewError ? (
                       <tr>
-                        <td colSpan={5} className="px-3 py-10 text-center text-rose-700">
+                        <td colSpan={6} className="px-3 py-10 text-center text-rose-700">
                           {previewError}
                         </td>
                       </tr>
                     ) : !preview || preview.items.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
+                        <td colSpan={6} className="px-3 py-10 text-center text-slate-500">
                           No listings found.
                         </td>
                       </tr>
@@ -487,6 +492,17 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                             </td>
                             <td className="px-3 py-2 align-top font-mono text-xs text-slate-700">
                               {item.asin ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              {item.listingType === 'LISTING' ? (
+                                <Badge variant="secondary">Listing</Badge>
+                              ) : item.listingType === 'PARENT' ? (
+                                <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-100">
+                                  Parent
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">Unknown</Badge>
+                              )}
                             </td>
                             <td className="px-3 py-2 align-top">
                               <div className="text-slate-700">{item.title ?? '—'}</div>
