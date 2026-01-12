@@ -1,13 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import {
-  ClipboardList,
-  FileSpreadsheet,
-  LineChart,
-  Package,
-  Target,
-  TrendingUp,
-  Wallet2,
-} from 'lucide-react';
+import { ClipboardList, FileSpreadsheet, LineChart, Package, Target, Wallet2 } from 'lucide-react';
 
 export type SheetSlug =
   | '1-strategies'
@@ -15,8 +7,7 @@ export type SheetSlug =
   | '3-ops-planning'
   | '4-sales-planning'
   | '5-fin-planning-pl'
-  | '6-fin-planning-cash-flow'
-  | '7-po-profitability';
+  | '6-fin-planning-cash-flow';
 
 export type LegacySheetSlug =
   | '0-strategies'
@@ -25,7 +16,8 @@ export type LegacySheetSlug =
   | '3-sales-planning'
   | '4-fin-planning-pl'
   | '5-fin-planning-cash-flow'
-  | '6-po-profitability';
+  | '6-po-profitability'
+  | '7-po-profitability';
 
 export interface SheetConfig {
   slug: SheetSlug;
@@ -78,13 +70,6 @@ export const SHEETS: SheetConfig[] = [
     description: '',
     icon: Wallet2,
   },
-  {
-    slug: '7-po-profitability',
-    label: 'PO P&L',
-    shortLabel: 'PO P&L',
-    description: '',
-    icon: TrendingUp,
-  },
 ];
 
 export const LEGACY_SHEET_SLUG_REDIRECTS: Readonly<Record<LegacySheetSlug, SheetSlug>> = {
@@ -94,7 +79,8 @@ export const LEGACY_SHEET_SLUG_REDIRECTS: Readonly<Record<LegacySheetSlug, Sheet
   '3-sales-planning': '4-sales-planning',
   '4-fin-planning-pl': '5-fin-planning-pl',
   '5-fin-planning-cash-flow': '6-fin-planning-cash-flow',
-  '6-po-profitability': '7-po-profitability',
+  '6-po-profitability': '3-ops-planning',
+  '7-po-profitability': '3-ops-planning',
 };
 
 export function getCanonicalSheetSlug(slug: string): SheetSlug | undefined {
