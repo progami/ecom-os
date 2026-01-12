@@ -9,7 +9,7 @@ import {
 } from '@/lib/amazon/client'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
-import { parseAmazonProductFees } from '@/lib/amazon/fees'
+import { parseAmazonProductFees, calculateSizeTier } from '@/lib/amazon/fees'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@targon/prisma-talos'
@@ -550,7 +550,13 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / DEFAULT_FEE_ESTIMATE_PRICE) * 100)
       }
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
-      amazonSizeTier = parsedFees.sizeTier
+      // Use size tier from fees API if available, otherwise calculate from dimensions
+      amazonSizeTier = parsedFees.sizeTier ?? calculateSizeTier(
+        unitTriplet?.lengthCm ?? null,
+        unitTriplet?.widthCm ?? null,
+        unitTriplet?.heightCm ?? null,
+        unitWeightKg
+      )
     } catch (error) {
       errors.push(
         `Amazon fee estimate failed for ${skuCode} (ASIN ${asin}): ${
