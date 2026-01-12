@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronRight, ChevronUp } from 'lucide-react';
 import {
   Area,
   AreaChart,
@@ -95,10 +94,7 @@ interface POProfitabilitySectionProps {
 }
 
 type StatusFilter = 'ALL' | POStatus;
-type SortField = 'orderCode' | 'revenue' | 'netProfit' | 'netMarginPercent' | 'roi';
-type SortDirection = 'asc' | 'desc';
 type MetricKey = 'grossMarginPercent' | 'netMarginPercent' | 'roi';
-type ColumnGroup = 'cogs' | 'amzFees' | 'opex';
 
 const metricConfig: Record<MetricKey, { label: string; color: string; gradientId: string }> = {
   grossMarginPercent: {
@@ -307,23 +303,6 @@ export function POProfitabilitySection({
     'netMarginPercent',
     'roi',
   ]);
-  const [sortField, setSortField] = useState<SortField>('revenue');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [expandedGroups, setExpandedGroups] = useState<Set<ColumnGroup>>(new Set());
-
-  const toggleGroup = (group: ColumnGroup) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(group)) {
-        next.delete(group);
-      } else {
-        next.add(group);
-      }
-      return next;
-    });
-  };
-
-  const isGroupExpanded = (group: ColumnGroup) => expandedGroups.has(group);
 
   // When "All SKUs" selected, aggregate to per-PO view
   // When specific SKU selected, show per-batch view filtered to that SKU
@@ -392,27 +371,8 @@ export function POProfitabilitySection({
     });
   }, [data, statusFilter, skuFilter]);
 
-  const tableSortedData = useMemo(() => {
-    return [...filteredData].sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      const aNum = typeof aVal === 'number' ? aVal : 0;
-      const bNum = typeof bVal === 'number' ? bVal : 0;
-      return sortDirection === 'asc' ? aNum - bNum : bNum - aNum;
-    });
-  }, [filteredData, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
+  // Use filteredData directly for the vertical table (sorted by arrival date)
+  const tableSortedData = filteredData;
 
   // Transform data for Recharts
   // filteredData is already aggregated by PO when "All SKUs" selected
@@ -501,6 +461,10 @@ export function POProfitabilitySection({
   // Only show internal toolbar if productOptions provided or view toggle needed
   const showInternalToolbar = productOptions.length > 0 || (sheetSlug && viewMode);
 
+  // Determine what to show based on viewMode
+  const shouldShowChart = viewMode === 'visual' || (!viewMode && showChart);
+  const shouldShowTable = viewMode === 'tabular' || (!viewMode && showTable);
+
   return (
     <div className="space-y-4">
       {showInternalToolbar ? (
@@ -512,7 +476,7 @@ export function POProfitabilitySection({
         </div>
       ) : null}
 
-      {showChart ? (
+      {shouldShowChart ? (
         <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Margin trends</CardTitle>
@@ -712,7 +676,7 @@ export function POProfitabilitySection({
         </Card>
       ) : null}
 
-      {showTable ? (
+      {shouldShowTable ? (
         <Card className="rounded-xl shadow-sm dark:border-white/10">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -743,52 +707,21 @@ export function POProfitabilitySection({
                     Per unit
                   </Button>
                 </div>
-
-                <div className="text-right text-xs text-muted-foreground">
-                  <div>
-                    Units:{' '}
-                    <span className="font-semibold text-foreground">
-                      {summary.totalUnits.toLocaleString()}
-                    </span>
-                  </div>
-                  <div>
-                    {valueDisplay === 'PER_UNIT' ? 'Avg Sell:' : 'Total Revenue:'}{' '}
-                    <span className="font-semibold text-foreground">
-                      {formatMoney(summary.totalRevenue, summary.totalUnits)}
-                    </span>
-                  </div>
-                  <div>
-                    {valueDisplay === 'PER_UNIT' ? 'GP/unit:' : 'Total Gross Profit:'}{' '}
+                {showUnattributed ? (
+                  <div className="text-right text-xs text-muted-foreground">
+                    Unattributed:{' '}
+                    <span className="font-medium text-foreground/80">
+                      {formatCurrency(dataset.unattributed.revenue)}
+                    </span>{' '}
+                    rev ·{' '}
                     <span
-                      className={`font-semibold ${summary.totalGrossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                      className={`font-medium ${dataset.unattributed.netProfit >= 0 ? 'text-emerald-600/80 dark:text-emerald-200/80' : 'text-red-600/80 dark:text-red-200/80'}`}
                     >
-                      {formatMoney(summary.totalGrossProfit, summary.totalUnits)}
-                    </span>
+                      {formatCurrency(dataset.unattributed.netProfit)}
+                    </span>{' '}
+                    profit
                   </div>
-                  <div>
-                    {valueDisplay === 'PER_UNIT' ? 'NP/unit:' : 'Total Profit:'}{' '}
-                    <span
-                      className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
-                    >
-                      {formatMoney(summary.totalProfit, summary.totalUnits)}
-                    </span>
-                  </div>
-                  {showUnattributed ? (
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      Unattributed totals:{' '}
-                      <span className="font-medium text-foreground/80">
-                        {formatCurrency(dataset.unattributed.revenue)}
-                      </span>{' '}
-                      rev ·{' '}
-                      <span
-                        className={`font-medium ${dataset.unattributed.netProfit >= 0 ? 'text-emerald-600/80 dark:text-emerald-200/80' : 'text-red-600/80 dark:text-red-200/80'}`}
-                      >
-                        {formatCurrency(dataset.unattributed.netProfit)}
-                      </span>{' '}
-                      profit
-                    </div>
-                  ) : null}
-                </div>
+                ) : null}
               </div>
             </div>
           </CardHeader>
@@ -797,463 +730,377 @@ export function POProfitabilitySection({
               <Table className="w-full">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-b-2 border-slate-200 dark:border-slate-700">
-                    <TableHead
-                      rowSpan={2}
-                      className="h-10 px-3 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50"
-                    >
-                      <SortButton
-                        field="orderCode"
-                        current={sortField}
-                        direction={sortDirection}
-                        onClick={handleSort}
+                    <TableHead className="h-10 px-3 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50 min-w-[140px]">
+                      Metric
+                    </TableHead>
+                    {tableSortedData.map((row) => (
+                      <TableHead
+                        key={row.id}
+                        className="h-10 px-3 text-right text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50 min-w-[100px]"
                       >
-                        PO Code
-                      </SortButton>
-                    </TableHead>
-                    <TableHead
-                      rowSpan={2}
-                      className="h-10 px-3 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50"
-                    >
-                      Status
-                    </TableHead>
-                    <TableHead
-                      rowSpan={2}
-                      className="h-10 px-3 text-right text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50"
-                    >
-                      Units
-                    </TableHead>
-                    <TableHead
-                      rowSpan={2}
-                      className="h-10 px-3 text-right text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50"
-                    >
-                      <SortButton
-                        field="revenue"
-                        current={sortField}
-                        direction={sortDirection}
-                        onClick={handleSort}
-                        align="right"
-                      >
-                        {valueDisplay === 'PER_UNIT' ? 'Sell $' : 'Revenue'}
-                      </SortButton>
-                    </TableHead>
-                    <TableHead
-                      colSpan={isGroupExpanded('cogs') ? 5 : 1}
-                      className={`h-10 px-3 text-xs font-bold uppercase tracking-wide text-orange-700 dark:text-orange-300 bg-orange-50/60 dark:bg-orange-900/20 cursor-pointer hover:bg-orange-100/80 dark:hover:bg-orange-900/30 transition-colors border-l-2 border-orange-200 dark:border-orange-800/50 ${isGroupExpanded('cogs') ? 'text-center' : 'text-right'}`}
-                      onClick={() => toggleGroup('cogs')}
-                    >
-                      <span className={`inline-flex items-center gap-1 ${isGroupExpanded('cogs') ? '' : 'justify-end'}`}>
-                        {isGroupExpanded('cogs') ? (
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        )}
-                        COGS
-                      </span>
-                    </TableHead>
-                    <TableHead
-                      colSpan={isGroupExpanded('amzFees') ? 5 : 1}
-                      className={`h-10 px-3 text-xs font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300 bg-purple-50/60 dark:bg-purple-900/20 cursor-pointer hover:bg-purple-100/80 dark:hover:bg-purple-900/30 transition-colors border-l-2 border-purple-200 dark:border-purple-800/50 ${isGroupExpanded('amzFees') ? 'text-center' : 'text-right'}`}
-                      onClick={() => toggleGroup('amzFees')}
-                    >
-                      <span className={`inline-flex items-center gap-1 ${isGroupExpanded('amzFees') ? '' : 'justify-end'}`}>
-                        {isGroupExpanded('amzFees') ? (
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        )}
-                        Amz Fees
-                      </span>
-                    </TableHead>
-                    <TableHead
-                      colSpan={isGroupExpanded('opex') ? 2 : 1}
-                      className={`h-10 px-3 text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300 bg-sky-50/60 dark:bg-sky-900/20 cursor-pointer hover:bg-sky-100/80 dark:hover:bg-sky-900/30 transition-colors border-l-2 border-sky-200 dark:border-sky-800/50 ${isGroupExpanded('opex') ? 'text-center' : 'text-right'}`}
-                      onClick={() => toggleGroup('opex')}
-                    >
-                      <span className={`inline-flex items-center gap-1 ${isGroupExpanded('opex') ? '' : 'justify-end'}`}>
-                        {isGroupExpanded('opex') ? (
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        ) : (
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        )}
-                        Opex
-                      </span>
-                    </TableHead>
-                    <TableHead
-                      colSpan={4}
-                      className="h-10 px-3 text-center text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-900/20 border-l-2 border-emerald-200 dark:border-emerald-800/50"
-                    >
-                      Profit
-                    </TableHead>
-                  </TableRow>
-
-                  <TableRow className="hover:bg-transparent border-b border-slate-200 dark:border-slate-700">
-                    {/* COGS sub-columns */}
-                    {isGroupExpanded('cogs') ? (
-                      <>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-900/10 border-l-2 border-orange-200 dark:border-orange-800/50">
-                          Mfg
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-900/10">
-                          Freight
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-900/10">
-                          Tariff
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-900/10">
-                          Adj
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-900/10">
-                          Total
-                        </TableHead>
-                      </>
-                    ) : (
-                      <TableHead className="h-9 px-3 text-right text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-50/40 dark:bg-orange-900/10 border-l-2 border-orange-200 dark:border-orange-800/50">
-                        Total
+                        <div>{row.orderCode}</div>
+                        <div className="font-normal normal-case text-[10px] text-slate-500 dark:text-slate-400">
+                          <StatusBadge status={row.status} />
+                        </div>
                       </TableHead>
-                    )}
-
-                    {/* AMZ FEES sub-columns */}
-                    {isGroupExpanded('amzFees') ? (
-                      <>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-900/10 border-l-2 border-purple-200 dark:border-purple-800/50">
-                          Ref
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-900/10">
-                          FBA
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-900/10">
-                          Storage
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-900/10">
-                          Adj
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-900/10">
-                          Total
-                        </TableHead>
-                      </>
-                    ) : (
-                      <TableHead className="h-9 px-3 text-right text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50/40 dark:bg-purple-900/10 border-l-2 border-purple-200 dark:border-purple-800/50">
-                        Total
-                      </TableHead>
-                    )}
-
-                    {/* OPEX sub-columns */}
-                    {isGroupExpanded('opex') ? (
-                      <>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-50/40 dark:bg-sky-900/10 border-l-2 border-sky-200 dark:border-sky-800/50">
-                          PPC
-                        </TableHead>
-                        <TableHead className="h-9 px-3 text-right text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-50/40 dark:bg-sky-900/10">
-                          Fixed
-                        </TableHead>
-                      </>
-                    ) : (
-                      <TableHead className="h-9 px-3 text-right text-xs font-semibold text-sky-600 dark:text-sky-400 bg-sky-50/40 dark:bg-sky-900/10 border-l-2 border-sky-200 dark:border-sky-800/50">
-                        Total
-                      </TableHead>
-                    )}
-
-                    {/* PROFIT sub-columns - always expanded */}
-                    <TableHead className="h-9 px-3 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/10 border-l-2 border-emerald-200 dark:border-emerald-800/50">
-                      GP
-                    </TableHead>
-                    <TableHead className="h-9 px-3 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/10">
-                      <SortButton
-                        field="netProfit"
-                        current={sortField}
-                        direction={sortDirection}
-                        onClick={handleSort}
-                        align="right"
-                      >
-                        Net
-                      </SortButton>
-                    </TableHead>
-                    <TableHead className="h-9 px-3 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/10">
-                      <SortButton
-                        field="netMarginPercent"
-                        current={sortField}
-                        direction={sortDirection}
-                        onClick={handleSort}
-                        align="right"
-                      >
-                        Margin
-                      </SortButton>
-                    </TableHead>
-                    <TableHead className="h-9 px-3 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50/40 dark:bg-emerald-900/10">
-                      <SortButton
-                        field="roi"
-                        current={sortField}
-                        direction={sortDirection}
-                        onClick={handleSort}
-                        align="right"
-                      >
-                        ROI
-                      </SortButton>
+                    ))}
+                    <TableHead className="h-10 px-3 text-right text-xs font-bold uppercase tracking-wide text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-700/50 min-w-[100px]">
+                      Total
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tableSortedData.map((row, index) => (
-                    <TableRow key={row.id} className={`hover:bg-slate-100/60 dark:hover:bg-slate-800/40 ${index % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-slate-50/50 dark:bg-slate-800/20'}`}>
-                      <TableCell className="px-3 py-2.5">
-                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{row.orderCode}</div>
-                        {skuFilter !== 'ALL' && row.batchCode ? (
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Batch: {row.batchCode}
-                          </div>
-                        ) : null}
-                        <div
-                          className="truncate text-xs text-slate-500 dark:text-slate-400 max-w-[160px]"
-                          title={row.productName}
-                        >
-                          {row.productName}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-3 py-2.5">
-                        <StatusBadge status={row.status} />
-                      </TableCell>
-                      <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-slate-700 dark:text-slate-200">
+                  {/* Units row */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Units
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-200">
                         {row.units.toLocaleString()}
                       </TableCell>
-                      <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-slate-700 dark:text-slate-200">
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/30">
+                      {summary.totalUnits.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Revenue row */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                      {valueDisplay === 'PER_UNIT' ? 'Sell Price' : 'Revenue'}
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-200">
                         {formatMoney(row.revenue, row.units)}
                       </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(summary.totalRevenue, summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
 
-                      {/* COGS columns */}
-                      {isGroupExpanded('cogs') ? (
-                        <>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300 border-l border-orange-100 dark:border-orange-900/30">
-                            {formatMoney(row.manufacturingCost, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.freightCost, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.tariffCost, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.cogsAdjustment, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-orange-700 dark:text-orange-300">
-                            {formatMoney(row.cogs, row.units)}
-                          </TableCell>
-                        </>
-                      ) : (
-                        <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-orange-700 dark:text-orange-300 border-l border-orange-100 dark:border-orange-900/30">
-                          {formatMoney(row.cogs, row.units)}
-                        </TableCell>
-                      )}
+                  {/* COGS Section Header */}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={tableSortedData.length + 2}
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-orange-700 dark:text-orange-300 bg-orange-50/60 dark:bg-orange-900/20 border-y border-orange-200 dark:border-orange-800/50"
+                    >
+                      COGS
+                    </TableCell>
+                  </TableRow>
 
-                      {/* AMZ FEES columns */}
-                      {isGroupExpanded('amzFees') ? (
-                        <>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300 border-l border-purple-100 dark:border-purple-900/30">
-                            {formatMoney(row.referralFees, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.fbaFees, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.storageFees, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.amazonFeesAdjustment, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-purple-700 dark:text-purple-300">
-                            {formatMoney(row.amazonFees, row.units)}
-                          </TableCell>
-                        </>
-                      ) : (
-                        <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-purple-700 dark:text-purple-300 border-l border-purple-100 dark:border-purple-900/30">
-                          {formatMoney(row.amazonFees, row.units)}
-                        </TableCell>
-                      )}
+                  {/* Manufacturing */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Manufacturing
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.manufacturingCost, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.manufacturingCost, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
 
-                      {/* OPEX columns */}
-                      {isGroupExpanded('opex') ? (
-                        <>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300 border-l border-sky-100 dark:border-sky-900/30">
-                            {formatMoney(row.ppcSpend, row.units)}
-                          </TableCell>
-                          <TableCell className="px-3 py-2.5 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatMoney(row.fixedCosts, row.units)}
-                          </TableCell>
-                        </>
-                      ) : (
-                        <TableCell className="px-3 py-2.5 text-right text-sm font-medium tabular-nums text-sky-700 dark:text-sky-300 border-l border-sky-100 dark:border-sky-900/30">
-                          {formatMoney(row.ppcSpend + row.fixedCosts, row.units)}
-                        </TableCell>
-                      )}
+                  {/* Freight */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Freight
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.freightCost, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.freightCost, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
 
-                      {/* PROFIT columns - always expanded */}
+                  {/* Tariff */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Tariff
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.tariffCost, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.tariffCost, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* COGS Adjustment */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Adjustment
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.cogsAdjustment, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.cogsAdjustment, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Total COGS */}
+                  <TableRow className="hover:bg-orange-50/50 dark:hover:bg-orange-900/10 bg-orange-50/30 dark:bg-orange-900/10">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-orange-700 dark:text-orange-300">
+                      Total COGS
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-orange-700 dark:text-orange-300">
+                        {formatMoney(row.cogs, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-orange-700 dark:text-orange-300 bg-orange-50/50 dark:bg-orange-900/20">
+                      {formatMoney(summary.totalCogs, summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* AMZ Fees Section Header */}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={tableSortedData.length + 2}
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300 bg-purple-50/60 dark:bg-purple-900/20 border-y border-purple-200 dark:border-purple-800/50"
+                    >
+                      Amazon Fees
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Referral */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Referral
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.referralFees, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.referralFees, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* FBA */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      FBA
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.fbaFees, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.fbaFees, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Storage */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Storage
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.storageFees, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.storageFees, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* AMZ Adjustment */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Adjustment
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.amazonFeesAdjustment, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.amazonFeesAdjustment, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Total AMZ Fees */}
+                  <TableRow className="hover:bg-purple-50/50 dark:hover:bg-purple-900/10 bg-purple-50/30 dark:bg-purple-900/10">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-purple-700 dark:text-purple-300">
+                      Total AMZ Fees
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-purple-700 dark:text-purple-300">
+                        {formatMoney(row.amazonFees, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-900/20">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.amazonFees, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Opex Section Header */}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={tableSortedData.length + 2}
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300 bg-sky-50/60 dark:bg-sky-900/20 border-y border-sky-200 dark:border-sky-800/50"
+                    >
+                      Operating Expenses
+                    </TableCell>
+                  </TableRow>
+
+                  {/* PPC */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      PPC Spend
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.ppcSpend, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.ppcSpend, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Fixed Costs */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                      Fixed Costs
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                        {formatMoney(row.fixedCosts, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.fixedCosts, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Total Opex */}
+                  <TableRow className="hover:bg-sky-50/50 dark:hover:bg-sky-900/10 bg-sky-50/30 dark:bg-sky-900/10">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-sky-700 dark:text-sky-300">
+                      Total Opex
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-sky-700 dark:text-sky-300">
+                        {formatMoney(row.ppcSpend + row.fixedCosts, row.units)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-sky-700 dark:text-sky-300 bg-sky-50/50 dark:bg-sky-900/20">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.ppcSpend + row.fixedCosts, 0), summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Profit Section Header */}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell
+                      colSpan={tableSortedData.length + 2}
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-900/20 border-y border-emerald-200 dark:border-emerald-800/50"
+                    >
+                      Profit
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Gross Profit */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Gross Profit
+                    </TableCell>
+                    {tableSortedData.map((row) => (
                       <TableCell
-                        className={`px-3 py-2.5 text-right text-sm tabular-nums font-semibold border-l border-emerald-100 dark:border-emerald-900/30 ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                        key={row.id}
+                        className={`px-3 py-2 text-right text-sm tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
                       >
                         {formatMoney(row.grossProfit, row.units)}
                       </TableCell>
+                    ))}
+                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-slate-50/50 dark:bg-slate-800/30 ${summary.totalGrossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
+                      {formatMoney(summary.totalGrossProfit, summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Gross Margin % */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
+                      Gross Margin %
+                    </TableCell>
+                    {tableSortedData.map((row) => (
                       <TableCell
-                        className={`px-3 py-2.5 text-right text-sm tabular-nums font-semibold ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                        key={row.id}
+                        className={`px-3 py-2 text-right text-sm tabular-nums ${row.grossMarginPercent >= 0 ? 'text-slate-600 dark:text-slate-300' : 'text-red-600 dark:text-red-300'}`}
+                      >
+                        {formatPercent(row.grossMarginPercent)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatPercent(summary.totalRevenue > 0 ? (summary.totalGrossProfit / summary.totalRevenue) * 100 : 0)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Net Profit */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Net Profit
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell
+                        key={row.id}
+                        className={`px-3 py-2 text-right text-sm tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
                       >
                         {formatMoney(row.netProfit, row.units)}
                       </TableCell>
+                    ))}
+                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-slate-50/50 dark:bg-slate-800/30 ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
+                      {formatMoney(summary.totalProfit, summary.totalUnits)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* Net Margin % */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
+                      Net Margin %
+                    </TableCell>
+                    {tableSortedData.map((row) => (
                       <TableCell
-                        className={`px-3 py-2.5 text-right text-sm tabular-nums font-medium ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-300' : 'text-slate-700 dark:text-slate-200'}`}
+                        key={row.id}
+                        className={`px-3 py-2 text-right text-sm tabular-nums ${row.netMarginPercent >= 0 ? 'text-slate-600 dark:text-slate-300' : 'text-red-600 dark:text-red-300'}`}
                       >
                         {formatPercent(row.netMarginPercent)}
                       </TableCell>
+                    ))}
+                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-medium bg-slate-50/50 dark:bg-slate-800/30 ${summary.netMargin >= 0 ? 'text-slate-700 dark:text-slate-200' : 'text-red-600 dark:text-red-300'}`}>
+                      {formatPercent(summary.netMargin)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* ROI */}
+                  <TableRow className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 bg-emerald-50/30 dark:bg-emerald-900/10">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                      ROI
+                    </TableCell>
+                    {tableSortedData.map((row) => (
                       <TableCell
-                        className={`px-3 py-2.5 text-right text-sm tabular-nums font-semibold ${row.roi < 0 ? 'text-red-600 dark:text-red-300' : 'text-slate-700 dark:text-slate-200'}`}
+                        key={row.id}
+                        className={`px-3 py-2 text-right text-sm tabular-nums font-semibold ${row.roi >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
                       >
                         {formatPercent(row.roi)}
                       </TableCell>
-                    </TableRow>
-                  ))}
-
-                  {/* Total row */}
-                  <TableRow className="bg-slate-100/80 dark:bg-slate-800/60 border-t-2 border-slate-300 dark:border-slate-600">
-                    <TableCell className="px-3 py-3 text-sm font-bold text-slate-900 dark:text-slate-100">
-                      {valueDisplay === 'PER_UNIT' ? 'Avg' : 'Total'} ({filteredData.length}{' '}
-                      {skuFilter !== 'ALL' ? 'batches' : 'POs'})
-                    </TableCell>
-                    <TableCell className="px-3 py-3" />
-                    <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100">
-                      {summary.totalUnits.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100">
-                      {formatMoney(summary.totalRevenue, summary.totalUnits)}
-                    </TableCell>
-
-                    {/* COGS total columns */}
-                    {isGroupExpanded('cogs') ? (
-                      <>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300 border-l border-orange-200 dark:border-orange-900/30">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.manufacturingCost, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.freightCost, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.tariffCost, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.cogsAdjustment, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-orange-700 dark:text-orange-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.cogs, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                      </>
-                    ) : (
-                      <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-orange-700 dark:text-orange-300 border-l border-orange-200 dark:border-orange-900/30">
-                        {formatMoney(
-                          filteredData.reduce((sum, row) => sum + row.cogs, 0),
-                          summary.totalUnits,
-                        )}
-                      </TableCell>
-                    )}
-
-                    {/* AMZ FEES total columns */}
-                    {isGroupExpanded('amzFees') ? (
-                      <>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300 border-l border-purple-200 dark:border-purple-900/30">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.referralFees, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.fbaFees, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.storageFees, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.amazonFeesAdjustment, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-purple-700 dark:text-purple-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                      </>
-                    ) : (
-                      <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-purple-700 dark:text-purple-300 border-l border-purple-200 dark:border-purple-900/30">
-                        {formatMoney(
-                          filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
-                          summary.totalUnits,
-                        )}
-                      </TableCell>
-                    )}
-
-                    {/* OPEX total columns */}
-                    {isGroupExpanded('opex') ? (
-                      <>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300 border-l border-sky-200 dark:border-sky-900/30">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.ppcSpend, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                        <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-medium text-slate-600 dark:text-slate-300">
-                          {formatMoney(
-                            filteredData.reduce((sum, row) => sum + row.fixedCosts, 0),
-                            summary.totalUnits,
-                          )}
-                        </TableCell>
-                      </>
-                    ) : (
-                      <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-sky-700 dark:text-sky-300 border-l border-sky-200 dark:border-sky-900/30">
-                        {formatMoney(
-                          filteredData.reduce((sum, row) => sum + row.ppcSpend + row.fixedCosts, 0),
-                          summary.totalUnits,
-                        )}
-                      </TableCell>
-                    )}
-
-                    {/* PROFIT total columns - always expanded */}
-                    <TableCell className="px-3 py-3 text-right text-sm tabular-nums font-bold text-emerald-600 dark:text-emerald-300 border-l border-emerald-200 dark:border-emerald-900/30">
-                      {formatMoney(
-                        filteredData.reduce((sum, row) => sum + row.grossProfit, 0),
-                        summary.totalUnits,
-                      )}
-                    </TableCell>
-                    <TableCell
-                      className={`px-3 py-3 text-right text-sm tabular-nums font-bold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
-                    >
-                      {formatMoney(summary.totalProfit, summary.totalUnits)}
-                    </TableCell>
-                    <TableCell
-                      className={`px-3 py-3 text-right text-sm tabular-nums font-bold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-300' : 'text-slate-900 dark:text-slate-100'}`}
-                    >
-                      {formatPercent(summary.netMargin)}
-                    </TableCell>
-                    <TableCell
-                      className={`px-3 py-3 text-right text-sm tabular-nums font-bold ${summary.roi < 0 ? 'text-red-600 dark:text-red-300' : 'text-slate-900 dark:text-slate-100'}`}
-                    >
+                    ))}
+                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-emerald-50/50 dark:bg-emerald-900/20 ${summary.roi >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
                       {formatPercent(summary.roi)}
                     </TableCell>
                   </TableRow>
@@ -1264,39 +1111,6 @@ export function POProfitabilitySection({
         </Card>
       ) : null}
     </div>
-  );
-}
-
-function SortButton({
-  field,
-  current,
-  direction,
-  onClick,
-  children,
-  align = 'left',
-}: {
-  field: SortField;
-  current: SortField;
-  direction: SortDirection;
-  onClick: (field: SortField) => void;
-  children: React.ReactNode;
-  align?: 'left' | 'right';
-}) {
-  const isActive = current === field;
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(field)}
-      className={`inline-flex items-center gap-1 hover:text-foreground ${align === 'right' ? 'justify-end w-full' : ''}`}
-    >
-      {children}
-      {isActive &&
-        (direction === 'asc' ? (
-          <ChevronUp className="h-3 w-3 shrink-0" />
-        ) : (
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        ))}
-    </button>
   );
 }
 
