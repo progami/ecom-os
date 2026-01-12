@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PortalModal } from '@/components/ui/portal-modal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { SKU_FIELD_LIMITS, truncateForDisplay } from '@/lib/sku-constants'
+import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
 interface SkuBatchRow {
@@ -542,8 +542,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                           <div className="text-xs text-slate-500 xl:hidden">{batchSummary}</div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap" title={sku.description}>
-                        {truncateForDisplay(sku.description, SKU_FIELD_LIMITS.DESCRIPTION_DISPLAY_MAX)}
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                        {sku.description}
                       </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {sku.asin ?? '—'}
