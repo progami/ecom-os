@@ -26,7 +26,6 @@ import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -2388,12 +2387,9 @@ export function SalesPlanningGrid({
                           {presentation.display}
                         </span>
                         {presentation.badge ? (
-                          <Badge
-                            variant="secondary"
-                            className="h-5 shrink-0 px-1.5 text-2xs font-semibold leading-none"
-                          >
+                          <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
                             {presentation.badge}
-                          </Badge>
+                          </span>
                         ) : null}
                       </div>
                     );
