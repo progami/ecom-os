@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkItemDTO, WorkItemEntityData } from '@/lib/contracts/work-items'
@@ -15,48 +15,58 @@ type InboxActionPaneProps = {
 }
 
 function getEntityTypeConfig(type: string) {
-  const configs: Record<string, { gradient: string; icon: React.ReactNode; label: string }> = {
+  const configs: Record<string, { gradient: string; bgLight: string; bgDark: string; icon: React.ReactNode; label: string }> = {
     'TASK': {
       gradient: 'from-violet-500 to-purple-600',
+      bgLight: 'bg-violet-50',
+      bgDark: 'dark:bg-violet-900/20',
       label: 'Task',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
         </svg>
       ),
     },
     'POLICY': {
       gradient: 'from-blue-500 to-indigo-600',
+      bgLight: 'bg-blue-50',
+      bgDark: 'dark:bg-blue-900/20',
       label: 'Policy',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
     },
     'LEAVE_REQUEST': {
       gradient: 'from-emerald-500 to-teal-600',
+      bgLight: 'bg-emerald-50',
+      bgDark: 'dark:bg-emerald-900/20',
       label: 'Leave Request',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       ),
     },
     'PERFORMANCE_REVIEW': {
       gradient: 'from-amber-500 to-orange-600',
+      bgLight: 'bg-amber-50',
+      bgDark: 'dark:bg-amber-900/20',
       label: 'Performance Review',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       ),
     },
     'DISCIPLINARY_ACTION': {
       gradient: 'from-rose-500 to-red-600',
+      bgLight: 'bg-rose-50',
+      bgDark: 'dark:bg-rose-900/20',
       label: 'Disciplinary Action',
       icon: (
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       ),
@@ -66,130 +76,385 @@ function getEntityTypeConfig(type: string) {
   return configs[type] || configs['TASK']
 }
 
-function formatRating(rating: number): string {
-  if (rating >= 4.5) return 'Exceptional'
-  if (rating >= 3.5) return 'Exceeds Expectations'
-  if (rating >= 2.5) return 'Meets Expectations'
-  if (rating >= 1.5) return 'Needs Improvement'
-  return 'Unsatisfactory'
+function formatRating(rating: number): { label: string; color: string } {
+  if (rating >= 4.5) return { label: 'Exceptional', color: 'text-emerald-600 dark:text-emerald-400' }
+  if (rating >= 3.5) return { label: 'Exceeds Expectations', color: 'text-blue-600 dark:text-blue-400' }
+  if (rating >= 2.5) return { label: 'Meets Expectations', color: 'text-slate-600 dark:text-slate-400' }
+  if (rating >= 1.5) return { label: 'Needs Improvement', color: 'text-amber-600 dark:text-amber-400' }
+  return { label: 'Unsatisfactory', color: 'text-red-600 dark:text-red-400' }
 }
 
-function EntityContent({ entityType, entityData }: { entityType: string; entityData?: WorkItemEntityData }) {
-  if (!entityData) return null
+function formatLeaveType(type: string): string {
+  return type.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
 
-  switch (entityType) {
-    case 'POLICY':
-      return (
+function formatDateRange(startDate: string, endDate: string): string {
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${start.toLocaleDateString('en-US', { ...opts, year: 'numeric' })} - ${end.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
+  }
+  if (start.getMonth() === end.getMonth() && start.getDate() === end.getDate()) {
+    return start.toLocaleDateString('en-US', { ...opts, year: 'numeric' })
+  }
+  return `${start.toLocaleDateString('en-US', opts)} - ${end.toLocaleDateString('en-US', { ...opts, year: 'numeric' })}`
+}
+
+function parseMarkdownToSections(content: string): { title: string; content: string }[] {
+  const sections: { title: string; content: string }[] = []
+  const lines = content.split('\n')
+  let currentTitle = ''
+  let currentContent: string[] = []
+
+  for (const line of lines) {
+    const h1Match = line.match(/^#\s+(.+)$/)
+    const h2Match = line.match(/^##\s+(.+)$/)
+
+    if (h1Match || h2Match) {
+      if (currentTitle || currentContent.length > 0) {
+        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+      }
+      currentTitle = h1Match ? h1Match[1] : h2Match![1]
+      currentContent = []
+    } else {
+      currentContent.push(line)
+    }
+  }
+
+  if (currentTitle || currentContent.length > 0) {
+    sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+  }
+
+  return sections
+}
+
+function StarRating({ rating }: { rating: number }) {
+  const fullStars = Math.floor(rating)
+  const hasHalf = rating % 1 >= 0.5
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <svg
+          key={star}
+          className={cn(
+            'w-5 h-5',
+            star <= fullStars
+              ? 'text-amber-400 fill-amber-400'
+              : star === fullStars + 1 && hasHalf
+              ? 'text-amber-400 fill-amber-100 dark:fill-amber-900'
+              : 'text-slate-200 dark:text-slate-700 fill-slate-100 dark:fill-slate-800'
+          )}
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      ))}
+    </div>
+  )
+}
+
+// Policy Content - Document-style with sections
+function PolicyContent({ entityData }: { entityData: WorkItemEntityData }) {
+  const sections = useMemo(() => {
+    if (!entityData.content) return []
+    // Check if content is HTML or markdown
+    if (entityData.content.includes('<') && entityData.content.includes('>')) {
+      return [] // Return empty to use HTML rendering
+    }
+    return parseMarkdownToSections(entityData.content)
+  }, [entityData.content])
+
+  const isHtml = entityData.content?.includes('<') && entityData.content?.includes('>')
+
+  return (
+    <div className="space-y-4">
+      {/* Version & Category badges */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {entityData.version ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            v{entityData.version}
+          </span>
+        ) : null}
+        {entityData.category ? (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
+            {entityData.category.replace(/_/g, ' ')}
+          </span>
+        ) : null}
+      </div>
+
+      {/* Policy content */}
+      {isHtml && entityData.content ? (
+        <div className="prose prose-slate dark:prose-invert prose-sm max-w-none prose-headings:text-base prose-headings:font-semibold prose-p:text-slate-600 dark:prose-p:text-slate-300">
+          <div dangerouslySetInnerHTML={{ __html: entityData.content }} />
+        </div>
+      ) : sections.length > 0 ? (
         <div className="space-y-4">
-          {entityData.category ? (
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium">
-                {entityData.category.replace(/_/g, ' ')}
-              </span>
+          {sections.map((section, idx) => (
+            <div key={idx} className="border-l-2 border-blue-200 dark:border-blue-800 pl-4">
+              {section.title ? (
+                <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1.5">
+                  {section.title}
+                </h4>
+              ) : null}
+              {section.content ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+                  {section.content.split(/[-•]\s/).filter(Boolean).map((item, i) => (
+                    item.trim() ? (
+                      <span key={i} className="block py-0.5">
+                        {item.trim().startsWith('-') || item.trim().startsWith('•') ? item.trim() : `• ${item.trim()}`}
+                      </span>
+                    ) : null
+                  ))}
+                </p>
+              ) : null}
             </div>
+          ))}
+        </div>
+      ) : entityData.summary ? (
+        <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          {entityData.summary}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+// Leave Request Content - Calendar card style
+function LeaveRequestContent({ entityData }: { entityData: WorkItemEntityData }) {
+  return (
+    <div className="space-y-4">
+      {/* Employee & Leave Type header */}
+      <div className="flex items-center gap-3">
+        {entityData.employeeName ? (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+            {entityData.employeeName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
+        ) : null}
+        <div>
+          {entityData.employeeName ? (
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{entityData.employeeName}</p>
           ) : null}
-          {entityData.content ? (
-            <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
-              <div
-                className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: entityData.content }}
-              />
+          {entityData.leaveType ? (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+              {formatLeaveType(entityData.leaveType)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Date range & duration card */}
+      <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-200 dark:border-emerald-800/50 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center">
+              <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
             </div>
-          ) : entityData.summary ? (
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
-                Summary
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {entityData.summary}
+            <div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Duration</p>
+              {entityData.startDate && entityData.endDate ? (
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {formatDateRange(entityData.startDate, entityData.endDate)}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {entityData.totalDays !== undefined ? (
+            <div className="text-center px-4 py-2 bg-emerald-100 dark:bg-emerald-800/40 rounded-lg">
+              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{entityData.totalDays}</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                {entityData.totalDays === 1 ? 'day' : 'days'}
               </p>
             </div>
           ) : null}
         </div>
-      )
+      </div>
 
-    case 'LEAVE_REQUEST':
-      return entityData.reason ? (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800/50">
-          <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider mb-2">
-            Reason
-          </p>
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+      {/* Reason */}
+      {entityData.reason ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Reason</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
             {entityData.reason}
           </p>
         </div>
-      ) : null
+      ) : null}
+    </div>
+  )
+}
 
-    case 'DISCIPLINARY_ACTION':
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            {entityData.violationType ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-xs font-medium">
-                {entityData.violationType.replace(/_/g, ' ')}
-              </span>
-            ) : null}
-            {entityData.severity ? (
-              <span className={cn(
-                'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium',
-                entityData.severity === 'CRITICAL' && 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300',
-                entityData.severity === 'HIGH' && 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                entityData.severity === 'MEDIUM' && 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
-                entityData.severity === 'LOW' && 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
-              )}>
-                {entityData.severity}
-              </span>
-            ) : null}
+// Performance Review Content - Rating focused
+function PerformanceReviewContent({ entityData }: { entityData: WorkItemEntityData }) {
+  const ratingInfo = entityData.overallRating !== undefined ? formatRating(entityData.overallRating) : null
+
+  return (
+    <div className="space-y-4">
+      {/* Employee & Review Type */}
+      <div className="flex items-center gap-3">
+        {entityData.employeeNameForReview ? (
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+            {entityData.employeeNameForReview.split(' ').map(n => n[0]).join('').slice(0, 2)}
           </div>
-          {entityData.description ? (
-            <div className="p-4 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800/50">
-              <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-2">
-                Description
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {entityData.description}
-              </p>
-            </div>
+        ) : null}
+        <div>
+          {entityData.employeeNameForReview ? (
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{entityData.employeeNameForReview}</p>
+          ) : null}
+          {entityData.reviewType ? (
+            <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+              {entityData.reviewType.replace(/_/g, ' ')} Review
+            </p>
           ) : null}
         </div>
-      )
+      </div>
 
+      {/* Rating card */}
+      {entityData.overallRating !== undefined && ratingInfo ? (
+        <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800/50 p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium mb-1">Overall Rating</p>
+              <StarRating rating={entityData.overallRating} />
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold text-amber-700 dark:text-amber-300">{entityData.overallRating.toFixed(1)}</p>
+              <p className={cn('text-sm font-semibold', ratingInfo.color)}>{ratingInfo.label}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Strengths */}
+      {entityData.strengths ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Key Strengths</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+            {entityData.strengths}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// Disciplinary Action Content - Warning style
+function DisciplinaryActionContent({ entityData }: { entityData: WorkItemEntityData }) {
+  const severityConfig: Record<string, { bg: string; text: string; border: string }> = {
+    CRITICAL: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-300 dark:border-red-800' },
+    HIGH: { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-300 dark:border-orange-800' },
+    MEDIUM: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-300 dark:border-amber-800' },
+    LOW: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
+  }
+
+  const severity = entityData.severity || 'MEDIUM'
+  const config = severityConfig[severity] || severityConfig.MEDIUM
+
+  return (
+    <div className="space-y-4">
+      {/* Severity & Type header */}
+      <div className={cn('rounded-xl p-4 border-2', config.bg, config.border)}>
+        <div className="flex items-start gap-3">
+          <div className={cn('shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', config.bg)}>
+            <svg className={cn('w-6 h-6', config.text)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase', config.bg, config.text)}>
+                {severity}
+              </span>
+              {entityData.violationType ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-xs font-medium">
+                  {entityData.violationType.replace(/_/g, ' ')}
+                </span>
+              ) : null}
+            </div>
+            <p className={cn('mt-1 text-sm font-medium', config.text)}>
+              {severity === 'CRITICAL' && 'Requires immediate attention'}
+              {severity === 'HIGH' && 'Serious violation'}
+              {severity === 'MEDIUM' && 'Moderate concern'}
+              {severity === 'LOW' && 'Minor issue'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Description */}
+      {entityData.description ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Description</p>
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+            {entityData.description}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+// Task Content - Simple checklist style
+function TaskContent({ item }: { item: WorkItemDTO }) {
+  const stageLabel = item.stageLabel.toLowerCase()
+  const isInProgress = stageLabel.includes('progress')
+
+  return (
+    <div className="space-y-4">
+      {/* Status indicator */}
+      <div className="flex items-center gap-3">
+        <div className={cn(
+          'w-10 h-10 rounded-lg flex items-center justify-center',
+          isInProgress
+            ? 'bg-violet-100 dark:bg-violet-900/30'
+            : 'bg-slate-100 dark:bg-slate-800'
+        )}>
+          {isInProgress ? (
+            <svg className="w-5 h-5 text-violet-600 dark:text-violet-400 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          )}
+        </div>
+        <div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-medium">Status</p>
+          <p className={cn(
+            'text-sm font-semibold',
+            isInProgress ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-400'
+          )}>
+            {item.stageLabel}
+          </p>
+        </div>
+      </div>
+
+      {/* Task description already shown in main description area */}
+    </div>
+  )
+}
+
+function EntityContent({ item, entityData }: { item: WorkItemDTO; entityData?: WorkItemEntityData }) {
+  const entityType = item.entity.type
+
+  switch (entityType) {
+    case 'POLICY':
+      return entityData ? <PolicyContent entityData={entityData} /> : null
+    case 'LEAVE_REQUEST':
+      return entityData ? <LeaveRequestContent entityData={entityData} /> : null
     case 'PERFORMANCE_REVIEW':
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            {entityData.reviewType ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 text-xs font-medium">
-                {entityData.reviewType.replace(/_/g, ' ')}
-              </span>
-            ) : null}
-            {entityData.overallRating !== undefined ? (
-              <span className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium',
-                entityData.overallRating >= 4 && 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
-                entityData.overallRating >= 3 && entityData.overallRating < 4 && 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
-                entityData.overallRating < 3 && 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-              )}>
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                {formatRating(entityData.overallRating)}
-              </span>
-            ) : null}
-          </div>
-          {entityData.strengths ? (
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800/50">
-              <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
-                Strengths
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {entityData.strengths}
-              </p>
-            </div>
-          ) : null}
-        </div>
-      )
-
+      return entityData ? <PerformanceReviewContent entityData={entityData} /> : null
+    case 'DISCIPLINARY_ACTION':
+      return entityData ? <DisciplinaryActionContent entityData={entityData} /> : null
+    case 'TASK':
+      return <TaskContent item={item} />
     default:
       return null
   }
@@ -199,22 +464,20 @@ function EmptyState() {
   return (
     <div className="h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">
       <div className="text-center px-8">
-        {/* Geometric illustration */}
-        <div className="relative mx-auto mb-6 w-24 h-24">
+        <div className="relative mx-auto mb-6 w-20 h-20">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-2xl rotate-6 opacity-50" />
           <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-2xl -rotate-3" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-10 h-10 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
             </svg>
           </div>
         </div>
-
-        <h3 className="text-lg font-semibold text-slate-600 dark:text-slate-300">
+        <h3 className="text-base font-semibold text-slate-600 dark:text-slate-300">
           Select an item
         </h3>
-        <p className="mt-2 text-sm text-slate-400 dark:text-slate-500 max-w-[220px] mx-auto">
-          Choose something from your inbox to view details and take action
+        <p className="mt-1 text-sm text-slate-400 dark:text-slate-500 max-w-[200px] mx-auto">
+          Choose from your inbox to view details
         </p>
       </div>
     </div>
@@ -226,7 +489,6 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
   const [showSuccess, setShowSuccess] = useState(false)
   const [successLabel, setSuccessLabel] = useState('')
 
-  // Reset success state when item changes
   useEffect(() => {
     setShowSuccess(false)
     setSuccessLabel('')
@@ -244,7 +506,6 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
     setActing(actionId)
     try {
       await onAction(actionId, item)
-      // Show success feedback briefly
       const action = item.primaryAction?.id === actionId ? item.primaryAction : item.secondaryActions.find(a => a.id === actionId)
       setSuccessLabel(action?.label ?? 'Done')
       setShowSuccess(true)
@@ -256,33 +517,32 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-      {/* Compact header */}
-      <div className="shrink-0 px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-start justify-between gap-4">
+      {/* Header */}
+      <div className="shrink-0 px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3 min-w-0">
             <div className={cn(
-              'shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md',
+              'shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-sm',
               `bg-gradient-to-br ${entityConfig.gradient}`
             )}>
               {entityConfig.icon}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-1">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mb-0.5">
                 <span className="font-medium">{item.typeLabel}</span>
                 <span className="text-slate-300 dark:text-slate-600">·</span>
                 <span>{item.stageLabel}</span>
               </div>
-              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-50 leading-tight line-clamp-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-50 leading-snug line-clamp-2">
                 {item.title}
               </h2>
             </div>
           </div>
 
-          {/* Progress indicator */}
           {showProgress ? (
-            <div className="shrink-0 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div className="shrink-0 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded">
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 tabular-nums">
-                {currentIndex + 1} of {totalCount}
+                {currentIndex + 1}/{totalCount}
               </span>
             </div>
           ) : null}
@@ -291,9 +551,9 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
 
       {/* Success feedback */}
       {showSuccess ? (
-        <div className="shrink-0 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50 animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="shrink-0 px-5 py-2.5 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
             <span className="text-sm font-semibold">{successLabel} complete</span>
@@ -301,15 +561,14 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
         </div>
       ) : null}
 
-      {/* Primary action - sticky at top of content area for visibility */}
+      {/* Actions */}
       {(item.primaryAction || item.secondaryActions.length > 0) && !showSuccess ? (
-        <div className="shrink-0 px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+        <div className="shrink-0 px-5 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
           <div className="flex flex-col gap-2">
-            {/* Primary action - full width, prominent */}
             {item.primaryAction ? (
               <Button
                 className={cn(
-                  'w-full h-11 text-base font-semibold',
+                  'w-full h-10 text-sm font-semibold',
                   'bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100',
                   'dark:text-slate-900'
                 )}
@@ -321,14 +580,13 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
               </Button>
             ) : null}
 
-            {/* Secondary actions */}
             {item.secondaryActions.length > 0 ? (
               <div className="flex gap-2">
                 {item.secondaryActions.map((action) => (
                   <Button
                     key={action.id}
                     variant="secondary"
-                    className="flex-1 h-9"
+                    className="flex-1 h-8 text-sm"
                     disabled={action.disabled || acting === action.id}
                     loading={acting === action.id}
                     onClick={() => handleAction(action.id)}
@@ -343,25 +601,23 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
       ) : null}
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {/* Description */}
-        {item.description ? (
-          <div className="prose prose-slate dark:prose-invert prose-sm max-w-none">
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-              {item.description}
-            </p>
-          </div>
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Description - only for tasks or if no entity-specific content */}
+        {item.description && item.entity.type === 'TASK' ? (
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            {item.description}
+          </p>
         ) : null}
 
         {/* Entity-specific content */}
-        <EntityContent entityType={item.entity.type} entityData={item.entityData} />
+        <EntityContent item={item} entityData={item.entityData} />
 
-        {/* Metadata - only show if there's something to show */}
+        {/* Metadata */}
         {(item.dueAt || item.createdAt) ? (
-          <div className={cn('grid gap-3', item.dueAt ? 'grid-cols-2' : 'grid-cols-1')}>
+          <div className={cn('grid gap-2', item.dueAt ? 'grid-cols-2' : 'grid-cols-1')}>
             {item.dueAt ? (
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
                   Due Date
                 </p>
                 <p className={cn(
@@ -373,8 +629,8 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
               </div>
             ) : null}
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl">
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">
+            <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">
                 Created
               </p>
               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -384,16 +640,16 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
           </div>
         ) : null}
 
-        {/* See full details - small link at bottom */}
+        {/* Full details link */}
         <div className="pt-1">
           <a
             href={item.href}
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
-            See full details
+            View full details
           </a>
         </div>
       </div>

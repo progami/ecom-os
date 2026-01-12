@@ -21,8 +21,14 @@ export type WorkItemEntityData = {
   summary?: string
   category?: string
   content?: string
+  version?: string
   // Leave Request
   reason?: string
+  leaveType?: string
+  employeeName?: string
+  totalDays?: number
+  startDate?: string
+  endDate?: string
   // Disciplinary Action
   description?: string
   violationType?: string
@@ -31,6 +37,9 @@ export type WorkItemEntityData = {
   reviewType?: string
   overallRating?: number
   strengths?: string
+  employeeNameForReview?: string
+  // Task
+  taskStatus?: string
 }
 
 export type WorkItemDTO = {
