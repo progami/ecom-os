@@ -9,6 +9,7 @@ import {
   Compass,
   Database,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   Leaf,
   Loader2,
@@ -977,7 +978,13 @@ export function DataSourcesPanel() {
         id: 'actions',
         header: '',
         cell: ({ row }) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/sources/${encodeURIComponent(row.original.id)}`}>
+                <ExternalLink className="mr-2 h-4 w-4" aria-hidden />
+                View
+              </Link>
+            </Button>
             <Button asChild size="sm" variant="outline">
               <Link href={`/forecasts?seriesId=${encodeURIComponent(row.original.id)}`}>
                 Create forecast
