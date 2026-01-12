@@ -1,6 +1,6 @@
 import 'server-only';
 
-type ForecastModel = 'ETS' | 'PROPHET';
+type ForecastModel = 'ETS' | 'PROPHET' | 'ARIMA' | 'THETA' | 'NEURALPROPHET';
 
 type ForecastPoint = {
   t: string;
