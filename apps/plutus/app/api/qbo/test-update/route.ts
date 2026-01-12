@@ -95,6 +95,7 @@ export async function GET(req: NextRequest) {
       Id: testPurchase.Id,
       SyncToken: testPurchase.SyncToken,
       sparse: true,
+      PaymentType: testPurchase.PaymentType,
       DocNumber: testDocNumber,
       PrivateNote: testPrivateNote,
     };
@@ -148,6 +149,7 @@ export async function GET(req: NextRequest) {
       Id: updatedPurchase.Id,
       SyncToken: updatedPurchase.SyncToken,
       sparse: true,
+      PaymentType: testPurchase.PaymentType,
       DocNumber: originalDocNumber === '(empty)' ? '' : originalDocNumber,
       PrivateNote: originalPrivateNote === '(empty)' ? '' : originalPrivateNote,
     };
