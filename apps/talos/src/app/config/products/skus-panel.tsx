@@ -761,7 +761,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="productDimensionsCm">Product Dimensions (cm)</Label>
+                  <Label htmlFor="productDimensionsCm">Item Package Dimensions (cm)</Label>
                   <Input
                     id="productDimensionsCm"
                     value={formState.productDimensionsCm}
@@ -772,7 +772,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="amazonReferenceWeightKg">Product Weight (kg)</Label>
+                  <Label htmlFor="amazonReferenceWeightKg">Item Package Weight (kg)</Label>
                   <Input
                     id="amazonReferenceWeightKg"
                     type="number"
