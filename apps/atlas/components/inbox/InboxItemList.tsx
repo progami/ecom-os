@@ -67,7 +67,7 @@ function InboxItem({
       type="button"
       onClick={onSelect}
       className={cn(
-        'group relative w-full text-left transition-all duration-200 ease-out',
+        'group relative w-full h-20 text-left transition-all duration-200 ease-out',
         'rounded-xl border-2',
         selected
           ? 'border-slate-900 dark:border-slate-100 shadow-lg scale-[1.02]'
@@ -87,10 +87,13 @@ function InboxItem({
         selected ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'
       )} />
 
-      <div className="pl-4 pr-3 py-3">
-        {/* Header row - only show urgency badges */}
-        {config.label ? (
-          <div className="flex items-start justify-end mb-2">
+      <div className="pl-4 pr-3 py-3 h-full flex flex-col">
+        {/* Header row */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
+            {item.typeLabel}
+          </span>
+          {config.label ? (
             <span className={cn(
               'shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
               item.isOverdue
@@ -99,12 +102,12 @@ function InboxItem({
             )}>
               {config.label}
             </span>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         {/* Title */}
         <h3 className={cn(
-          'text-sm font-semibold leading-snug line-clamp-2',
+          'mt-1.5 text-sm font-semibold leading-snug line-clamp-2',
           selected ? 'text-slate-900 dark:text-slate-50' : 'text-slate-700 dark:text-slate-200'
         )}>
           {item.title}
