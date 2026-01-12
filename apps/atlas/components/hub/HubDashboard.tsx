@@ -707,10 +707,10 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
         ) : null}
       </div>
 
-      {/* Tab content */}
+      {/* Tab content with transition */}
       <div className="flex-1 min-h-0">
         {activeTab === 'inbox' ? (
-          <div className="flex flex-col h-full">
+          <div key={`inbox-${inboxSubTab}`} className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
             {/* Inbox sub-tabs */}
             <div className="shrink-0 flex items-center gap-1 p-0.5 bg-slate-200 dark:bg-slate-700 rounded-lg w-fit mb-4">
               <SubTabButton
@@ -758,48 +758,52 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
             )}
           </div>
         ) : activeTab === 'overview' ? (
-          overviewLoading ? (
-            <div className="grid grid-cols-3 gap-4 animate-pulse">
-              <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-              <div className="col-span-2 h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-              <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-              <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-              <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-            </div>
-          ) : employee ? (
-            <div className="grid grid-cols-3 gap-4">
-              {/* Row 1: Profile + Team */}
-              <ProfileCard employee={employee} />
-              {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
-                <TeamCard directReports={dashboardData.directReports} />
-              ) : (
-                <>
-                  <TimeOffCard balances={leaveBalances} />
-                  <QuickActionsCard />
-                </>
-              )}
+          <div key="overview" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {overviewLoading ? (
+              <div className="grid grid-cols-3 gap-4 animate-pulse">
+                <div className="h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="col-span-2 h-24 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+                <div className="h-40 rounded-2xl bg-slate-100 dark:bg-slate-800" />
+              </div>
+            ) : employee ? (
+              <div className="grid grid-cols-3 gap-4">
+                {/* Row 1: Profile + Team */}
+                <ProfileCard employee={employee} />
+                {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
+                  <TeamCard directReports={dashboardData.directReports} />
+                ) : (
+                  <>
+                    <TimeOffCard balances={leaveBalances} />
+                    <QuickActionsCard />
+                  </>
+                )}
 
-              {/* Row 2: Conditionally show cards based on what data exists */}
-              {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
-                <>
-                  <TimeOffCard balances={leaveBalances} />
-                  {dashboardData.pendingReviews && dashboardData.pendingReviews.length > 0 ? (
-                    <PendingReviewsCard reviews={dashboardData.pendingReviews} />
-                  ) : null}
-                  {dashboardData.pendingLeaveRequests && dashboardData.pendingLeaveRequests.length > 0 ? (
-                    <PendingLeaveCard requests={dashboardData.pendingLeaveRequests} />
-                  ) : null}
-                  <QuickActionsCard />
-                </>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
-              <p className="text-slate-500">Could not load your profile</p>
-            </div>
-          )
+                {/* Row 2: Conditionally show cards based on what data exists */}
+                {dashboardData?.directReports && dashboardData.directReports.length > 0 ? (
+                  <>
+                    <TimeOffCard balances={leaveBalances} />
+                    {dashboardData.pendingReviews && dashboardData.pendingReviews.length > 0 ? (
+                      <PendingReviewsCard reviews={dashboardData.pendingReviews} />
+                    ) : null}
+                    {dashboardData.pendingLeaveRequests && dashboardData.pendingLeaveRequests.length > 0 ? (
+                      <PendingLeaveCard requests={dashboardData.pendingLeaveRequests} />
+                    ) : null}
+                    <QuickActionsCard />
+                  </>
+                ) : null}
+              </div>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-12 text-center">
+                <p className="text-slate-500">Could not load your profile</p>
+              </div>
+            )}
+          </div>
         ) : (
-          <ActivityTimeline employeeId={employeeId} />
+          <div key="activity" className="h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <ActivityTimeline employeeId={employeeId} />
+          </div>
         )}
       </div>
     </div>
