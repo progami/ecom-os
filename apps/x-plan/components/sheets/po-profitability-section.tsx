@@ -482,14 +482,19 @@ export function POProfitabilitySection({
     );
   }
 
+  // Only show internal toolbar if productOptions provided or view toggle needed
+  const showInternalToolbar = productOptions.length > 0 || (sheetSlug && viewMode);
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-white/5">
-        <div className="flex flex-wrap items-end gap-3">
-          <POProfitabilityHeaderControls productOptions={productOptions} />
+      {showInternalToolbar ? (
+        <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-white/5">
+          <div className="flex flex-wrap items-end gap-3">
+            <POProfitabilityHeaderControls productOptions={productOptions} />
+          </div>
+          {sheetSlug && viewMode ? <SheetViewToggle value={viewMode} slug={sheetSlug} /> : null}
         </div>
-        {sheetSlug && viewMode ? <SheetViewToggle value={viewMode} slug={sheetSlug} /> : null}
-      </div>
+      ) : null}
 
       {showChart ? (
         <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
