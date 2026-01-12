@@ -191,6 +191,14 @@ function ReportsIcon({ className }: { className?: string }) {
   );
 }
 
+function ReconcileIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -252,20 +260,29 @@ export default function HomePage() {
               href="/transactions"
               icon={<TransactionsIcon className="h-7 w-7 text-brand-teal-600 dark:text-brand-cyan" />}
               title="Transactions"
-              description="View purchases, check SOP compliance, and update Reference/Memo fields in bulk."
+              description="View purchases, check SOP compliance, and update Reference/Memo fields."
               accentColor="teal"
               delay={0}
             />
 
             <FeatureCard
-              href="/chart-of-accounts"
-              icon={<AccountsIcon className="h-7 w-7 text-amber-600 dark:text-amber-400" />}
-              title="Chart of Accounts"
-              description="View and manage your account hierarchies from QuickBooks."
-              accentColor="amber"
-              delay={100}
+              href="/reconcile"
+              icon={<ReconcileIcon className="h-7 w-7 text-brand-teal-600 dark:text-brand-cyan" />}
+              title="Reconciliation"
+              description="Bulk apply SOPs to transactions. Enter memos and references at scale."
+              accentColor="teal"
+              delay={50}
             />
           </div>
+
+          <FeatureCard
+            href="/chart-of-accounts"
+            icon={<AccountsIcon className="h-7 w-7 text-amber-600 dark:text-amber-400" />}
+            title="Chart of Accounts"
+            description="View account hierarchies from QuickBooks, grouped by type like QBO."
+            accentColor="amber"
+            delay={100}
+          />
 
           <ComingSoonCard
             icon={<ReportsIcon className="h-7 w-7 text-violet-600/50 dark:text-violet-400/50" />}
