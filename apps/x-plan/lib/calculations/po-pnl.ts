@@ -24,8 +24,16 @@ export interface PoPnlRow {
   status: PoPnlStatus;
   units: number;
   revenue: number;
+  manufacturingCost: number;
+  freightCost: number;
+  tariffCost: number;
   cogs: number;
+  cogsAdjustment: number;
+  referralFees: number;
+  fbaFees: number;
+  storageFees: number;
   amazonFees: number;
+  amazonFeesAdjustment: number;
   ppcSpend: number;
   fixedCosts: number;
   grossProfit: number;
@@ -52,7 +60,13 @@ export interface PoPnlSummary {
 type MutableTotals = {
   units: number;
   revenue: number;
+  manufacturingCost: number;
+  freightCost: number;
+  tariffCost: number;
   cogs: number;
+  referralFees: number;
+  fbaFees: number;
+  storageFees: number;
   amazonFees: number;
   ppcSpend: number;
   fixedCosts: number;
@@ -154,7 +168,13 @@ export function buildPoPnlRows(options: {
     groups.set(UNATTRIBUTED_KEY, {
       units: 0,
       revenue: 0,
+      manufacturingCost: 0,
+      freightCost: 0,
+      tariffCost: 0,
       cogs: 0,
+      referralFees: 0,
+      fbaFees: 0,
+      storageFees: 0,
       amazonFees: 0,
       ppcSpend: 0,
       fixedCosts: 0,
@@ -171,7 +191,13 @@ export function buildPoPnlRows(options: {
       const group = groups.get(key) ?? {
         units: 0,
         revenue: 0,
+        manufacturingCost: 0,
+        freightCost: 0,
+        tariffCost: 0,
         cogs: 0,
+        referralFees: 0,
+        fbaFees: 0,
+        storageFees: 0,
         amazonFees: 0,
         ppcSpend: 0,
         fixedCosts: 0,
@@ -179,7 +205,13 @@ export function buildPoPnlRows(options: {
 
       group.units += line.units;
       group.revenue += line.revenue;
+      group.manufacturingCost += line.manufacturingCost;
+      group.freightCost += line.freightCost;
+      group.tariffCost += line.tariffCost;
       group.cogs += line.cogs;
+      group.referralFees += line.referralFees;
+      group.fbaFees += line.fbaFees;
+      group.storageFees += line.storageFees;
       group.amazonFees += line.amazonFees;
       group.ppcSpend += line.ppcSpend;
 
@@ -194,19 +226,43 @@ export function buildPoPnlRows(options: {
         if (!group) return acc;
         acc.units += group.units;
         acc.revenue += group.revenue;
+        acc.manufacturingCost += group.manufacturingCost;
+        acc.freightCost += group.freightCost;
+        acc.tariffCost += group.tariffCost;
         acc.cogs += group.cogs;
+        acc.referralFees += group.referralFees;
+        acc.fbaFees += group.fbaFees;
+        acc.storageFees += group.storageFees;
         acc.amazonFees += group.amazonFees;
         acc.ppcSpend += group.ppcSpend;
         return acc;
       },
-      { units: 0, revenue: 0, cogs: 0, amazonFees: 0, ppcSpend: 0 },
+      {
+        units: 0,
+        revenue: 0,
+        manufacturingCost: 0,
+        freightCost: 0,
+        tariffCost: 0,
+        cogs: 0,
+        referralFees: 0,
+        fbaFees: 0,
+        storageFees: 0,
+        amazonFees: 0,
+        ppcSpend: 0,
+      },
     );
 
     const targetTotals = target
       ? {
           units: target.units,
           revenue: target.revenue,
+          manufacturingCost: baseTotals.manufacturingCost,
+          freightCost: baseTotals.freightCost,
+          tariffCost: baseTotals.tariffCost,
           cogs: target.cogs,
+          referralFees: baseTotals.referralFees,
+          fbaFees: baseTotals.fbaFees,
+          storageFees: baseTotals.storageFees,
           amazonFees: target.amazonFees,
           ppcSpend: target.ppcSpend,
           fixedCosts: target.fixedCosts,
@@ -214,7 +270,13 @@ export function buildPoPnlRows(options: {
       : {
           units: baseTotals.units,
           revenue: baseTotals.revenue,
+          manufacturingCost: baseTotals.manufacturingCost,
+          freightCost: baseTotals.freightCost,
+          tariffCost: baseTotals.tariffCost,
           cogs: baseTotals.cogs,
+          referralFees: baseTotals.referralFees,
+          fbaFees: baseTotals.fbaFees,
+          storageFees: baseTotals.storageFees,
           amazonFees: baseTotals.amazonFees,
           ppcSpend: baseTotals.ppcSpend,
           fixedCosts: 0,
@@ -304,7 +366,13 @@ export function buildPoPnlRows(options: {
       const aggregate = totalsByGroup.get(key) ?? {
         units: 0,
         revenue: 0,
+        manufacturingCost: 0,
+        freightCost: 0,
+        tariffCost: 0,
         cogs: 0,
+        referralFees: 0,
+        fbaFees: 0,
+        storageFees: 0,
         amazonFees: 0,
         ppcSpend: 0,
         fixedCosts: 0,
@@ -312,7 +380,13 @@ export function buildPoPnlRows(options: {
 
       aggregate.units += group.units;
       aggregate.revenue += group.revenue;
+      aggregate.manufacturingCost += group.manufacturingCost;
+      aggregate.freightCost += group.freightCost;
+      aggregate.tariffCost += group.tariffCost;
       aggregate.cogs += group.cogs;
+      aggregate.referralFees += group.referralFees;
+      aggregate.fbaFees += group.fbaFees;
+      aggregate.storageFees += group.storageFees;
       aggregate.amazonFees += group.amazonFees;
       aggregate.ppcSpend += group.ppcSpend;
       aggregate.fixedCosts += group.fixedCosts;
@@ -324,7 +398,13 @@ export function buildPoPnlRows(options: {
   const unattributedTotals = totalsByGroup.get(UNATTRIBUTED_KEY) ?? {
     units: 0,
     revenue: 0,
+    manufacturingCost: 0,
+    freightCost: 0,
+    tariffCost: 0,
     cogs: 0,
+    referralFees: 0,
+    fbaFees: 0,
+    storageFees: 0,
     amazonFees: 0,
     ppcSpend: 0,
     fixedCosts: 0,
@@ -351,6 +431,10 @@ export function buildPoPnlRows(options: {
 
     const meta = orderMetaByCode.get(orderCode) ?? null;
     const revenue = aggregate.revenue;
+    const cogsAdjustment =
+      aggregate.cogs - aggregate.manufacturingCost - aggregate.freightCost - aggregate.tariffCost;
+    const amazonFeesAdjustment =
+      aggregate.amazonFees - aggregate.referralFees - aggregate.fbaFees - aggregate.storageFees;
     const grossProfit = revenue - aggregate.cogs - aggregate.amazonFees;
     const totalOpex = aggregate.ppcSpend + aggregate.fixedCosts;
     const netProfit = grossProfit - totalOpex;
@@ -378,8 +462,16 @@ export function buildPoPnlRows(options: {
       status: meta ? normalizeStatus(meta.status) : 'ISSUED',
       units: aggregate.units,
       revenue: aggregate.revenue,
+      manufacturingCost: aggregate.manufacturingCost,
+      freightCost: aggregate.freightCost,
+      tariffCost: aggregate.tariffCost,
       cogs: aggregate.cogs,
+      cogsAdjustment,
+      referralFees: aggregate.referralFees,
+      fbaFees: aggregate.fbaFees,
+      storageFees: aggregate.storageFees,
       amazonFees: aggregate.amazonFees,
+      amazonFeesAdjustment,
       ppcSpend: aggregate.ppcSpend,
       fixedCosts: aggregate.fixedCosts,
       grossProfit,
