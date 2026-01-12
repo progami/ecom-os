@@ -30,7 +30,7 @@
 /* Selection */
 ::selection {
   background: hsl(var(--accent) / 0.2);
-  color: hsl(var(--accent-foreground));
+  color: hsl(var(--foreground));
 }
 
 /* Disable autofill styling */
@@ -164,6 +164,15 @@ input:-webkit-autofill:active {
   h3 {
     font-size: 1.25rem;
     line-height: 1.3;
+  }
+
+  /* Fix mark element styling for readable text */
+  mark,
+  .prose mark {
+    background-color: hsl(var(--accent) / 0.15) !important;
+    color: hsl(var(--foreground)) !important;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
   }
 }
 
