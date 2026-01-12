@@ -76,6 +76,13 @@ export interface QboAccount {
   FullyQualifiedName?: string;
   AcctNum?: string;
   Active?: boolean;
+  CurrentBalance?: number;
+  CurrentBalanceWithSubAccounts?: number;
+  CurrencyRef?: {
+    value: string;
+    name?: string;
+  };
+  Classification?: string;
 }
 
 export interface QboQueryResponse {

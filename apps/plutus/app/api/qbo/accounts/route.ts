@@ -29,10 +29,8 @@ export async function GET() {
       });
     }
 
-    // Filter for expense accounts (typically what purchases are categorized to)
-    // and transform for frontend
-    const expenseAccounts = accounts
-      .filter((a) => a.AccountType === 'Expense' || a.AccountType === 'Other Expense' || a.AccountType === 'Cost of Goods Sold')
+    // Transform all accounts for frontend (matching QBO's Chart of Accounts view)
+    const allAccounts = accounts
       .map((a) => ({
         id: a.Id,
         name: a.Name,
@@ -40,10 +38,13 @@ export async function GET() {
         subType: a.AccountSubType,
         fullyQualifiedName: a.FullyQualifiedName,
         acctNum: a.AcctNum,
+        balance: a.CurrentBalance ?? 0,
+        currency: a.CurrencyRef?.value ?? 'USD',
+        classification: a.Classification,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
-    return NextResponse.json({ accounts: expenseAccounts });
+    return NextResponse.json({ accounts: allAccounts, total: allAccounts.length });
   } catch (error) {
     logger.error('Failed to fetch accounts', error);
     return NextResponse.json(
