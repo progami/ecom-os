@@ -21,6 +21,7 @@ import {
 import {
   POProfitabilitySection,
   POProfitabilityFiltersProvider,
+  POProfitabilityHeaderControls,
   type POProfitabilityData,
 } from '@/components/sheets/po-profitability-section';
 import type { OpsInputRow } from '@/components/sheets/custom-ops-planning-grid';
@@ -2380,6 +2381,12 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         .map((product) => ({ id: product.id, name: productLabel(product) }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
+      controls.push(
+        <POProfitabilityHeaderControls
+          key="po-profitability-controls"
+          productOptions={productOptions}
+        />,
+      );
       wrapLayout = (node) => (
         <POProfitabilityFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}
@@ -2388,25 +2395,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       tabularContent = (
         <POProfitabilitySection
           datasets={view}
-          productOptions={productOptions}
-          sheetSlug={config.slug}
-          viewMode={viewMode}
           title="PO P&L"
           description="FIFO-based PO-level P&L (Projected vs Real)"
-          showChart={false}
-          showTable
-        />
-      );
-      visualContent = (
-        <POProfitabilitySection
-          datasets={view}
-          productOptions={productOptions}
-          sheetSlug={config.slug}
-          viewMode={viewMode}
-          title="PO P&L charts"
-          description=""
           showChart
-          showTable={false}
+          showTable
         />
       );
       break;
