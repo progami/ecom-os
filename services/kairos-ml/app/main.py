@@ -122,6 +122,26 @@ def infer_frequency(step_seconds: int) -> str:
         return "MS"
 
 
+def infer_season_length(step_seconds: int) -> int:
+    """Infer appropriate season length based on data frequency.
+
+    For time series forecasting, season_length represents how many
+    observations make up one seasonal cycle:
+    - Hourly data: 24 (daily seasonality)
+    - Daily data: 7 (weekly seasonality)
+    - Weekly data: 52 (annual seasonality)
+    - Monthly data: 12 (annual seasonality)
+    """
+    if step_seconds <= 3600:  # Hourly or less
+        return 24  # Daily seasonality
+    elif step_seconds <= 86400:  # Daily
+        return 7  # Weekly seasonality
+    elif step_seconds <= 604800:  # Weekly
+        return 52  # Annual seasonality
+    else:  # Monthly or longer
+        return 12  # Annual seasonality
+
+
 def compute_metrics(
     y_true: np.ndarray, y_pred: np.ndarray
 ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
@@ -165,18 +185,20 @@ def forecast_ets(
     from statsforecast.models import AutoETS
 
     config = config or {}
-    season_length = int(config.get("seasonLength", 7))
+    step_seconds = infer_step_seconds(ds)
+    # Use provided seasonLength or infer from data frequency
+    season_length = int(config.get("seasonLength", infer_season_length(step_seconds)))
 
-    # Prepare data
+    # Prepare data - use timezone-naive datetimes for consistency
     df = pd.DataFrame({
         "unique_id": ["series"] * len(y),
-        "ds": pd.to_datetime(ds, unit="s", utc=True),
+        "ds": pd.to_datetime(ds, unit="s", utc=True).tz_localize(None),
         "y": y,
     })
 
     # Create model
     model = AutoETS(season_length=season_length)
-    sf = StatsForecast(models=[model], freq=infer_frequency(infer_step_seconds(ds)))
+    sf = StatsForecast(models=[model], freq=infer_frequency(step_seconds))
 
     # Fit and predict
     sf.fit(df)
@@ -203,18 +225,20 @@ def forecast_arima(
     from statsforecast.models import AutoARIMA
 
     config = config or {}
-    season_length = int(config.get("seasonLength", 1))
+    step_seconds = infer_step_seconds(ds)
+    # Use provided seasonLength or infer from data frequency
+    season_length = int(config.get("seasonLength", infer_season_length(step_seconds)))
 
-    # Prepare data
+    # Prepare data - use timezone-naive datetimes for consistency
     df = pd.DataFrame({
         "unique_id": ["series"] * len(y),
-        "ds": pd.to_datetime(ds, unit="s", utc=True),
+        "ds": pd.to_datetime(ds, unit="s", utc=True).tz_localize(None),
         "y": y,
     })
 
     # Create model
     model = AutoARIMA(season_length=season_length)
-    sf = StatsForecast(models=[model], freq=infer_frequency(infer_step_seconds(ds)))
+    sf = StatsForecast(models=[model], freq=infer_frequency(step_seconds))
 
     # Fit and predict
     sf.fit(df)
@@ -241,18 +265,20 @@ def forecast_theta(
     from statsforecast.models import Theta
 
     config = config or {}
-    season_length = int(config.get("seasonLength", 1))
+    step_seconds = infer_step_seconds(ds)
+    # Use provided seasonLength or infer from data frequency
+    season_length = int(config.get("seasonLength", infer_season_length(step_seconds)))
 
-    # Prepare data
+    # Prepare data - use timezone-naive datetimes for consistency
     df = pd.DataFrame({
         "unique_id": ["series"] * len(y),
-        "ds": pd.to_datetime(ds, unit="s", utc=True),
+        "ds": pd.to_datetime(ds, unit="s", utc=True).tz_localize(None),
         "y": y,
     })
 
     # Create model
     model = Theta(season_length=season_length)
-    sf = StatsForecast(models=[model], freq=infer_frequency(infer_step_seconds(ds)))
+    sf = StatsForecast(models=[model], freq=infer_frequency(step_seconds))
 
     # Fit and predict
     sf.fit(df)
@@ -292,9 +318,9 @@ def forecast_prophet(
             return False
         return "auto"
 
-    # Prepare data
+    # Prepare data - Prophet doesn't support timezone-aware datetimes
     df = pd.DataFrame({
-        "ds": pd.to_datetime(ds, unit="s", utc=True),
+        "ds": pd.to_datetime(ds, unit="s", utc=True).tz_localize(None),
         "y": y,
     })
 
@@ -355,9 +381,9 @@ def forecast_neuralprophet(
             return False
         return "auto"
 
-    # Prepare data
+    # Prepare data - NeuralProphet doesn't support timezone-aware datetimes
     df = pd.DataFrame({
-        "ds": pd.to_datetime(ds, unit="s", utc=True),
+        "ds": pd.to_datetime(ds, unit="s", utc=True).tz_localize(None),
         "y": y,
     })
 
