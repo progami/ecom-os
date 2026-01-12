@@ -145,6 +145,8 @@ type POProfitabilityFiltersContextValue = {
   setStatusFilter: (value: StatusFilter) => void;
   focusSkuId: string;
   setFocusSkuId: (value: string) => void;
+  showGpAfterPpc: boolean;
+  setShowGpAfterPpc: (value: boolean) => void;
 };
 
 const POProfitabilityFiltersContext = createContext<POProfitabilityFiltersContextValue | null>(
@@ -174,6 +176,10 @@ export function POProfitabilityFiltersProvider({
     `xplan:po-profitability:${strategyId}:focus-sku`,
     'ALL',
   );
+  const [showGpAfterPpc, setShowGpAfterPpc] = usePersistentState<boolean>(
+    `xplan:po-profitability:${strategyId}:show-gp-after-ppc`,
+    false,
+  );
 
   const value = useMemo(
     () => ({
@@ -185,6 +191,8 @@ export function POProfitabilityFiltersProvider({
       setStatusFilter,
       focusSkuId,
       setFocusSkuId,
+      showGpAfterPpc,
+      setShowGpAfterPpc,
     }),
     [
       focusSkuId,
@@ -193,6 +201,8 @@ export function POProfitabilityFiltersProvider({
       setMode,
       setStatusFilter,
       setValueDisplay,
+      showGpAfterPpc,
+      setShowGpAfterPpc,
       statusFilter,
       valueDisplay,
     ],
@@ -223,7 +233,7 @@ export function POProfitabilityHeaderControls({
 
   if (!context) return null;
 
-  const { mode, setMode, statusFilter, setStatusFilter, setFocusSkuId } = context;
+  const { mode, setMode, statusFilter, setStatusFilter, setFocusSkuId, showGpAfterPpc, setShowGpAfterPpc } = context;
 
   return (
     <>
@@ -277,6 +287,19 @@ export function POProfitabilityHeaderControls({
           </select>
         </div>
       ) : null}
+
+      <div className={SHEET_TOOLBAR_GROUP}>
+        <span className={SHEET_TOOLBAR_LABEL}>GP</span>
+        <select
+          value={showGpAfterPpc ? 'after-ppc' : 'before-ppc'}
+          onChange={(event) => setShowGpAfterPpc(event.target.value === 'after-ppc')}
+          className={SHEET_TOOLBAR_SELECT}
+          aria-label="Show GP before or after PPC"
+        >
+          <option value="before-ppc">Before PPC</option>
+          <option value="after-ppc">After PPC</option>
+        </select>
+      </div>
     </>
   );
 }
@@ -296,6 +319,7 @@ export function POProfitabilitySection({
   const statusFilter = filters?.statusFilter ?? 'ALL';
   const skuFilter = filters?.focusSkuId ?? 'ALL';
   const valueDisplay = filters?.valueDisplay ?? 'ABSOLUTE';
+  const showGpAfterPpc = filters?.showGpAfterPpc ?? false;
   const dataset = mode === 'REAL' ? datasets.real : datasets.projected;
   const data = dataset.data;
   const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>([
@@ -427,6 +451,7 @@ export function POProfitabilitySection({
         totalUnits: 0,
         totalRevenue: 0,
         totalGrossProfit: 0,
+        totalPpc: 0,
         totalProfit: 0,
         totalCogs: 0,
         netMargin: 0,
@@ -435,11 +460,12 @@ export function POProfitabilitySection({
     const totalUnits = filteredData.reduce((sum, row) => sum + row.units, 0);
     const totalRevenue = filteredData.reduce((sum, row) => sum + row.revenue, 0);
     const totalGrossProfit = filteredData.reduce((sum, row) => sum + row.grossProfit, 0);
+    const totalPpc = filteredData.reduce((sum, row) => sum + row.ppcSpend, 0);
     const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0);
     const totalCogs = filteredData.reduce((sum, row) => sum + row.cogs, 0);
     const netMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const roi = totalCogs > 0 ? (totalProfit / totalCogs) * 100 : 0;
-    return { totalUnits, totalRevenue, totalGrossProfit, totalProfit, totalCogs, netMargin, roi };
+    return { totalUnits, totalRevenue, totalGrossProfit, totalPpc, totalProfit, totalCogs, netMargin, roi };
   }, [filteredData]);
 
   if (data.length === 0) {
@@ -938,58 +964,18 @@ export function POProfitabilitySection({
                     </TableCell>
                   </TableRow>
 
-                  {/* Opex Section Header */}
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell
-                      colSpan={tableSortedData.length + 2}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-sky-700 dark:text-sky-300 bg-sky-50/60 dark:bg-sky-900/20 border-y border-sky-200 dark:border-sky-800/50"
-                    >
-                      Operating Expenses
-                    </TableCell>
-                  </TableRow>
-
-                  {/* PPC */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
+                  {/* PPC - shown before GP as it's part of GP calculation, not OPEX */}
+                  <TableRow className="hover:bg-cyan-50/50 dark:hover:bg-cyan-900/10 bg-cyan-50/30 dark:bg-cyan-900/10">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
                       PPC Spend
                     </TableCell>
                     {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-cyan-700 dark:text-cyan-300">
                         {formatMoney(row.ppcSpend, row.units)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-50/50 dark:bg-cyan-900/20">
                       {formatMoney(filteredData.reduce((sum, row) => sum + row.ppcSpend, 0), summary.totalUnits)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Fixed Costs */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
-                    <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
-                      Fixed Costs
-                    </TableCell>
-                    {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                        {formatMoney(row.fixedCosts, row.units)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
-                      {formatMoney(filteredData.reduce((sum, row) => sum + row.fixedCosts, 0), summary.totalUnits)}
-                    </TableCell>
-                  </TableRow>
-
-                  {/* Total Opex */}
-                  <TableRow className="hover:bg-sky-50/50 dark:hover:bg-sky-900/10 bg-sky-50/30 dark:bg-sky-900/10">
-                    <TableCell className="px-3 py-2 text-sm font-semibold text-sky-700 dark:text-sky-300">
-                      Total Opex
-                    </TableCell>
-                    {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-sky-700 dark:text-sky-300">
-                        {formatMoney(row.ppcSpend + row.fixedCosts, row.units)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-sky-700 dark:text-sky-300 bg-sky-50/50 dark:bg-sky-900/20">
-                      {formatMoney(filteredData.reduce((sum, row) => sum + row.ppcSpend + row.fixedCosts, 0), summary.totalUnits)}
                     </TableCell>
                   </TableRow>
 
@@ -1003,21 +989,24 @@ export function POProfitabilitySection({
                     </TableCell>
                   </TableRow>
 
-                  {/* Gross Profit */}
+                  {/* Gross Profit - shows before or after PPC based on toggle */}
                   <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                      Gross Profit
+                      {showGpAfterPpc ? 'Gross Profit (after PPC)' : 'Gross Profit'}
                     </TableCell>
-                    {tableSortedData.map((row) => (
-                      <TableCell
-                        key={row.id}
-                        className={`px-3 py-2 text-right text-sm tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
-                      >
-                        {formatMoney(row.grossProfit, row.units)}
-                      </TableCell>
-                    ))}
-                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-slate-50/50 dark:bg-slate-800/30 ${summary.totalGrossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
-                      {formatMoney(summary.totalGrossProfit, summary.totalUnits)}
+                    {tableSortedData.map((row) => {
+                      const gpValue = showGpAfterPpc ? row.grossProfit - row.ppcSpend : row.grossProfit;
+                      return (
+                        <TableCell
+                          key={row.id}
+                          className={`px-3 py-2 text-right text-sm tabular-nums font-medium ${gpValue >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}
+                        >
+                          {formatMoney(gpValue, row.units)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-slate-50/50 dark:bg-slate-800/30 ${(showGpAfterPpc ? summary.totalGrossProfit - summary.totalPpc : summary.totalGrossProfit) >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
+                      {formatMoney(showGpAfterPpc ? summary.totalGrossProfit - summary.totalPpc : summary.totalGrossProfit, summary.totalUnits)}
                     </TableCell>
                   </TableRow>
 
@@ -1026,16 +1015,35 @@ export function POProfitabilitySection({
                     <TableCell className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
                       Gross Margin %
                     </TableCell>
+                    {tableSortedData.map((row) => {
+                      const gpValue = showGpAfterPpc ? row.grossProfit - row.ppcSpend : row.grossProfit;
+                      const gmPercent = row.revenue > 0 ? (gpValue / row.revenue) * 100 : 0;
+                      return (
+                        <TableCell
+                          key={row.id}
+                          className={`px-3 py-2 text-right text-sm tabular-nums ${gmPercent >= 0 ? 'text-slate-600 dark:text-slate-300' : 'text-red-600 dark:text-red-300'}`}
+                        >
+                          {formatPercent(gmPercent)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
+                      {formatPercent(summary.totalRevenue > 0 ? ((showGpAfterPpc ? summary.totalGrossProfit - summary.totalPpc : summary.totalGrossProfit) / summary.totalRevenue) * 100 : 0)}
+                    </TableCell>
+                  </TableRow>
+
+                  {/* OPEX (Fixed Costs only - estimates in X-Plan) */}
+                  <TableRow className="hover:bg-sky-50/50 dark:hover:bg-sky-900/10 bg-sky-50/30 dark:bg-sky-900/10">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-sky-700 dark:text-sky-300">
+                      OPEX (est.)
+                    </TableCell>
                     {tableSortedData.map((row) => (
-                      <TableCell
-                        key={row.id}
-                        className={`px-3 py-2 text-right text-sm tabular-nums ${row.grossMarginPercent >= 0 ? 'text-slate-600 dark:text-slate-300' : 'text-red-600 dark:text-red-300'}`}
-                      >
-                        {formatPercent(row.grossMarginPercent)}
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-medium text-sky-700 dark:text-sky-300">
+                        {formatMoney(row.fixedCosts, row.units)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/30">
-                      {formatPercent(summary.totalRevenue > 0 ? (summary.totalGrossProfit / summary.totalRevenue) * 100 : 0)}
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-sky-700 dark:text-sky-300 bg-sky-50/50 dark:bg-sky-900/20">
+                      {formatMoney(filteredData.reduce((sum, row) => sum + row.fixedCosts, 0), summary.totalUnits)}
                     </TableCell>
                   </TableRow>
 
