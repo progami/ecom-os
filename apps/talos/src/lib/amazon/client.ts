@@ -504,32 +504,57 @@ export async function getListingsItems(
   const limit = Math.min(options?.limit ?? 250, 1000)
   if (!limit) return { items: [], hasMore: false }
 
-  const inventoryResponse = await getInventory(tenantCode)
-  const summaries = inventoryResponse?.inventorySummaries ?? []
+  const config = getAmazonSpApiConfigFromEnv(tenantCode)
+  const sellerId = config?.sellerId
+  const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
 
+  if (!sellerId) {
+    throw new Error('AMAZON_SELLER_ID environment variable is required for Amazon import')
+  }
+
+  // Use Listings API instead of FBA Inventory API
+  // This returns all catalog listings, not just items with FBA inventory
+  // Allows importing products before inventory lands at Amazon warehouses
+  const response = await callAmazonApi<{
+    numberOfResults?: number
+    items?: Array<{
+      sku?: string
+      summaries?: Array<{
+        asin?: string
+        productType?: string
+        status?: string[]
+      }>
+    }>
+  }>(tenantCode, {
+    api_path: `/listings/2021-08-01/items/${sellerId}`,
+    method: 'GET',
+    query: {
+      marketplaceIds: marketplaceId,
+    },
+  })
+
+  const listingsItems = response.items ?? []
   const seen = new Set<string>()
   const items: AmazonListingItemSummary[] = []
 
-  for (const summary of summaries) {
+  for (const item of listingsItems) {
     if (items.length >= limit) break
 
-    const sellerSku = typeof summary.sellerSku === 'string' ? summary.sellerSku.trim() : ''
+    const sellerSku = typeof item.sku === 'string' ? item.sku.trim() : ''
     if (!sellerSku) continue
 
     const normalizedKey = sellerSku.toUpperCase()
     if (seen.has(normalizedKey)) continue
     seen.add(normalizedKey)
 
-    const asin = typeof summary.asin === 'string' && summary.asin.trim() ? summary.asin.trim() : null
-    const title =
-      typeof summary.productName === 'string' && summary.productName.trim()
-        ? summary.productName.trim()
-        : null
+    const asin = item.summaries?.[0]?.asin
+    const normalizedAsin = typeof asin === 'string' && asin.trim() ? asin.trim() : null
 
-    items.push({ sellerSku, asin, title })
+    // Listings API doesn't return title; import flow fetches it from Catalog API
+    items.push({ sellerSku, asin: normalizedAsin, title: null })
   }
 
-  return { items, hasMore: summaries.length > items.length }
+  return { items, hasMore: listingsItems.length > items.length }
 }
 
 // Helper functions for common operations
