@@ -417,6 +417,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     message?: string
     unitWeightKg?: number | null
     unitDimensionsCm?: string | null
+    feeDebug?: {
+      referralFeePercent: number | null
+      fbaFee: number | null
+      sizeTier: string | null
+    }
   }> = []
 
   const targets: string[] = []
@@ -601,6 +606,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           message: 'Refreshed Amazon data',
           unitWeightKg,
           unitDimensionsCm,
+          feeDebug: {
+            referralFeePercent: amazonReferralFeePercent,
+            fbaFee: amazonFbaFulfillmentFee,
+            sizeTier: amazonSizeTier,
+          },
         })
       } else {
         // Create new SKU
@@ -675,6 +685,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           status: 'imported',
           unitWeightKg,
           unitDimensionsCm,
+          feeDebug: {
+            referralFeePercent: amazonReferralFeePercent,
+            fbaFee: amazonFbaFulfillmentFee,
+            sizeTier: amazonSizeTier,
+          },
         })
       }
     } catch (error) {
