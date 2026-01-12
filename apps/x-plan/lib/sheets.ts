@@ -1,5 +1,13 @@
 import type { LucideIcon } from 'lucide-react';
-import { ClipboardList, FileSpreadsheet, LineChart, Package, Target, Wallet2 } from 'lucide-react';
+import {
+  ClipboardList,
+  FileSpreadsheet,
+  LineChart,
+  Package,
+  Target,
+  TrendingUp,
+  Wallet2,
+} from 'lucide-react';
 
 export type SheetSlug =
   | '1-strategies'
@@ -7,7 +15,8 @@ export type SheetSlug =
   | '3-ops-planning'
   | '4-sales-planning'
   | '5-fin-planning-pl'
-  | '6-fin-planning-cash-flow';
+  | '6-po-profitability'
+  | '7-fin-planning-cash-flow';
 
 export type LegacySheetSlug =
   | '0-strategies'
@@ -16,6 +25,7 @@ export type LegacySheetSlug =
   | '3-sales-planning'
   | '4-fin-planning-pl'
   | '5-fin-planning-cash-flow'
+  | '6-fin-planning-cash-flow'
   | '6-po-profitability'
   | '7-po-profitability';
 
@@ -64,7 +74,14 @@ export const SHEETS: SheetConfig[] = [
     icon: LineChart,
   },
   {
-    slug: '6-fin-planning-cash-flow',
+    slug: '6-po-profitability',
+    label: 'PO P&L',
+    shortLabel: 'PO P&L',
+    description: '',
+    icon: TrendingUp,
+  },
+  {
+    slug: '7-fin-planning-cash-flow',
     label: 'Cash Flow',
     shortLabel: 'Cash',
     description: '',
@@ -78,9 +95,10 @@ export const LEGACY_SHEET_SLUG_REDIRECTS: Readonly<Record<LegacySheetSlug, Sheet
   '2-ops-planning': '3-ops-planning',
   '3-sales-planning': '4-sales-planning',
   '4-fin-planning-pl': '5-fin-planning-pl',
-  '5-fin-planning-cash-flow': '6-fin-planning-cash-flow',
-  '6-po-profitability': '3-ops-planning',
-  '7-po-profitability': '3-ops-planning',
+  '5-fin-planning-cash-flow': '7-fin-planning-cash-flow',
+  '6-fin-planning-cash-flow': '7-fin-planning-cash-flow',
+  '6-po-profitability': '6-po-profitability',
+  '7-po-profitability': '6-po-profitability',
 };
 
 export function getCanonicalSheetSlug(slug: string): SheetSlug | undefined {
