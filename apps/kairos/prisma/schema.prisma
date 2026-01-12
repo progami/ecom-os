@@ -22,8 +22,9 @@ model TimeSeries {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
-  points         TimeSeriesPoint[]
-  forecasts      Forecast[]
+  points              TimeSeriesPoint[]
+  forecastsAsTarget   Forecast[]            @relation("ForecastTarget")
+  forecastsAsRegressor ForecastRegressor[]
 
   @@index([source])
   @@index([createdById])
@@ -52,8 +53,10 @@ model Forecast {
   status         ForecastStatus @default(DRAFT)
   lastRunAt      DateTime?
 
-  seriesId       String
-  series         TimeSeries    @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+  targetSeriesId String
+  targetSeries   TimeSeries    @relation("ForecastTarget", fields: [targetSeriesId], references: [id], onDelete: Restrict)
+
+  regressors     ForecastRegressor[]
 
   createdById    String?
   createdByEmail String?
@@ -62,10 +65,24 @@ model Forecast {
 
   runs           ForecastRun[]
 
-  @@index([seriesId])
+  @@index([targetSeriesId])
   @@index([status])
   @@index([createdById])
   @@index([createdByEmail])
+}
+
+model ForecastRegressor {
+  id           String              @id @default(cuid())
+  forecastId   String
+  seriesId     String
+  futureMode   RegressorFutureMode @default(FORECAST)
+
+  forecast     Forecast   @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+  series       TimeSeries @relation(fields: [seriesId], references: [id], onDelete: Restrict)
+
+  @@unique([forecastId, seriesId])
+  @@index([forecastId])
+  @@index([seriesId])
 }
 
 model ForecastRun {
@@ -85,6 +102,7 @@ model ForecastRun {
 
 enum TimeSeriesSource {
   GOOGLE_TRENDS
+  CSV_UPLOAD
 }
 
 enum TimeSeriesGranularity {
@@ -108,4 +126,9 @@ enum ForecastRunStatus {
   RUNNING
   SUCCESS
   FAILED
+}
+
+enum RegressorFutureMode {
+  FORECAST
+  USER_INPUT
 }

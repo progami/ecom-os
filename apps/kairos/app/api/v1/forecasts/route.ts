@@ -10,7 +10,8 @@ import { runForecastNow } from '@/lib/forecasts/run';
 
 const createSchema = z.object({
   name: z.string().trim().min(1),
-  seriesId: z.string().min(1),
+  targetSeriesId: z.string().min(1),
+  regressorSeriesIds: z.array(z.string()).optional().default([]),
   model: z.enum(['PROPHET', 'ETS']).default('PROPHET'),
   horizon: z.coerce.number().int().min(1).max(3650),
   runNow: z.coerce.boolean().optional().default(true),
@@ -24,7 +25,7 @@ export const GET = withKairosAuth(async (_request, session) => {
     where: buildKairosOwnershipWhere(actor),
     orderBy: { updatedAt: 'desc' },
     include: {
-      series: {
+      targetSeries: {
         select: {
           id: true,
           name: true,
@@ -32,6 +33,17 @@ export const GET = withKairosAuth(async (_request, session) => {
           granularity: true,
           query: true,
           geo: true,
+        },
+      },
+      regressors: {
+        include: {
+          series: {
+            select: {
+              id: true,
+              name: true,
+              source: true,
+            },
+          },
         },
       },
     },
@@ -47,7 +59,13 @@ export const GET = withKairosAuth(async (_request, session) => {
       lastRunAt: row.lastRunAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
-      series: row.series,
+      targetSeries: row.targetSeries,
+      regressors: row.regressors.map((r) => ({
+        id: r.id,
+        seriesId: r.seriesId,
+        futureMode: r.futureMode,
+        series: r.series,
+      })),
     })),
   });
 });
@@ -62,9 +80,9 @@ export const POST = withKairosAuth(async (request, session) => {
       return NextResponse.json({ error: 'User identity is missing.' }, { status: 403 });
     }
 
-    const series = await prisma.timeSeries.findFirst({
+    const targetSeries = await prisma.timeSeries.findFirst({
       where: {
-        id: payload.seriesId,
+        id: payload.targetSeriesId,
         ...buildKairosOwnershipWhere(actor),
       },
       select: {
@@ -77,8 +95,28 @@ export const POST = withKairosAuth(async (request, session) => {
       },
     });
 
-    if (!series) {
-      return NextResponse.json({ error: 'Time series not found' }, { status: 404 });
+    if (!targetSeries) {
+      return NextResponse.json({ error: 'Target time series not found' }, { status: 404 });
+    }
+
+    // Validate regressor series if provided
+    let regressorSeries: { id: string; name: string; source: string }[] = [];
+    if (payload.regressorSeriesIds.length > 0) {
+      regressorSeries = await prisma.timeSeries.findMany({
+        where: {
+          id: { in: payload.regressorSeriesIds },
+          ...buildKairosOwnershipWhere(actor),
+        },
+        select: {
+          id: true,
+          name: true,
+          source: true,
+        },
+      });
+
+      if (regressorSeries.length !== payload.regressorSeriesIds.length) {
+        return NextResponse.json({ error: 'One or more regressor series not found' }, { status: 404 });
+      }
     }
 
     const config =
@@ -99,9 +137,15 @@ export const POST = withKairosAuth(async (request, session) => {
         horizon: payload.horizon,
         config: configJson,
         status: 'DRAFT',
-        seriesId: series.id,
+        targetSeriesId: targetSeries.id,
         createdById: actor.id,
         createdByEmail: actor.email,
+        regressors: {
+          create: payload.regressorSeriesIds.map((seriesId) => ({
+            seriesId,
+            futureMode: 'FORECAST',
+          })),
+        },
       },
       select: {
         id: true,
@@ -122,7 +166,12 @@ export const POST = withKairosAuth(async (request, session) => {
           lastRunAt: forecast.lastRunAt?.toISOString() ?? null,
           createdAt: forecast.createdAt.toISOString(),
           updatedAt: forecast.updatedAt.toISOString(),
-          series,
+          targetSeries,
+          regressors: regressorSeries.map((s) => ({
+            seriesId: s.id,
+            futureMode: 'FORECAST',
+            series: s,
+          })),
         },
       });
     }
@@ -142,7 +191,12 @@ export const POST = withKairosAuth(async (request, session) => {
         lastRunAt: run.forecast.lastRunAt,
         createdAt: forecast.createdAt.toISOString(),
         updatedAt: forecast.updatedAt.toISOString(),
-        series,
+        targetSeries,
+        regressors: regressorSeries.map((s) => ({
+          seriesId: s.id,
+          futureMode: 'FORECAST',
+          series: s,
+        })),
       },
       run: run.run,
     });
