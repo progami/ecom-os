@@ -11,10 +11,6 @@ import { PurchaseTimeline } from '@/components/sheets/purchase-timeline';
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline';
 import { CustomOpsCostGrid, type OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid';
 import {
-  POProfitabilitySection,
-  type POProfitabilityDataset,
-} from '@/components/sheets/po-profitability-section';
-import {
   CustomPurchasePaymentsGrid,
   type PurchasePaymentRow,
   type PaymentSummary,
@@ -198,7 +194,6 @@ interface OpsPlanningWorkspaceProps {
   payments: PurchasePaymentRow[];
   calculator: OpsPlanningCalculatorPayload;
   timelineMonths: { start: string; end: string; label: string }[];
-  poPnlDatasets?: { projected: POProfitabilityDataset; real: POProfitabilityDataset } | null;
   mode?: 'tabular' | 'visual';
 }
 
@@ -713,7 +708,6 @@ export function OpsPlanningWorkspace({
   payments,
   calculator,
   timelineMonths,
-  poPnlDatasets,
   mode = 'tabular',
 }: OpsPlanningWorkspaceProps) {
   const isVisualMode = mode === 'visual';
@@ -1830,42 +1824,16 @@ export function OpsPlanningWorkspace({
             orderSummaries={orderSummaries}
             summaryLine={summaryLine ?? undefined}
           />
-
-          {poPnlDatasets ? (
-            <section id="po-pnl" className="scroll-mt-24">
-              <POProfitabilitySection
-                datasets={poPnlDatasets}
-                title="PO P&L"
-                description="FIFO-based PO-level P&L (Projected vs Real)"
-                showChart={false}
-                showTable
-              />
-            </section>
-          ) : null}
         </>
       )}
 
       {isVisualMode && (
-        <>
-          <PurchaseTimeline
-            orders={timelineOrdersState}
-            activeOrderId={activeOrderId}
-            onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-            months={timelineMonths}
-          />
-
-          {poPnlDatasets ? (
-            <section id="po-pnl" className="scroll-mt-24">
-              <POProfitabilitySection
-                datasets={poPnlDatasets}
-                title="PO P&L charts"
-                description=""
-                showChart
-                showTable={false}
-              />
-            </section>
-          ) : null}
-        </>
+        <PurchaseTimeline
+          orders={timelineOrdersState}
+          activeOrderId={activeOrderId}
+          onSelectOrder={(orderId) => setActiveOrderId(orderId)}
+          months={timelineMonths}
+        />
       )}
 
       <ConfirmDialog
