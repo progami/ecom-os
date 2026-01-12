@@ -21,7 +21,6 @@ import {
 import {
   POProfitabilitySection,
   POProfitabilityFiltersProvider,
-  POProfitabilityHeaderControls,
   type POProfitabilityData,
 } from '@/components/sheets/po-profitability-section';
 import type { OpsInputRow } from '@/components/sheets/custom-ops-planning-grid';
@@ -2381,12 +2380,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         .map((product) => ({ id: product.id, name: productLabel(product) }))
         .sort((a, b) => a.name.localeCompare(b.name));
 
-      controls.push(
-        <POProfitabilityHeaderControls
-          key="po-profitability-controls"
-          productOptions={productOptions}
-        />,
-      );
       wrapLayout = (node) => (
         <POProfitabilityFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}
@@ -2395,6 +2388,9 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       tabularContent = (
         <POProfitabilitySection
           datasets={view}
+          productOptions={productOptions}
+          sheetSlug={config.slug}
+          viewMode={viewMode}
           title="PO P&L"
           description="FIFO-based PO-level P&L (Projected vs Real)"
           showChart={false}
@@ -2404,6 +2400,9 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = (
         <POProfitabilitySection
           datasets={view}
+          productOptions={productOptions}
+          sheetSlug={config.slug}
+          viewMode={viewMode}
           title="PO P&L charts"
           description=""
           showChart
@@ -2526,7 +2525,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
 
   // Only show view toggle if both tabular and visual content exist
   const hasVisualMode = Boolean(visualContent);
-  if (hasVisualMode) {
+  if (hasVisualMode && config.slug !== '6-po-profitability') {
     controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} slug={config.slug} />);
   }
   const headerControls = controls.length ? controls : undefined;

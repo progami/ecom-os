@@ -41,7 +41,6 @@ const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
   '3-ops-planning',
   '4-sales-planning',
   '5-fin-planning-pl',
-  '6-po-profitability',
   '7-fin-planning-cash-flow',
 ]);
 
@@ -254,12 +253,7 @@ export function WorkbookLayout({
 
   const yearTraversal = useMemo(() => {
     if (!sortedYears.length) return [] as Array<{ slug: SheetSlug; year: number }>;
-    const sequence = [
-      '4-sales-planning',
-      '5-fin-planning-pl',
-      '6-po-profitability',
-      '7-fin-planning-cash-flow',
-    ] as const;
+    const sequence = ['4-sales-planning', '5-fin-planning-pl', '7-fin-planning-cash-flow'] as const;
     const result: Array<{ slug: SheetSlug; year: number }> = [];
     for (const segment of sortedYears) {
       for (const slug of sequence) {
