@@ -21,9 +21,9 @@ function getPriorityConfig(item: WorkItemDTO): { ring: string; dot: string; bg: 
   }
   if (item.priority === 'URGENT') {
     return {
-      ring: 'ring-amber-500/30',
-      dot: 'bg-amber-500',
-      bg: 'bg-amber-50 dark:bg-amber-950/20',
+      ring: 'ring-red-500/30',
+      dot: 'bg-red-500',
+      bg: 'bg-red-50 dark:bg-red-950/20',
       label: 'Urgent',
     }
   }
@@ -97,12 +97,7 @@ function InboxItem({
           </div>
 
           {config.label ? (
-            <span className={cn(
-              'shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-              item.isOverdue
-                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
-                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
-            )}>
+            <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300">
               {config.label}
             </span>
           ) : null}
@@ -132,8 +127,7 @@ function InboxItem({
               </span>
               <span className={cn(
                 'text-xs font-semibold',
-                item.isOverdue ? 'text-red-600 dark:text-red-400' :
-                item.priority === 'URGENT' ? 'text-amber-600 dark:text-amber-400' :
+                item.isOverdue || item.priority === 'URGENT' ? 'text-red-600 dark:text-red-400' :
                 item.isActionRequired ? 'text-cyan-600 dark:text-cyan-400' :
                 'text-slate-600 dark:text-slate-300'
               )}>
@@ -170,7 +164,7 @@ export function InboxItemList({ items, selectedId, onSelect }: InboxItemListProp
               </svg>
             </div>
             {/* Sparkles */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-400 rounded-full animate-ping" />
             <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-cyan-400 rounded-full animate-ping" style={{ animationDelay: '150ms' }} />
           </div>
 
