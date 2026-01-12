@@ -33,6 +33,8 @@ function parseGoogleTrendsJson(raw: string) {
   }
 
   if (trimmed.startsWith('<')) {
+    // Log first 1000 chars to diagnose what Google is returning
+    console.error('[google-trends] Received HTML instead of JSON:', trimmed.slice(0, 1000));
     throw new Error('Google Trends returned HTML instead of JSON. Please retry in a minute.');
   }
 
