@@ -67,7 +67,7 @@ function InboxItem({
       type="button"
       onClick={onSelect}
       className={cn(
-        'group relative w-full h-20 text-left transition-all duration-200 ease-out',
+        'group relative w-full text-left transition-all duration-200 ease-out',
         'rounded-xl border-2',
         selected
           ? 'border-slate-900 dark:border-slate-100 shadow-lg scale-[1.02]'
@@ -87,12 +87,15 @@ function InboxItem({
         selected ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'
       )} />
 
-      <div className="pl-4 pr-3 py-3 h-full flex flex-col">
+      <div className="pl-4 pr-3 py-3">
         {/* Header row */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
-            {item.typeLabel}
-          </span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
+              {item.typeLabel}
+            </span>
+          </div>
+
           {config.label ? (
             <span className={cn(
               'shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
@@ -107,11 +110,41 @@ function InboxItem({
 
         {/* Title */}
         <h3 className={cn(
-          'mt-1.5 text-sm font-semibold leading-snug line-clamp-2',
+          'mt-2 text-sm font-semibold leading-snug line-clamp-2',
           selected ? 'text-slate-900 dark:text-slate-50' : 'text-slate-700 dark:text-slate-200'
         )}>
           {item.title}
         </h3>
+
+        {/* Stage label */}
+        <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 truncate">
+          {item.stageLabel}
+        </p>
+
+        {/* Action indicator */}
+        {item.primaryAction ? (
+          <div className="mt-2.5 flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className={cn(
+                'absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping',
+                config.dot
+              )} />
+              <span className={cn(
+                'relative inline-flex h-2.5 w-2.5 rounded-full',
+                config.dot
+              )} />
+            </span>
+            <span className={cn(
+              'text-xs font-semibold',
+              item.isOverdue ? 'text-red-600 dark:text-red-400' :
+              item.priority === 'URGENT' ? 'text-amber-600 dark:text-amber-400' :
+              item.isActionRequired ? 'text-cyan-600 dark:text-cyan-400' :
+              'text-slate-600 dark:text-slate-300'
+            )}>
+              {item.primaryAction.label}
+            </span>
+          </div>
+        ) : null}
       </div>
     </button>
   )
