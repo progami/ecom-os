@@ -58,13 +58,13 @@ function normalizeTitle(value: string | null): string | null {
 
 function truncateDescription(value: string, maxLength: number = MAX_DESCRIPTION_LENGTH): string {
   if (value.length <= maxLength) return value
-  // Truncate and add ellipsis, ensuring we don't cut in middle of a word if possible
-  const truncated = value.slice(0, maxLength - 3)
+  // Truncate at word boundary if possible, no ellipsis
+  const truncated = value.slice(0, maxLength)
   const lastSpace = truncated.lastIndexOf(' ')
   if (lastSpace > maxLength * 0.7) {
-    return truncated.slice(0, lastSpace) + '...'
+    return truncated.slice(0, lastSpace).trim()
   }
-  return truncated + '...'
+  return truncated.trim()
 }
 
 function parseCatalogDimensions(attributes: {
@@ -172,19 +172,6 @@ function parseCatalogCategory(catalog: { summaries?: unknown }): string | null {
 function roundToTwoDecimals(value: number): number | null {
   if (!Number.isFinite(value)) return null
   return Number(value.toFixed(2))
-}
-
-function parseReferralFeePercent(feesResponse: unknown, listingPrice: number): number | null {
-  if (!Number.isFinite(listingPrice) || listingPrice <= 0) return null
-  const parsed = parseAmazonProductFees(feesResponse)
-  for (const fee of parsed.feeBreakdown) {
-    const normalized = fee.feeType.trim().toUpperCase().replace(/[^A-Z]/g, '')
-    if (normalized !== 'REFERRALFEE') continue
-    if (fee.amount === null || fee.amount === undefined) return null
-    const percent = (fee.amount / listingPrice) * 100
-    return roundToTwoDecimals(percent)
-  }
-  return null
 }
 
 export const GET = withRole(['admin', 'staff'], async (request, _session) => {
@@ -509,6 +496,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     let amazonCategory: string | null = null
     let amazonReferralFeePercent: number | null = null
     let amazonFbaFulfillmentFee: number | null = null
+    let amazonSizeTier: string | null = null
 
     try {
       const catalog = await getCatalogItem(asin, tenantCode)
@@ -536,8 +524,12 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     try {
       const fees = await getProductFees(asin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
       const parsedFees = parseAmazonProductFees(fees)
-      amazonReferralFeePercent = parseReferralFeePercent(fees, DEFAULT_FEE_ESTIMATE_PRICE)
+      // Calculate referral fee percent from amount if available
+      if (parsedFees.referralFee !== null && Number.isFinite(parsedFees.referralFee)) {
+        amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / DEFAULT_FEE_ESTIMATE_PRICE) * 100)
+      }
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
+      amazonSizeTier = parsedFees.sizeTier
     } catch (error) {
       errors.push(
         `Amazon fee estimate failed for ${skuCode} (ASIN ${asin}): ${
@@ -571,6 +563,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           data: {
             description,
             amazonCategory,
+            amazonSizeTier,
             amazonReferralFeePercent,
             amazonFbaFulfillmentFee,
             amazonReferenceWeightKg: unitWeightKg,
@@ -599,6 +592,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               asin,
               description,
               amazonCategory,
+              amazonSizeTier,
               amazonReferralFeePercent,
               amazonFbaFulfillmentFee,
               amazonReferenceWeightKg: unitWeightKg,
