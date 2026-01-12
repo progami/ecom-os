@@ -593,13 +593,17 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                           } ${!isSelectable ? 'opacity-60' : ''}`}
                         >
                           <td className="px-4 py-3">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-slate-300 accent-cyan-600"
-                              disabled={!isSelectable || importing || validating}
-                              checked={checked}
-                              onChange={() => skuKey && toggleSkuCode(skuKey)}
-                            />
+                            {isSelectable ? (
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300 accent-cyan-600"
+                                disabled={importing || validating}
+                                checked={checked}
+                                onChange={() => skuKey && toggleSkuCode(skuKey)}
+                              />
+                            ) : (
+                              <div className="h-4 w-4" />
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <div className="font-medium text-slate-900">{item.skuCode ?? '—'}</div>
