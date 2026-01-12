@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+/* Custom scrollbar - refined with brand colors */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(203, 213, 225, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 194, 185, 0.35);
+  border-radius: 0.5rem;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 194, 185, 0.55);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(0, 194, 185, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 194, 185, 0.45);
+}
+
+/* Selection */
+::selection {
+  background: rgba(0, 194, 185, 0.2);
+  color: #0e7490;
+}
+
+.dark ::selection {
+  background: rgba(0, 194, 185, 0.3);
+  color: rgb(204, 251, 241);
+}
+
+/* Typography - Consistent across the app */
+h1,
+.text-h1 {
+  @apply text-2xl font-semibold tracking-tight text-slate-900 dark:text-white;
+}
+
+h2,
+.text-h2 {
+  @apply text-xl font-semibold tracking-tight text-slate-900 dark:text-white;
+}
+
+h3,
+.text-h3 {
+  @apply text-lg font-semibold text-slate-900 dark:text-white;
+}
+
+h4,
+.text-h4 {
+  @apply text-base font-semibold text-slate-900 dark:text-white;
+}
+
+/* Section headers - small caps style */
+.text-section-header {
+  @apply text-xs font-bold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400;
+}
+
+/* Body text */
+.text-body {
+  @apply text-sm text-slate-600 dark:text-slate-400;
+}
+
+.text-body-sm {
+  @apply text-xs text-slate-500 dark:text-slate-500;
+}
+
+.text-body-muted {
+  @apply text-sm text-slate-500 dark:text-slate-400;
+}
+
+/* Focus states with brand cyan */
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+}
+
+/* Glow effects for interactive elements */
+.glow-teal {
+  box-shadow: 0 0 20px rgba(0, 194, 185, 0.15);
+}
+
+.dark .glow-teal {
+  box-shadow: 0 0 24px rgba(0, 194, 185, 0.2);
+}
+
+/* Subtle gradient backgrounds */
+.bg-gradient-subtle {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 1) 0%, rgba(241, 245, 249, 1) 100%);
+}
+
+.dark .bg-gradient-subtle {
+  background: linear-gradient(180deg, rgba(4, 19, 36, 1) 0%, rgba(2, 12, 24, 1) 100%);
+}
+
+/* Card hover enhancement */
+.card-hover {
+  @apply transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply shadow-soft-lg;
+  transform: translateY(-1px);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 8px 32px rgba(0, 194, 185, 0.08);
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 175 100% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 175 100% 38%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 175 100% 38%;
+    --chart-1: 175 100% 38%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 262 83% 58%;
+    --chart-4: 24 95% 53%;
+    --chart-5: 350 89% 60%;
+    --radius: 0.625rem;
+  }
+  .dark {
+    --background: 207 80% 8%;
+    --foreground: 210 40% 98%;
+    --card: 207 70% 10%;
+    --card-foreground: 210 40% 98%;
+    --popover: 207 70% 10%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 175 100% 38%;
+    --primary-foreground: 207 80% 8%;
+    --secondary: 207 50% 15%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 207 50% 15%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 175 100% 38%;
+    --accent-foreground: 207 80% 8%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 200 50% 18%;
+    --input: 200 50% 18%;
+    --ring: 175 100% 38%;
+    --chart-1: 175 100% 45%;
+    --chart-2: 160 84% 45%;
+    --chart-3: 263 70% 70%;
+    --chart-4: 24 95% 64%;
+    --chart-5: 350 89% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    font-optical-sizing: auto;
+  }
+}
+
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.2s ease-out;
+  }
+
+  @keyframes animate-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
