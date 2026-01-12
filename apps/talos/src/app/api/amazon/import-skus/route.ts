@@ -33,7 +33,7 @@ const DEFAULT_PACK_SIZE = 1
 const DEFAULT_UNITS_PER_CARTON = 1
 const DEFAULT_CARTONS_PER_PALLET = SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET
 const DEFAULT_FEE_ESTIMATE_PRICE = 10
-const MAX_DESCRIPTION_LENGTH = 255
+const MAX_DESCRIPTION_LENGTH = 60
 
 function normalizeSkuCode(value: string): string | null {
   const normalized = sanitizeForDisplay(value.trim().toUpperCase())
@@ -632,11 +632,13 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               packSize: DEFAULT_PACK_SIZE,
               unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
               material: null,
-              unitDimensionsCm,
-              unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-              unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-              unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-              unitWeightKg,
+              // Note: Batch unit dimensions are for packaging, not product dimensions
+              // Amazon catalog gives product dimensions, not packaging - leave null
+              unitDimensionsCm: null,
+              unitLengthCm: null,
+              unitWidthCm: null,
+              unitHeightCm: null,
+              unitWeightKg: null,
               cartonDimensionsCm: null,
               cartonLengthCm: null,
               cartonWidthCm: null,
@@ -645,7 +647,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               packagingType: null,
               amazonSizeTier: null,
               amazonFbaFulfillmentFee: null,
-              amazonReferenceWeightKg: unitWeightKg,
+              amazonReferenceWeightKg: null,
               storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
               shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
               isActive: true,
