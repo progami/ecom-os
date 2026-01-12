@@ -26,6 +26,7 @@ const requestSchema = z.object({
   limit: z.number().int().positive().max(100).optional(),
   skuCodes: z.array(z.string().trim().min(1).max(50)).max(100).optional(),
   mode: z.enum(['import', 'validate']).default('import'),
+  updateExisting: z.boolean().default(false),
 })
 
 const DEFAULT_BATCH_CODE = 'BATCH 01'
@@ -363,6 +364,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
   const importLimit = parsed.data.limit ?? 50
   const mode = parsed.data.mode
+  const updateExisting = parsed.data.updateExisting
   const tenantCode = await getCurrentTenantCode()
   const prisma = await getTenantPrisma()
 
@@ -476,7 +478,8 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       continue
     }
 
-    if (existingSet.has(skuCode.toUpperCase())) {
+    const isExistingSku = existingSet.has(skuCode.toUpperCase())
+    if (isExistingSku && !updateExisting) {
       skipped += 1
       details.push({
         skuCode,
@@ -564,6 +567,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       details.push({
         skuCode,
         status: 'imported',
+        message: isExistingSku ? 'Will refresh Amazon data' : undefined,
         unitWeightKg,
         unitDimensionsCm,
       })
@@ -571,75 +575,104 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     try {
-      await prisma.$transaction(async tx => {
-        const createdSku = await tx.sku.create({
+      if (isExistingSku && updateExisting) {
+        // Update existing SKU with fresh Amazon data (only Amazon-sourced fields)
+        await prisma.sku.update({
+          where: { skuCode },
           data: {
-            skuCode,
-            asin,
             description,
             amazonCategory,
             amazonReferralFeePercent,
             amazonFbaFulfillmentFee,
             amazonReferenceWeightKg: unitWeightKg,
-            packSize: DEFAULT_PACK_SIZE,
-            defaultSupplierId: null,
-            secondarySupplierId: null,
-            material: null,
             unitDimensionsCm,
             unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
             unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
             unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
             unitWeightKg,
-            unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
-            cartonDimensionsCm: null,
-            cartonLengthCm: null,
-            cartonWidthCm: null,
-            cartonHeightCm: null,
-            cartonWeightKg: null,
-            packagingType: null,
-            isActive: true,
           },
         })
 
-        await tx.skuBatch.create({
-          data: {
-            skuId: createdSku.id,
-            batchCode: DEFAULT_BATCH_CODE,
-            description: null,
-            productionDate: null,
-            expiryDate: null,
-            packSize: DEFAULT_PACK_SIZE,
-            unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
-            material: null,
-            unitDimensionsCm,
-            unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-            unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-            unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-            unitWeightKg,
-            cartonDimensionsCm: null,
-            cartonLengthCm: null,
-            cartonWidthCm: null,
-            cartonHeightCm: null,
-            cartonWeightKg: null,
-            packagingType: null,
-            amazonSizeTier: null,
-            amazonFbaFulfillmentFee: null,
-            amazonReferenceWeightKg: unitWeightKg,
-            storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-            shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
-            isActive: true,
-          },
+        imported += 1
+        details.push({
+          skuCode,
+          status: 'imported',
+          message: 'Refreshed Amazon data',
+          unitWeightKg,
+          unitDimensionsCm,
         })
-      })
+      } else {
+        // Create new SKU
+        await prisma.$transaction(async tx => {
+          const createdSku = await tx.sku.create({
+            data: {
+              skuCode,
+              asin,
+              description,
+              amazonCategory,
+              amazonReferralFeePercent,
+              amazonFbaFulfillmentFee,
+              amazonReferenceWeightKg: unitWeightKg,
+              packSize: DEFAULT_PACK_SIZE,
+              defaultSupplierId: null,
+              secondarySupplierId: null,
+              material: null,
+              unitDimensionsCm,
+              unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+              unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+              unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+              unitWeightKg,
+              unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
+              cartonDimensionsCm: null,
+              cartonLengthCm: null,
+              cartonWidthCm: null,
+              cartonHeightCm: null,
+              cartonWeightKg: null,
+              packagingType: null,
+              isActive: true,
+            },
+          })
 
-      imported += 1
-      existingSet.add(skuCode.toUpperCase())
-      details.push({
-        skuCode,
-        status: 'imported',
-        unitWeightKg,
-        unitDimensionsCm,
-      })
+          await tx.skuBatch.create({
+            data: {
+              skuId: createdSku.id,
+              batchCode: DEFAULT_BATCH_CODE,
+              description: null,
+              productionDate: null,
+              expiryDate: null,
+              packSize: DEFAULT_PACK_SIZE,
+              unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
+              material: null,
+              unitDimensionsCm,
+              unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+              unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+              unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+              unitWeightKg,
+              cartonDimensionsCm: null,
+              cartonLengthCm: null,
+              cartonWidthCm: null,
+              cartonHeightCm: null,
+              cartonWeightKg: null,
+              packagingType: null,
+              amazonSizeTier: null,
+              amazonFbaFulfillmentFee: null,
+              amazonReferenceWeightKg: unitWeightKg,
+              storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+              shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
+              isActive: true,
+            },
+          })
+        })
+
+        imported += 1
+        existingSet.add(skuCode.toUpperCase())
+        details.push({
+          skuCode,
+          status: 'imported',
+          unitWeightKg,
+          unitDimensionsCm,
+        })
+      }
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         skipped += 1

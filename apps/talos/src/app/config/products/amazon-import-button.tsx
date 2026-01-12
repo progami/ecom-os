@@ -73,6 +73,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
   const [validatedKey, setValidatedKey] = useState<string | null>(null)
   const [validation, setValidation] = useState<ImportResult | null>(null)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [updateExisting, setUpdateExisting] = useState(false)
 
   const handleClose = () => {
     setIsOpen(false)
@@ -86,6 +87,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
     setResult(null)
     setImporting(false)
     setValidating(false)
+    setUpdateExisting(false)
   }
 
   const selectionKey = useMemo(() => {
@@ -100,8 +102,13 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
 
   const selectableItems = useMemo(() => {
     if (!preview) return []
-    return preview.items.filter(item => item.status === 'new' && item.skuCode)
-  }, [preview])
+    return preview.items.filter(item => {
+      if (!item.skuCode) return false
+      if (item.status === 'new') return true
+      if (item.status === 'existing' && updateExisting) return true
+      return false
+    })
+  }, [preview, updateExisting])
 
   const filteredItems = useMemo(() => {
     if (!preview) return []
@@ -195,6 +202,14 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
     setResult(null)
   }
 
+  const toggleUpdateExisting = () => {
+    setUpdateExisting(prev => !prev)
+    setSelectedSkuCodes(new Set())
+    setValidation(null)
+    setValidatedKey(null)
+    setResult(null)
+  }
+
   const validateSelection = async () => {
     if (selectedSkuCodes.size === 0) return
 
@@ -206,7 +221,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
       const response = await fetch('/api/amazon/import-skus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skuCodes: Array.from(selectedSkuCodes), mode: 'validate' }),
+        body: JSON.stringify({ skuCodes: Array.from(selectedSkuCodes), mode: 'validate', updateExisting }),
       })
 
       const payload = await response.json().catch(() => null)
@@ -264,7 +279,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
       const response = await fetch('/api/amazon/import-skus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skuCodes: Array.from(selectedSkuCodes), mode: 'import' }),
+        body: JSON.stringify({ skuCodes: Array.from(selectedSkuCodes), mode: 'import', updateExisting }),
       })
 
       const payload = await response.json().catch(() => null)
@@ -432,6 +447,18 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                         <span className="text-slate-600">{preview.summary.blockedCount} blocked</span>
                       </div>
                     )}
+                    <div className="border-l border-slate-200 pl-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={updateExisting}
+                          onChange={toggleUpdateExisting}
+                          disabled={importing || validating || loadingPreview}
+                          className="h-4 w-4 rounded border-slate-300 accent-cyan-600"
+                        />
+                        <span className="text-slate-600">Refresh existing</span>
+                      </label>
+                    </div>
                   </div>
                 )}
                 <Button
@@ -572,7 +599,7 @@ export function AmazonImportButton({ onImportComplete }: { onImportComplete?: ()
                   ) : (
                     filteredItems.map(item => {
                       const skuKey = item.skuCode?.toUpperCase() ?? null
-                      const isSelectable = item.status === 'new' && Boolean(skuKey)
+                      const isSelectable = Boolean(skuKey) && (item.status === 'new' || (item.status === 'existing' && updateExisting))
                       const checked = skuKey ? selectedSkuCodes.has(skuKey) : false
                       const validationDetail = skuKey ? validationBySku.get(skuKey) : undefined
                       const validationStatus = validationDetail?.status
