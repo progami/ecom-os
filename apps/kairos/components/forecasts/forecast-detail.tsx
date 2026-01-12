@@ -254,7 +254,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
     setRunAsProphetUncertaintySamples('200');
     setRunAsEtsIntervalLevel('0.8');
     setRunAsEtsSpec('');
-    setRunAsEtsSeasonLength(forecast.series.granularity === 'WEEKLY' ? '52' : '7');
+    setRunAsEtsSeasonLength(forecast.targetSeries.granularity === 'WEEKLY' ? '52' : '7');
   }, [forecast, runAsOpen]);
 
   const rows = useMemo<ForecastPointRow[]>(() => {
@@ -398,7 +398,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span>
-              <span className="font-medium text-slate-600 dark:text-slate-400">Series:</span> {forecast.series.name}
+              <span className="font-medium text-slate-600 dark:text-slate-400">Series:</span> {forecast.targetSeries.name}
             </span>
             <span>
               <span className="font-medium text-slate-600 dark:text-slate-400">Horizon:</span> {forecast.horizon} periods
@@ -597,7 +597,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
         <TabsContent value="chart">
           {rows.length > 0 ? (
             <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-white/[0.02]">
-              <ForecastChart data={rows} granularity={forecast.series.granularity} intervalLevel={outputMeta?.intervalLevel ?? 0.8} />
+              <ForecastChart data={rows} granularity={forecast.targetSeries.granularity} intervalLevel={outputMeta?.intervalLevel ?? 0.8} />
             </div>
           ) : (
             <div className="flex h-[400px] items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-white/10">
@@ -773,15 +773,15 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                   <dl className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <dt className="text-xs font-medium text-muted-foreground">Series Name</dt>
-                      <dd className="mt-1 text-sm">{forecast.series.name}</dd>
+                      <dd className="mt-1 text-sm">{forecast.targetSeries.name}</dd>
                     </div>
                     <div>
                       <dt className="text-xs font-medium text-muted-foreground">Source</dt>
-                      <dd className="mt-1"><Badge variant="outline">{forecast.series.source}</Badge></dd>
+                      <dd className="mt-1"><Badge variant="outline">{forecast.targetSeries.source}</Badge></dd>
                     </div>
                     <div>
                       <dt className="text-xs font-medium text-muted-foreground">Granularity</dt>
-                      <dd className="mt-1"><Badge variant="outline">{forecast.series.granularity}</Badge></dd>
+                      <dd className="mt-1"><Badge variant="outline">{forecast.targetSeries.granularity}</Badge></dd>
                     </div>
                     <div>
                       <dt className="text-xs font-medium text-muted-foreground">Observations</dt>
@@ -789,7 +789,7 @@ export function ForecastDetailView({ forecastId }: { forecastId: string }) {
                     </div>
                     <div className="sm:col-span-2">
                       <dt className="text-xs font-medium text-muted-foreground">Query</dt>
-                      <dd className="mt-1 text-sm text-muted-foreground">{forecast.series.query}</dd>
+                      <dd className="mt-1 text-sm text-muted-foreground">{forecast.targetSeries.query}</dd>
                     </div>
                   </dl>
                 </CardContent>

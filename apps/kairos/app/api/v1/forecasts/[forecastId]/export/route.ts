@@ -64,7 +64,7 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
         ...buildKairosOwnershipWhere(actor),
       },
       include: {
-        series: { select: { id: true, name: true } },
+        targetSeries: { select: { id: true, name: true } },
         runs: {
           orderBy: { ranAt: 'desc' },
           take: 1,
@@ -78,7 +78,7 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
     }
 
     const points = await prisma.timeSeriesPoint.findMany({
-      where: { seriesId: forecast.seriesId },
+      where: { seriesId: forecast.targetSeriesId },
       orderBy: { t: 'asc' },
       select: { t: true, value: true },
     });

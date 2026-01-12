@@ -310,7 +310,8 @@ export function ForecastsTable() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           name,
-          seriesId: createSeriesId,
+          targetSeriesId: createSeriesId,
+          regressorSeriesIds: [],
           model: createModel,
           horizon,
           runNow: true,
@@ -358,11 +359,17 @@ export function ForecastsTable() {
               {row.original.name}
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{row.original.series.name}</span>
+              <span>{row.original.targetSeries.name}</span>
               <span>•</span>
-              <span>{row.original.series.granularity}</span>
+              <span>{row.original.targetSeries.granularity}</span>
               <span>•</span>
               <span>{row.original.horizon} horizon</span>
+              {row.original.regressors.length > 0 && (
+                <>
+                  <span>•</span>
+                  <span>{row.original.regressors.length} regressor(s)</span>
+                </>
+              )}
             </div>
           </div>
         ),

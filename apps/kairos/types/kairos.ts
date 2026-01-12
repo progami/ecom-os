@@ -1,4 +1,6 @@
-export type TimeSeriesSource = 'GOOGLE_TRENDS';
+export type TimeSeriesSource = 'GOOGLE_TRENDS' | 'CSV_UPLOAD';
+
+export type RegressorFutureMode = 'FORECAST' | 'USER_INPUT';
 
 export type TimeSeriesGranularity = 'DAILY' | 'WEEKLY';
 
@@ -21,6 +23,13 @@ export type ForecastModel = 'PROPHET' | 'ETS';
 
 export type ForecastStatus = 'DRAFT' | 'RUNNING' | 'READY' | 'FAILED';
 
+export type ForecastRegressor = {
+  id: string;
+  seriesId: string;
+  futureMode: RegressorFutureMode;
+  series: Pick<TimeSeriesListItem, 'id' | 'name' | 'source'>;
+};
+
 export type ForecastListItem = {
   id: string;
   name: string;
@@ -30,10 +39,11 @@ export type ForecastListItem = {
   lastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
-  series: Pick<
+  targetSeries: Pick<
     TimeSeriesListItem,
     'id' | 'name' | 'source' | 'granularity' | 'query' | 'geo'
   >;
+  regressors: ForecastRegressor[];
 };
 
 export type ForecastRunStatus = 'RUNNING' | 'SUCCESS' | 'FAILED';
@@ -110,7 +120,7 @@ export type ForecastDetail = {
   lastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
-  series: {
+  targetSeries: {
     id: string;
     name: string;
     source: TimeSeriesSource;
@@ -120,6 +130,7 @@ export type ForecastDetail = {
     createdAt: string;
     updatedAt: string;
   };
+  regressors: ForecastRegressor[];
   points: Array<{ t: string; value: number }>;
   runs: Array<{
     id: string;

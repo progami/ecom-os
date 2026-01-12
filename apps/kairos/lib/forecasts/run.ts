@@ -86,7 +86,7 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     const forecast = await prisma.forecast.findUnique({
       where: { id: args.forecastId },
       include: {
-        series: {
+        targetSeries: {
           select: {
             id: true,
             source: true,
@@ -107,7 +107,7 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     }
 
     const points = await prisma.timeSeriesPoint.findMany({
-      where: { seriesId: forecast.seriesId },
+      where: { seriesId: forecast.targetSeriesId },
       orderBy: { t: 'asc' },
       select: { t: true, value: true },
     });
@@ -152,11 +152,11 @@ async function finalizeForecastRun(args: { forecastId: string; runId: string }) 
     const output = {
       model,
       series: {
-        id: forecast.series.id,
-        source: forecast.series.source,
-        query: forecast.series.query,
-        geo: forecast.series.geo,
-        granularity: forecast.series.granularity,
+        id: forecast.targetSeries.id,
+        source: forecast.targetSeries.source,
+        query: forecast.targetSeries.query,
+        geo: forecast.targetSeries.geo,
+        granularity: forecast.targetSeries.granularity,
       },
       generatedAt: completedAt.toISOString(),
       points: result.points,

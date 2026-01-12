@@ -27,7 +27,7 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
         ...buildKairosOwnershipWhere(actor),
       },
       include: {
-        series: {
+        targetSeries: {
           select: {
             id: true,
             name: true,
@@ -37,6 +37,17 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
             geo: true,
             createdAt: true,
             updatedAt: true,
+          },
+        },
+        regressors: {
+          include: {
+            series: {
+              select: {
+                id: true,
+                name: true,
+                source: true,
+              },
+            },
           },
         },
         runs: {
@@ -59,7 +70,7 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
     }
 
     const points = await prisma.timeSeriesPoint.findMany({
-      where: { seriesId: forecast.seriesId },
+      where: { seriesId: forecast.targetSeriesId },
       orderBy: { t: 'asc' },
       select: {
         t: true,
@@ -81,11 +92,17 @@ export const GET = withKairosAuth(async (_request, session, context: { params: P
         lastRunAt: forecast.lastRunAt?.toISOString() ?? null,
         createdAt: forecast.createdAt.toISOString(),
         updatedAt: forecast.updatedAt.toISOString(),
-        series: {
-          ...forecast.series,
-          createdAt: forecast.series.createdAt.toISOString(),
-          updatedAt: forecast.series.updatedAt.toISOString(),
+        targetSeries: {
+          ...forecast.targetSeries,
+          createdAt: forecast.targetSeries.createdAt.toISOString(),
+          updatedAt: forecast.targetSeries.updatedAt.toISOString(),
         },
+        regressors: forecast.regressors.map((r) => ({
+          id: r.id,
+          seriesId: r.seriesId,
+          futureMode: r.futureMode,
+          series: r.series,
+        })),
         points: points.map((p) => ({
           t: p.t.toISOString(),
           value: p.value,
