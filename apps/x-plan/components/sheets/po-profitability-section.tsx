@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -84,6 +85,9 @@ export interface POProfitabilityData {
 
 interface POProfitabilitySectionProps {
   datasets: { projected: POProfitabilityDataset; real: POProfitabilityDataset };
+  productOptions?: Array<{ id: string; name: string }>;
+  sheetSlug?: string;
+  viewMode?: SheetViewMode;
   title?: string;
   description?: string;
   showChart?: boolean;
@@ -282,6 +286,9 @@ export function POProfitabilityHeaderControls({
 
 export function POProfitabilitySection({
   datasets,
+  productOptions = [],
+  sheetSlug,
+  viewMode,
   title = 'PO P&L',
   description = 'FIFO-based PO-level P&L (Projected vs Real)',
   showChart = true,
@@ -477,6 +484,13 @@ export function POProfitabilitySection({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-white/5">
+        <div className="flex flex-wrap items-end gap-3">
+          <POProfitabilityHeaderControls productOptions={productOptions} />
+        </div>
+        {sheetSlug && viewMode ? <SheetViewToggle value={viewMode} slug={sheetSlug} /> : null}
+      </div>
+
       {showChart ? (
         <Card className="rounded-xl shadow-sm dark:border-white/10 overflow-hidden">
           <CardHeader className="pb-2">
