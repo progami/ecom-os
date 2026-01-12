@@ -8,6 +8,7 @@ import {
 } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
+import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 export const dynamic = 'force-dynamic'
 
 type SkuWithCounts = Sku & { batches: SkuBatch[]; _count: { inventoryTransactions: number } }
@@ -62,6 +63,7 @@ const skuSchemaBase = z.object({
     .string()
     .trim()
     .min(1)
+    .max(SKU_FIELD_LIMITS.DESCRIPTION_MAX)
     .transform(val => sanitizeForDisplay(val)),
   amazonCategory: z
     .string()
