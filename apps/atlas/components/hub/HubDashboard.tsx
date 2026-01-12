@@ -1227,7 +1227,7 @@ export function HubDashboard({ employeeId }: HubDashboardProps) {
                 {/* Request Leave Button */}
                 <div className="flex justify-center">
                   <Link
-                    href="/leave/new"
+                    href="/leave/request"
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-semibold text-sm hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
