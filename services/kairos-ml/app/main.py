@@ -186,8 +186,21 @@ def forecast_ets(
 
     config = config or {}
     step_seconds = infer_step_seconds(ds)
+    n_obs = len(y)
+
     # Use provided seasonLength or infer from data frequency
-    season_length = int(config.get("seasonLength", infer_season_length(step_seconds)))
+    base_season_length = int(config.get("seasonLength", infer_season_length(step_seconds)))
+
+    # Ensure we have enough data for seasonality (need at least 2 complete cycles)
+    # If not enough data, reduce season_length or disable seasonality
+    if n_obs >= 2 * base_season_length:
+        season_length = base_season_length
+    elif n_obs >= 26 and step_seconds <= 604800:  # Weekly data, try quarterly (13 weeks)
+        season_length = 13
+    elif n_obs >= 14:  # Try shorter period
+        season_length = 7
+    else:
+        season_length = 1  # No seasonality
 
     # Prepare data - use timezone-naive datetimes for consistency
     df = pd.DataFrame({
@@ -196,8 +209,13 @@ def forecast_ets(
         "y": y,
     })
 
-    # Create model
-    model = AutoETS(season_length=season_length)
+    # Model spec: Error, Trend, Seasonal (Z=auto, A=additive, M=multiplicative, N=none)
+    # Force additive trend (A) to ensure forecasts capture trends, auto for error and seasonal
+    # This prevents AutoETS from selecting a no-trend model which produces flat forecasts
+    model_spec = "ZAZ" if season_length > 1 else "ZAN"
+
+    # Create model with forced trend
+    model = AutoETS(season_length=season_length, model=model_spec)
     sf = StatsForecast(models=[model], freq=infer_frequency(step_seconds))
 
     # Fit and predict

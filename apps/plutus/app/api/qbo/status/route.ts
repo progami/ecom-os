@@ -8,33 +8,49 @@ import type { QboConnectionStatus, QboCompanyInfoResponse } from '@/lib/qbo/type
 const logger = createLogger({ name: 'qbo-status' });
 
 export async function GET() {
+  const cookieStore = await cookies();
+  const connectionCookie = cookieStore.get('qbo_connection')?.value;
+
+  if (!connectionCookie) {
+    return NextResponse.json<QboConnectionStatus>({
+      connected: false,
+    });
+  }
+
+  let connection: QboConnection;
   try {
-    const cookieStore = await cookies();
-    const connectionCookie = cookieStore.get('qbo_connection')?.value;
+    connection = JSON.parse(connectionCookie);
+  } catch {
+    logger.error('Failed to parse QBO connection cookie');
+    return NextResponse.json<QboConnectionStatus>({ connected: false });
+  }
 
-    if (!connectionCookie) {
-      return NextResponse.json<QboConnectionStatus>({
-        connected: false,
-      });
-    }
-
-    const connection: QboConnection = JSON.parse(connectionCookie);
-
-    // Get valid token (auto-refreshes if expired)
-    const { accessToken, updatedConnection } = await getValidToken(connection);
+  // Try to get a valid token (auto-refreshes if expired)
+  let accessToken = connection.accessToken;
+  try {
+    const result = await getValidToken(connection);
+    accessToken = result.accessToken;
 
     // Update cookie if token was refreshed
-    if (updatedConnection) {
-      cookieStore.set('qbo_connection', JSON.stringify(updatedConnection), {
+    if (result.updatedConnection) {
+      cookieStore.set('qbo_connection', JSON.stringify(result.updatedConnection), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 100, // 100 days
         path: '/',
       });
+      logger.info('QBO token refreshed successfully');
     }
+  } catch (refreshError) {
+    // Token refresh failed - log but still try with existing token
+    logger.warn('Token refresh failed, trying with existing token', {
+      error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+    });
+  }
 
-    // Fetch company info to get company name
+  // Fetch company info to verify connection and get company name
+  try {
     const baseUrl = getApiBaseUrl();
     const response = await fetch(
       `${baseUrl}/v3/company/${connection.realmId}/query?query=select * from CompanyInfo`,
@@ -46,7 +62,17 @@ export async function GET() {
       },
     );
 
+    if (response.status === 401 || response.status === 403) {
+      // Token is truly invalid - user needs to reconnect
+      logger.error('QBO authentication failed', { status: response.status });
+      return NextResponse.json<QboConnectionStatus>({
+        connected: false,
+        error: 'Session expired. Please reconnect to QuickBooks.',
+      });
+    }
+
     if (!response.ok) {
+      // Other error - still connected but couldn't get company info
       logger.error('Failed to fetch company info', { status: response.status });
       return NextResponse.json<QboConnectionStatus>({
         connected: true,
@@ -63,9 +89,13 @@ export async function GET() {
       companyName: companyInfo?.CompanyName,
     });
   } catch (error) {
-    logger.error('Failed to get QBO status', error);
+    // Network error - assume still connected, just can't verify
+    logger.error('Failed to verify QBO connection', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json<QboConnectionStatus>({
-      connected: false,
+      connected: true,
+      realmId: connection.realmId,
     });
   }
 }
