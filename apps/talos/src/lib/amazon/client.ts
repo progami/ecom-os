@@ -1024,6 +1024,26 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   const config = getAmazonSpApiConfigFromEnv(tenantCode)
   const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
 
+  // First get sellerId from getMarketplaceParticipations
+  let sellerId: string | null = null
+  try {
+    const participationsResponse = await callAmazonApi<{
+      payload?: Array<{
+        marketplace?: { id?: string }
+        participation?: { sellerId?: string }
+      }>
+    }>(tenantCode, {
+      operation: 'getMarketplaceParticipations',
+      endpoint: 'sellers',
+    })
+    const participation = participationsResponse.payload?.find(
+      p => p.marketplace?.id === marketplaceId
+    )
+    sellerId = participation?.participation?.sellerId ?? participationsResponse.payload?.[0]?.participation?.sellerId ?? null
+  } catch (error) {
+    console.error('getMarketplaceParticipations error:', error)
+  }
+
   // 1. FBA Inventory API (current approach)
   let inventorySkus: Array<{ sellerSku: string; asin: string | null; fnSku: string | null }> = []
   try {
@@ -1048,32 +1068,39 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   // 2. Listings Items API (searchListingsItems)
   let listingsSkus: Array<{ sku: string; asin: string | null; productType: string | null }> = []
   let listingsError: string | null = null
-  try {
-    const listingsResponse = await callAmazonApi<{
-      items?: Array<{
-        sku?: string
-        summaries?: Array<{ asin?: string; productType?: string }>
-      }>
-    }>(tenantCode, {
-      operation: 'searchListingsItems',
-      endpoint: 'listingsItems',
-      options: { version: '2021-08-01' },
-      body: {
-        marketplaceIds: [marketplaceId],
-        pageSize: 100,
-        includedData: ['summaries'],
-      },
-    })
-    listingsSkus = (listingsResponse.items ?? []).map(item => ({
-      sku: item.sku ?? '',
-      asin: item.summaries?.[0]?.asin ?? null,
-      productType: item.summaries?.[0]?.productType ?? null,
-    }))
-  } catch (error) {
-    listingsError = error instanceof Error ? error.message : 'Unknown error'
+
+  if (!sellerId) {
+    listingsError = 'Could not get sellerId from getMarketplaceParticipations'
+  } else {
+    try {
+      const listingsResponse = await callAmazonApi<{
+        items?: Array<{
+          sku?: string
+          summaries?: Array<{ asin?: string; productType?: string }>
+        }>
+      }>(tenantCode, {
+        operation: 'searchListingsItems',
+        endpoint: 'listingsItems',
+        options: { version: '2021-08-01' },
+        path: { sellerId },
+        body: {
+          marketplaceIds: [marketplaceId],
+          pageSize: 100,
+          includedData: ['summaries'],
+        },
+      })
+      listingsSkus = (listingsResponse.items ?? []).map(item => ({
+        sku: item.sku ?? '',
+        asin: item.summaries?.[0]?.asin ?? null,
+        productType: item.summaries?.[0]?.productType ?? null,
+      }))
+    } catch (error) {
+      listingsError = error instanceof Error ? error.message : 'Unknown error'
+    }
   }
 
   return {
+    sellerId,
     fbaInventoryApi: {
       count: inventorySkus.length,
       skus: inventorySkus,
