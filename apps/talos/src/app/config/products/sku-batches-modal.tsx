@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Boxes, Edit2, Loader2, Plus, Trash2, X } from '@/lib/lucide-icons'
 import { SHIPMENT_PLANNING_CONFIG } from '@/lib/config/shipment-planning'
+import { SKU_FIELD_LIMITS, truncateForDisplay } from '@/lib/sku-constants'
 import { cn } from '@/lib/utils'
 import { coerceFiniteNumber, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
@@ -592,8 +593,8 @@ function SkuBatchesManager({
         <div className="flex items-start justify-between border-b px-6 py-4">
           <div className="flex flex-col gap-1">
             <h2 className="text-lg font-semibold text-slate-900">Batches</h2>
-            <p className="text-xs text-muted-foreground">
-              {sku.skuCode} — {sku.description}
+            <p className="text-xs text-muted-foreground" title={sku.description}>
+              {sku.skuCode} — {truncateForDisplay(sku.description, SKU_FIELD_LIMITS.DESCRIPTION_DISPLAY_MAX)}
             </p>
           </div>
           {onRequestClose ? (
