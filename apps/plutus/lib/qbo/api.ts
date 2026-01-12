@@ -43,11 +43,12 @@ export interface QboPurchase {
   };
 }
 
-export interface QboQueryResponse<T> {
+export interface QboQueryResponse {
   QueryResponse: {
-    [key: string]: T[];
-    startPosition: number;
-    maxResults: number;
+    Purchase?: QboPurchase[];
+    Account?: Array<{ Id: string; Name: string; AccountType: string; AccountSubType?: string }>;
+    startPosition?: number;
+    maxResults?: number;
     totalCount?: number;
   };
   time: string;
@@ -132,7 +133,7 @@ export async function fetchPurchases(
     throw new Error(`Failed to fetch purchases: ${response.status} ${errorText}`);
   }
 
-  const data: QboQueryResponse<QboPurchase> = await response.json();
+  const data: QboQueryResponse = await response.json();
   const purchases = data.QueryResponse?.Purchase || [];
 
   // Get total count with a separate query if we have results
