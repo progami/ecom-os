@@ -157,6 +157,7 @@ type AmazonSpApiConfig = {
   marketplaceId: string
   appClientId: string
   appClientSecret: string
+  sellerId?: string
 }
 
 const AMAZON_BASE_REQUIRED_ENV_VARS = [
@@ -419,6 +420,10 @@ function getAmazonSpApiConfigFromEnv(tenantCode?: TenantCode): AmazonSpApiConfig
     getDefaultRegion(tenantCode)
   const region = normalizeRegion(regionRaw)
 
+  const sellerId = tenantCode
+    ? readEnvVar(`AMAZON_SELLER_ID_${tenantCode}`)
+    : readEnvVar('AMAZON_SELLER_ID')
+
   const missing: string[] = []
   if (!appClientId) missing.push('AMAZON_SP_APP_CLIENT_ID')
   if (!appClientSecret) missing.push('AMAZON_SP_APP_CLIENT_SECRET')
@@ -445,6 +450,7 @@ function getAmazonSpApiConfigFromEnv(tenantCode?: TenantCode): AmazonSpApiConfig
     marketplaceId,
     appClientId,
     appClientSecret,
+    sellerId: sellerId || undefined,
   }
 }
 
@@ -1024,25 +1030,8 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   const config = getAmazonSpApiConfigFromEnv(tenantCode)
   const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
 
-  // First get sellerId from getMarketplaceParticipations
-  let sellerId: string | null = null
-  try {
-    const participationsResponse = await callAmazonApi<{
-      payload?: Array<{
-        marketplace?: { id?: string }
-        participation?: { sellerId?: string }
-      }>
-    }>(tenantCode, {
-      operation: 'getMarketplaceParticipations',
-      endpoint: 'sellers',
-    })
-    const participation = participationsResponse.payload?.find(
-      p => p.marketplace?.id === marketplaceId
-    )
-    sellerId = participation?.participation?.sellerId ?? participationsResponse.payload?.[0]?.participation?.sellerId ?? null
-  } catch (error) {
-    console.error('getMarketplaceParticipations error:', error)
-  }
+  // Get sellerId from config (set via AMAZON_SELLER_ID or AMAZON_SELLER_ID_<tenantCode> env var)
+  const sellerId = config?.sellerId ?? null
 
   // 1. FBA Inventory API (current approach)
   let inventorySkus: Array<{ sellerSku: string; asin: string | null; fnSku: string | null }> = []
@@ -1070,7 +1059,7 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   let listingsError: string | null = null
 
   if (!sellerId) {
-    listingsError = 'Could not get sellerId from getMarketplaceParticipations'
+    listingsError = 'Missing AMAZON_SELLER_ID environment variable'
   } else {
     try {
       const listingsResponse = await callAmazonApi<{
