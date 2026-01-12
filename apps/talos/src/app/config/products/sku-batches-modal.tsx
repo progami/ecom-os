@@ -911,16 +911,18 @@ function SkuBatchesManager({
                     <Tabs>
                       <TabsList className="w-full">
                         <TabsTrigger
+                          type="button"
                           data-state={batchModalTab === 'reference' ? 'active' : 'inactive'}
                           onClick={() => setBatchModalTab('reference')}
-                          className="flex-1"
+                          className={`flex-1 ${batchModalTab === 'reference' ? 'bg-cyan-600 text-white' : ''}`}
                         >
                           Reference
                         </TabsTrigger>
                         <TabsTrigger
+                          type="button"
                           data-state={batchModalTab === 'amazon' ? 'active' : 'inactive'}
                           onClick={() => setBatchModalTab('amazon')}
-                          className="flex-1"
+                          className={`flex-1 ${batchModalTab === 'amazon' ? 'bg-cyan-600 text-white' : ''}`}
                         >
                           Amazon
                         </TabsTrigger>
