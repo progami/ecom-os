@@ -1074,8 +1074,8 @@ export async function testCompareApis(tenantCode?: TenantCode) {
         operation: 'searchListingsItems',
         endpoint: 'listingsItems',
         options: { version: '2021-08-01' },
-        path: { sellerId },
-        body: {
+        query: {
+          sellerId,
           marketplaceIds: [marketplaceId],
           pageSize: 100,
         },
