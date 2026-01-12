@@ -286,21 +286,22 @@ function ProfileCard({
 // Time Off Section
 // ============================================================================
 
-function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
+function PTOHeroCard({ balance }: { balance: LeaveBalance }) {
   const available = balance.available
   const total = balance.allocated
+  const used = total - available
   const percentage = total > 0 ? (available / total) * 100 : 0
   const isLow = total > 0 && available <= Math.ceil(total * 0.2) && available > 0
   const isEmpty = available === 0
 
-  const size = 56
-  const strokeWidth = 5
+  const size = 100
+  const strokeWidth = 8
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const strokeDashoffset = circumference - (percentage / 100) * circumference
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+    <div className="flex items-center gap-6 p-5 rounded-2xl bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/30 dark:to-slate-800 border border-cyan-200/50 dark:border-cyan-800/30">
       <div className="relative flex-shrink-0">
         <svg width={size} height={size} className="-rotate-90">
           <circle
@@ -310,7 +311,7 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
             fill="none"
             stroke="currentColor"
             strokeWidth={strokeWidth}
-            className="text-slate-100 dark:text-slate-700"
+            className="text-cyan-100 dark:text-cyan-900/50"
           />
           <circle
             cx={size / 2}
@@ -323,34 +324,96 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             className={cn(
-              'transition-all duration-500',
+              'transition-all duration-700',
               isEmpty ? 'text-slate-300' : isLow ? 'text-amber-500' : 'text-cyan-500'
             )}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={cn(
-            'text-sm font-bold tabular-nums',
-            isEmpty ? 'text-slate-400' : isLow ? 'text-amber-600' : 'text-slate-900 dark:text-slate-50'
+            'text-2xl font-bold tabular-nums',
+            isEmpty ? 'text-slate-400' : isLow ? 'text-amber-600' : 'text-cyan-600 dark:text-cyan-400'
           )}>
             {available}
           </span>
+          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">days</span>
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-50 truncate">
+        <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+          PTO Available
+        </h4>
+        <div className="flex items-center gap-4 mt-2 text-sm">
+          <span className="text-slate-500 dark:text-slate-400">
+            <span className="font-medium text-slate-700 dark:text-slate-300">{used}</span> used
+          </span>
+          <span className="text-slate-300 dark:text-slate-600">•</span>
+          <span className="text-slate-500 dark:text-slate-400">
+            <span className="font-medium text-slate-700 dark:text-slate-300">{total}</span> total
+          </span>
+          {balance.pending > 0 && (
+            <>
+              <span className="text-slate-300 dark:text-slate-600">•</span>
+              <span className="text-amber-600 dark:text-amber-400 font-medium">{balance.pending} pending</span>
+            </>
+          )}
+        </div>
+        <div className="mt-3 h-2 bg-cyan-100 dark:bg-cyan-900/30 rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-700',
+              isEmpty ? 'bg-slate-300' : isLow ? 'bg-amber-500' : 'bg-cyan-500'
+            )}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CompactLeaveCard({ balance }: { balance: LeaveBalance }) {
+  const available = balance.available
+  const total = balance.allocated
+  const percentage = total > 0 ? (available / total) * 100 : 0
+  const isLow = total > 0 && available <= Math.ceil(total * 0.2) && available > 0
+  const isEmpty = available === 0
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50">
+      <div className={cn(
+        'flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm tabular-nums',
+        isEmpty
+          ? 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500'
+          : isLow
+            ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+            : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+      )}>
+        {available}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
             {getLeaveTypeLabel(balance.leaveType)}
           </h4>
           {balance.pending > 0 && (
-            <span className="flex-shrink-0 text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
-              {balance.pending} pending
+            <span className="ml-2 text-[9px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+              {balance.pending}
             </span>
           )}
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          {balance.used} used of {total}
-        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all',
+                isEmpty ? 'bg-slate-300' : isLow ? 'bg-amber-500' : 'bg-slate-400 dark:bg-slate-500'
+              )}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-slate-400 tabular-nums whitespace-nowrap">{total}</span>
+        </div>
       </div>
     </div>
   )
@@ -358,20 +421,36 @@ function LeaveBalanceCard({ balance }: { balance: LeaveBalance }) {
 
 function TimeOffSection({ balances }: { balances: LeaveBalance[] }) {
   const filtered = balances.filter(b => b.leaveType !== 'UNPAID')
+  const ptoBalance = filtered.find(b => b.leaveType === 'PTO')
+  const otherBalances = filtered.filter(b => b.leaveType !== 'PTO')
 
   if (filtered.length === 0) {
     return (
-      <div className="rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
-        <p className="text-sm text-slate-500">No leave balances configured</p>
+      <div className="rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-8 text-center">
+        <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+          <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium text-slate-500">No leave balances configured</p>
+        <p className="text-xs text-slate-400 mt-1">Contact HR to set up your leave allocation</p>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {filtered.map((balance) => (
-        <LeaveBalanceCard key={balance.leaveType} balance={balance} />
-      ))}
+    <div className="space-y-4">
+      {/* PTO Hero Card */}
+      {ptoBalance && <PTOHeroCard balance={ptoBalance} />}
+
+      {/* Other Leave Types in compact row */}
+      {otherBalances.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {otherBalances.map((balance) => (
+            <CompactLeaveCard key={balance.leaveType} balance={balance} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
