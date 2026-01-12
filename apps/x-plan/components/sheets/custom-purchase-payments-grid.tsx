@@ -250,6 +250,7 @@ export function CustomPurchasePaymentsGrid({
   const datePickerOpenRef = useRef(false);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectOnFocusRef = useRef(true);
   const rowsRef = useRef<PurchasePaymentRow[]>(payments);
   const clipboardRef = useRef<HTMLTextAreaElement | null>(null);
   const pasteStartRef = useRef<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null);
@@ -303,7 +304,15 @@ export function CustomPurchasePaymentsGrid({
   useEffect(() => {
     if (editingCell && inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.select();
+      if (selectOnFocusRef.current) {
+        inputRef.current.select();
+      } else {
+        // Position cursor at end when started by typing
+        const len = inputRef.current.value.length;
+        inputRef.current.setSelectionRange(len, len);
+      }
+      // Reset for next edit
+      selectOnFocusRef.current = true;
     }
   }, [editingCell]);
 
@@ -1217,6 +1226,8 @@ export function CustomPurchasePaymentsGrid({
         if (!column.editable) return;
 
         event.preventDefault();
+        // Don't select all when starting edit by typing - cursor at end
+        selectOnFocusRef.current = false;
         startEditing(row.id, column.key, event.key);
         return;
       }
