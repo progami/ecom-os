@@ -1063,25 +1063,27 @@ export async function testCompareApis(tenantCode?: TenantCode) {
   } else {
     try {
       const listingsResponse = await callAmazonApi<{
-        items?: Array<{
+        listings?: Array<{
           sku?: string
-          summaries?: Array<{ asin?: string; productType?: string }>
+          asin?: string
+          productType?: string
+          status?: string
         }>
+        nextToken?: string
       }>(tenantCode, {
         operation: 'searchListingsItems',
         endpoint: 'listingsItems',
         options: { version: '2021-08-01' },
-        path: { sellerId },
-        body: {
+        query: {
+          sellerId,
           marketplaceIds: [marketplaceId],
           pageSize: 100,
-          includedData: ['summaries'],
         },
       })
-      listingsSkus = (listingsResponse.items ?? []).map(item => ({
+      listingsSkus = (listingsResponse.listings ?? []).map(item => ({
         sku: item.sku ?? '',
-        asin: item.summaries?.[0]?.asin ?? null,
-        productType: item.summaries?.[0]?.productType ?? null,
+        asin: item.asin ?? null,
+        productType: item.productType ?? null,
       }))
     } catch (error) {
       listingsError = error instanceof Error ? error.message : 'Unknown error'
