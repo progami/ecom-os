@@ -35,4 +35,3 @@ export const POST = withXPlanAuth(async (_request: Request, session) => {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 });
-

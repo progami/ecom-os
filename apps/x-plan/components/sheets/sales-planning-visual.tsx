@@ -121,11 +121,7 @@ export function SalesPlanningVisual({
         const finalSales = finalSalesValue ? Number(finalSalesValue) : 0;
         // stockWeeks = how many weeks of cover we have (aligned with tabular view)
         const stockWeeks =
-          finalSales > 0
-            ? stockStart / finalSales
-            : stockStart > 0
-              ? Number.POSITIVE_INFINITY
-              : 0;
+          finalSales > 0 ? stockStart / finalSales : stockStart > 0 ? Number.POSITIVE_INFINITY : 0;
         const isLowStock = Number.isFinite(stockWeeks) && stockWeeks <= warningThreshold;
         return {
           weekNumber,

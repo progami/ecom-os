@@ -58,20 +58,11 @@ describe('WorkbookLayout year navigation', () => {
     pushMock.mockReset()
   })
 
-  it('renders year controls on year-aware sheets and allows switching via buttons', () => {
+  it('renders year controls on year-aware sheets and allows switching via select', () => {
     renderLayout(2025)
-
-    const previousButtons = screen.getAllByRole('button', { name: 'Previous year' })
-    previousButtons.forEach((button) => expect(button).toBeDisabled())
 
     const yearSelects = screen.getAllByRole('combobox', { name: 'Select year' })
     fireEvent.change(yearSelects[0]!, { target: { value: '2026' } })
-    expect(pushMock).toHaveBeenCalledWith('/4-sales-planning?year=2026')
-
-    pushMock.mockReset()
-
-    const nextButtons = screen.getAllByRole('button', { name: 'Next year' })
-    fireEvent.click(nextButtons[0]!)
     expect(pushMock).toHaveBeenCalledWith('/4-sales-planning?year=2026')
   })
 
@@ -86,7 +77,6 @@ describe('WorkbookLayout year navigation', () => {
   it('hides year controls on time-agnostic sheets', () => {
     renderLayout(2026, '2-product-setup')
 
-    expect(screen.queryByRole('button', { name: 'Previous year' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Next year' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Select year' })).not.toBeInTheDocument()
   })
 })
