@@ -123,6 +123,22 @@ const skuSchemaBase = z.object({
   unitWidthCm: optionalDimensionValueSchema,
   unitHeightCm: optionalDimensionValueSchema,
   unitWeightKg: z.number().positive().optional().nullable(),
+  itemDimensionsCm: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
+  itemLengthCm: optionalDimensionValueSchema,
+  itemWidthCm: optionalDimensionValueSchema,
+  itemHeightCm: optionalDimensionValueSchema,
+  itemWeightKg: z.number().positive().optional().nullable(),
   unitsPerCarton: z.number().int().positive().optional(),
   cartonDimensionsCm: z
     .string()
@@ -147,6 +163,9 @@ type DimensionRefineShape = {
   unitLengthCm: z.ZodTypeAny
   unitWidthCm: z.ZodTypeAny
   unitHeightCm: z.ZodTypeAny
+  itemLengthCm: z.ZodTypeAny
+  itemWidthCm: z.ZodTypeAny
+  itemHeightCm: z.ZodTypeAny
   cartonLengthCm: z.ZodTypeAny
   cartonWidthCm: z.ZodTypeAny
   cartonHeightCm: z.ZodTypeAny
@@ -161,6 +180,16 @@ const refineDimensions = <T extends z.ZodRawShape & DimensionRefineShape>(schema
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Unit dimensions require length, width, and height',
+      })
+    }
+
+    const itemValues = [value.itemLengthCm, value.itemWidthCm, value.itemHeightCm]
+    const itemAny = itemValues.some(part => part !== undefined && part !== null)
+    const itemAll = itemValues.every(part => part !== undefined && part !== null)
+    if (itemAny && !itemAll) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Item dimensions require length, width, and height',
       })
     }
 
@@ -319,6 +348,21 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     return ApiResponses.badRequest('Batch code DEFAULT is not allowed')
   }
 
+  const itemTriplet = resolveDimensionTripletCm({
+    lengthCm: validatedData.itemLengthCm,
+    widthCm: validatedData.itemWidthCm,
+    heightCm: validatedData.itemHeightCm,
+    legacy: validatedData.itemDimensionsCm,
+  })
+  const itemInputProvided =
+    Boolean(validatedData.itemDimensionsCm) ||
+    [validatedData.itemLengthCm, validatedData.itemWidthCm, validatedData.itemHeightCm].some(
+      value => value !== undefined && value !== null
+    )
+  if (itemInputProvided && !itemTriplet) {
+    return ApiResponses.badRequest('Item dimensions must be a valid LxWxH triple')
+  }
+
   const sku = await prisma.$transaction(async tx => {
     const created = await tx.sku.create({
       data: {
@@ -342,6 +386,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         unitWidthCm: null,
         unitHeightCm: null,
         unitWeightKg: validatedData.initialBatch.unitWeightKg,
+        itemDimensionsCm: itemTriplet ? formatDimensionTripletCm(itemTriplet) : null,
+        itemLengthCm: itemTriplet ? itemTriplet.lengthCm : null,
+        itemWidthCm: itemTriplet ? itemTriplet.widthCm : null,
+        itemHeightCm: itemTriplet ? itemTriplet.heightCm : null,
+        itemWeightKg: validatedData.itemWeightKg ?? null,
         unitsPerCarton: validatedData.initialBatch.unitsPerCarton,
         cartonDimensionsCm: null,
         cartonLengthCm: null,
@@ -454,6 +503,10 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
     unitLengthCm,
     unitWidthCm,
     unitHeightCm,
+    itemDimensionsCm,
+    itemLengthCm,
+    itemWidthCm,
+    itemHeightCm,
     cartonDimensionsCm,
     cartonLengthCm,
     cartonWidthCm,
@@ -488,6 +541,31 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
     updateData.unitLengthCm = unitTriplet ? unitTriplet.lengthCm : null
     updateData.unitWidthCm = unitTriplet ? unitTriplet.widthCm : null
     updateData.unitHeightCm = unitTriplet ? unitTriplet.heightCm : null
+  }
+
+  const itemTouched =
+    hasOwn('itemDimensionsCm') ||
+    hasOwn('itemLengthCm') ||
+    hasOwn('itemWidthCm') ||
+    hasOwn('itemHeightCm')
+  if (itemTouched) {
+    const itemTriplet = resolveDimensionTripletCm({
+      lengthCm: itemLengthCm,
+      widthCm: itemWidthCm,
+      heightCm: itemHeightCm,
+      legacy: itemDimensionsCm,
+    })
+    const itemInputProvided =
+      Boolean(itemDimensionsCm) ||
+      [itemLengthCm, itemWidthCm, itemHeightCm].some(value => value !== undefined && value !== null)
+    if (itemInputProvided && !itemTriplet) {
+      return ApiResponses.badRequest('Item dimensions must be a valid LxWxH triple')
+    }
+
+    updateData.itemDimensionsCm = itemTriplet ? formatDimensionTripletCm(itemTriplet) : null
+    updateData.itemLengthCm = itemTriplet ? itemTriplet.lengthCm : null
+    updateData.itemWidthCm = itemTriplet ? itemTriplet.widthCm : null
+    updateData.itemHeightCm = itemTriplet ? itemTriplet.heightCm : null
   }
 
   const cartonTouched =
