@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -30,6 +31,8 @@ import { usePersistentState } from '@/hooks/usePersistentState';
 export type POStatus = 'DRAFT' | 'ISSUED' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
 
 export type PoPnlMode = 'PROJECTED' | 'REAL';
+
+export type PoPnlValueDisplay = 'ABSOLUTE' | 'PER_UNIT';
 
 export interface PoPnlSummary {
   units: number;
@@ -57,8 +60,16 @@ export interface POProfitabilityData {
   status: POStatus;
   units: number;
   revenue: number;
+  manufacturingCost: number;
+  freightCost: number;
+  tariffCost: number;
   cogs: number;
+  cogsAdjustment: number;
+  referralFees: number;
+  fbaFees: number;
+  storageFees: number;
   amazonFees: number;
+  amazonFeesAdjustment: number;
   ppcSpend: number;
   fixedCosts: number;
   grossProfit: number;
@@ -127,6 +138,8 @@ const statusFilters: StatusFilter[] = [
 type POProfitabilityFiltersContextValue = {
   mode: PoPnlMode;
   setMode: (value: PoPnlMode) => void;
+  valueDisplay: PoPnlValueDisplay;
+  setValueDisplay: (value: PoPnlValueDisplay) => void;
   statusFilter: StatusFilter;
   setStatusFilter: (value: StatusFilter) => void;
   focusSkuId: string;
@@ -148,6 +161,10 @@ export function POProfitabilityFiltersProvider({
     `xplan:po-pnl:${strategyId}:mode`,
     'PROJECTED',
   );
+  const [valueDisplay, setValueDisplay] = usePersistentState<PoPnlValueDisplay>(
+    `xplan:po-pnl:${strategyId}:value-display`,
+    'ABSOLUTE',
+  );
   const [statusFilter, setStatusFilter] = usePersistentState<StatusFilter>(
     `xplan:po-profitability:${strategyId}:status-filter`,
     'ALL',
@@ -161,12 +178,23 @@ export function POProfitabilityFiltersProvider({
     () => ({
       mode,
       setMode,
+      valueDisplay,
+      setValueDisplay,
       statusFilter,
       setStatusFilter,
       focusSkuId,
       setFocusSkuId,
     }),
-    [focusSkuId, mode, setFocusSkuId, setMode, setStatusFilter, statusFilter],
+    [
+      focusSkuId,
+      mode,
+      setFocusSkuId,
+      setMode,
+      setStatusFilter,
+      setValueDisplay,
+      statusFilter,
+      valueDisplay,
+    ],
   );
 
   return (
@@ -263,6 +291,7 @@ export function POProfitabilitySection({
   const mode = filters?.mode ?? 'PROJECTED';
   const statusFilter = filters?.statusFilter ?? 'ALL';
   const skuFilter = filters?.focusSkuId ?? 'ALL';
+  const valueDisplay = filters?.valueDisplay ?? 'ABSOLUTE';
   const dataset = mode === 'REAL' ? datasets.real : datasets.projected;
   const data = dataset.data;
   const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>([
@@ -301,11 +330,21 @@ export function POProfitabilitySection({
         // Aggregate values
         existing.units += row.units;
         existing.revenue += row.revenue;
+        existing.manufacturingCost += row.manufacturingCost;
+        existing.freightCost += row.freightCost;
+        existing.tariffCost += row.tariffCost;
         existing.cogs += row.cogs;
+        existing.referralFees += row.referralFees;
+        existing.fbaFees += row.fbaFees;
+        existing.storageFees += row.storageFees;
         existing.amazonFees += row.amazonFees;
         existing.ppcSpend += row.ppcSpend;
         existing.fixedCosts += row.fixedCosts;
 
+        existing.cogsAdjustment =
+          existing.cogs - existing.manufacturingCost - existing.freightCost - existing.tariffCost;
+        existing.amazonFeesAdjustment =
+          existing.amazonFees - existing.referralFees - existing.fbaFees - existing.storageFees;
         existing.grossProfit = existing.revenue - existing.cogs - existing.amazonFees;
         existing.netProfit = existing.grossProfit - existing.ppcSpend - existing.fixedCosts;
 
@@ -380,11 +419,18 @@ export function POProfitabilitySection({
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      maximumFractionDigits: 0,
+      maximumFractionDigits: valueDisplay === 'PER_UNIT' ? 2 : 0,
     }).format(value);
   };
 
   const formatPercent = (value: number) => `${value.toFixed(1)}%`;
+  const formatMoney = (value: number, units: number) => {
+    if (valueDisplay === 'PER_UNIT') {
+      if (!units) return formatCurrency(0);
+      return formatCurrency(value / units);
+    }
+    return formatCurrency(value);
+  };
   const showUnattributed =
     Math.abs(dataset.unattributed.revenue) > 0.01 ||
     Math.abs(dataset.unattributed.cogs) > 0.01 ||
@@ -395,6 +441,7 @@ export function POProfitabilitySection({
   const summary = useMemo(() => {
     if (filteredData.length === 0)
       return {
+        totalUnits: 0,
         totalRevenue: 0,
         totalGrossProfit: 0,
         totalProfit: 0,
@@ -402,13 +449,14 @@ export function POProfitabilitySection({
         netMargin: 0,
         roi: 0,
       };
+    const totalUnits = filteredData.reduce((sum, row) => sum + row.units, 0);
     const totalRevenue = filteredData.reduce((sum, row) => sum + row.revenue, 0);
     const totalGrossProfit = filteredData.reduce((sum, row) => sum + row.grossProfit, 0);
     const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0);
     const totalCogs = filteredData.reduce((sum, row) => sum + row.cogs, 0);
     const netMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const roi = totalCogs > 0 ? (totalProfit / totalCogs) * 100 : 0;
-    return { totalRevenue, totalGrossProfit, totalProfit, totalCogs, netMargin, roi };
+    return { totalUnits, totalRevenue, totalGrossProfit, totalProfit, totalCogs, netMargin, roi };
   }, [filteredData]);
 
   if (data.length === 0) {
@@ -639,231 +687,427 @@ export function POProfitabilitySection({
                   {skuFilter !== 'ALL' ? 'Filtered by SKU' : 'Aggregated by purchase order'}
                 </CardDescription>
               </div>
-              <div className="text-right text-xs text-muted-foreground">
-                <div>
-                  Total Revenue:{' '}
-                  <span className="font-semibold text-foreground">
-                    {formatCurrency(summary.totalRevenue)}
-                  </span>
-                </div>
-                <div>
-                  Total Gross Profit:{' '}
-                  <span
-                    className={`font-semibold ${summary.totalGrossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+              <div className="flex flex-col items-end gap-2">
+                <div className="inline-flex items-center rounded-lg border border-border/60 bg-background/40 p-0.5 shadow-sm">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={valueDisplay === 'ABSOLUTE' ? 'secondary' : 'ghost'}
+                    className="h-7 px-2 text-xs"
+                    onClick={() => filters?.setValueDisplay('ABSOLUTE')}
                   >
-                    {formatCurrency(summary.totalGrossProfit)}
-                  </span>
-                </div>
-                <div>
-                  Total Profit:{' '}
-                  <span
-                    className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                    Absolute
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={valueDisplay === 'PER_UNIT' ? 'secondary' : 'ghost'}
+                    className="h-7 px-2 text-xs"
+                    onClick={() => filters?.setValueDisplay('PER_UNIT')}
                   >
-                    {formatCurrency(summary.totalProfit)}
-                  </span>
+                    Per unit
+                  </Button>
                 </div>
-                {showUnattributed ? (
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    Unattributed:{' '}
-                    <span className="font-medium text-foreground/80">
-                      {formatCurrency(dataset.unattributed.revenue)}
-                    </span>{' '}
-                    rev ·{' '}
-                    <span
-                      className={`font-medium ${dataset.unattributed.netProfit >= 0 ? 'text-emerald-600/80 dark:text-emerald-200/80' : 'text-red-600/80 dark:text-red-200/80'}`}
-                    >
-                      {formatCurrency(dataset.unattributed.netProfit)}
-                    </span>{' '}
-                    profit
+
+                <div className="text-right text-xs text-muted-foreground">
+                  <div>
+                    Units:{' '}
+                    <span className="font-semibold text-foreground">
+                      {summary.totalUnits.toLocaleString()}
+                    </span>
                   </div>
-                ) : null}
+                  <div>
+                    {valueDisplay === 'PER_UNIT' ? 'Avg Sell:' : 'Total Revenue:'}{' '}
+                    <span className="font-semibold text-foreground">
+                      {formatMoney(summary.totalRevenue, summary.totalUnits)}
+                    </span>
+                  </div>
+                  <div>
+                    {valueDisplay === 'PER_UNIT' ? 'GP/unit:' : 'Total Gross Profit:'}{' '}
+                    <span
+                      className={`font-semibold ${summary.totalGrossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                    >
+                      {formatMoney(summary.totalGrossProfit, summary.totalUnits)}
+                    </span>
+                  </div>
+                  <div>
+                    {valueDisplay === 'PER_UNIT' ? 'NP/unit:' : 'Total Profit:'}{' '}
+                    <span
+                      className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                    >
+                      {formatMoney(summary.totalProfit, summary.totalUnits)}
+                    </span>
+                  </div>
+                  {showUnattributed ? (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Unattributed totals:{' '}
+                      <span className="font-medium text-foreground/80">
+                        {formatCurrency(dataset.unattributed.revenue)}
+                      </span>{' '}
+                      rev ·{' '}
+                      <span
+                        className={`font-medium ${dataset.unattributed.netProfit >= 0 ? 'text-emerald-600/80 dark:text-emerald-200/80' : 'text-red-600/80 dark:text-red-200/80'}`}
+                      >
+                        {formatCurrency(dataset.unattributed.netProfit)}
+                      </span>{' '}
+                      profit
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Table className="table-fixed w-full">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[180px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    <SortButton
-                      field="orderCode"
-                      current={sortField}
-                      direction={sortDirection}
-                      onClick={handleSort}
+            <div className="overflow-x-auto">
+              <Table className="min-w-[1520px] table-fixed w-full">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead
+                      rowSpan={2}
+                      className="w-[190px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
                     >
-                      PO Code
-                    </SortButton>
-                  </TableHead>
-                  <TableHead className="w-[90px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    Status
-                  </TableHead>
-                  <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    Units
-                  </TableHead>
-                  <TableHead className="w-[100px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    <SortButton
-                      field="revenue"
-                      current={sortField}
-                      direction={sortDirection}
-                      onClick={handleSort}
-                      align="right"
-                    >
-                      Revenue
-                    </SortButton>
-                  </TableHead>
-                  <TableHead className="w-[90px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    COGS
-                  </TableHead>
-                  <TableHead className="w-[90px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    Amz Fees
-                  </TableHead>
-                  <TableHead className="w-[100px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    GP
-                  </TableHead>
-                  <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    PPC
-                  </TableHead>
-                  <TableHead className="w-[95px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    Fixed
-                  </TableHead>
-                  <TableHead className="w-[100px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    <SortButton
-                      field="netProfit"
-                      current={sortField}
-                      direction={sortDirection}
-                      onClick={handleSort}
-                      align="right"
-                    >
-                      Net Profit
-                    </SortButton>
-                  </TableHead>
-                  <TableHead className="w-[80px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    <SortButton
-                      field="netMarginPercent"
-                      current={sortField}
-                      direction={sortDirection}
-                      onClick={handleSort}
-                      align="right"
-                    >
-                      Margin
-                    </SortButton>
-                  </TableHead>
-                  <TableHead className="w-[70px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
-                    <SortButton
-                      field="roi"
-                      current={sortField}
-                      direction={sortDirection}
-                      onClick={handleSort}
-                      align="right"
-                    >
-                      ROI
-                    </SortButton>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tableSortedData.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <div className="font-medium">{row.orderCode}</div>
-                      {skuFilter !== 'ALL' && row.batchCode ? (
-                        <div className="text-xs text-muted-foreground">Batch: {row.batchCode}</div>
-                      ) : null}
-                      <div
-                        className="truncate text-xs text-muted-foreground max-w-[160px]"
-                        title={row.productName}
+                      <SortButton
+                        field="orderCode"
+                        current={sortField}
+                        direction={sortDirection}
+                        onClick={handleSort}
                       >
-                        {row.productName}
-                      </div>
+                        PO Code
+                      </SortButton>
+                    </TableHead>
+                    <TableHead
+                      rowSpan={2}
+                      className="w-[92px] h-10 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      Status
+                    </TableHead>
+                    <TableHead
+                      rowSpan={2}
+                      className="w-[84px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      Units
+                    </TableHead>
+                    <TableHead
+                      rowSpan={2}
+                      className="w-[112px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      <SortButton
+                        field="revenue"
+                        current={sortField}
+                        direction={sortDirection}
+                        onClick={handleSort}
+                        align="right"
+                      >
+                        Revenue
+                      </SortButton>
+                    </TableHead>
+                    <TableHead
+                      colSpan={5}
+                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      COGS
+                    </TableHead>
+                    <TableHead
+                      colSpan={5}
+                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      Amz Fees
+                    </TableHead>
+                    <TableHead
+                      colSpan={2}
+                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      Opex
+                    </TableHead>
+                    <TableHead
+                      colSpan={4}
+                      className="h-10 text-center text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80"
+                    >
+                      Profit
+                    </TableHead>
+                  </TableRow>
+
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Mfg
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Freight
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Tariff
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Adj
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Total
+                    </TableHead>
+
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Ref
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      FBA
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Storage
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Adj
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Total
+                    </TableHead>
+
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      PPC
+                    </TableHead>
+                    <TableHead className="w-[96px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      Fixed
+                    </TableHead>
+
+                    <TableHead className="w-[112px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      GP
+                    </TableHead>
+                    <TableHead className="w-[112px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      <SortButton
+                        field="netProfit"
+                        current={sortField}
+                        direction={sortDirection}
+                        onClick={handleSort}
+                        align="right"
+                      >
+                        Net
+                      </SortButton>
+                    </TableHead>
+                    <TableHead className="w-[86px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      <SortButton
+                        field="netMarginPercent"
+                        current={sortField}
+                        direction={sortDirection}
+                        onClick={handleSort}
+                        align="right"
+                      >
+                        Margin
+                      </SortButton>
+                    </TableHead>
+                    <TableHead className="w-[76px] h-10 text-right text-xs font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-300/80">
+                      <SortButton
+                        field="roi"
+                        current={sortField}
+                        direction={sortDirection}
+                        onClick={handleSort}
+                        align="right"
+                      >
+                        ROI
+                      </SortButton>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tableSortedData.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>
+                        <div className="font-medium">{row.orderCode}</div>
+                        {skuFilter !== 'ALL' && row.batchCode ? (
+                          <div className="text-xs text-muted-foreground">
+                            Batch: {row.batchCode}
+                          </div>
+                        ) : null}
+                        <div
+                          className="truncate text-xs text-muted-foreground max-w-[170px]"
+                          title={row.productName}
+                        >
+                          {row.productName}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={row.status} />
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {row.units.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatMoney(row.revenue, row.units)}
+                      </TableCell>
+
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.manufacturingCost, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.freightCost, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.tariffCost, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.cogsAdjustment, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.cogs, row.units)}
+                      </TableCell>
+
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.referralFees, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.fbaFees, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.storageFees, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.amazonFeesAdjustment, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.amazonFees, row.units)}
+                      </TableCell>
+
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.ppcSpend, row.units)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatMoney(row.fixedCosts, row.units)}
+                      </TableCell>
+
+                      <TableCell
+                        className={`text-right tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                      >
+                        {formatMoney(row.grossProfit, row.units)}
+                      </TableCell>
+                      <TableCell
+                        className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                      >
+                        {formatMoney(row.netProfit, row.units)}
+                      </TableCell>
+                      <TableCell
+                        className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      >
+                        {formatPercent(row.netMarginPercent)}
+                      </TableCell>
+                      <TableCell
+                        className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      >
+                        {formatPercent(row.roi)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                  {/* Total row */}
+                  <TableRow className="bg-muted/50">
+                    <TableCell className="font-semibold">
+                      {valueDisplay === 'PER_UNIT' ? 'Avg' : 'Total'} ({filteredData.length}{' '}
+                      {skuFilter !== 'ALL' ? 'batches' : 'POs'})
                     </TableCell>
-                    <TableCell>
-                      <StatusBadge status={row.status} />
+                    <TableCell />
+                    <TableCell className="text-right tabular-nums font-semibold">
+                      {summary.totalUnits.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.units.toLocaleString()}
+                    <TableCell className="text-right tabular-nums font-semibold">
+                      {formatMoney(summary.totalRevenue, summary.totalUnits)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(row.revenue)}
+
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.manufacturingCost, 0),
+                        summary.totalUnits,
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(row.cogs)}
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.freightCost, 0),
+                        summary.totalUnits,
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(row.amazonFees)}
-                    </TableCell>
-                    <TableCell
-                      className={`text-right tabular-nums font-medium ${row.grossProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
-                    >
-                      {formatCurrency(row.grossProfit)}
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.tariffCost, 0),
+                        summary.totalUnits,
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(row.ppcSpend)}
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.cogsAdjustment, 0),
+                        summary.totalUnits,
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(row.fixedCosts)}
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.cogs, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.referralFees, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.fbaFees, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.storageFees, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.amazonFeesAdjustment, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.amazonFees, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.ppcSpend, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.fixedCosts, 0),
+                        summary.totalUnits,
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right tabular-nums font-semibold">
+                      {formatMoney(
+                        filteredData.reduce((sum, row) => sum + row.grossProfit, 0),
+                        summary.totalUnits,
+                      )}
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
+                      className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
                     >
-                      {formatCurrency(row.netProfit)}
+                      {formatMoney(summary.totalProfit, summary.totalUnits)}
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      className={`text-right tabular-nums font-semibold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                     >
-                      {formatPercent(row.netMarginPercent)}
+                      {formatPercent(summary.netMargin)}
                     </TableCell>
                     <TableCell
-                      className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
+                      className={`text-right tabular-nums font-semibold ${summary.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
                     >
-                      {formatPercent(row.roi)}
+                      {formatPercent(summary.roi)}
                     </TableCell>
                   </TableRow>
-                ))}
-                {/* Total row */}
-                <TableRow className="bg-muted/50">
-                  <TableCell className="font-semibold">
-                    Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})
-                  </TableCell>
-                  <TableCell />
-                  <TableCell className="text-right tabular-nums font-semibold">
-                    {filteredData.reduce((sum, row) => sum + row.units, 0).toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-semibold">
-                    {formatCurrency(summary.totalRevenue)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatCurrency(filteredData.reduce((sum, row) => sum + row.cogs, 0))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatCurrency(filteredData.reduce((sum, row) => sum + row.amazonFees, 0))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-semibold">
-                    {formatCurrency(filteredData.reduce((sum, row) => sum + row.grossProfit, 0))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcSpend, 0))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {formatCurrency(filteredData.reduce((sum, row) => sum + row.fixedCosts, 0))}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-200' : 'text-red-600 dark:text-red-200'}`}
-                  >
-                    {formatCurrency(summary.totalProfit)}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right tabular-nums font-semibold ${summary.netMargin < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
-                  >
-                    {formatPercent(summary.netMargin)}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right tabular-nums font-semibold ${summary.roi < 0 ? 'text-red-600 dark:text-red-200' : ''}`}
-                  >
-                    {formatPercent(summary.roi)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       ) : null}

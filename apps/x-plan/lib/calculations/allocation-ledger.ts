@@ -9,7 +9,13 @@ export interface AllocationLedgerLine {
   batchCode: string | null;
   units: number;
   revenue: number;
+  manufacturingCost: number;
+  freightCost: number;
+  tariffCost: number;
   cogs: number;
+  referralFees: number;
+  fbaFees: number;
+  storageFees: number;
   amazonFees: number;
   ppcSpend: number;
 }
@@ -34,11 +40,22 @@ export function buildAllocationLedger(
       for (const allocation of row.batchAllocations) {
         const units = coerceFinite(allocation.quantity);
         const revenue = units * coerceFinite(allocation.sellingPrice);
+
+        const manufacturingCost = units * coerceFinite(allocation.manufacturingCost);
+        const freightCost = units * coerceFinite(allocation.freightCost);
+        const tariffUnitCost = Math.max(
+          0,
+          coerceFinite(allocation.landedUnitCost) -
+            coerceFinite(allocation.manufacturingCost) -
+            coerceFinite(allocation.freightCost),
+        );
+        const tariffCost = units * tariffUnitCost;
         const cogs = units * coerceFinite(allocation.landedUnitCost);
-        const amazonFees =
-          revenue * coerceFinite(allocation.amazonReferralRate) +
-          units * coerceFinite(allocation.fbaFee) +
-          units * coerceFinite(allocation.storagePerMonth);
+
+        const referralFees = revenue * coerceFinite(allocation.amazonReferralRate);
+        const fbaFees = units * coerceFinite(allocation.fbaFee);
+        const storageFees = units * coerceFinite(allocation.storagePerMonth);
+        const amazonFees = referralFees + fbaFees + storageFees;
         const ppcSpend =
           units * coerceFinite(allocation.sellingPrice) * coerceFinite(allocation.tacosPercent);
 
@@ -50,7 +67,13 @@ export function buildAllocationLedger(
           batchCode: allocation.batchCode ?? null,
           units,
           revenue,
+          manufacturingCost,
+          freightCost,
+          tariffCost,
           cogs,
+          referralFees,
+          fbaFees,
+          storageFees,
           amazonFees,
           ppcSpend,
         });
@@ -66,11 +89,22 @@ export function buildAllocationLedger(
 
       const units = coerceFinite(remainingUnits);
       const revenue = units * coerceFinite(product.sellingPrice);
+
+      const manufacturingCost = units * coerceFinite(product.manufacturingCost);
+      const freightCost = units * coerceFinite(product.freightCost);
+      const tariffUnitCost = Math.max(
+        0,
+        coerceFinite(product.landedUnitCost) -
+          coerceFinite(product.manufacturingCost) -
+          coerceFinite(product.freightCost),
+      );
+      const tariffCost = units * tariffUnitCost;
       const cogs = units * coerceFinite(product.landedUnitCost);
-      const amazonFees =
-        revenue * coerceFinite(product.amazonReferralRate) +
-        units * coerceFinite(product.fbaFee) +
-        units * coerceFinite(product.storagePerMonth);
+
+      const referralFees = revenue * coerceFinite(product.amazonReferralRate);
+      const fbaFees = units * coerceFinite(product.fbaFee);
+      const storageFees = units * coerceFinite(product.storagePerMonth);
+      const amazonFees = referralFees + fbaFees + storageFees;
       const ppcSpend =
         units * coerceFinite(product.sellingPrice) * coerceFinite(product.tacosPercent);
 
@@ -82,7 +116,13 @@ export function buildAllocationLedger(
         batchCode: null,
         units,
         revenue,
+        manufacturingCost,
+        freightCost,
+        tariffCost,
         cogs,
+        referralFees,
+        fbaFees,
+        storageFees,
         amazonFees,
         ppcSpend,
       });
