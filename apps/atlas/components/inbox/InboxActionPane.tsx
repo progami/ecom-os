@@ -469,51 +469,28 @@ function PerformanceReviewContent({ entityData }: { entityData: WorkItemEntityDa
   )
 }
 
-// Disciplinary Action Content - Warning style
+// Disciplinary Action Content - Clean compact style
 function DisciplinaryActionContent({ entityData }: { entityData: WorkItemEntityData }) {
-  const severityConfig: Record<string, { bg: string; text: string; border: string }> = {
-    CRITICAL: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300', border: 'border-red-300 dark:border-red-800' },
-    MAJOR: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300', border: 'border-rose-300 dark:border-rose-800' },
-    HIGH: { bg: 'bg-rose-100 dark:bg-rose-900/30', text: 'text-rose-700 dark:text-rose-300', border: 'border-rose-300 dark:border-rose-800' },
-    MEDIUM: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
-    MINOR: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
-    LOW: { bg: 'bg-slate-100 dark:bg-slate-800', text: 'text-slate-600 dark:text-slate-300', border: 'border-slate-300 dark:border-slate-700' },
-  }
-
   const severity = entityData.severity || 'MEDIUM'
-  const config = severityConfig[severity] || severityConfig.MEDIUM
+  const isSerious = severity === 'CRITICAL' || severity === 'MAJOR' || severity === 'HIGH'
 
   return (
     <div className="space-y-4">
-      {/* Severity & Type header */}
-      <div className={cn('rounded-xl p-4 border-2', config.bg, config.border)}>
-        <div className="flex items-start gap-3">
-          <div className={cn('shrink-0 w-10 h-10 rounded-lg flex items-center justify-center', config.bg)}>
-            <svg className={cn('w-6 h-6', config.text)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase', config.bg, config.text)}>
-                {severity}
-              </span>
-              {entityData.violationType ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 text-xs font-medium">
-                  {entityData.violationType.replace(/_/g, ' ')}
-                </span>
-              ) : null}
-            </div>
-            <p className={cn('mt-1 text-sm font-medium', config.text)}>
-              {severity === 'CRITICAL' && 'Requires immediate attention'}
-              {severity === 'MAJOR' && 'Serious violation'}
-              {severity === 'HIGH' && 'Serious violation'}
-              {severity === 'MEDIUM' && 'Moderate concern'}
-              {severity === 'MINOR' && 'Minor issue'}
-              {severity === 'LOW' && 'Minor issue'}
-            </p>
-          </div>
-        </div>
+      {/* Severity & Type badges */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={cn(
+          'inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold uppercase',
+          isSerious
+            ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
+            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+        )}>
+          {severity}
+        </span>
+        {entityData.violationType ? (
+          <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 text-xs font-medium">
+            {entityData.violationType.replace(/_/g, ' ')}
+          </span>
+        ) : null}
       </div>
 
       {/* Description */}
