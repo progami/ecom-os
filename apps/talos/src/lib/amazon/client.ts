@@ -1077,7 +1077,6 @@ export async function testCompareApis(tenantCode?: TenantCode) {
         method: 'GET',
         query: {
           marketplaceIds: marketplaceId,
-          pageSize: 100,
         },
       })
       listingsSkus = (listingsResponse.listings ?? []).map(item => ({
