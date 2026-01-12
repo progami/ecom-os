@@ -18,6 +18,7 @@ import {
   LockClosedIcon,
   ClipboardIcon,
   FolderIcon,
+  BriefcaseIcon,
 } from '@/components/ui/Icons';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,8 @@ const navigation: NavSection[] = [
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
       { name: 'Resources', href: '/resources', icon: FolderIcon },
+      { name: 'Passwords', href: '/passwords', icon: LockClosedIcon },
+      { name: 'Contractors', href: '/contractors', icon: BriefcaseIcon },
     ],
   },
   {
