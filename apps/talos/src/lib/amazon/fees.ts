@@ -30,14 +30,14 @@ export function calculateSizeTier(
   heightCm: number | null,
   weightKg: number | null
 ): string | null {
-  if (lengthCm === null || widthCm === null || heightCm === null) return null
+  if (lengthCm === null || widthCm === null || heightCm === null || weightKg === null) return null
 
   // Convert to inches for Amazon's thresholds
   const dims = [lengthCm, widthCm, heightCm].map(d => d / 2.54).sort((a, b) => b - a)
   const longest = dims[0]
   const median = dims[1]
   const shortest = dims[2]
-  const weightLb = weightKg !== null ? weightKg * 2.20462 : 0
+  const weightLb = weightKg * 2.20462
 
   // Girth = 2 * (median + shortest)
   const girth = 2 * (median + shortest)
