@@ -24,7 +24,10 @@ import {
   PencilIcon,
   ShieldExclamationIcon,
   UsersIcon,
+  UserPlusIcon,
+  UserMinusIcon,
 } from '@/components/ui/Icons'
+import { OnboardingOffboardingModal } from '@/components/employee/OnboardingOffboardingModal'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -83,6 +86,10 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadVisibility, setUploadVisibility] = useState<'HR_ONLY' | 'EMPLOYEE_AND_HR'>('HR_ONLY')
   const [uploading, setUploading] = useState(false)
+
+  // Onboarding/Offboarding modal state
+  const [workflowModalOpen, setWorkflowModalOpen] = useState(false)
+  const [workflowType, setWorkflowType] = useState<'onboarding' | 'offboarding'>('onboarding')
 
   const isSuperAdmin = Boolean(me?.isSuperAdmin)
   const isHR = Boolean(me?.isHR)
@@ -421,11 +428,37 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
         description={headerDescription}
         icon={<UsersIcon className="h-6 w-6 text-white" />}
         action={
-          canEdit ? (
-            <Button href={`/employees/${employee.id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
-              Edit profile
-            </Button>
-          ) : null
+          <div className="flex flex-wrap gap-2">
+            {isHROrAbove && !isSelf ? (
+              <>
+                <Button
+                  variant="secondary"
+                  icon={<UserPlusIcon className="h-4 w-4" />}
+                  onClick={() => {
+                    setWorkflowType('onboarding')
+                    setWorkflowModalOpen(true)
+                  }}
+                >
+                  Start Onboarding
+                </Button>
+                <Button
+                  variant="secondary"
+                  icon={<UserMinusIcon className="h-4 w-4" />}
+                  onClick={() => {
+                    setWorkflowType('offboarding')
+                    setWorkflowModalOpen(true)
+                  }}
+                >
+                  Start Offboarding
+                </Button>
+              </>
+            ) : null}
+            {canEdit ? (
+              <Button href={`/employees/${employee.id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
+                Edit profile
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -496,6 +529,14 @@ export function EmployeeProfileClient({ employeeId, variant = 'employee' }: Empl
           <EmployeeViolationsTab violations={violations} loading={violationsLoading} />
         </div>
       ) : null}
+
+      {/* Onboarding/Offboarding Modal */}
+      <OnboardingOffboardingModal
+        open={workflowModalOpen}
+        onClose={() => setWorkflowModalOpen(false)}
+        employee={employee}
+        workflowType={workflowType}
+      />
     </>
   )
 }
