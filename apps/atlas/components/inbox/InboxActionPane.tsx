@@ -15,9 +15,10 @@ type InboxActionPaneProps = {
 }
 
 function getEntityTypeConfig(type: string) {
-  const configs: Record<string, { bgColor: string; icon: React.ReactNode; label: string }> = {
+  const configs: Record<string, { accentColor: string; iconBgColor: string; icon: React.ReactNode; label: string }> = {
     'TASK': {
-      bgColor: 'bg-violet-600',
+      accentColor: 'text-violet-400',
+      iconBgColor: 'bg-violet-500',
       label: 'Task',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -26,7 +27,8 @@ function getEntityTypeConfig(type: string) {
       ),
     },
     'POLICY': {
-      bgColor: 'bg-indigo-600',
+      accentColor: 'text-indigo-400',
+      iconBgColor: 'bg-indigo-500',
       label: 'Policy',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -35,7 +37,8 @@ function getEntityTypeConfig(type: string) {
       ),
     },
     'LEAVE_REQUEST': {
-      bgColor: 'bg-teal-600',
+      accentColor: 'text-teal-400',
+      iconBgColor: 'bg-teal-500',
       label: 'Leave Request',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -44,7 +47,8 @@ function getEntityTypeConfig(type: string) {
       ),
     },
     'PERFORMANCE_REVIEW': {
-      bgColor: 'bg-amber-600',
+      accentColor: 'text-amber-400',
+      iconBgColor: 'bg-amber-500',
       label: 'Performance Review',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -53,7 +57,8 @@ function getEntityTypeConfig(type: string) {
       ),
     },
     'DISCIPLINARY_ACTION': {
-      bgColor: 'bg-rose-600',
+      accentColor: 'text-rose-400',
+      iconBgColor: 'bg-rose-500',
       label: 'Disciplinary Action',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -208,31 +213,31 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-      {/* Header */}
-      <div className={cn(
-        'shrink-0 px-6 pt-5 pb-6 text-white',
-        entityConfig.bgColor
-      )}>
+      {/* Header - dark slate with colored accent circle */}
+      <div className="shrink-0 px-6 pt-5 pb-6 bg-slate-800 dark:bg-slate-900 text-white">
         {/* Icon and breadcrumb */}
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+          <div className={cn(
+            'w-10 h-10 rounded-full flex items-center justify-center text-white',
+            entityConfig.iconBgColor
+          )}>
             {entityConfig.icon}
           </div>
-          <div className="flex items-center gap-2 text-sm text-white/80">
-            <span className="font-medium">{item.typeLabel}</span>
-            <span className="text-white/50">·</span>
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <span className={cn('font-medium', entityConfig.accentColor)}>{item.typeLabel}</span>
+            <span className="text-slate-500">·</span>
             <span>{item.stageLabel}</span>
           </div>
         </div>
 
         {/* Title */}
-        <h2 className="text-xl font-bold leading-tight mb-3">
+        <h2 className="text-xl font-bold leading-tight mb-3 text-white">
           {item.title}
         </h2>
 
         {/* Action Required badge */}
         {hasAction ? (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-sm font-medium">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-sm font-medium text-white">
             <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
             Action Required
           </div>
