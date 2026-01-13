@@ -1,14 +1,17 @@
 import { PlusIcon } from './Icons'
 import { Button } from './button'
 
+type ActionProps = {
+  label: string
+  href?: string
+  onClick?: () => void
+}
+
 type EmptyStateProps = {
   icon?: React.ReactNode
   title: string
   description?: string
-  action?: {
-    label: string
-    href: string
-  }
+  action?: ActionProps
 }
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
@@ -24,7 +27,12 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">{description}</p>
       )}
       {action && (
-        <Button variant="ghost" href={action.href} icon={<PlusIcon className="h-4 w-4" />}>
+        <Button
+          variant="ghost"
+          href={action.href}
+          onClick={action.onClick}
+          icon={<PlusIcon className="h-4 w-4" />}
+        >
           {action.label}
         </Button>
       )}
@@ -37,10 +45,7 @@ type TableEmptyContentProps = {
   icon?: React.ReactNode
   title: string
   description?: string
-  action?: {
-    label: string
-    href: string
-  }
+  action?: ActionProps
 }
 
 export function TableEmptyContent({ icon, title, description, action }: TableEmptyContentProps) {
@@ -56,7 +61,13 @@ export function TableEmptyContent({ icon, title, description, action }: TableEmp
         <p className="text-sm text-muted-foreground/80 text-center max-w-sm mb-2">{description}</p>
       )}
       {action && (
-        <Button variant="ghost" size="sm" href={action.href} icon={<PlusIcon className="h-4 w-4" />}>
+        <Button
+          variant="ghost"
+          size="sm"
+          href={action.href}
+          onClick={action.onClick}
+          icon={<PlusIcon className="h-4 w-4" />}
+        >
           {action.label}
         </Button>
       )}
