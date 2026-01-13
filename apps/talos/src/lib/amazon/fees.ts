@@ -25,15 +25,15 @@ export function getMarketplaceCurrencyCode(tenantCode?: TenantCode): string {
  * Dimensions in cm, weight in kg.
  */
 export function calculateSizeTier(
-  lengthCm: number | null,
-  widthCm: number | null,
-  heightCm: number | null,
+  side1Cm: number | null,
+  side2Cm: number | null,
+  side3Cm: number | null,
   weightKg: number | null
 ): string | null {
-  if (lengthCm === null || widthCm === null || heightCm === null || weightKg === null) return null
+  if (side1Cm === null || side2Cm === null || side3Cm === null || weightKg === null) return null
 
   // Convert to inches for Amazon's thresholds
-  const dims = [lengthCm, widthCm, heightCm].map(d => d / 2.54).sort((a, b) => b - a)
+  const dims = [side1Cm, side2Cm, side3Cm].map(d => d / 2.54).sort((a, b) => b - a)
   const longest = dims[0]
   const median = dims[1]
   const shortest = dims[2]

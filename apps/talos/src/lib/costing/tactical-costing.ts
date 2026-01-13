@@ -303,10 +303,10 @@ function computeLineVolumeCm3(line: TacticalCostingLine): number | null {
   if (!dims) return null
   const cartons = Number(line.cartons)
   if (!Number.isFinite(cartons) || cartons <= 0) return null
-  return cartons * dims.lengthCm * dims.widthCm * dims.heightCm
+  return cartons * dims.side1Cm * dims.side2Cm * dims.side3Cm
 }
 
-function parseCartonDimensionsCm(value: string | null): { lengthCm: number; widthCm: number; heightCm: number } | null {
+function parseCartonDimensionsCm(value: string | null): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
   if (!value) return null
   const normalized = value
     .trim()
@@ -322,8 +322,8 @@ function parseCartonDimensionsCm(value: string | null): { lengthCm: number; widt
   const nums = parts.map((part) => Number(part.replace(/[^0-9.]/g, '')))
   if (nums.some((num) => !Number.isFinite(num) || num <= 0)) return null
 
-  const [lengthCm, widthCm, heightCm] = nums
-  return { lengthCm, widthCm, heightCm }
+  const [side1Cm, side2Cm, side3Cm] = nums
+  return { side1Cm, side2Cm, side3Cm }
 }
 
 function roundCents(amount: number): number {

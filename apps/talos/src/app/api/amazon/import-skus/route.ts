@@ -72,7 +72,7 @@ function parseCatalogDimensions(attributes: {
     width?: { value?: number; unit?: string }
     height?: { value?: number; unit?: string }
   }>
-}): { lengthCm: number; widthCm: number; heightCm: number } | null {
+}): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
   const dims =
     attributes.item_package_dimensions?.[0] ??
     attributes.package_dimensions?.[0] ??
@@ -89,12 +89,12 @@ function parseCatalogDimensions(attributes: {
   const widthUnit = dims?.width?.unit
   const heightUnit = dims?.height?.unit
 
-  const lengthCm = convertMeasurementToCm(length, lengthUnit)
-  const widthCm = convertMeasurementToCm(width, widthUnit)
-  const heightCm = convertMeasurementToCm(height, heightUnit)
-  if (lengthCm === null || widthCm === null || heightCm === null) return null
+  const side1Cm = convertMeasurementToCm(length, lengthUnit)
+  const side2Cm = convertMeasurementToCm(width, widthUnit)
+  const side3Cm = convertMeasurementToCm(height, heightUnit)
+  if (side1Cm === null || side2Cm === null || side3Cm === null) return null
 
-  const triplet = resolveDimensionTripletCm({ lengthCm, widthCm, heightCm })
+  const triplet = resolveDimensionTripletCm({ side1Cm, side2Cm, side3Cm })
   return triplet
 }
 
@@ -104,7 +104,7 @@ function parseCatalogItemDimensions(attributes: {
     width?: { value?: number; unit?: string }
     height?: { value?: number; unit?: string }
   }>
-}): { lengthCm: number; widthCm: number; heightCm: number } | null {
+}): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
   const dims = attributes.item_dimensions?.[0] ?? null
   if (!dims) return null
   const length = dims?.length?.value
@@ -117,12 +117,12 @@ function parseCatalogItemDimensions(attributes: {
   const widthUnit = dims?.width?.unit
   const heightUnit = dims?.height?.unit
 
-  const lengthCm = convertMeasurementToCm(length, lengthUnit)
-  const widthCm = convertMeasurementToCm(width, widthUnit)
-  const heightCm = convertMeasurementToCm(height, heightUnit)
-  if (lengthCm === null || widthCm === null || heightCm === null) return null
+  const side1Cm = convertMeasurementToCm(length, lengthUnit)
+  const side2Cm = convertMeasurementToCm(width, widthUnit)
+  const side3Cm = convertMeasurementToCm(height, heightUnit)
+  if (side1Cm === null || side2Cm === null || side3Cm === null) return null
 
-  const triplet = resolveDimensionTripletCm({ lengthCm, widthCm, heightCm })
+  const triplet = resolveDimensionTripletCm({ side1Cm, side2Cm, side3Cm })
   return triplet
 }
 
@@ -476,9 +476,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     select: {
       skuCode: true,
       itemDimensionsCm: true,
-      itemLengthCm: true,
-      itemWidthCm: true,
-      itemHeightCm: true,
+      itemSide1Cm: true,
+      itemSide2Cm: true,
+      itemSide3Cm: true,
       itemWeightKg: true,
     },
   })
@@ -593,9 +593,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
     let description = listing.title ? sanitizeForDisplay(listing.title.trim()) : ''
     let unitWeightKg: number | null = null
-    let unitTriplet: { lengthCm: number; widthCm: number; heightCm: number } | null = null
+    let unitTriplet: { side1Cm: number; side2Cm: number; side3Cm: number } | null = null
     let itemWeightKg: number | null = null
-    let itemTriplet: { lengthCm: number; widthCm: number; heightCm: number } | null = null
+    let itemTriplet: { side1Cm: number; side2Cm: number; side3Cm: number } | null = null
     let amazonCategory: string | null = null
     let amazonReferralFeePercent: number | null = null
     let amazonFbaFulfillmentFee: number | null = null
@@ -635,9 +635,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       }
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
       const calculatedSizeTier = calculateSizeTier(
-        unitTriplet?.lengthCm ?? null,
-        unitTriplet?.widthCm ?? null,
-        unitTriplet?.heightCm ?? null,
+        unitTriplet?.side1Cm ?? null,
+        unitTriplet?.side2Cm ?? null,
+        unitTriplet?.side3Cm ?? null,
         unitWeightKg
       )
       if (calculatedSizeTier) {
@@ -684,9 +684,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         if (existingSku) {
           const hasItemDimensions =
             existingSku.itemDimensionsCm !== null ||
-            existingSku.itemLengthCm !== null ||
-            existingSku.itemWidthCm !== null ||
-            existingSku.itemHeightCm !== null
+            existingSku.itemSide1Cm !== null ||
+            existingSku.itemSide2Cm !== null ||
+            existingSku.itemSide3Cm !== null
 
           if (!hasItemDimensions && itemTriplet && itemDimensionsCm) {
             shouldSetItemDimensions = true
@@ -712,17 +712,17 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           amazonFbaFulfillmentFee,
           amazonReferenceWeightKg: unitWeightKg,
           unitDimensionsCm,
-          unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-          unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-          unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+          unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
+          unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
+          unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
           unitWeightKg,
         }
 
         if (shouldSetItemDimensions && itemTriplet) {
           skuUpdateData.itemDimensionsCm = itemDimensionsCm
-          skuUpdateData.itemLengthCm = itemTriplet.lengthCm
-          skuUpdateData.itemWidthCm = itemTriplet.widthCm
-          skuUpdateData.itemHeightCm = itemTriplet.heightCm
+          skuUpdateData.itemSide1Cm = itemTriplet.side1Cm
+          skuUpdateData.itemSide2Cm = itemTriplet.side2Cm
+          skuUpdateData.itemSide3Cm = itemTriplet.side3Cm
         }
 
         if (shouldSetItemWeight) {
@@ -766,20 +766,20 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               secondarySupplierId: null,
               material: null,
               unitDimensionsCm,
-              unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-              unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-              unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+              unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
+              unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
+              unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
               unitWeightKg,
               itemDimensionsCm,
-              itemLengthCm: itemTriplet ? itemTriplet.lengthCm : null,
-              itemWidthCm: itemTriplet ? itemTriplet.widthCm : null,
-              itemHeightCm: itemTriplet ? itemTriplet.heightCm : null,
+              itemSide1Cm: itemTriplet ? itemTriplet.side1Cm : null,
+              itemSide2Cm: itemTriplet ? itemTriplet.side2Cm : null,
+              itemSide3Cm: itemTriplet ? itemTriplet.side3Cm : null,
               itemWeightKg,
               unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
               cartonDimensionsCm: null,
-              cartonLengthCm: null,
-              cartonWidthCm: null,
-              cartonHeightCm: null,
+              cartonSide1Cm: null,
+              cartonSide2Cm: null,
+              cartonSide3Cm: null,
               cartonWeightKg: null,
               packagingType: null,
               isActive: true,
@@ -799,14 +799,14 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               // Note: Batch unit dimensions are for packaging, not product dimensions
               // Amazon catalog gives product dimensions, not packaging - leave null
               unitDimensionsCm: null,
-              unitLengthCm: null,
-              unitWidthCm: null,
-              unitHeightCm: null,
+              unitSide1Cm: null,
+              unitSide2Cm: null,
+              unitSide3Cm: null,
               unitWeightKg: null,
               cartonDimensionsCm: null,
-              cartonLengthCm: null,
-              cartonWidthCm: null,
-              cartonHeightCm: null,
+              cartonSide1Cm: null,
+              cartonSide2Cm: null,
+              cartonSide3Cm: null,
               cartonWeightKg: null,
               packagingType: null,
               amazonSizeTier: null,
