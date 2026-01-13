@@ -907,31 +907,38 @@ function SkuBatchesManager({
                     </select>
                   </div>
 
-                  <div className="md:col-span-2 pt-2">
+                  <div className="md:col-span-2 pt-4 border-t">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Dimensions & Weight</h3>
                     <Tabs>
                       <TabsList className="w-full">
-                        <TabsTrigger
+                        <button
                           type="button"
-                          data-state={batchModalTab === 'reference' ? 'active' : 'inactive'}
                           onClick={() => setBatchModalTab('reference')}
-                          className={`flex-1 ${batchModalTab === 'reference' ? 'bg-cyan-600 text-white' : ''}`}
+                          className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                            batchModalTab === 'reference'
+                              ? 'bg-cyan-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
                           Reference
-                        </TabsTrigger>
-                        <TabsTrigger
+                        </button>
+                        <button
                           type="button"
-                          data-state={batchModalTab === 'amazon' ? 'active' : 'inactive'}
                           onClick={() => setBatchModalTab('amazon')}
-                          className={`flex-1 ${batchModalTab === 'amazon' ? 'bg-cyan-600 text-white' : ''}`}
+                          className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                            batchModalTab === 'amazon'
+                              ? 'bg-cyan-600 text-white'
+                              : 'text-slate-600 hover:text-slate-900'
+                          }`}
                         >
                           Amazon
-                        </TabsTrigger>
+                        </button>
                       </TabsList>
 
-                      <TabsContent data-state={batchModalTab === 'reference' ? 'active' : 'inactive'} className={batchModalTab === 'reference' ? '' : 'hidden'}>
+                      <TabsContent className={batchModalTab === 'reference' ? '' : 'hidden'}>
                         <div className="space-y-4 pt-4">
                           <p className="text-xs text-slate-500">
-                            Team reference values for batch dimensions and weight.
+                            Team reference values (editable).
                           </p>
                           <div className="space-y-1">
                             <Label>Item Package Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
@@ -1015,30 +1022,46 @@ function SkuBatchesManager({
                         </div>
                       </TabsContent>
 
-                      <TabsContent data-state={batchModalTab === 'amazon' ? 'active' : 'inactive'} className={batchModalTab === 'amazon' ? '' : 'hidden'}>
+                      <TabsContent className={batchModalTab === 'amazon' ? '' : 'hidden'}>
                         <div className="space-y-4 pt-4">
                           <p className="text-xs text-slate-500">
-                            Amazon item package data from SKU (read-only, for comparison).
+                            Imported from Amazon (read-only).
                           </p>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <Label>Item Package Dimensions (cm)</Label>
-                              <Input
-                                value={sku.unitDimensionsCm ?? ''}
-                                disabled
-                                className="bg-slate-50 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label>Item Package Weight (kg)</Label>
-                              <Input
-                                value={sku.amazonReferenceWeightKg?.toString() ?? ''}
-                                disabled
-                                className="bg-slate-50 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
+                          <div className="space-y-1">
+                            <Label>Item Package Dimensions (cm)</Label>
+                            <Input
+                              value={sku.unitDimensionsCm ?? ''}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Item Package Weight (kg)</Label>
+                            <Input
+                              value={sku.amazonReferenceWeightKg?.toString() ?? ''}
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Carton Dimensions (cm)</Label>
+                            <Input
+                              value=""
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="N/A"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Carton Weight (kg)</Label>
+                            <Input
+                              value=""
+                              disabled
+                              className="bg-slate-50 text-slate-500"
+                              placeholder="N/A"
+                            />
                           </div>
                         </div>
                       </TabsContent>
