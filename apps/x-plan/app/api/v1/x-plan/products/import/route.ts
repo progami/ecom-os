@@ -3,11 +3,13 @@ import { Prisma } from '@targon/prisma-x-plan';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';
-import { withXPlanAuth } from '@/lib/api/auth';
+import { withXPlanAuth, RATE_LIMIT_PRESETS } from '@/lib/api/auth';
 import { requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
 
 export const runtime = 'nodejs';
+
+const BULK_RATE_LIMIT = RATE_LIMIT_PRESETS.bulk;
 
 const importSchema = z.object({
   strategyId: z.string().min(1),
@@ -144,4 +146,4 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
     createdSkus: result.created.map((row) => row.sku),
     skippedExistingSkus: result.skippedExisting.map((row) => row.sku),
   });
-});
+}, { rateLimit: BULK_RATE_LIMIT });
