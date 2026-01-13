@@ -256,9 +256,11 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
   if (testAsin) {
     try {
       const tenantCode = await getCurrentTenantCode()
-      const fees = await getProductFees(testAsin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
+      const priceParam = request.nextUrl.searchParams.get('price')
+      const price = priceParam ? Number.parseFloat(priceParam) : DEFAULT_FEE_ESTIMATE_PRICE
+      const fees = await getProductFees(testAsin, price, tenantCode)
       const parsedFees = parseAmazonProductFees(fees)
-      return ApiResponses.success({ raw: fees, parsed: parsedFees })
+      return ApiResponses.success({ raw: fees, parsed: parsedFees, priceUsed: price })
     } catch (error) {
       return ApiResponses.success({
         error: error instanceof Error ? error.message : 'Unknown error',
