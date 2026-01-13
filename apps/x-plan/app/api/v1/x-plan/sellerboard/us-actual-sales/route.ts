@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { safeEqual } from '@/lib/integrations/sellerboard-orders';
 import { syncSellerboardUsActualSales } from '@/lib/integrations/sellerboard-us-actual-sales-sync';
+import { checkRateLimit, getRateLimitIdentifier, RATE_LIMIT_PRESETS } from '@/lib/api/rate-limit';
 
 export const runtime = 'nodejs';
+
+const SYNC_RATE_LIMIT = RATE_LIMIT_PRESETS.expensive;
 
 function extractBearerToken(header: string | null): string | null {
   if (!header) return null;
@@ -28,6 +31,20 @@ export const POST = async (request: Request) => {
   const authError = requireSyncAuth(request);
   if (authError) return authError;
 
+  const identifier = getRateLimitIdentifier(request, 'sellerboard-sync');
+  const rateLimitResult = checkRateLimit(identifier, SYNC_RATE_LIMIT);
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil(rateLimitResult.retryAfterMs / 1000)),
+        },
+      },
+    );
+  }
+
   const reportUrl = process.env.SELLERBOARD_US_ORDERS_REPORT_URL?.trim();
   if (!reportUrl) {
     return NextResponse.json(
@@ -45,7 +62,7 @@ export const POST = async (request: Request) => {
       newestPurchaseDateUtc: result.newestPurchaseDateUtc?.toISOString() ?? null,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: 502 });
+    console.error('[POST /sellerboard/us-actual-sales] sync error:', error);
+    return NextResponse.json({ error: 'Sync failed' }, { status: 502 });
   }
 };
