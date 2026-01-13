@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import PDFDocument from 'pdfkit'
 import { withAuthAndParams, ApiResponses } from '@/lib/api'
 import { getPurchaseOrderById } from '@/lib/services/purchase-order-service'
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
@@ -9,30 +8,6 @@ import { BUYER_LEGAL_ENTITY, getBuyerVatNumber } from '@/lib/config/legal-entity
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
-
-// Professional color palette matching the HTML design
-const COLORS = {
-  navy: '#1e293b',
-  darkNavy: '#0f172a',
-  slate: '#334155',
-  muted: '#64748b',
-  lightMuted: '#94a3b8',
-  border: '#e2e8f0',
-  lightBorder: '#cbd5e1',
-  lightBg: '#f8fafc',
-  sectionBg: '#f1f5f9',
-  accent: '#00C2B9', // Targon teal
-  white: '#ffffff',
-  black: '#111827',
-  green: '#059669',
-  red: '#dc2626',
-  amber: '#92400e',
-  amberBg: '#fef3c7',
-} as const
-
-function sanitizeFilename(value: string): string {
-  return value.trim().replaceAll(/[^a-z0-9._-]+/gi, '-')
-}
 
 function formatDate(value: Date | null | undefined): string {
   if (!value) return '—'
@@ -49,29 +24,24 @@ function toNumber(value: unknown): number | null {
   return Number.isFinite(num) ? num : null
 }
 
-function formatCurrency(value: number | null, _currency?: string): string {
-  if (value === null) return '—'
-  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-}
-
-function formatCurrencyWithSymbol(value: number | null): string {
+function formatCurrency(value: number | null): string {
   if (value === null) return '—'
   return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 // Convert number to words (for amounts)
 function numberToWords(num: number): string {
-  const ones = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE',
-    'TEN', 'ELEVEN', 'TWELVE', 'THIRTEEN', 'FOURTEEN', 'FIFTEEN', 'SIXTEEN', 'SEVENTEEN', 'EIGHTEEN', 'NINETEEN']
-  const tens = ['', '', 'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY']
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
 
-  if (num === 0) return 'ZERO'
+  if (num === 0) return 'Zero'
 
   const convertLessThanThousand = (n: number): string => {
     if (n === 0) return ''
     if (n < 20) return ones[n]
     if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '')
-    return ones[Math.floor(n / 100)] + ' HUNDRED' + (n % 100 ? ' ' + convertLessThanThousand(n % 100) : '')
+    return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertLessThanThousand(n % 100) : '')
   }
 
   const dollars = Math.floor(num)
@@ -79,11 +49,11 @@ function numberToWords(num: number): string {
 
   let result = ''
   if (dollars >= 1000000) {
-    result += convertLessThanThousand(Math.floor(dollars / 1000000)) + ' MILLION '
-    result += convertLessThanThousand(Math.floor((dollars % 1000000) / 1000)) + ' THOUSAND '
+    result += convertLessThanThousand(Math.floor(dollars / 1000000)) + ' Million '
+    result += convertLessThanThousand(Math.floor((dollars % 1000000) / 1000)) + ' Thousand '
     result += convertLessThanThousand(dollars % 1000)
   } else if (dollars >= 1000) {
-    result += convertLessThanThousand(Math.floor(dollars / 1000)) + ' THOUSAND '
+    result += convertLessThanThousand(Math.floor(dollars / 1000)) + ' Thousand '
     result += convertLessThanThousand(dollars % 1000)
   } else {
     result = convertLessThanThousand(dollars)
@@ -91,13 +61,23 @@ function numberToWords(num: number): string {
 
   result = result.trim()
   if (cents > 0) {
-    result += ' AND CENTS ' + convertLessThanThousand(cents)
+    result += ' and ' + convertLessThanThousand(cents) + '/100'
   }
 
-  return result + ' ONLY'
+  return result
 }
 
-async function renderPurchaseOrderPdf(params: {
+function escapeHtml(str: string | null | undefined): string {
+  if (!str) return ''
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function renderPurchaseOrderHtml(params: {
   poNumber: string
   vendorPi?: string | null
   buyerName: string
@@ -118,404 +98,584 @@ async function renderPurchaseOrderPdf(params: {
   lines: Array<{
     skuCode: string
     skuDescription: string | null
-    batchLot: string | null
     packingDetails?: string | null
     cartonDetails?: string | null
     unitsOrdered: number
-    unitsPerCarton: number
-    cartons: number
-    currency: string
     unitCost: number | null
     totalCost: number | null
   }>
-}): Promise<Buffer> {
-  const doc = new PDFDocument({
-    size: 'LETTER',
-    margins: { top: 50, bottom: 50, left: 50, right: 50 },
-    bufferPages: true,
-  })
-  doc.info.Title = `Purchase Order ${params.poNumber}`
-  doc.info.Author = params.buyerName
-
-  const chunks: Buffer[] = []
-  const result = new Promise<Buffer>((resolve, reject) => {
-    doc.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
-    doc.on('end', () => resolve(Buffer.concat(chunks)))
-    doc.on('error', reject)
-  })
-
-  const pageWidth = doc.page.width   // 612 for Letter
-  const pageHeight = doc.page.height // 792 for Letter
-  const margin = 50
-  const contentWidth = pageWidth - margin * 2 // 512
-
-  // Pre-calculate totals
+}): string {
+  // Calculate totals
   let grandTotal = 0
   for (const line of params.lines) {
     const lineTotal = line.totalCost ?? (line.unitCost !== null ? line.unitCost * line.unitsOrdered : 0)
     grandTotal += lineTotal ?? 0
   }
 
-  // ============================================
-  // PAGE 1 - HEADER
-  // ============================================
+  const amountInWords = numberToWords(grandTotal)
 
-  let y = margin
+  // Format addresses
+  const buyerAddressLines = params.buyerAddress.split(',').map(s => s.trim())
+  const supplierAddressHtml = params.supplierAddress
+    ? escapeHtml(params.supplierAddress).replace(/\n/g, '<br>')
+    : ''
+  const shipToAddressHtml = params.shipToAddress
+    ? escapeHtml(params.shipToAddress).replace(/\n/g, '<br>')
+    : buyerAddressLines.join('<br>')
 
-  // Draw TARGON logo text
-  doc.fillColor(COLORS.accent).fontSize(32).font('Helvetica-Bold')
-  doc.text('TARGON', margin, y)
-
-  // Small square accent after logo
-  doc.rect(margin + 138, y + 24, 8, 8).fill(COLORS.darkNavy)
-
-  // Company address below logo
-  y += 50
-  doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
-  const addressLines = params.buyerAddress.split(',').map(s => s.trim())
-  doc.text(addressLines.slice(0, 2).join(', '), margin, y)
-  y += 14
-  doc.text(addressLines.slice(2).join(', '), margin, y)
-  y += 14
-  if (params.buyerPhone) {
-    doc.text(`Phone: ${params.buyerPhone}`, margin, y)
-  }
-
-  // PURCHASE ORDER title on right
-  doc.fillColor(COLORS.black).fontSize(28).font('Helvetica-Bold')
-  doc.text('PURCHASE ORDER', pageWidth - margin - 250, margin, { width: 250, align: 'right' })
-
-  // PO meta table on right
-  const metaX = pageWidth - margin - 180
-  let metaY = margin + 50
-
-  const drawMetaRow = (label: string, value: string) => {
-    doc.fillColor(COLORS.lightMuted).fontSize(9).font('Helvetica-Bold')
-    doc.text(label.toUpperCase(), metaX, metaY, { width: 80, align: 'right' })
-    doc.fillColor(COLORS.darkNavy).fontSize(10).font('Helvetica-Bold')
-    doc.text(value, metaX + 90, metaY, { width: 90, align: 'right' })
-    metaY += 18
-  }
-
-  drawMetaRow('PO Number:', params.poNumber)
-  drawMetaRow('Date:', formatDate(params.createdAt))
-  if (params.vendorPi) {
-    drawMetaRow('Vendor PI:', params.vendorPi)
-  }
-  drawMetaRow('Shipment:', 'By Sea')
-
-  // Header border
-  y = Math.max(y + 20, metaY + 10)
-  doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.navy).lineWidth(3).stroke()
-  y += 25
-
-  // ============================================
-  // VENDOR / SHIP TO SECTION
-  // ============================================
-
-  const colWidth = (contentWidth - 60) / 2
-
-  // VENDOR
-  doc.fillColor(COLORS.lightMuted).fontSize(9).font('Helvetica-Bold')
-  doc.text('VENDOR', margin, y)
-  doc.moveTo(margin, y + 12).lineTo(margin + colWidth, y + 12).strokeColor(COLORS.border).lineWidth(0.5).stroke()
-
-  let vendorY = y + 18
-  doc.fillColor(COLORS.darkNavy).fontSize(11).font('Helvetica-Bold')
-  doc.text(params.supplierName || '—', margin, vendorY, { width: colWidth })
-  vendorY += doc.heightOfString(params.supplierName || '—', { width: colWidth }) + 4
-
-  if (params.supplierAddress) {
-    doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
-    const supplierLines = params.supplierAddress.split('\n')
-    for (const line of supplierLines) {
-      doc.text(line, margin, vendorY, { width: colWidth })
-      vendorY += 14
-    }
-  }
-  if (params.supplierPhone) {
-    doc.text(`Tel: ${params.supplierPhone}`, margin, vendorY, { width: colWidth })
-    vendorY += 14
-  }
-
-  // SHIP TO
-  const shipToX = margin + colWidth + 60
-  doc.fillColor(COLORS.lightMuted).fontSize(9).font('Helvetica-Bold')
-  doc.text('SHIP TO', shipToX, y)
-  doc.moveTo(shipToX, y + 12).lineTo(shipToX + colWidth, y + 12).strokeColor(COLORS.border).lineWidth(0.5).stroke()
-
-  let shipToY = y + 18
-  const shipToName = params.shipToName || params.buyerName
-  doc.fillColor(COLORS.darkNavy).fontSize(11).font('Helvetica-Bold')
-  doc.text(shipToName, shipToX, shipToY, { width: colWidth })
-  shipToY += doc.heightOfString(shipToName, { width: colWidth }) + 4
-
-  if (params.shipToAddress) {
-    doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
-    const shipLines = params.shipToAddress.split('\n')
-    for (const line of shipLines) {
-      doc.text(line, shipToX, shipToY, { width: colWidth })
-      shipToY += 14
-    }
-  } else {
-    doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
-    doc.text(params.buyerAddress.replace(/,/g, '\n'), shipToX, shipToY, { width: colWidth })
-  }
-
-  y = Math.max(vendorY, shipToY) + 25
-
-  // ============================================
-  // LINE ITEMS TABLE
-  // ============================================
-
-  // Table header
-  const tableHeaderHeight = 24
-  doc.rect(margin, y, contentWidth, tableHeaderHeight).fill(COLORS.navy)
-
-  const cols = {
-    desc: { x: margin, w: contentWidth * 0.50, label: 'Description & Packing Details' },
-    qty:  { x: margin + contentWidth * 0.50, w: contentWidth * 0.15, label: 'Qty' },
-    unit: { x: margin + contentWidth * 0.65, w: contentWidth * 0.17, label: 'Unit Price' },
-    total: { x: margin + contentWidth * 0.82, w: contentWidth * 0.18, label: 'Total' },
-  }
-
-  doc.fillColor(COLORS.white).fontSize(9).font('Helvetica-Bold')
-  doc.text(cols.desc.label, cols.desc.x + 8, y + 7, { width: cols.desc.w - 16 })
-  doc.text(cols.qty.label, cols.qty.x, y + 7, { width: cols.qty.w - 8, align: 'right' })
-  doc.text(cols.unit.label, cols.unit.x, y + 7, { width: cols.unit.w - 8, align: 'right' })
-  doc.text(cols.total.label, cols.total.x, y + 7, { width: cols.total.w - 8, align: 'right' })
-
-  y += tableHeaderHeight
-
-  // Draw line items
-  for (let i = 0; i < params.lines.length; i++) {
-    const line = params.lines[i]
-    const currency = (line.currency || 'USD').toUpperCase()
+  // Build line items HTML
+  const lineItemsHtml = params.lines.map(line => {
     const unitCost = line.unitCost
     const lineTotal = line.totalCost ?? (unitCost !== null ? unitCost * line.unitsOrdered : null)
 
-    // Calculate row height based on content
-    const descHeight = 60 // Fixed height for description block
-    const rowHeight = Math.max(descHeight, 50)
+    return `
+      <tr>
+        <td class="desc-cell">
+          <div class="sku-code">${escapeHtml(line.skuCode)}</div>
+          ${line.skuDescription ? `<div class="sku-detail"><span class="detail-label">Product:</span> ${escapeHtml(line.skuDescription)}</div>` : ''}
+          ${line.packingDetails ? `<div class="sku-detail"><span class="detail-label">Packing:</span> ${escapeHtml(line.packingDetails)}</div>` : ''}
+          ${line.cartonDetails ? `<div class="sku-detail"><span class="detail-label">Carton:</span> ${escapeHtml(line.cartonDetails)}</div>` : ''}
+        </td>
+        <td class="qty-cell">${line.unitsOrdered.toLocaleString()}</td>
+        <td class="price-cell">${unitCost !== null ? formatCurrency(unitCost) : '—'}</td>
+        <td class="total-cell">${lineTotal !== null ? formatCurrency(lineTotal) : '—'}</td>
+      </tr>
+    `
+  }).join('')
 
-    // Check for page break
-    if (y + rowHeight > pageHeight - 100) {
-      doc.addPage()
-      y = margin
-      // Redraw header on new page
-      doc.rect(margin, y, contentWidth, tableHeaderHeight).fill(COLORS.navy)
-      doc.fillColor(COLORS.white).fontSize(9).font('Helvetica-Bold')
-      doc.text(cols.desc.label, cols.desc.x + 8, y + 7, { width: cols.desc.w - 16 })
-      doc.text(cols.qty.label, cols.qty.x, y + 7, { width: cols.qty.w - 8, align: 'right' })
-      doc.text(cols.unit.label, cols.unit.x, y + 7, { width: cols.unit.w - 8, align: 'right' })
-      doc.text(cols.total.label, cols.total.x, y + 7, { width: cols.total.w - 8, align: 'right' })
-      y += tableHeaderHeight
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase Order ${escapeHtml(params.poNumber)}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    const rowY = y
-
-    // SKU Code (bold, larger)
-    doc.fillColor(COLORS.black).fontSize(11).font('Helvetica-Bold')
-    doc.text(line.skuCode, cols.desc.x + 8, rowY + 8)
-
-    // Product description
-    let descY = rowY + 22
-    if (line.skuDescription) {
-      doc.fillColor(COLORS.slate).fontSize(9).font('Helvetica')
-      doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica-Bold')
-      doc.text('Product: ', cols.desc.x + 8, descY, { continued: true })
-      doc.fillColor(COLORS.slate).font('Helvetica')
-      doc.text(line.skuDescription, { width: cols.desc.w - 60 })
-      descY += 12
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #1e293b;
+      background: #fff;
     }
 
-    // Packing details
-    if (line.packingDetails) {
-      doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica-Bold')
-      doc.text('Packing: ', cols.desc.x + 8, descY, { continued: true })
-      doc.fillColor(COLORS.slate).font('Helvetica')
-      doc.text(line.packingDetails, { width: cols.desc.w - 60 })
-      descY += 12
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto;
+      padding: 0.5in;
+      background: white;
+      position: relative;
     }
 
-    // Carton details
-    if (line.cartonDetails) {
-      doc.fillColor(COLORS.muted).fontSize(8).font('Helvetica-Bold')
-      doc.text('Carton: ', cols.desc.x + 8, descY, { continued: true })
-      doc.fillColor(COLORS.slate).font('Helvetica')
-      doc.text(line.cartonDetails, { width: cols.desc.w - 60 })
+    @media print {
+      body { background: white; }
+      .page {
+        width: 100%;
+        margin: 0;
+        padding: 0.4in;
+        page-break-after: always;
+      }
+      .page:last-child {
+        page-break-after: auto;
+      }
+      .no-print { display: none !important; }
     }
 
-    // Quantity
-    doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica')
-    doc.text(line.unitsOrdered.toLocaleString(), cols.qty.x, rowY + 20, { width: cols.qty.w - 8, align: 'right' })
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #1e293b;
+    }
 
-    // Unit price
-    doc.text(unitCost !== null ? formatCurrencyWithSymbol(unitCost) : '—', cols.unit.x, rowY + 20, { width: cols.unit.w - 8, align: 'right' })
+    .logo-section {
+      flex: 1;
+    }
 
-    // Total (bold)
-    doc.fillColor(COLORS.darkNavy).fontSize(10).font('Helvetica-Bold')
-    doc.text(lineTotal !== null ? formatCurrencyWithSymbol(lineTotal) : '—', cols.total.x, rowY + 20, { width: cols.total.w - 8, align: 'right' })
+    .logo {
+      font-size: 32px;
+      font-weight: 700;
+      color: #00C2B9;
+      letter-spacing: -0.5px;
+    }
 
-    // Row border
-    y += rowHeight
-    doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.border).lineWidth(0.5).stroke()
-  }
+    .logo::after {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #0f172a;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
 
-  // Final thick border after table
-  doc.moveTo(margin, y).lineTo(pageWidth - margin, y).strokeColor(COLORS.lightBorder).lineWidth(2).stroke()
+    .company-address {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #475569;
+      line-height: 1.6;
+    }
 
-  y += 20
+    .po-title-section {
+      text-align: right;
+    }
 
-  // ============================================
-  // TOTALS SECTION
-  // ============================================
+    .po-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 12px;
+    }
 
-  const totalsWidth = 280
-  const totalsX = pageWidth - margin - totalsWidth
+    .po-meta {
+      display: table;
+      margin-left: auto;
+    }
 
-  // Total Amount
-  doc.fillColor(COLORS.muted).fontSize(10).font('Helvetica')
-  doc.text('Total Amount (USD):', totalsX, y, { width: 150 })
-  doc.fillColor(COLORS.darkNavy).fontSize(12).font('Helvetica-Bold')
-  doc.text(formatCurrencyWithSymbol(grandTotal), totalsX + 150, y, { width: 130, align: 'right' })
+    .po-meta-row {
+      display: table-row;
+    }
 
-  y += 30
+    .po-meta-label {
+      display: table-cell;
+      text-align: right;
+      padding-right: 12px;
+      padding-bottom: 4px;
+      font-size: 9px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-  // Balance Due (with thick top border)
-  doc.moveTo(totalsX, y - 5).lineTo(totalsX + totalsWidth, y - 5).strokeColor(COLORS.darkNavy).lineWidth(2).stroke()
-  doc.fillColor(COLORS.darkNavy).fontSize(12).font('Helvetica-Bold')
-  doc.text('BALANCE DUE:', totalsX, y, { width: 150 })
-  doc.fontSize(14)
-  doc.text(formatCurrencyWithSymbol(grandTotal), totalsX + 150, y, { width: 130, align: 'right' })
+    .po-meta-value {
+      display: table-cell;
+      text-align: right;
+      padding-bottom: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #0f172a;
+    }
 
-  y += 30
+    /* Parties Section */
+    .parties {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 25px;
+    }
 
-  // Amount in words
-  doc.fillColor(COLORS.muted).fontSize(9).font('Helvetica')
-  doc.moveTo(totalsX, y - 5).lineTo(totalsX + totalsWidth, y - 5).strokeColor(COLORS.border).lineWidth(0.5).stroke()
-  const amountWords = `SAY TOTAL U.S. DOLLARS ${numberToWords(grandTotal)}.`
-  doc.text(amountWords, totalsX, y, { width: totalsWidth, align: 'right' })
+    .party {
+      flex: 1;
+    }
 
-  // ============================================
-  // PAGE 2 - TERMS & SIGNATURES
-  // ============================================
+    .party-label {
+      font-size: 9px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 10px;
+    }
 
-  doc.addPage()
-  y = margin
+    .party-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
 
-  // Page reference
-  doc.fillColor(COLORS.lightMuted).fontSize(10).font('Helvetica')
-  doc.text(`CONTINUATION SHEET - REF: PO ${params.poNumber}`, margin, y, { width: contentWidth, align: 'right' })
-  doc.moveTo(margin, y + 15).lineTo(pageWidth - margin, y + 15).strokeColor(COLORS.border).lineWidth(0.5).stroke()
+    .party-address {
+      font-size: 11px;
+      color: #475569;
+      line-height: 1.6;
+    }
 
-  y += 40
+    /* Table */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
 
-  // Terms & Conditions box
-  const boxWidth = (contentWidth - 30) / 2
-  const boxHeight = 200
+    .items-table thead th {
+      background: #1e293b;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 12px;
+      text-align: left;
+    }
 
-  // Left box - Terms & Conditions
-  doc.rect(margin, y, boxWidth, boxHeight).fill(COLORS.lightBg)
-  doc.rect(margin, y, boxWidth, boxHeight).stroke(COLORS.border)
+    .items-table thead th:nth-child(2),
+    .items-table thead th:nth-child(3),
+    .items-table thead th:nth-child(4) {
+      text-align: right;
+    }
 
-  let termY = y + 20
-  doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica-Bold')
-  doc.text('TERMS & CONDITIONS', margin + 20, termY)
-  doc.moveTo(margin + 20, termY + 14).lineTo(margin + boxWidth - 20, termY + 14).strokeColor(COLORS.lightBorder).lineWidth(0.5).stroke()
+    .items-table tbody td {
+      padding: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
 
-  termY += 25
-  doc.fillColor(COLORS.slate).fontSize(9).font('Helvetica')
+    .desc-cell {
+      width: 50%;
+    }
 
-  // Delivery date
-  if (params.expectedDate) {
-    doc.font('Helvetica-Bold').text('Delivery: ', margin + 20, termY, { continued: true })
-    doc.font('Helvetica').fillColor(COLORS.amber)
-    doc.text(formatDate(params.expectedDate))
-    termY += 16
-  }
+    .sku-code {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
 
-  // Inspection date
-  if (params.inspectionDate) {
-    doc.fillColor(COLORS.slate).font('Helvetica-Bold').text('Inspection: ', margin + 20, termY, { continued: true })
-    doc.font('Helvetica').fillColor(COLORS.amber)
-    doc.text(formatDate(params.inspectionDate))
-    termY += 16
-  }
+    .sku-detail {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+    }
 
-  // Payment terms
-  if (params.paymentTerms) {
-    doc.fillColor(COLORS.slate).font('Helvetica-Bold').text('Payment Terms: ', margin + 20, termY, { continued: false })
-    termY += 12
-    doc.font('Helvetica').text(params.paymentTerms, margin + 20, termY, { width: boxWidth - 40 })
-    termY += doc.heightOfString(params.paymentTerms, { width: boxWidth - 40 }) + 8
-  }
+    .detail-label {
+      font-weight: 600;
+      color: #94a3b8;
+    }
 
-  // Incoterms
-  if (params.incoterms) {
-    doc.fillColor(COLORS.slate).font('Helvetica-Bold').text('Incoterms: ', margin + 20, termY, { continued: true })
-    doc.font('Helvetica').text(params.incoterms)
-    termY += 16
-  }
+    .qty-cell, .price-cell, .total-cell {
+      text-align: right;
+      font-size: 11px;
+      color: #475569;
+    }
 
-  // Right box - Notes
-  const rightBoxX = margin + boxWidth + 30
-  doc.rect(rightBoxX, y, boxWidth, boxHeight).fill(COLORS.lightBg)
-  doc.rect(rightBoxX, y, boxWidth, boxHeight).stroke(COLORS.border)
+    .total-cell {
+      font-weight: 600;
+      color: #0f172a;
+    }
 
-  let noteY = y + 20
-  doc.fillColor(COLORS.slate).fontSize(10).font('Helvetica-Bold')
-  doc.text('NOTES', rightBoxX + 20, noteY)
-  doc.moveTo(rightBoxX + 20, noteY + 14).lineTo(rightBoxX + boxWidth - 20, noteY + 14).strokeColor(COLORS.lightBorder).lineWidth(0.5).stroke()
+    /* Totals */
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
 
-  noteY += 25
-  if (params.notes?.trim()) {
-    doc.fillColor(COLORS.slate).fontSize(9).font('Helvetica')
-    doc.text(params.notes.trim(), rightBoxX + 20, noteY, { width: boxWidth - 40 })
-  } else {
-    doc.fillColor(COLORS.lightMuted).fontSize(9).font('Helvetica')
-    doc.text('No additional notes.', rightBoxX + 20, noteY)
-  }
+    .totals-box {
+      width: 280px;
+    }
 
-  y += boxHeight + 60
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 11px;
+    }
 
-  // ============================================
-  // SIGNATURES
-  // ============================================
+    .total-row.balance {
+      border-top: 2px solid #0f172a;
+      margin-top: 8px;
+      padding-top: 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
 
-  const sigWidth = (contentWidth - 60) / 2
+    .total-label {
+      color: #64748b;
+    }
 
-  // Left signature - Buyer
-  doc.moveTo(margin, y + 50).lineTo(margin + sigWidth, y + 50).strokeColor(COLORS.darkNavy).lineWidth(0.5).stroke()
-  doc.fillColor(COLORS.darkNavy).fontSize(12).font('Helvetica-Bold')
-  doc.text('JARRAR AMJAD', margin, y + 60)
-  doc.fillColor(COLORS.muted).fontSize(10).font('Helvetica')
-  doc.text('Founder, Targon LLC', margin, y + 76)
+    .total-value {
+      font-weight: 600;
+      color: #0f172a;
+    }
 
-  // Right signature - Supplier
-  const sigRightX = margin + sigWidth + 60
-  doc.moveTo(sigRightX, y + 50).lineTo(sigRightX + sigWidth, y + 50).strokeColor(COLORS.darkNavy).lineWidth(0.5).stroke()
-  doc.fillColor(COLORS.darkNavy).fontSize(12).font('Helvetica-Bold')
-  doc.text(params.supplierName ? params.supplierName.split(' ')[0].toUpperCase() : 'SUPPLIER', sigRightX, y + 60)
-  doc.fillColor(COLORS.muted).fontSize(10).font('Helvetica')
-  doc.text(params.supplierName || 'Supplier Representative', sigRightX, y + 76)
+    .amount-words {
+      text-align: right;
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
 
-  // ============================================
-  // FOOTER (all pages)
-  // ============================================
+    /* Page 2 */
+    .page-ref {
+      text-align: right;
+      font-size: 11px;
+      color: #94a3b8;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 30px;
+    }
 
-  const pageCount = doc.bufferedPageRange().count
-  const footerY = pageHeight - 40
+    .terms-notes {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 60px;
+    }
 
-  for (let i = 0; i < pageCount; i++) {
-    doc.switchToPage(i)
-    doc.moveTo(margin, footerY).lineTo(pageWidth - margin, footerY).strokeColor(COLORS.border).lineWidth(0.5).stroke()
-    doc.fillColor(COLORS.lightMuted).fontSize(9).font('Helvetica')
-    doc.text(`Page ${i + 1} of ${pageCount}`, margin, footerY + 8, { width: contentWidth, align: 'right' })
-  }
+    .info-box {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 20px;
+      min-height: 180px;
+    }
 
-  doc.end()
-  return await result
+    .info-box-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #cbd5e1;
+      margin-bottom: 15px;
+    }
+
+    .info-row {
+      margin-bottom: 10px;
+      font-size: 11px;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #475569;
+    }
+
+    .info-value {
+      color: #64748b;
+    }
+
+    .info-value.highlight {
+      color: #b45309;
+      font-weight: 500;
+    }
+
+    .notes-text {
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    /* Signatures */
+    .signatures {
+      display: flex;
+      gap: 60px;
+      margin-top: 40px;
+    }
+
+    .signature {
+      flex: 1;
+    }
+
+    .signature-line {
+      border-top: 1px solid #0f172a;
+      padding-top: 10px;
+      margin-top: 50px;
+    }
+
+    .signature-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .signature-title {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* Footer */
+    .footer {
+      position: absolute;
+      bottom: 0.4in;
+      left: 0.5in;
+      right: 0.5in;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      text-align: right;
+      font-size: 9px;
+      color: #94a3b8;
+    }
+
+    /* Print button */
+    .print-btn {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: #00C2B9;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+
+    .print-btn:hover {
+      background: #00a8a0;
+    }
+  </style>
+</head>
+<body>
+  <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+
+  <!-- Page 1 -->
+  <div class="page">
+    <div class="header">
+      <div class="logo-section">
+        <div class="logo">TARGON</div>
+        <div class="company-address">
+          ${buyerAddressLines.slice(0, 2).join(', ')}<br>
+          ${buyerAddressLines.slice(2).join(', ')}<br>
+          ${params.buyerPhone ? `Phone: ${params.buyerPhone}` : ''}
+        </div>
+      </div>
+      <div class="po-title-section">
+        <div class="po-title">PURCHASE<br>ORDER</div>
+        <div class="po-meta">
+          <div class="po-meta-row">
+            <span class="po-meta-label">PO Number:</span>
+            <span class="po-meta-value">${escapeHtml(params.poNumber)}</span>
+          </div>
+          <div class="po-meta-row">
+            <span class="po-meta-label">Date:</span>
+            <span class="po-meta-value">${formatDate(params.createdAt)}</span>
+          </div>
+          ${params.vendorPi ? `
+          <div class="po-meta-row">
+            <span class="po-meta-label">Vendor PI:</span>
+            <span class="po-meta-value">${escapeHtml(params.vendorPi)}</span>
+          </div>
+          ` : ''}
+          <div class="po-meta-row">
+            <span class="po-meta-label">Shipment:</span>
+            <span class="po-meta-value">By Sea</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="parties">
+      <div class="party">
+        <div class="party-label">Vendor</div>
+        <div class="party-name">${escapeHtml(params.supplierName)}</div>
+        <div class="party-address">
+          ${supplierAddressHtml}
+          ${params.supplierPhone ? `<br>Tel: ${escapeHtml(params.supplierPhone)}` : ''}
+        </div>
+      </div>
+      <div class="party">
+        <div class="party-label">Ship To</div>
+        <div class="party-name">${escapeHtml(params.shipToName || params.buyerName)}</div>
+        <div class="party-address">${shipToAddressHtml}</div>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Description & Packing Details</th>
+          <th>Qty</th>
+          <th>Unit Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lineItemsHtml}
+      </tbody>
+    </table>
+
+    <div class="totals-section">
+      <div class="totals-box">
+        <div class="total-row">
+          <span class="total-label">Total Amount (USD):</span>
+          <span class="total-value">${formatCurrency(grandTotal)}</span>
+        </div>
+        <div class="total-row balance">
+          <span class="total-label">BALANCE DUE:</span>
+          <span class="total-value">${formatCurrency(grandTotal)}</span>
+        </div>
+        <div class="amount-words">
+          SAY TOTAL U.S. DOLLARS ${amountInWords.toUpperCase()}.
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Page 1 of 2</div>
+  </div>
+
+  <!-- Page 2 -->
+  <div class="page">
+    <div class="page-ref">CONTINUATION SHEET - REF: PO ${escapeHtml(params.poNumber)}</div>
+
+    <div class="terms-notes">
+      <div class="info-box">
+        <div class="info-box-title">Terms & Conditions</div>
+        ${params.expectedDate ? `
+        <div class="info-row">
+          <span class="info-label">Delivery:</span>
+          <span class="info-value highlight">${formatDate(params.expectedDate)}</span>
+        </div>
+        ` : ''}
+        ${params.paymentTerms ? `
+        <div class="info-row">
+          <span class="info-label">Payment Terms:</span><br>
+          <span class="info-value">${escapeHtml(params.paymentTerms)}</span>
+        </div>
+        ` : ''}
+        ${params.incoterms ? `
+        <div class="info-row">
+          <span class="info-label">Incoterms:</span>
+          <span class="info-value">${escapeHtml(params.incoterms)}</span>
+        </div>
+        ` : ''}
+      </div>
+      <div class="info-box">
+        <div class="info-box-title">Notes</div>
+        <div class="notes-text">
+          ${params.notes?.trim() ? escapeHtml(params.notes).replace(/\n/g, '<br>') : 'No additional notes.'}
+        </div>
+      </div>
+    </div>
+
+    <div class="signatures">
+      <div class="signature">
+        <div class="signature-line">
+          <div class="signature-name">JARRAR AMJAD</div>
+          <div class="signature-title">Founder, Targon LLC</div>
+        </div>
+      </div>
+      <div class="signature">
+        <div class="signature-line">
+          <div class="signature-name">${escapeHtml(params.supplierName ? params.supplierName.split(' ')[0].toUpperCase() : 'SUPPLIER')}</div>
+          <div class="signature-title">${escapeHtml(params.supplierName)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">Page 2 of 2</div>
+  </div>
+</body>
+</html>`
 }
 
 export const GET = withAuthAndParams(async (_request, params, _session) => {
@@ -549,7 +709,6 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
   const buyerVatNumber = getBuyerVatNumber(tenant.code)
 
   const poNumber = order.poNumber ?? toPublicOrderNumber(order.orderNumber)
-  const filename = `${sanitizeFilename(poNumber)}.pdf`
 
   // Get proforma invoice number from stage data if available
   const vendorPi = (order as { proformaInvoiceNumber?: string | null }).proformaInvoiceNumber ?? null
@@ -557,18 +716,14 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
   const lines = order.lines.map(line => ({
     skuCode: line.skuCode,
     skuDescription: line.skuDescription ?? null,
-    batchLot: line.batchLot ?? null,
     packingDetails: line.unitsPerCarton ? `${line.unitsPerCarton} units/carton` : null,
     cartonDetails: line.quantity ? `${line.quantity} cartons` : null,
     unitsOrdered: line.unitsOrdered,
-    unitsPerCarton: line.unitsPerCarton,
-    cartons: line.quantity,
-    currency: line.currency,
     unitCost: toNumber(line.unitCost),
     totalCost: toNumber(line.totalCost),
   }))
 
-  const pdf = await renderPurchaseOrderPdf({
+  const html = renderPurchaseOrderHtml({
     poNumber,
     vendorPi,
     buyerName: BUYER_LEGAL_ENTITY.name,
@@ -588,13 +743,9 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     lines,
   })
 
-  const body = pdf.buffer.slice(pdf.byteOffset, pdf.byteOffset + pdf.byteLength) as ArrayBuffer
-
-  return new NextResponse(body, {
+  return new NextResponse(html, {
     headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': String(pdf.byteLength),
+      'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'private, no-store, max-age=0',
     },
   })
