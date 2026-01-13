@@ -1,7 +1,9 @@
 'use client';
 
 import {
+  createContext,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -9,11 +11,18 @@ import {
   type KeyboardEvent,
   type ClipboardEvent,
   type PointerEvent,
+  type ReactNode,
 } from 'react';
 import { createColumnHelper, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
+import { usePersistentState } from '@/hooks/usePersistentState';
+import {
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SELECT,
+} from '@/components/sheet-toolbar';
 import {
   Table,
   TableBody,
@@ -34,6 +43,60 @@ import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { withAppBasePath } from '@/lib/base-path';
 import type { SelectionStats } from '@/lib/selection-stats';
 import { getSelectionBorderBoxShadow } from '@/lib/grid/selection-border';
+
+// Context for P&L grid filters
+type ProfitAndLossFiltersContextValue = {
+  showGpAfterPpc: boolean;
+  setShowGpAfterPpc: (value: boolean) => void;
+};
+
+const ProfitAndLossFiltersContext = createContext<ProfitAndLossFiltersContextValue | null>(null);
+
+export function ProfitAndLossFiltersProvider({
+  children,
+  strategyId,
+}: {
+  children: ReactNode;
+  strategyId: string;
+}) {
+  const [showGpAfterPpc, setShowGpAfterPpc] = usePersistentState<boolean>(
+    `xplan:pnl:${strategyId}:show-gp-after-ppc`,
+    false,
+  );
+
+  const value = useMemo(
+    () => ({ showGpAfterPpc, setShowGpAfterPpc }),
+    [showGpAfterPpc, setShowGpAfterPpc],
+  );
+
+  return (
+    <ProfitAndLossFiltersContext.Provider value={value}>
+      {children}
+    </ProfitAndLossFiltersContext.Provider>
+  );
+}
+
+export function ProfitAndLossHeaderControls() {
+  const context = useContext(ProfitAndLossFiltersContext);
+  if (!context) return null;
+
+  const { showGpAfterPpc, setShowGpAfterPpc } = context;
+
+  return (
+    <div className={SHEET_TOOLBAR_GROUP}>
+      <span className={SHEET_TOOLBAR_LABEL}>GP</span>
+      <select
+        value={showGpAfterPpc ? 'after-ppc' : 'before-ppc'}
+        onChange={(event) => setShowGpAfterPpc(event.target.value === 'after-ppc')}
+        className={SHEET_TOOLBAR_SELECT}
+        aria-label="Show GP before or after PPC"
+      >
+        <option value="before-ppc">Before PPC</option>
+        <option value="after-ppc">After PPC</option>
+      </select>
+    </div>
+  );
+}
 
 type WeeklyRow = {
   weekNumber: string;
@@ -247,6 +310,8 @@ function computeSelectionStats(
 }
 
 export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps) {
+  const filters = useContext(ProfitAndLossFiltersContext);
+  const showGpAfterPpc = filters?.showGpAfterPpc ?? false;
   const columnHelper = useMemo(() => createColumnHelper<WeeklyRow>(), []);
 
   const [data, setData] = useState<WeeklyRow[]>(() => weekly.map((row) => ({ ...row })));
@@ -1016,7 +1081,9 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                       maxWidth: config.width,
                     }}
                   >
-                    {config.label}
+                    {config.key === 'grossProfit' && showGpAfterPpc
+                      ? 'GP (after PPC)'
+                      : config.label}
                   </TableHead>
                 ))}
               </TableRow>
@@ -1044,7 +1111,19 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                       col: colIndex,
                     });
 
-                    const rawValue = row.original[config.key];
+                    // Adjust GP and GP% when showGpAfterPpc is enabled
+                    let rawValue = row.original[config.key];
+                    if (showGpAfterPpc && config.key === 'grossProfit') {
+                      const gp = sanitizeNumeric(row.original.grossProfit);
+                      const ppc = sanitizeNumeric(row.original.ppcSpend);
+                      rawValue = String(gp - ppc);
+                    } else if (showGpAfterPpc && config.key === 'grossMargin') {
+                      const gp = sanitizeNumeric(row.original.grossProfit);
+                      const ppc = sanitizeNumeric(row.original.ppcSpend);
+                      const revenue = sanitizeNumeric(row.original.revenue);
+                      const adjustedGp = gp - ppc;
+                      rawValue = revenue > 0 ? String(adjustedGp / revenue) : '0';
+                    }
                     const displayValue = formatDisplayValue(rawValue, config.format);
 
                     const cellContent = isEditing ? (

@@ -10,7 +10,11 @@ import {
 } from '@/components/sheets/sales-planning-grid';
 import { SalesPlanningVisual } from '@/components/sheets/sales-planning-visual';
 import { SellerboardUsSyncControl } from '@/components/sheets/sellerboard-us-sync-control';
-import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid';
+import {
+  ProfitAndLossGrid,
+  ProfitAndLossFiltersProvider,
+  ProfitAndLossHeaderControls,
+} from '@/components/sheets/fin-planning-pl-grid';
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid';
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle';
 import { SHEET_TOOLBAR_GROUP, SHEET_TOOLBAR_LABEL } from '@/components/sheet-toolbar';
@@ -2317,6 +2321,12 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       }
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
+      controls.push(<ProfitAndLossHeaderControls key="pnl-controls" />);
+      wrapLayout = (node) => (
+        <ProfitAndLossFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
+          {node}
+        </ProfitAndLossFiltersProvider>
+      );
       tabularContent = <ProfitAndLossGrid strategyId={activeStrategyId} weekly={view.weekly} />;
 
       const segmentStart = activeSegment?.startWeekNumber ?? null;
