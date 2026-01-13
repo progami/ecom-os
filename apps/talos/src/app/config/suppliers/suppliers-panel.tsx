@@ -10,7 +10,6 @@ import { PortalModal } from '@/components/ui/portal-modal'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Plus, Search, Trash2, Users } from '@/lib/lucide-icons'
-import { ImportButton } from '@/components/ui/import-button'
 
 interface SupplierRow {
   id: string
@@ -254,20 +253,9 @@ export default function SuppliersPanel({
             </div>
             <p className="text-sm text-slate-600">Manage supplier information and contacts</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 font-medium">
-              {suppliers.length} suppliers
-            </Badge>
-            <ImportButton
-              entityName="suppliers"
-              onImportComplete={fetchSuppliers}
-              buttonText="Import"
-            />
-            <Button onClick={openCreate} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Supplier
-            </Button>
-          </div>
+          <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 font-medium">
+            {suppliers.length} suppliers
+          </Badge>
         </div>
 
         <div className="flex flex-col gap-3 px-6 py-4 bg-slate-50/50 md:flex-row md:items-center md:justify-between">
