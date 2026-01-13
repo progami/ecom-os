@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { withXPlanAuth } from '@/lib/api/auth';
+import { withXPlanAuth, RATE_LIMIT_PRESETS } from '@/lib/api/auth';
 import {
   areStrategyAssignmentFieldsAvailable,
   buildStrategyAccessWhere,
@@ -10,6 +10,8 @@ import {
   markStrategyAssignmentFieldsUnavailable,
   resolveAllowedXPlanAssigneeByIdWithCookie,
 } from '@/lib/strategy-access';
+
+const EXPENSIVE_RATE_LIMIT = RATE_LIMIT_PRESETS.expensive;
 
 // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
 const prismaAny = prisma as unknown as Record<string, any>;
@@ -386,4 +388,4 @@ export const DELETE = withXPlanAuth(async (request: Request, session) => {
   });
 
   return NextResponse.json({ ok: true });
-});
+}, { rateLimit: EXPENSIVE_RATE_LIMIT });
