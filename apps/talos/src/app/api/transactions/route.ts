@@ -14,6 +14,7 @@ import {
   calculatePalletValues,
   type TransactionTypeForPallets,
 } from '@/lib/utils/pallet-calculations'
+import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 export const dynamic = 'force-dynamic'
 
 type MutableTransactionLine = {
@@ -201,13 +202,22 @@ export const GET = withAuth(async (request, _session) => {
 })
 
 export const POST = withAuth(async (request, session) => {
+  // Apply rate limiting
+  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
+  if (rateLimitResponse) return rateLimitResponse
+
   const errorContext: Record<string, unknown> = {}
   try {
     const prisma = await getTenantPrisma()
 
     const bodyText = await request.text()
 
-    const body = JSON.parse(bodyText)
+    let body
+    try {
+      body = JSON.parse(bodyText)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 })
+    }
 
     const {
       type,
@@ -396,6 +406,11 @@ export const POST = withAuth(async (request, session) => {
     // Validate warehouse assignment for staff
     if (session.user.role === 'staff' && !session.user.warehouseId) {
       return NextResponse.json({ error: 'No warehouse assigned' }, { status: 400 })
+    }
+
+    // Staff users must use their assigned warehouse - cannot override via request body
+    if (session.user.role === 'staff' && bodyWarehouseId && bodyWarehouseId !== session.user.warehouseId) {
+      return NextResponse.json({ error: 'Staff users cannot specify a different warehouse' }, { status: 403 })
     }
 
     const warehouseId = session.user.warehouseId || bodyWarehouseId
