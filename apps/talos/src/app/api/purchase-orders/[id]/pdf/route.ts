@@ -88,6 +88,7 @@ function renderPurchaseOrderHtml(params: {
   supplierAddress?: string | null
   supplierPhone?: string | null
   createdAt: Date
+  createdByName?: string | null
   expectedDate?: Date | null
   inspectionDate?: Date | null
   incoterms?: string | null
@@ -482,7 +483,7 @@ function renderPurchaseOrderHtml(params: {
     /* Signatures */
     .signatures {
       display: flex;
-      gap: 60px;
+      gap: 30px;
       margin-top: 40px;
     }
 
@@ -667,6 +668,12 @@ function renderPurchaseOrderHtml(params: {
       <div class="signatures">
         <div class="signature">
           <div class="signature-line">
+            <div class="signature-name">${escapeHtml(params.createdByName?.toUpperCase() ?? 'CREATOR')}</div>
+            <div class="signature-title">Created By</div>
+          </div>
+        </div>
+        <div class="signature">
+          <div class="signature-line">
             <div class="signature-name">JARRAR AMJAD</div>
             <div class="signature-title">Founder, Targon LLC</div>
           </div>
@@ -741,6 +748,7 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     supplierAddress,
     supplierPhone,
     createdAt: order.createdAt,
+    createdByName: order.createdByName,
     expectedDate: order.expectedDate,
     incoterms: order.incoterms,
     paymentTerms: order.paymentTerms,
