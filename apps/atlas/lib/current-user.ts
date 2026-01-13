@@ -110,9 +110,10 @@ async function ensureEmployeeProfile(session: PortalJwtPayload): Promise<Current
     return employee
   }
 
-  const employeeCount = await prisma.employee.count()
-  const isBootstrap = employeeCount === 0
-  const shouldBeSuperAdmin = isBootstrap || ensureSuperAdmin
+  // SECURITY FIX: Do NOT auto-promote first user to Super Admin
+  // Only explicitly configured emails (via ATLAS_SUPER_ADMIN_EMAILS) should become Super Admins
+  // This prevents attackers from gaining admin access by being the first to log in
+  const shouldBeSuperAdmin = ensureSuperAdmin
   const { firstName, lastName } = splitNameFromSession(session.name, email)
 
   for (let attempt = 0; attempt < 3; attempt++) {

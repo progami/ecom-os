@@ -79,31 +79,24 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json(dto)
     }
 
-    // Fetch manager info if exists
-    let reportsTo = null
-    if (leaveRequest.employee.reportsToId) {
-      const manager = await prisma.employee.findUnique({
-        where: { id: leaveRequest.employee.reportsToId },
-        select: { id: true, firstName: true, lastName: true },
-      })
-      reportsTo = manager
-    }
-
-    // Fetch approvers info
-    const approverIds = [
+    // OPTIMIZATION: Fetch manager info along with approvers in a single query
+    // instead of a separate query (reportsToId is already in the initial fetch)
+    const employeeIdsToFetch = [
       leaveRequest.managerApprovedById,
       leaveRequest.hrApprovedById,
       leaveRequest.superAdminApprovedById,
+      leaveRequest.employee.reportsToId, // Include manager in same query
     ].filter((id): id is string => id !== null)
 
-    const approvers = approverIds.length > 0
+    const relatedEmployees = employeeIdsToFetch.length > 0
       ? await prisma.employee.findMany({
-          where: { id: { in: approverIds } },
+          where: { id: { in: employeeIdsToFetch } },
           select: { id: true, firstName: true, lastName: true },
         })
       : []
 
-    const approverMap = Object.fromEntries(approvers.map(a => [a.id, a]))
+    const employeeMap = Object.fromEntries(relatedEmployees.map(e => [e.id, e]))
+    const reportsTo = leaveRequest.employee.reportsToId ? employeeMap[leaveRequest.employee.reportsToId] ?? null : null
 
     // Determine permissions based on role and status
     const pendingStatuses = ['PENDING', 'PENDING_MANAGER', 'PENDING_HR', 'PENDING_SUPER_ADMIN']
@@ -119,9 +112,9 @@ export async function GET(req: Request, context: RouteContext) {
         reportsTo,
       },
       // Approvers
-      managerApprovedBy: leaveRequest.managerApprovedById ? approverMap[leaveRequest.managerApprovedById] : null,
-      hrApprovedBy: leaveRequest.hrApprovedById ? approverMap[leaveRequest.hrApprovedById] : null,
-      superAdminApprovedBy: leaveRequest.superAdminApprovedById ? approverMap[leaveRequest.superAdminApprovedById] : null,
+      managerApprovedBy: leaveRequest.managerApprovedById ? employeeMap[leaveRequest.managerApprovedById] ?? null : null,
+      hrApprovedBy: leaveRequest.hrApprovedById ? employeeMap[leaveRequest.hrApprovedById] ?? null : null,
+      superAdminApprovedBy: leaveRequest.superAdminApprovedById ? employeeMap[leaveRequest.superAdminApprovedById] ?? null : null,
       // Permissions
       permissions: {
         canCancel,
@@ -187,6 +180,15 @@ export async function PATCH(req: Request, context: RouteContext) {
     const isOwner = leaveRequest.employeeId === currentEmployeeId
     const isManager = leaveRequest.employee.reportsToId === currentEmployeeId
     const isAdmin = isHrOrAbove
+
+    // SECURITY FIX: Explicitly validate status changes - only CANCELLED is allowed via PATCH
+    // All other status transitions must go through dedicated approval endpoints
+    if (status && status !== 'CANCELLED') {
+      return NextResponse.json(
+        { error: 'Invalid status transition. Use dedicated approval endpoints for workflow changes.' },
+        { status: 400 }
+      )
+    }
 
     // Determine what actions are allowed
     if (status === 'CANCELLED') {

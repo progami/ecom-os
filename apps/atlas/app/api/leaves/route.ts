@@ -6,6 +6,17 @@ import { z } from 'zod'
 import { getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { calculateBusinessDaysUtc, parseDateOnlyToUtcNoon } from '@/lib/domain/leave/dates'
 
+// Valid leave status values for filtering
+const VALID_LEAVE_STATUSES = [
+  'PENDING',
+  'PENDING_MANAGER',
+  'PENDING_HR',
+  'PENDING_SUPER_ADMIN',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED',
+] as const
+
 const CreateLeaveRequestSchema = z.object({
   employeeId: z.string().min(1).max(100),
   leaveType: z.enum(['PTO', 'MATERNITY', 'PATERNITY', 'PARENTAL', 'BEREAVEMENT_IMMEDIATE', 'BEREAVEMENT_EXTENDED', 'JURY_DUTY', 'UNPAID']),
@@ -63,7 +74,14 @@ export async function GET(req: Request) {
       }
     }
 
+    // SECURITY FIX: Validate status parameter against allowed enum values
     if (status) {
+      if (!VALID_LEAVE_STATUSES.includes(status as typeof VALID_LEAVE_STATUSES[number])) {
+        return NextResponse.json(
+          { error: `Invalid status value. Must be one of: ${VALID_LEAVE_STATUSES.join(', ')}` },
+          { status: 400 }
+        )
+      }
       where.status = status
     }
 

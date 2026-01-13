@@ -61,6 +61,14 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Performance review not found' }, { status: 404 })
     }
 
+    // SECURITY FIX: Prevent HR from reviewing their own performance review
+    if (review.employeeId === currentEmployeeId) {
+      return NextResponse.json(
+        { error: 'Cannot review your own performance review' },
+        { status: 403 }
+      )
+    }
+
     // Verify review is in correct state for HR review
     if (review.status !== 'PENDING_HR_REVIEW') {
       return NextResponse.json(
