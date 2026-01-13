@@ -657,7 +657,6 @@ export default function PurchaseOrderDetailPage() {
   const [tenantDestination, setTenantDestination] = useState<string>('')
   const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [transitioning, setTransitioning] = useState(false)
-  const [pdfDownloading, setPdfDownloading] = useState(false)
   const [orderInfoEditing, setOrderInfoEditing] = useState(false)
   const [orderInfoSaving, setOrderInfoSaving] = useState(false)
   const [orderInfoDraft, setOrderInfoDraft] = useState({
@@ -1501,47 +1500,10 @@ export default function PurchaseOrderDetailPage() {
     }
   }
 
-  const handleDownloadPdf = async () => {
-    if (!order || pdfDownloading) return
-
-    try {
-      setPdfDownloading(true)
-      const response = await fetch(`/api/purchase-orders/${order.id}/pdf`, {
-        method: 'GET',
-        credentials: 'include',
-      })
-
-      if (!response.ok) {
-        const payload = await response.clone().json().catch(() => null)
-        toast.error(payload?.error ?? `Failed to download PDF (HTTP ${response.status})`)
-        return
-      }
-
-      const blob = await response.blob()
-      if (!blob.size) {
-        toast.error('Failed to download PDF (empty file)')
-        return
-      }
-      const disposition = response.headers.get('Content-Disposition') ?? ''
-      const match = disposition.match(/filename="?([^\";]+)"?/i)
-      const headerFilename = match?.[1]?.trim()
-      const fallbackFilename = `${order.poNumber || order.orderNumber || 'purchase-order'}.pdf`
-      const filename =
-        headerFilename && headerFilename.length > 0 ? headerFilename : fallbackFilename
-
-      const url = window.URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = filename
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      window.URL.revokeObjectURL(url)
-    } catch {
-      toast.error('Failed to download PDF')
-    } finally {
-      setPdfDownloading(false)
-    }
+  const handleDownloadPdf = () => {
+    if (!order) return
+    // Open the HTML-based PO document in a new tab for printing
+    window.open(`/api/purchase-orders/${order.id}/pdf`, '_blank')
   }
 
   // Stage-specific form fields based on next stage
@@ -1775,15 +1737,10 @@ export default function PurchaseOrderDetailPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void handleDownloadPdf()}
-                disabled={pdfDownloading}
+                onClick={handleDownloadPdf}
                 className="gap-2"
               >
-                {pdfDownloading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
+                <Download className="h-4 w-4" />
                 PDF
               </Button>
             )}
@@ -3729,7 +3686,6 @@ export default function PurchaseOrderDetailPage() {
                   }}
                   disabled={
                     transitioning ||
-                    pdfDownloading ||
                     documentsLoading ||
                     !nextStageDocsComplete ||
                     (nextStage.value === 'ISSUED' &&
