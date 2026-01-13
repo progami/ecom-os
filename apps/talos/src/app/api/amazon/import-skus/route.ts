@@ -3,6 +3,7 @@ import {
   getCatalogItem,
   getCatalogListingTypesByAsin,
   getListingsItems,
+  getListingPrice,
   getProductFees,
   testCompareApis,
   type AmazonCatalogListingType,
@@ -252,15 +253,31 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
   }
 
   // Test mode: fetch fees for a specific ASIN
+  // Use ?test-fees=ASIN to test with default price
+  // Use ?test-fees=ASIN&price=8.99 to test with specific price
+  // Use ?test-fees=ASIN&auto-price=1 to auto-fetch listing price from Amazon
   const testAsin = request.nextUrl.searchParams.get('test-fees')
   if (testAsin) {
     try {
       const tenantCode = await getCurrentTenantCode()
       const priceParam = request.nextUrl.searchParams.get('price')
-      const price = priceParam ? Number.parseFloat(priceParam) : DEFAULT_FEE_ESTIMATE_PRICE
+      const autoPrice = request.nextUrl.searchParams.get('auto-price') === '1'
+      let price: number
+      let fetchedListingPrice: number | null = null
+      if (autoPrice) {
+        fetchedListingPrice = await getListingPrice(testAsin, tenantCode)
+        price = fetchedListingPrice ?? DEFAULT_FEE_ESTIMATE_PRICE
+      } else {
+        price = priceParam ? Number.parseFloat(priceParam) : DEFAULT_FEE_ESTIMATE_PRICE
+      }
       const fees = await getProductFees(testAsin, price, tenantCode)
       const parsedFees = parseAmazonProductFees(fees)
-      return ApiResponses.success({ raw: fees, parsed: parsedFees, priceUsed: price })
+      return ApiResponses.success({
+        raw: fees,
+        parsed: parsedFees,
+        priceUsed: price,
+        fetchedListingPrice,
+      })
     } catch (error) {
       return ApiResponses.success({
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -629,11 +646,13 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     }
 
     try {
-      const fees = await getProductFees(asin, DEFAULT_FEE_ESTIMATE_PRICE, tenantCode)
+      // Fetch actual listing price to get accurate Low-Price FBA rates for products under $10
+      const listingPrice = await getListingPrice(asin, tenantCode) ?? DEFAULT_FEE_ESTIMATE_PRICE
+      const fees = await getProductFees(asin, listingPrice, tenantCode)
       const parsedFees = parseAmazonProductFees(fees)
       // Calculate referral fee percent from amount if available
       if (parsedFees.referralFee !== null && Number.isFinite(parsedFees.referralFee)) {
-        amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / DEFAULT_FEE_ESTIMATE_PRICE) * 100)
+        amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / listingPrice) * 100)
       }
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
       const calculatedSizeTier = calculateSizeTier(
