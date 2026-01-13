@@ -1216,6 +1216,71 @@ enum CaseNoteVisibility {
   EMPLOYEE_VISIBLE
 }
 
+// ============ PASSWORDS & CONTRACTORS ============
+
+model Password {
+  id          String         @id @default(cuid())
+  title       String
+  username    String?
+  password    String         // Encrypted password value
+  url         String?
+  category    PasswordCategory @default(OTHER)
+  notes       String?
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([category])
+  @@index([title])
+}
+
+model Contractor {
+  id              String           @id @default(cuid())
+  name            String
+  company         String?
+  email           String?
+  phone           String?
+  role            String?          // Their specialty/role
+  department      String?
+
+  hourlyRate      Float?
+  currency        String           @default("USD")
+
+  contractStart   DateTime?
+  contractEnd     DateTime?
+  status          ContractorStatus @default(ACTIVE)
+
+  address         String?
+  city            String?
+  country         String?
+
+  notes           String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status])
+  @@index([name])
+  @@index([company])
+}
+
+enum PasswordCategory {
+  SOCIAL_MEDIA
+  CLOUD_SERVICE
+  DEVELOPMENT
+  FINANCE
+  COMMUNICATION
+  HR_SYSTEM
+  OTHER
+}
+
+enum ContractorStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  TERMINATED
+}
+
 enum AuditAction {
   CREATE
   UPDATE
