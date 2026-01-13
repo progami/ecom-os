@@ -172,19 +172,27 @@ function renderPurchaseOrderHtml(params: {
       margin: 0 auto;
       padding: 0.5in;
       background: white;
-      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page-content {
+      flex: 1;
     }
 
     @media print {
-      body { background: white; }
+      body { background: white; margin: 0; padding: 0; }
       .page {
         width: 100%;
+        min-height: auto;
+        height: auto;
         margin: 0;
         padding: 0.4in;
         page-break-after: always;
+        page-break-inside: avoid;
       }
       .page:last-child {
-        page-break-after: auto;
+        page-break-after: avoid;
       }
       .no-print { display: none !important; }
     }
@@ -502,11 +510,8 @@ function renderPurchaseOrderHtml(params: {
 
     /* Footer */
     .footer {
-      position: absolute;
-      bottom: 0.4in;
-      left: 0.5in;
-      right: 0.5in;
-      padding-top: 10px;
+      margin-top: auto;
+      padding-top: 20px;
       border-top: 1px solid #e2e8f0;
       text-align: right;
       font-size: 9px;
@@ -540,138 +545,140 @@ function renderPurchaseOrderHtml(params: {
 
   <!-- Page 1 -->
   <div class="page">
-    <div class="header">
-      <div class="logo-section">
-        <div class="logo">TARGON</div>
-        <div class="company-address">
-          ${buyerAddressLines.slice(0, 2).join(', ')}<br>
-          ${buyerAddressLines.slice(2).join(', ')}<br>
-          ${params.buyerPhone ? `Phone: ${params.buyerPhone}` : ''}
+    <div class="page-content">
+      <div class="header">
+        <div class="logo-section">
+          <div class="logo">TARGON</div>
+          <div class="company-address">
+            ${buyerAddressLines.slice(0, 2).join(', ')}<br>
+            ${buyerAddressLines.slice(2).join(', ')}<br>
+            ${params.buyerPhone ? `Phone: ${params.buyerPhone}` : ''}
+          </div>
+        </div>
+        <div class="po-title-section">
+          <div class="po-title">PURCHASE<br>ORDER</div>
+          <div class="po-meta">
+            <div class="po-meta-row">
+              <span class="po-meta-label">PO Number:</span>
+              <span class="po-meta-value">${escapeHtml(params.poNumber)}</span>
+            </div>
+            <div class="po-meta-row">
+              <span class="po-meta-label">Date:</span>
+              <span class="po-meta-value">${formatDate(params.createdAt)}</span>
+            </div>
+            ${params.vendorPi ? `
+            <div class="po-meta-row">
+              <span class="po-meta-label">Vendor PI:</span>
+              <span class="po-meta-value">${escapeHtml(params.vendorPi)}</span>
+            </div>
+            ` : ''}
+            <div class="po-meta-row">
+              <span class="po-meta-label">Shipment:</span>
+              <span class="po-meta-value">By Sea</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="po-title-section">
-        <div class="po-title">PURCHASE<br>ORDER</div>
-        <div class="po-meta">
-          <div class="po-meta-row">
-            <span class="po-meta-label">PO Number:</span>
-            <span class="po-meta-value">${escapeHtml(params.poNumber)}</span>
+
+      <div class="parties">
+        <div class="party">
+          <div class="party-label">Vendor</div>
+          <div class="party-name">${escapeHtml(params.supplierName)}</div>
+          <div class="party-address">
+            ${supplierAddressHtml}
+            ${params.supplierPhone ? `<br>Tel: ${escapeHtml(params.supplierPhone)}` : ''}
           </div>
-          <div class="po-meta-row">
-            <span class="po-meta-label">Date:</span>
-            <span class="po-meta-value">${formatDate(params.createdAt)}</span>
+        </div>
+        <div class="party">
+          <div class="party-label">Ship To</div>
+          <div class="party-name">${escapeHtml(params.shipToName || params.buyerName)}</div>
+          <div class="party-address">${shipToAddressHtml}</div>
+        </div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Description & Packing Details</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lineItemsHtml}
+        </tbody>
+      </table>
+
+      <div class="totals-section">
+        <div class="totals-box">
+          <div class="total-row">
+            <span class="total-label">Total Amount (USD):</span>
+            <span class="total-value">${formatCurrency(grandTotal)}</span>
           </div>
-          ${params.vendorPi ? `
-          <div class="po-meta-row">
-            <span class="po-meta-label">Vendor PI:</span>
-            <span class="po-meta-value">${escapeHtml(params.vendorPi)}</span>
+          <div class="total-row balance">
+            <span class="total-label">BALANCE DUE:</span>
+            <span class="total-value">${formatCurrency(grandTotal)}</span>
           </div>
-          ` : ''}
-          <div class="po-meta-row">
-            <span class="po-meta-label">Shipment:</span>
-            <span class="po-meta-value">By Sea</span>
+          <div class="amount-words">
+            SAY TOTAL U.S. DOLLARS ${amountInWords.toUpperCase()}.
           </div>
         </div>
       </div>
     </div>
-
-    <div class="parties">
-      <div class="party">
-        <div class="party-label">Vendor</div>
-        <div class="party-name">${escapeHtml(params.supplierName)}</div>
-        <div class="party-address">
-          ${supplierAddressHtml}
-          ${params.supplierPhone ? `<br>Tel: ${escapeHtml(params.supplierPhone)}` : ''}
-        </div>
-      </div>
-      <div class="party">
-        <div class="party-label">Ship To</div>
-        <div class="party-name">${escapeHtml(params.shipToName || params.buyerName)}</div>
-        <div class="party-address">${shipToAddressHtml}</div>
-      </div>
-    </div>
-
-    <table class="items-table">
-      <thead>
-        <tr>
-          <th>Description & Packing Details</th>
-          <th>Qty</th>
-          <th>Unit Price</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${lineItemsHtml}
-      </tbody>
-    </table>
-
-    <div class="totals-section">
-      <div class="totals-box">
-        <div class="total-row">
-          <span class="total-label">Total Amount (USD):</span>
-          <span class="total-value">${formatCurrency(grandTotal)}</span>
-        </div>
-        <div class="total-row balance">
-          <span class="total-label">BALANCE DUE:</span>
-          <span class="total-value">${formatCurrency(grandTotal)}</span>
-        </div>
-        <div class="amount-words">
-          SAY TOTAL U.S. DOLLARS ${amountInWords.toUpperCase()}.
-        </div>
-      </div>
-    </div>
-
     <div class="footer">Page 1 of 2</div>
   </div>
 
   <!-- Page 2 -->
   <div class="page">
-    <div class="page-ref">CONTINUATION SHEET - REF: PO ${escapeHtml(params.poNumber)}</div>
+    <div class="page-content">
+      <div class="page-ref">CONTINUATION SHEET - REF: PO ${escapeHtml(params.poNumber)}</div>
 
-    <div class="terms-notes">
-      <div class="info-box">
-        <div class="info-box-title">Terms & Conditions</div>
-        ${params.expectedDate ? `
-        <div class="info-row">
-          <span class="info-label">Delivery:</span>
-          <span class="info-value highlight">${formatDate(params.expectedDate)}</span>
+      <div class="terms-notes">
+        <div class="info-box">
+          <div class="info-box-title">Terms & Conditions</div>
+          ${params.expectedDate ? `
+          <div class="info-row">
+            <span class="info-label">Delivery:</span>
+            <span class="info-value highlight">${formatDate(params.expectedDate)}</span>
+          </div>
+          ` : ''}
+          ${params.paymentTerms ? `
+          <div class="info-row">
+            <span class="info-label">Payment Terms:</span><br>
+            <span class="info-value">${escapeHtml(params.paymentTerms)}</span>
+          </div>
+          ` : ''}
+          ${params.incoterms ? `
+          <div class="info-row">
+            <span class="info-label">Incoterms:</span>
+            <span class="info-value">${escapeHtml(params.incoterms)}</span>
+          </div>
+          ` : ''}
         </div>
-        ` : ''}
-        ${params.paymentTerms ? `
-        <div class="info-row">
-          <span class="info-label">Payment Terms:</span><br>
-          <span class="info-value">${escapeHtml(params.paymentTerms)}</span>
+        <div class="info-box">
+          <div class="info-box-title">Notes</div>
+          <div class="notes-text">
+            ${params.notes?.trim() ? escapeHtml(params.notes).replace(/\n/g, '<br>') : 'No additional notes.'}
+          </div>
         </div>
-        ` : ''}
-        ${params.incoterms ? `
-        <div class="info-row">
-          <span class="info-label">Incoterms:</span>
-          <span class="info-value">${escapeHtml(params.incoterms)}</span>
-        </div>
-        ` : ''}
       </div>
-      <div class="info-box">
-        <div class="info-box-title">Notes</div>
-        <div class="notes-text">
-          ${params.notes?.trim() ? escapeHtml(params.notes).replace(/\n/g, '<br>') : 'No additional notes.'}
+
+      <div class="signatures">
+        <div class="signature">
+          <div class="signature-line">
+            <div class="signature-name">JARRAR AMJAD</div>
+            <div class="signature-title">Founder, Targon LLC</div>
+          </div>
+        </div>
+        <div class="signature">
+          <div class="signature-line">
+            <div class="signature-name">${escapeHtml(params.supplierName ? params.supplierName.split(' ')[0].toUpperCase() : 'SUPPLIER')}</div>
+            <div class="signature-title">${escapeHtml(params.supplierName)}</div>
+          </div>
         </div>
       </div>
     </div>
-
-    <div class="signatures">
-      <div class="signature">
-        <div class="signature-line">
-          <div class="signature-name">JARRAR AMJAD</div>
-          <div class="signature-title">Founder, Targon LLC</div>
-        </div>
-      </div>
-      <div class="signature">
-        <div class="signature-line">
-          <div class="signature-name">${escapeHtml(params.supplierName ? params.supplierName.split(' ')[0].toUpperCase() : 'SUPPLIER')}</div>
-          <div class="signature-title">${escapeHtml(params.supplierName)}</div>
-        </div>
-      </div>
-    </div>
-
     <div class="footer">Page 2 of 2</div>
   </div>
 </body>
