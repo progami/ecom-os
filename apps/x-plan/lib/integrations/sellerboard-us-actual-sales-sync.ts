@@ -19,6 +19,15 @@ export type SellerboardUsActualSalesSyncResult = {
   newestPurchaseDateUtc: Date | null;
 };
 
+function logSync(message: string, data?: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  if (data) {
+    console.log(`[sellerboard-sync] ${timestamp} ${message}`, JSON.stringify(data));
+  } else {
+    console.log(`[sellerboard-sync] ${timestamp} ${message}`);
+  }
+}
+
 export async function syncSellerboardUsActualSales(options: {
   reportUrl: string;
 }): Promise<SellerboardUsActualSalesSyncResult> {
@@ -27,12 +36,17 @@ export async function syncSellerboardUsActualSales(options: {
     throw new Error('Missing Sellerboard report URL');
   }
 
+  logSync('Starting sync', { reportUrlPrefix: reportUrl.substring(0, 50) });
+
   const response = await fetch(reportUrl, { method: 'GET' });
   if (!response.ok) {
+    logSync('CSV fetch failed', { status: response.status });
     throw new Error(`Sellerboard fetch failed (${response.status})`);
   }
 
   const csv = await response.text();
+  logSync('CSV fetched', { byteLength: csv.length });
+
   const weekStartsOn = weekStartsOnForRegion('US');
   const planning = await loadPlanningCalendar(weekStartsOn);
 
@@ -41,9 +55,20 @@ export async function syncSellerboardUsActualSales(options: {
     excludeStatuses: ['Cancelled'],
   });
 
+  logSync('CSV parsed', {
+    rowsParsed: parsed.rowsParsed,
+    rowsSkipped: parsed.rowsSkipped,
+    weeklyUnitsCount: parsed.weeklyUnits.length,
+    oldestDate: parsed.oldestPurchaseDateUtc?.toISOString(),
+    newestDate: parsed.newestPurchaseDateUtc?.toISOString(),
+  });
+
   const productCodes = Array.from(new Set(parsed.weeklyUnits.map((entry) => entry.productCode)));
 
+  logSync('Product codes extracted', { count: productCodes.length, codes: productCodes.slice(0, 20) });
+
   if (productCodes.length === 0) {
+    logSync('No product codes found, skipping sync');
     return {
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,
@@ -57,6 +82,7 @@ export async function syncSellerboardUsActualSales(options: {
     };
   }
 
+  // Try matching by SKU first
   const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
@@ -65,6 +91,7 @@ export async function syncSellerboardUsActualSales(options: {
     select: {
       id: true,
       sku: true,
+      asin: true,
       strategyId: true,
     },
   });
@@ -79,11 +106,50 @@ export async function syncSellerboardUsActualSales(options: {
     productsByCode.set(product.sku, list);
   }
 
+  logSync('SKU matching complete', {
+    directMatches: directProducts.length,
+    matchedCodes: Array.from(productsByCode.keys()),
+  });
+
+  // Try matching remaining codes by ASIN field on Product
+  const unmatchedAfterSku = productCodes.filter((code) => !productsByCode.has(code));
+  if (unmatchedAfterSku.length) {
+    logSync('Attempting ASIN field matching', { unmatchedCodes: unmatchedAfterSku });
+
+    const asinProducts = await prisma.product.findMany({
+      where: {
+        asin: { in: unmatchedAfterSku },
+        strategy: { region: 'US' },
+      },
+      select: {
+        id: true,
+        sku: true,
+        asin: true,
+        strategyId: true,
+      },
+    });
+
+    logSync('ASIN field matches found', {
+      count: asinProducts.length,
+      matches: asinProducts.map((p) => ({ sku: p.sku, asin: p.asin })),
+    });
+
+    for (const product of asinProducts) {
+      if (!product.strategyId || !product.asin) continue;
+      directProductIds.add(product.id);
+      const list = productsByCode.get(product.asin) ?? [];
+      list.push({ id: product.id, strategyId: product.strategyId });
+      productsByCode.set(product.asin, list);
+    }
+  }
+
   const unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
   let asinMappingsFound = 0;
   let asinProductsMatched = 0;
 
   if (unmatchedCodes.length) {
+    logSync('Attempting Talos ASIN lookup', { unmatchedCodes });
+
     const talos = getTalosPrisma('US');
     if (talos) {
       const mappings = await talos.sku.findMany({
@@ -91,6 +157,11 @@ export async function syncSellerboardUsActualSales(options: {
         select: { asin: true, skuCode: true },
       });
       asinMappingsFound = mappings.length;
+
+      logSync('Talos ASIN mappings found', {
+        count: mappings.length,
+        mappings: mappings.map((m) => ({ asin: m.asin, skuCode: m.skuCode })),
+      });
 
       const mappedSkuCodes = Array.from(
         new Set(
@@ -107,6 +178,11 @@ export async function syncSellerboardUsActualSales(options: {
             strategy: { region: 'US' },
           },
           select: { id: true, sku: true, strategyId: true },
+        });
+
+        logSync('X-Plan products for mapped SKUs', {
+          count: mappedProducts.length,
+          skus: mappedProducts.map((p) => p.sku),
         });
 
         const productsBySku = new Map<string, Array<{ id: string; strategyId: string }>>();
@@ -127,6 +203,8 @@ export async function syncSellerboardUsActualSales(options: {
           productsByCode.set(asin, products);
         }
       }
+    } else {
+      logSync('Talos client not available for US region');
     }
   }
 
@@ -165,8 +243,11 @@ export async function syncSellerboardUsActualSales(options: {
     }
   }
 
+  logSync('Preparing upserts', { upsertCount: upserts.length });
+
   if (upserts.length) {
     await prisma.$transaction(upserts);
+    logSync('Upserts completed', { count: upserts.length });
   }
 
   const uniqueProductsMatched = new Set<string>(directProductIds);
@@ -176,7 +257,7 @@ export async function syncSellerboardUsActualSales(options: {
     }
   }
 
-  return {
+  const result = {
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
     productsMatched: uniqueProductsMatched.size,
@@ -187,4 +268,13 @@ export async function syncSellerboardUsActualSales(options: {
     oldestPurchaseDateUtc: parsed.oldestPurchaseDateUtc,
     newestPurchaseDateUtc: parsed.newestPurchaseDateUtc,
   };
+
+  logSync('Sync complete', {
+    productsMatched: result.productsMatched,
+    updates: result.updates,
+    asinMappingsFound: result.asinMappingsFound,
+    asinProductsMatched: result.asinProductsMatched,
+  });
+
+  return result;
 }

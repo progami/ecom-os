@@ -18,6 +18,7 @@ const importSchema = z.object({
       z.object({
         sku: z.string().min(1),
         name: z.string().min(1),
+        asin: z.string().optional(),
       }),
     )
     .min(1)
@@ -42,12 +43,13 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
   const { response } = await requireXPlanStrategyAccess(strategyId, session);
   if (response) return response;
 
-  const requestedBySku = new Map<string, { sku: string; name: string }>();
+  const requestedBySku = new Map<string, { sku: string; name: string; asin?: string }>();
   for (const row of parsed.data.products) {
     const sku = row.sku.trim();
     const name = row.name.trim();
+    const asin = row.asin?.trim();
     if (!sku || !name) continue;
-    requestedBySku.set(normalizeSku(sku), { sku, name });
+    requestedBySku.set(normalizeSku(sku), { sku, name, asin });
   }
 
   if (requestedBySku.size === 0) {
@@ -62,7 +64,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
   const weekStartsOn = weekStartsOnForRegion(region);
 
   const result = await prisma.$transaction<{
-    created: Array<{ id: string; sku: string; name: string }>;
+    created: Array<{ id: string; sku: string; name: string; asin: string | null }>;
     skippedExisting: Array<{ sku: string; name: string }>;
   }>(async (tx: Prisma.TransactionClient) => {
     const existing = await tx.product.findMany({
@@ -98,7 +100,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
       }));
     }
 
-    const created: Array<{ id: string; sku: string; name: string }> = [];
+    const created: Array<{ id: string; sku: string; name: string; asin: string | null }> = [];
 
     for (const row of toCreate) {
       const product = await tx.product.create({
@@ -106,6 +108,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
           strategyId,
           name: row.name,
           sku: row.sku,
+          asin: row.asin ?? null,
           sellingPrice: new Prisma.Decimal(0),
           manufacturingCost: new Prisma.Decimal(0),
           freightCost: new Prisma.Decimal(0),
@@ -115,7 +118,7 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
           amazonReferralRate: new Prisma.Decimal(0),
           storagePerMonth: new Prisma.Decimal(0),
         },
-        select: { id: true, sku: true, name: true },
+        select: { id: true, sku: true, name: true, asin: true },
       });
 
       created.push(product);
