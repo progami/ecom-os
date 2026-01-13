@@ -93,9 +93,7 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
           strategy: { region: 'US' },
         },
       },
-      select: {
-        weekNumber: true,
-        actualSales: true,
+      include: {
         product: {
           select: { sku: true },
         },

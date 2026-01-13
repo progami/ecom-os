@@ -14,6 +14,45 @@ const migrateSchema = z.object({
   deleteEmptyConflict: z.boolean().default(false),
 });
 
+type ProductWithCounts = {
+  id: string;
+  sku: string;
+  counts: {
+    salesWeeks: number;
+    purchaseOrders: number;
+    leadTimeOverrides: number;
+    batchTableRows: number;
+  };
+};
+
+async function getProductWithCounts(strategyId: string, sku: string): Promise<ProductWithCounts | null> {
+  const product = await prisma.product.findFirst({
+    where: { strategyId, sku },
+    select: { id: true, sku: true },
+  });
+
+  if (!product) return null;
+
+  const [salesWeeksCount, purchaseOrdersCount, leadTimeOverridesCount, batchTableRowsCount] =
+    await Promise.all([
+      prisma.salesWeek.count({ where: { productId: product.id } }),
+      prisma.purchaseOrder.count({ where: { productId: product.id } }),
+      prisma.leadTimeOverride.count({ where: { productId: product.id } }),
+      prisma.batchTableRow.count({ where: { productId: product.id } }),
+    ]);
+
+  return {
+    id: product.id,
+    sku: product.sku,
+    counts: {
+      salesWeeks: salesWeeksCount,
+      purchaseOrders: purchaseOrdersCount,
+      leadTimeOverrides: leadTimeOverridesCount,
+      batchTableRows: batchTableRowsCount,
+    },
+  };
+}
+
 export const POST = withXPlanAuth(async (request: Request, session) => {
   const actor = getStrategyActor(session);
   if (!actor.isSuperAdmin) {
@@ -29,58 +68,30 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
 
   const { strategyId, oldSku, newSku, deleteEmptyConflict } = parsed.data;
 
-  const sourceProduct = await prisma.product.findFirst({
-    where: { strategyId, sku: oldSku },
-    select: {
-      id: true,
-      sku: true,
-      _count: {
-        select: {
-          salesWeeks: true,
-          purchaseOrders: true,
-          leadTimeOverrides: true,
-          batchTableRows: true,
-        },
-      },
-    },
-  });
+  const sourceProduct = await getProductWithCounts(strategyId, oldSku);
 
   if (!sourceProduct) {
     return NextResponse.json({ error: `Product with SKU "${oldSku}" not found` }, { status: 404 });
   }
 
-  const conflictProduct = await prisma.product.findFirst({
-    where: { strategyId, sku: newSku },
-    select: {
-      id: true,
-      sku: true,
-      _count: {
-        select: {
-          salesWeeks: true,
-          purchaseOrders: true,
-          leadTimeOverrides: true,
-          batchTableRows: true,
-        },
-      },
-    },
-  });
+  const conflictProduct = await getProductWithCounts(strategyId, newSku);
 
   if (conflictProduct) {
     const conflictHasData =
-      conflictProduct._count.salesWeeks > 0 ||
-      conflictProduct._count.purchaseOrders > 0 ||
-      conflictProduct._count.leadTimeOverrides > 0 ||
-      conflictProduct._count.batchTableRows > 0;
+      conflictProduct.counts.salesWeeks > 0 ||
+      conflictProduct.counts.purchaseOrders > 0 ||
+      conflictProduct.counts.leadTimeOverrides > 0 ||
+      conflictProduct.counts.batchTableRows > 0;
 
     if (conflictHasData && !deleteEmptyConflict) {
       return NextResponse.json({
         error: `SKU "${newSku}" already exists with associated data. Cannot auto-delete.`,
         conflictProduct: {
           id: conflictProduct.id,
-          salesWeeks: conflictProduct._count.salesWeeks,
-          purchaseOrders: conflictProduct._count.purchaseOrders,
-          leadTimeOverrides: conflictProduct._count.leadTimeOverrides,
-          batchTableRows: conflictProduct._count.batchTableRows,
+          salesWeeks: conflictProduct.counts.salesWeeks,
+          purchaseOrders: conflictProduct.counts.purchaseOrders,
+          leadTimeOverrides: conflictProduct.counts.leadTimeOverrides,
+          batchTableRows: conflictProduct.counts.batchTableRows,
         },
       }, { status: 409 });
     }
