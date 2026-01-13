@@ -2525,9 +2525,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   }
 
   // Only show view toggle if both tabular and visual content exist
+  // Use unshift to place view toggle first (leftmost) for consistent positioning
   const hasVisualMode = Boolean(visualContent);
   if (hasVisualMode) {
-    controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} slug={config.slug} />);
+    controls.unshift(<SheetViewToggle key="sheet-view-toggle" value={viewMode} slug={config.slug} />);
   }
   const headerControls = controls.length ? controls : undefined;
 
