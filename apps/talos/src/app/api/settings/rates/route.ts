@@ -7,8 +7,10 @@ import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
 import { UserRole } from '@targon/prisma-talos'
 export const dynamic = 'force-dynamic'
 
-const PLACEHOLDER_PASSWORD =
- process.env.WMS_SSO_PLACEHOLDER_PASSWORD || 'sso-only-password'
+const PLACEHOLDER_PASSWORD = process.env.WMS_SSO_PLACEHOLDER_PASSWORD
+if (!PLACEHOLDER_PASSWORD) {
+ throw new Error('WMS_SSO_PLACEHOLDER_PASSWORD environment variable is required')
+}
 const PLACEHOLDER_PASSWORD_HASH = bcrypt.hashSync(PLACEHOLDER_PASSWORD, 10)
 
 const normalizeRole = (role?: unknown): UserRole => {
@@ -63,9 +65,15 @@ export async function GET(_request: NextRequest) {
  }
 
  const prisma = await getTenantPrisma()
- // All authenticated users can view rates
+
+ // Staff users can only view rates for their assigned warehouse
+ const isStaff = session.user.role === 'staff'
+ const warehouseFilter = isStaff && session.user.warehouseId
+   ? { warehouseId: session.user.warehouseId }
+   : {}
 
  const rates = await prisma.costRate.findMany({
+ where: warehouseFilter,
  include: {
  warehouse: {
  select: {

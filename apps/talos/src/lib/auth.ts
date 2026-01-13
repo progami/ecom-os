@@ -12,7 +12,7 @@ const userCache = new Map<string, {
   expiresAt: number
 }>()
 
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+const CACHE_TTL_MS = 1 * 60 * 1000 // 1 minute - reduced to ensure role changes propagate quickly
 
 function getCachedUser(email: string, tenant: TenantCode) {
   const key = `${email}:${tenant}`
