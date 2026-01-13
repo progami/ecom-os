@@ -48,6 +48,7 @@ import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { withBasePath } from '@/lib/utils/base-path'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
 // 5-Stage State Machine Types
@@ -1503,7 +1504,7 @@ export default function PurchaseOrderDetailPage() {
   const handleDownloadPdf = () => {
     if (!order) return
     // Open the HTML-based PO document in a new tab for printing
-    window.open(`/api/purchase-orders/${order.id}/pdf`, '_blank')
+    window.open(withBasePath(`/api/purchase-orders/${order.id}/pdf`), '_blank')
   }
 
   // Stage-specific form fields based on next stage
