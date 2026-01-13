@@ -1404,3 +1404,156 @@ export const EmployeeFilesApi = {
     )
   },
 }
+
+// Passwords
+export type PasswordCategory = 'SOCIAL_MEDIA' | 'CLOUD_SERVICE' | 'DEVELOPMENT' | 'FINANCE' | 'COMMUNICATION' | 'HR_SYSTEM' | 'OTHER'
+
+export type Password = {
+  id: string
+  title: string
+  username?: string | null
+  password: string
+  url?: string | null
+  category: PasswordCategory
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const PasswordsApi = {
+  list(params: { q?: string; take?: number; skip?: number; category?: PasswordCategory } = {}) {
+    const qp = new URLSearchParams()
+    if (params.q) qp.set('q', params.q)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    if (params.category) qp.set('category', params.category)
+    const qs = qp.toString()
+    return request<{ items: Password[]; total: number }>(`/api/passwords${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<Password>(`/api/passwords/${encodeURIComponent(id)}`)
+  },
+  create(payload: {
+    title: string
+    username?: string | null
+    password: string
+    url?: string | null
+    category?: PasswordCategory
+    notes?: string | null
+  }) {
+    return request<Password>(`/api/passwords`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{
+    title: string
+    username: string | null
+    password: string
+    url: string | null
+    category: PasswordCategory
+    notes: string | null
+  }>) {
+    return request<Password>(`/api/passwords/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/passwords/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}
+
+// Contractors
+export type ContractorStatus = 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'TERMINATED'
+
+export type Contractor = {
+  id: string
+  name: string
+  company?: string | null
+  email?: string | null
+  phone?: string | null
+  role?: string | null
+  department?: string | null
+  hourlyRate?: number | null
+  currency: string
+  contractStart?: string | null
+  contractEnd?: string | null
+  status: ContractorStatus
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const ContractorsApi = {
+  list(params: { q?: string; take?: number; skip?: number; status?: ContractorStatus } = {}) {
+    const qp = new URLSearchParams()
+    if (params.q) qp.set('q', params.q)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    if (params.status) qp.set('status', params.status)
+    const qs = qp.toString()
+    return request<{ items: Contractor[]; total: number }>(`/api/contractors${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<Contractor>(`/api/contractors/${encodeURIComponent(id)}`)
+  },
+  create(payload: {
+    name: string
+    company?: string | null
+    email?: string | null
+    phone?: string | null
+    role?: string | null
+    department?: string | null
+    hourlyRate?: number | null
+    currency?: string
+    contractStart?: string | null
+    contractEnd?: string | null
+    status?: ContractorStatus
+    address?: string | null
+    city?: string | null
+    country?: string | null
+    notes?: string | null
+  }) {
+    return request<Contractor>(`/api/contractors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{
+    name: string
+    company: string | null
+    email: string | null
+    phone: string | null
+    role: string | null
+    department: string | null
+    hourlyRate: number | null
+    currency: string
+    contractStart: string | null
+    contractEnd: string | null
+    status: ContractorStatus
+    address: string | null
+    city: string | null
+    country: string | null
+    notes: string | null
+  }>) {
+    return request<Contractor>(`/api/contractors/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/contractors/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}
