@@ -5,14 +5,12 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove } from '@/lib/permissions'
 
-const PasswordCategoryEnum = z.enum([
-  'SOCIAL_MEDIA',
-  'CLOUD_SERVICE',
-  'DEVELOPMENT',
+const PasswordDepartmentEnum = z.enum([
+  'OPS',
+  'SALES_MARKETING',
+  'LEGAL',
+  'HR',
   'FINANCE',
-  'COMMUNICATION',
-  'HR_SYSTEM',
-  'OTHER',
 ])
 
 const CreatePasswordSchema = z.object({
@@ -20,7 +18,7 @@ const CreatePasswordSchema = z.object({
   username: z.string().max(200).trim().optional().nullable(),
   password: z.string().min(1).max(500),
   url: z.string().max(500).trim().optional().nullable(),
-  category: PasswordCategoryEnum.optional(),
+  department: PasswordDepartmentEnum.optional(),
   notes: z.string().max(2000).trim().optional().nullable(),
 })
 
@@ -29,7 +27,7 @@ const UpdatePasswordSchema = z.object({
   username: z.string().max(200).trim().optional().nullable(),
   password: z.string().min(1).max(500).optional(),
   url: z.string().max(500).trim().optional().nullable(),
-  category: PasswordCategoryEnum.optional(),
+  department: PasswordDepartmentEnum.optional(),
   notes: z.string().max(2000).trim().optional().nullable(),
 })
 
@@ -51,7 +49,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const takeRaw = searchParams.get('take')
     const skipRaw = searchParams.get('skip')
-    const categoryRaw = searchParams.get('category')
+    const departmentRaw = searchParams.get('department')
     const q = searchParams.get('q')
 
     const take = Math.min(parseInt(takeRaw ?? '50', 10), 100)
@@ -59,9 +57,9 @@ export async function GET(req: Request) {
 
     const where: any = {}
 
-    if (categoryRaw) {
-      const parsed = PasswordCategoryEnum.safeParse(categoryRaw.toUpperCase())
-      if (parsed.success) where.category = parsed.data
+    if (departmentRaw) {
+      const parsed = PasswordDepartmentEnum.safeParse(departmentRaw.toUpperCase())
+      if (parsed.success) where.department = parsed.data
     }
 
     if (q) {
@@ -115,7 +113,7 @@ export async function POST(req: Request) {
         username: data.username ?? null,
         password: data.password,
         url: data.url ?? null,
-        category: data.category ?? 'OTHER',
+        department: data.department ?? 'OPS',
         notes: data.notes ?? null,
       },
     })

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ColumnDef } from '@tanstack/react-table'
-import { PasswordsApi, type Password, type PasswordCategory } from '@/lib/api-client'
+import { PasswordsApi, type Password, type PasswordDepartment } from '@/lib/api-client'
 import { LockClosedIcon, PlusIcon, EyeIcon, EyeSlashIcon, ClipboardIcon, ExternalLinkIcon, TrashIcon, PencilIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -22,18 +22,16 @@ import {
 import { FormField, SelectField, TextareaField, FormActions } from '@/components/ui/FormField'
 import { cn } from '@/lib/utils'
 
-const CATEGORY_OPTIONS: { value: PasswordCategory; label: string; color: string }[] = [
-  { value: 'SOCIAL_MEDIA', label: 'Social Media', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
-  { value: 'CLOUD_SERVICE', label: 'Cloud Service', color: 'bg-sky-500/10 text-sky-600 border-sky-500/20' },
-  { value: 'DEVELOPMENT', label: 'Development', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+const DEPARTMENT_OPTIONS: { value: PasswordDepartment; label: string; color: string }[] = [
+  { value: 'OPS', label: 'Ops', color: 'bg-sky-500/10 text-sky-600 border-sky-500/20' },
+  { value: 'SALES_MARKETING', label: 'Sales/Marketing', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
+  { value: 'LEGAL', label: 'Legal', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  { value: 'HR', label: 'HR', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
   { value: 'FINANCE', label: 'Finance', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  { value: 'COMMUNICATION', label: 'Communication', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  { value: 'HR_SYSTEM', label: 'HR System', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
-  { value: 'OTHER', label: 'Other', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
 ]
 
-function getCategoryConfig(category: PasswordCategory) {
-  return CATEGORY_OPTIONS.find(c => c.value === category) ?? CATEGORY_OPTIONS[6]
+function getDepartmentConfig(department: PasswordDepartment) {
+  return DEPARTMENT_OPTIONS.find(d => d.value === department) ?? DEPARTMENT_OPTIONS[0]
 }
 
 function PasswordCell({ password }: { password: string }) {
@@ -87,7 +85,7 @@ type PasswordFormData = {
   username: string
   password: string
   url: string
-  category: PasswordCategory
+  department: PasswordDepartment
   notes: string
 }
 
@@ -96,7 +94,7 @@ const defaultFormData: PasswordFormData = {
   username: '',
   password: '',
   url: '',
-  category: 'OTHER',
+  department: 'OPS',
   notes: '',
 }
 
@@ -147,7 +145,7 @@ export default function PasswordsPage() {
       username: password.username ?? '',
       password: password.password,
       url: password.url ?? '',
-      category: password.category,
+      department: password.department,
       notes: password.notes ?? '',
     })
     setModalOpen(true)
@@ -163,7 +161,7 @@ export default function PasswordsPage() {
           username: formData.username || null,
           password: formData.password,
           url: formData.url || null,
-          category: formData.category,
+          department: formData.department,
           notes: formData.notes || null,
         })
       } else {
@@ -172,7 +170,7 @@ export default function PasswordsPage() {
           username: formData.username || null,
           password: formData.password,
           url: formData.url || null,
-          category: formData.category,
+          department: formData.department,
           notes: formData.notes || null,
         })
       }
@@ -226,10 +224,10 @@ export default function PasswordsPage() {
         enableSorting: false,
       },
       {
-        accessorKey: 'category',
-        header: 'Category',
+        accessorKey: 'department',
+        header: 'Department',
         cell: ({ row }) => {
-          const config = getCategoryConfig(row.original.category)
+          const config = getDepartmentConfig(row.original.department)
           return (
             <Badge variant="outline" className={cn("font-medium", config.color)}>
               {config.label}
@@ -375,11 +373,11 @@ export default function PasswordsPage() {
             />
 
             <SelectField
-              label="Category"
-              name="category"
-              value={formData.category}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as PasswordCategory }))}
-              options={CATEGORY_OPTIONS.map(c => ({ value: c.value, label: c.label }))}
+              label="Department"
+              name="department"
+              value={formData.department}
+              onChange={(e) => setFormData(prev => ({ ...prev, department: e.target.value as PasswordDepartment }))}
+              options={DEPARTMENT_OPTIONS.map(d => ({ value: d.value, label: d.label }))}
             />
 
             <TextareaField
