@@ -30,7 +30,7 @@ function parseEmailSet(raw: string | undefined) {
   )
 }
 
-const DEFAULT_ATLAS_SUPER_ADMINS = new Set(['jarrar@targonglobal.com'])
+const DEFAULT_ATLAS_SUPER_ADMINS = new Set<string>([])
 
 function atlasSuperAdminEmailSet() {
   const configured = parseEmailSet(process.env.ATLAS_SUPER_ADMIN_EMAILS)
