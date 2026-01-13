@@ -1406,7 +1406,7 @@ export const EmployeeFilesApi = {
 }
 
 // Passwords
-export type PasswordCategory = 'SOCIAL_MEDIA' | 'CLOUD_SERVICE' | 'DEVELOPMENT' | 'FINANCE' | 'COMMUNICATION' | 'HR_SYSTEM' | 'OTHER'
+export type PasswordDepartment = 'OPS' | 'SALES_MARKETING' | 'LEGAL' | 'HR' | 'FINANCE'
 
 export type Password = {
   id: string
@@ -1414,19 +1414,19 @@ export type Password = {
   username?: string | null
   password: string
   url?: string | null
-  category: PasswordCategory
+  department: PasswordDepartment
   notes?: string | null
   createdAt: string
   updatedAt: string
 }
 
 export const PasswordsApi = {
-  list(params: { q?: string; take?: number; skip?: number; category?: PasswordCategory } = {}) {
+  list(params: { q?: string; take?: number; skip?: number; department?: PasswordDepartment } = {}) {
     const qp = new URLSearchParams()
     if (params.q) qp.set('q', params.q)
     if (params.take != null) qp.set('take', String(params.take))
     if (params.skip != null) qp.set('skip', String(params.skip))
-    if (params.category) qp.set('category', params.category)
+    if (params.department) qp.set('department', params.department)
     const qs = qp.toString()
     return request<{ items: Password[]; total: number }>(`/api/passwords${qs ? `?${qs}` : ''}`)
   },
@@ -1438,7 +1438,7 @@ export const PasswordsApi = {
     username?: string | null
     password: string
     url?: string | null
-    category?: PasswordCategory
+    department?: PasswordDepartment
     notes?: string | null
   }) {
     return request<Password>(`/api/passwords`, {
@@ -1452,7 +1452,7 @@ export const PasswordsApi = {
     username: string | null
     password: string
     url: string | null
-    category: PasswordCategory
+    department: PasswordDepartment
     notes: string | null
   }>) {
     return request<Password>(`/api/passwords/${encodeURIComponent(id)}`, {

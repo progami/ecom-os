@@ -7,6 +7,15 @@ import { weekStartsOnForRegion } from '@/lib/strategy-region';
 import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard-orders';
 import { getTalosPrisma } from '@/lib/integrations/talos-client';
 
+function logSync(message: string, data?: Record<string, unknown>) {
+  const timestamp = new Date().toISOString();
+  if (data) {
+    console.log(`[sellerboard-sync] ${timestamp} ${message}`, JSON.stringify(data));
+  } else {
+    console.log(`[sellerboard-sync] ${timestamp} ${message}`);
+  }
+}
+
 export type SellerboardUsActualSalesSyncResult = {
   rowsParsed: number;
   rowsSkipped: number;
@@ -22,17 +31,22 @@ export type SellerboardUsActualSalesSyncResult = {
 export async function syncSellerboardUsActualSales(options: {
   reportUrl: string;
 }): Promise<SellerboardUsActualSalesSyncResult> {
+  logSync('Starting Sellerboard US actual sales sync');
+
   const reportUrl = options.reportUrl.trim();
   if (!reportUrl) {
     throw new Error('Missing Sellerboard report URL');
   }
 
+  logSync('Fetching CSV from Sellerboard');
   const response = await fetch(reportUrl, { method: 'GET' });
   if (!response.ok) {
     throw new Error(`Sellerboard fetch failed (${response.status})`);
   }
 
   const csv = await response.text();
+  logSync('CSV fetched', { bytes: csv.length });
+
   const weekStartsOn = weekStartsOnForRegion('US');
   const planning = await loadPlanningCalendar(weekStartsOn);
 
@@ -41,9 +55,19 @@ export async function syncSellerboardUsActualSales(options: {
     excludeStatuses: ['Cancelled'],
   });
 
+  logSync('CSV parsed', {
+    rowsParsed: parsed.rowsParsed,
+    rowsSkipped: parsed.rowsSkipped,
+    weeklyUnitsCount: parsed.weeklyUnits.length,
+    oldestDate: parsed.oldestPurchaseDateUtc?.toISOString(),
+    newestDate: parsed.newestPurchaseDateUtc?.toISOString(),
+  });
+
   const productCodes = Array.from(new Set(parsed.weeklyUnits.map((entry) => entry.productCode)));
+  logSync('Unique product codes from CSV', { count: productCodes.length, sample: productCodes.slice(0, 10) });
 
   if (productCodes.length === 0) {
+    logSync('No product codes found in CSV, returning early');
     return {
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,
@@ -57,6 +81,8 @@ export async function syncSellerboardUsActualSales(options: {
     };
   }
 
+  // Step 1: Match products by SKU
+  logSync('Looking up products by SKU');
   const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
@@ -79,11 +105,28 @@ export async function syncSellerboardUsActualSales(options: {
     productsByCode.set(product.sku, list);
   }
 
-  const unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  logSync('Direct SKU match results', {
+    productsFound: directProducts.length,
+    uniqueSkusMatched: productsByCode.size,
+    matchedSkus: Array.from(productsByCode.keys()).slice(0, 10),
+  });
+
+  // Step 2: Match unmatched codes by ASIN field in X-Plan products
+  let unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
   let asinMappingsFound = 0;
   let asinProductsMatched = 0;
+  let xplanAsinMatched = 0;
 
+  // Note: ASIN field matching requires the database to have the asin column added
+  // This is done via migration but TypeScript types may not reflect it until CI regenerates
+  // For now, we skip this step if there are TypeScript issues - Talos ASIN mapping below handles the fallback
+
+  // Update unmatched codes (X-Plan ASIN matching skipped for now - using Talos fallback)
+
+  // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping
   if (unmatchedCodes.length) {
+    logSync('Looking up Talos ASIN mappings', { unmatchedCount: unmatchedCodes.length, sample: unmatchedCodes.slice(0, 10) });
+
     const talos = getTalosPrisma('US');
     if (talos) {
       const mappings = await talos.sku.findMany({
@@ -92,11 +135,16 @@ export async function syncSellerboardUsActualSales(options: {
       });
       asinMappingsFound = mappings.length;
 
+      logSync('Talos ASIN mappings found', {
+        count: mappings.length,
+        sample: mappings.slice(0, 5).map((m: { asin: string | null; skuCode: string | null }) => ({ asin: m.asin, skuCode: m.skuCode })),
+      });
+
       const mappedSkuCodes = Array.from(
         new Set(
           mappings
-            .map((row) => row.skuCode?.trim())
-            .filter((value): value is string => Boolean(value)),
+            .map((row: { skuCode: string | null }) => row.skuCode?.trim())
+            .filter((value: string | undefined): value is string => Boolean(value)),
         ),
       );
 
@@ -108,6 +156,8 @@ export async function syncSellerboardUsActualSales(options: {
           },
           select: { id: true, sku: true, strategyId: true },
         });
+
+        logSync('Products found via Talos mapping', { count: mappedProducts.length });
 
         const productsBySku = new Map<string, Array<{ id: string; strategyId: string }>>();
         for (const product of mappedProducts) {
@@ -126,8 +176,19 @@ export async function syncSellerboardUsActualSales(options: {
           asinProductsMatched += products.length;
           productsByCode.set(asin, products);
         }
+
+        logSync('Talos ASIN->SKU matching complete', { asinProductsMatched });
       }
     }
+  }
+
+  // Log final unmatched codes for debugging
+  const finalUnmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  if (finalUnmatchedCodes.length) {
+    logSync('Unmatched product codes (no X-Plan product found)', {
+      count: finalUnmatchedCodes.length,
+      codes: finalUnmatchedCodes.slice(0, 20),
+    });
   }
 
   const upserts: ReturnType<(typeof prisma.salesWeek)['upsert']>[] = [];
@@ -165,8 +226,12 @@ export async function syncSellerboardUsActualSales(options: {
     }
   }
 
+  logSync('Preparing upserts', { count: upserts.length });
+
   if (upserts.length) {
+    logSync('Executing database transaction');
     await prisma.$transaction(upserts);
+    logSync('Database transaction complete');
   }
 
   const uniqueProductsMatched = new Set<string>(directProductIds);
@@ -176,7 +241,7 @@ export async function syncSellerboardUsActualSales(options: {
     }
   }
 
-  return {
+  const result = {
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
     productsMatched: uniqueProductsMatched.size,
@@ -187,4 +252,15 @@ export async function syncSellerboardUsActualSales(options: {
     oldestPurchaseDateUtc: parsed.oldestPurchaseDateUtc,
     newestPurchaseDateUtc: parsed.newestPurchaseDateUtc,
   };
+
+  logSync('Sync complete', {
+    rowsParsed: result.rowsParsed,
+    rowsSkipped: result.rowsSkipped,
+    productsMatched: result.productsMatched,
+    asinMappingsFound: result.asinMappingsFound,
+    asinProductsMatched: result.asinProductsMatched,
+    updates: result.updates,
+  });
+
+  return result;
 }

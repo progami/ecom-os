@@ -577,23 +577,23 @@ function parseDimensionsCm(value: string | null | undefined): [number, number, n
 }
 
 function computeCartonVolumeCbm(input: {
-  cartonLengthCm?: unknown
-  cartonWidthCm?: unknown
-  cartonHeightCm?: unknown
+  cartonSide1Cm?: unknown
+  cartonSide2Cm?: unknown
+  cartonSide3Cm?: unknown
   cartonDimensionsCm?: string | null
 }): number | null {
-  const lengthCm = toFiniteNumber(input.cartonLengthCm)
-  const widthCm = toFiniteNumber(input.cartonWidthCm)
-  const heightCm = toFiniteNumber(input.cartonHeightCm)
+  const side1Cm = toFiniteNumber(input.cartonSide1Cm)
+  const side2Cm = toFiniteNumber(input.cartonSide2Cm)
+  const side3Cm = toFiniteNumber(input.cartonSide3Cm)
 
-  if (lengthCm && widthCm && heightCm) {
-    return (lengthCm * widthCm * heightCm) / 1_000_000
+  if (side1Cm && side2Cm && side3Cm) {
+    return (side1Cm * side2Cm * side3Cm) / 1_000_000
   }
 
   const parsed = parseDimensionsCm(input.cartonDimensionsCm)
   if (!parsed) return null
-  const [parsedLength, parsedWidth, parsedHeight] = parsed
-  return (parsedLength * parsedWidth * parsedHeight) / 1_000_000
+  const [parsedSide1, parsedSide2, parsedSide3] = parsed
+  return (parsedSide1 * parsedSide2 * parsedSide3) / 1_000_000
 }
 
 function roundTo(value: number, decimals: number): number {
@@ -640,9 +640,9 @@ async function computeManufacturingCargoTotals(
 
     const cartonVolumeCbm =
       computeCartonVolumeCbm({
-        cartonLengthCm: line.cartonLengthCm,
-        cartonWidthCm: line.cartonWidthCm,
-        cartonHeightCm: line.cartonHeightCm,
+        cartonSide1Cm: line.cartonSide1Cm,
+        cartonSide2Cm: line.cartonSide2Cm,
+        cartonSide3Cm: line.cartonSide3Cm,
         cartonDimensionsCm: line.cartonDimensionsCm,
       }) ?? null
 
@@ -721,9 +721,9 @@ export async function createPurchaseOrder(
       skuCode: true
       description: true
       cartonDimensionsCm: true
-      cartonLengthCm: true
-      cartonWidthCm: true
-      cartonHeightCm: true
+      cartonSide1Cm: true
+      cartonSide2Cm: true
+      cartonSide3Cm: true
       cartonWeightKg: true
       packagingType: true
     }
@@ -734,9 +734,9 @@ export async function createPurchaseOrder(
       skuId: true
       batchCode: true
       cartonDimensionsCm: true
-      cartonLengthCm: true
-      cartonWidthCm: true
-      cartonHeightCm: true
+      cartonSide1Cm: true
+      cartonSide2Cm: true
+      cartonSide3Cm: true
       cartonWeightKg: true
       packagingType: true
       storageCartonsPerPallet: true
@@ -842,9 +842,9 @@ export async function createPurchaseOrder(
         skuCode: true,
         description: true,
         cartonDimensionsCm: true,
-        cartonLengthCm: true,
-        cartonWidthCm: true,
-        cartonHeightCm: true,
+        cartonSide1Cm: true,
+        cartonSide2Cm: true,
+        cartonSide3Cm: true,
         cartonWeightKg: true,
         packagingType: true,
       },
@@ -916,9 +916,9 @@ export async function createPurchaseOrder(
                   skuId: true,
                   batchCode: true,
                   cartonDimensionsCm: true,
-                  cartonLengthCm: true,
-                  cartonWidthCm: true,
-                  cartonHeightCm: true,
+                  cartonSide1Cm: true,
+                  cartonSide2Cm: true,
+                  cartonSide3Cm: true,
                   cartonWeightKg: true,
                   packagingType: true,
                   storageCartonsPerPallet: true,
@@ -980,12 +980,12 @@ export async function createPurchaseOrder(
                                   : skuRecord?.description ?? '',
                               cartonDimensionsCm:
                                 batchRecord?.cartonDimensionsCm ?? skuRecord?.cartonDimensionsCm ?? null,
-                              cartonLengthCm:
-                                batchRecord?.cartonLengthCm ?? skuRecord?.cartonLengthCm ?? null,
-                              cartonWidthCm:
-                                batchRecord?.cartonWidthCm ?? skuRecord?.cartonWidthCm ?? null,
-                              cartonHeightCm:
-                                batchRecord?.cartonHeightCm ?? skuRecord?.cartonHeightCm ?? null,
+                              cartonSide1Cm:
+                                batchRecord?.cartonSide1Cm ?? skuRecord?.cartonSide1Cm ?? null,
+                              cartonSide2Cm:
+                                batchRecord?.cartonSide2Cm ?? skuRecord?.cartonSide2Cm ?? null,
+                              cartonSide3Cm:
+                                batchRecord?.cartonSide3Cm ?? skuRecord?.cartonSide3Cm ?? null,
                               cartonWeightKg:
                                 batchRecord?.cartonWeightKg ?? skuRecord?.cartonWeightKg ?? null,
                               packagingType: batchRecord?.packagingType ?? skuRecord?.packagingType ?? null,
@@ -1987,9 +1987,9 @@ export function serializePurchaseOrder(
 	      skuDescription: line.skuDescription,
 	      batchLot: line.batchLot,
         cartonDimensionsCm: line.cartonDimensionsCm ?? null,
-        cartonLengthCm: toFiniteNumber(line.cartonLengthCm),
-        cartonWidthCm: toFiniteNumber(line.cartonWidthCm),
-        cartonHeightCm: toFiniteNumber(line.cartonHeightCm),
+        cartonSide1Cm: toFiniteNumber(line.cartonSide1Cm),
+        cartonSide2Cm: toFiniteNumber(line.cartonSide2Cm),
+        cartonSide3Cm: toFiniteNumber(line.cartonSide3Cm),
         cartonWeightKg: toFiniteNumber(line.cartonWeightKg),
         packagingType: line.packagingType ? line.packagingType.trim().toUpperCase() : null,
         storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,

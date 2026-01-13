@@ -62,7 +62,7 @@ export function ProductSetupAmazonImport({
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AmazonProduct[]>([]);
-  const [selectedBySku, setSelectedBySku] = useState<Map<string, { sku: string; name: string }>>(
+  const [selectedBySku, setSelectedBySku] = useState<Map<string, { sku: string; name: string; asin?: string }>>(
     () => new Map(),
   );
 
@@ -140,7 +140,7 @@ export function ProductSetupAmazonImport({
     setSelectedBySku((prev) => {
       const next = new Map(prev);
       if (next.has(key)) next.delete(key);
-      else next.set(key, { sku: row.sku, name: row.name });
+      else next.set(key, { sku: row.sku, name: row.name, asin: row.asin ?? undefined });
       return next;
     });
   };
@@ -152,7 +152,7 @@ export function ProductSetupAmazonImport({
     setSelectedBySku((prev) => {
       const next = new Map(prev);
       for (const row of selectableVisible) {
-        next.set(normalizeSku(row.sku), { sku: row.sku, name: row.name });
+        next.set(normalizeSku(row.sku), { sku: row.sku, name: row.name, asin: row.asin ?? undefined });
       }
       return next;
     });
@@ -235,7 +235,7 @@ export function ProductSetupAmazonImport({
       >
         <span className="inline-flex items-center gap-1.5">
           <CloudDownload className="h-4 w-4" />
-          Import from Amazon
+          Import from Talos
         </span>
       </button>
 
@@ -260,7 +260,7 @@ export function ProductSetupAmazonImport({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <AlertDialogTitle className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
-                    Import products from Amazon
+                    Import products from Talos
                   </AlertDialogTitle>
                   <AlertDialogDescription className="mt-1">
                     Select SKUs to add to this strategy. Existing SKUs are locked.

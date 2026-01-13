@@ -68,9 +68,9 @@ interface PurchaseOrderLineSummary {
   skuDescription: string | null
   batchLot: string | null
   cartonDimensionsCm?: string | null
-  cartonLengthCm?: number | null
-  cartonWidthCm?: number | null
-  cartonHeightCm?: number | null
+  cartonSide1Cm?: number | null
+  cartonSide2Cm?: number | null
+  cartonSide3Cm?: number | null
   cartonWeightKg?: number | null
   packagingType?: string | null
   unitsOrdered: number
@@ -97,9 +97,9 @@ interface BatchOption {
   batchCode: string
   unitsPerCarton: number | null
   cartonDimensionsCm: string | null
-  cartonLengthCm: number | null
-  cartonWidthCm: number | null
-  cartonHeightCm: number | null
+  cartonSide1Cm: number | null
+  cartonSide2Cm: number | null
+  cartonSide3Cm: number | null
   cartonWeightKg: number | null
   packagingType: string | null
 }
@@ -116,9 +116,9 @@ function buildBatchPackagingMeta(options: {
     unitsPerCarton && unitsOrdered > 0 ? Math.ceil(unitsOrdered / unitsPerCarton) : null
 
   const cartonTriplet = resolveDimensionTripletCm({
-    lengthCm: options.batch.cartonLengthCm,
-    widthCm: options.batch.cartonWidthCm,
-    heightCm: options.batch.cartonHeightCm,
+    side1Cm: options.batch.cartonSide1Cm,
+    side2Cm: options.batch.cartonSide2Cm,
+    side3Cm: options.batch.cartonSide3Cm,
     legacy: options.batch.cartonDimensionsCm,
   })
 
@@ -143,7 +143,7 @@ function buildBatchPackagingMeta(options: {
 
   parts.push(`Carton: ${formatDimensionTripletCm(cartonTriplet)} cm`)
   const cbmPerCarton =
-    (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+    (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
   parts.push(`CBM/ctn: ${cbmPerCarton.toFixed(3)}`)
   if (cartons) {
     parts.push(`CBM: ${(cbmPerCarton * cartons).toFixed(3)}`)
@@ -178,9 +178,9 @@ function buildLinePackagingDetails(line: PurchaseOrderLineSummary): LinePackagin
   if (!Number.isFinite(line.quantity) || line.quantity <= 0) return null
 
   const cartonTriplet = resolveDimensionTripletCm({
-    lengthCm: line.cartonLengthCm ?? null,
-    widthCm: line.cartonWidthCm ?? null,
-    heightCm: line.cartonHeightCm ?? null,
+    side1Cm: line.cartonSide1Cm ?? null,
+    side2Cm: line.cartonSide2Cm ?? null,
+    side3Cm: line.cartonSide3Cm ?? null,
     legacy: line.cartonDimensionsCm ?? null,
   })
 
@@ -189,7 +189,7 @@ function buildLinePackagingDetails(line: PurchaseOrderLineSummary): LinePackagin
   let cbmPerCarton: number | null = null
   if (cartonTriplet) {
     cbmPerCarton =
-      (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+      (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
   }
 
   return {
@@ -1012,9 +1012,9 @@ export default function PurchaseOrderDetailPage() {
               batchCode,
               unitsPerCarton: coercePositiveInt(batch?.unitsPerCarton),
               cartonDimensionsCm: coerceString(batch?.cartonDimensionsCm),
-              cartonLengthCm: coercePositiveNumber(batch?.cartonLengthCm),
-              cartonWidthCm: coercePositiveNumber(batch?.cartonWidthCm),
-              cartonHeightCm: coercePositiveNumber(batch?.cartonHeightCm),
+              cartonSide1Cm: coercePositiveNumber(batch?.cartonSide1Cm),
+              cartonSide2Cm: coercePositiveNumber(batch?.cartonSide2Cm),
+              cartonSide3Cm: coercePositiveNumber(batch?.cartonSide3Cm),
               cartonWeightKg: coercePositiveNumber(batch?.cartonWeightKg),
               packagingType: (() => {
                 const raw = coerceString(batch?.packagingType)

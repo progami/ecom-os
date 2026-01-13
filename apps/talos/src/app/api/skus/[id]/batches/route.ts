@@ -22,33 +22,33 @@ const packagingTypeSchema = z.preprocess(
 )
 
 type DimensionRefineShape = {
-  unitLengthCm: z.ZodTypeAny
-  unitWidthCm: z.ZodTypeAny
-  unitHeightCm: z.ZodTypeAny
-  cartonLengthCm: z.ZodTypeAny
-  cartonWidthCm: z.ZodTypeAny
-  cartonHeightCm: z.ZodTypeAny
+  unitSide1Cm: z.ZodTypeAny
+  unitSide2Cm: z.ZodTypeAny
+  unitSide3Cm: z.ZodTypeAny
+  cartonSide1Cm: z.ZodTypeAny
+  cartonSide2Cm: z.ZodTypeAny
+  cartonSide3Cm: z.ZodTypeAny
 }
 
 const refineDimensions = <T extends z.ZodRawShape & DimensionRefineShape>(schema: z.ZodObject<T>) =>
   schema.superRefine((value, ctx) => {
-    const unitValues = [value.unitLengthCm, value.unitWidthCm, value.unitHeightCm]
+    const unitValues = [value.unitSide1Cm, value.unitSide2Cm, value.unitSide3Cm]
     const unitAny = unitValues.some(part => part !== undefined && part !== null)
     const unitAll = unitValues.every(part => part !== undefined && part !== null)
     if (unitAny && !unitAll) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Unit dimensions require length, width, and height',
+        message: 'Unit dimensions require all three sides',
       })
     }
 
-    const cartonValues = [value.cartonLengthCm, value.cartonWidthCm, value.cartonHeightCm]
+    const cartonValues = [value.cartonSide1Cm, value.cartonSide2Cm, value.cartonSide3Cm]
     const cartonAny = cartonValues.some(part => part !== undefined && part !== null)
     const cartonAll = cartonValues.every(part => part !== undefined && part !== null)
     if (cartonAny && !cartonAll) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Carton dimensions require length, width, and height',
+        message: 'Carton dimensions require all three sides',
       })
     }
   })
@@ -69,14 +69,14 @@ const createBatchSchema = refineDimensions(
     storageCartonsPerPallet: z.number().int().positive(),
     shippingCartonsPerPallet: z.number().int().positive(),
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
-    unitLengthCm: optionalDimensionValueSchema,
-    unitWidthCm: optionalDimensionValueSchema,
-    unitHeightCm: optionalDimensionValueSchema,
+    unitSide1Cm: optionalDimensionValueSchema,
+    unitSide2Cm: optionalDimensionValueSchema,
+    unitSide3Cm: optionalDimensionValueSchema,
     unitWeightKg: z.number().positive(),
     cartonDimensionsCm: z.string().trim().max(120).optional().nullable(),
-    cartonLengthCm: optionalDimensionValueSchema,
-    cartonWidthCm: optionalDimensionValueSchema,
-    cartonHeightCm: optionalDimensionValueSchema,
+    cartonSide1Cm: optionalDimensionValueSchema,
+    cartonSide2Cm: optionalDimensionValueSchema,
+    cartonSide3Cm: optionalDimensionValueSchema,
     cartonWeightKg: z.number().positive().optional().nullable(),
   })
 )
@@ -157,25 +157,25 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   }
 
   const unitTriplet = resolveDimensionTripletCm({
-    lengthCm: payload.unitLengthCm,
-    widthCm: payload.unitWidthCm,
-    heightCm: payload.unitHeightCm,
+    side1Cm: payload.unitSide1Cm,
+    side2Cm: payload.unitSide2Cm,
+    side3Cm: payload.unitSide3Cm,
     legacy: payload.unitDimensionsCm,
   })
   const cartonTriplet = resolveDimensionTripletCm({
-    lengthCm: payload.cartonLengthCm,
-    widthCm: payload.cartonWidthCm,
-    heightCm: payload.cartonHeightCm,
+    side1Cm: payload.cartonSide1Cm,
+    side2Cm: payload.cartonSide2Cm,
+    side3Cm: payload.cartonSide3Cm,
     legacy: payload.cartonDimensionsCm,
   })
 
   const unitInputProvided =
-    payload.unitDimensionsCm || payload.unitLengthCm || payload.unitWidthCm || payload.unitHeightCm
+    payload.unitDimensionsCm || payload.unitSide1Cm || payload.unitSide2Cm || payload.unitSide3Cm
   const cartonInputProvided =
     payload.cartonDimensionsCm ||
-    payload.cartonLengthCm ||
-    payload.cartonWidthCm ||
-    payload.cartonHeightCm
+    payload.cartonSide1Cm ||
+    payload.cartonSide2Cm ||
+    payload.cartonSide3Cm
 
   if (unitInputProvided && !unitTriplet) {
     return ApiResponses.badRequest('Unit dimensions must be a valid LxWxH triple')
@@ -197,14 +197,14 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         unitsPerCarton: payload.unitsPerCarton,
         material: payload.material ? sanitizeForDisplay(payload.material) : null,
         unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+        unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
+        unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
+        unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
         unitWeightKg: payload.unitWeightKg,
         cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
-        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
-        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
-        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
+        cartonSide1Cm: cartonTriplet ? cartonTriplet.side1Cm : null,
+        cartonSide2Cm: cartonTriplet ? cartonTriplet.side2Cm : null,
+        cartonSide3Cm: cartonTriplet ? cartonTriplet.side3Cm : null,
         cartonWeightKg: payload.cartonWeightKg ?? null,
         packagingType: payload.packagingType ?? null,
         amazonSizeTier: payload.amazonSizeTier ? sanitizeForDisplay(payload.amazonSizeTier) : null,
