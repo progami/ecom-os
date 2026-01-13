@@ -65,6 +65,32 @@ const skuSchemaBase = z.object({
     .min(1)
     .max(SKU_FIELD_LIMITS.DESCRIPTION_MAX)
     .transform(val => sanitizeForDisplay(val)),
+  category: z
+    .string()
+    .trim()
+    .max(255)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
+  sizeTier: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
+  referralFeePercent: z.number().min(0).max(100).optional().nullable(),
+  fbaFulfillmentFee: z.number().min(0).optional().nullable(),
   amazonCategory: z
     .string()
     .trim()
@@ -368,6 +394,10 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       data: {
         skuCode: validatedData.skuCode,
         asin: validatedData.asin ?? null,
+        category: validatedData.category ?? null,
+        sizeTier: validatedData.sizeTier ?? null,
+        referralFeePercent: validatedData.referralFeePercent ?? null,
+        fbaFulfillmentFee: validatedData.fbaFulfillmentFee ?? null,
         amazonCategory: validatedData.amazonCategory ?? null,
         amazonSizeTier: validatedData.amazonSizeTier ?? null,
         amazonReferralFeePercent: validatedData.amazonReferralFeePercent ?? null,
