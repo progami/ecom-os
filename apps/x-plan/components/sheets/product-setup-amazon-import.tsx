@@ -235,7 +235,7 @@ export function ProductSetupAmazonImport({
       >
         <span className="inline-flex items-center gap-1.5">
           <CloudDownload className="h-4 w-4" />
-          Import from Amazon
+          Import from Talos
         </span>
       </button>
 
@@ -260,7 +260,7 @@ export function ProductSetupAmazonImport({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <AlertDialogTitle className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
-                    Import products from Amazon
+                    Import products from Talos
                   </AlertDialogTitle>
                   <AlertDialogDescription className="mt-1">
                     Select SKUs to add to this strategy. Existing SKUs are locked.
