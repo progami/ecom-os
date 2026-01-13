@@ -62,7 +62,7 @@ export function ProductSetupAmazonImport({
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AmazonProduct[]>([]);
-  const [selectedBySku, setSelectedBySku] = useState<Map<string, { sku: string; name: string }>>(
+  const [selectedBySku, setSelectedBySku] = useState<Map<string, { sku: string; name: string; asin?: string }>>(
     () => new Map(),
   );
 
@@ -140,7 +140,7 @@ export function ProductSetupAmazonImport({
     setSelectedBySku((prev) => {
       const next = new Map(prev);
       if (next.has(key)) next.delete(key);
-      else next.set(key, { sku: row.sku, name: row.name });
+      else next.set(key, { sku: row.sku, name: row.name, asin: row.asin ?? undefined });
       return next;
     });
   };
@@ -152,7 +152,7 @@ export function ProductSetupAmazonImport({
     setSelectedBySku((prev) => {
       const next = new Map(prev);
       for (const row of selectableVisible) {
-        next.set(normalizeSku(row.sku), { sku: row.sku, name: row.name });
+        next.set(normalizeSku(row.sku), { sku: row.sku, name: row.name, asin: row.asin ?? undefined });
       }
       return next;
     });
