@@ -287,36 +287,6 @@ export function POProfitabilityHeaderControls({
           </select>
         </div>
       ) : null}
-
-      <div className={SHEET_TOOLBAR_GROUP}>
-        <span className={SHEET_TOOLBAR_LABEL}>Gross Profit</span>
-        <div className="inline-flex items-center rounded-md border border-border/60 bg-background/40 p-0.5 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setShowGpAfterPpc(false)}
-            className={`h-6 px-2 text-xs rounded-sm transition-colors ${
-              !showGpAfterPpc
-                ? 'bg-secondary text-secondary-foreground font-medium'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            aria-label="Show GP before PPC"
-          >
-            Before PPC
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowGpAfterPpc(true)}
-            className={`h-6 px-2 text-xs rounded-sm transition-colors ${
-              showGpAfterPpc
-                ? 'bg-secondary text-secondary-foreground font-medium'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            aria-label="Show GP after PPC"
-          >
-            After PPC
-          </button>
-        </div>
-      </div>
     </>
   );
 }
@@ -760,27 +730,39 @@ export function POProfitabilitySection({
             <div className="overflow-x-auto">
               <Table className="w-full">
                 <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b-2 border-slate-200 dark:border-slate-700">
-                    <TableHead className="h-10 px-3 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50 min-w-[140px]">
+                  <TableRow className="hover:bg-transparent border-b border-slate-200 dark:border-slate-700">
+                    <TableHead className="h-9 px-3 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-800/30 min-w-[140px]">
                       Metric
                     </TableHead>
                     {tableSortedData.map((row) => (
                       <TableHead
                         key={row.id}
-                        className="h-10 px-3 text-right text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 bg-slate-50/80 dark:bg-slate-800/50 min-w-[100px]"
+                        className="h-9 px-3 text-right text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-800/30 min-w-[100px]"
                       >
-                        <div>{row.orderCode}</div>
-                        <div className="font-normal normal-case text-[10px] text-slate-500 dark:text-slate-400">
-                          <StatusBadge status={row.status} />
-                        </div>
+                        {row.orderCode}
                       </TableHead>
                     ))}
-                    <TableHead className="h-10 px-3 text-right text-xs font-bold uppercase tracking-wide text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-700/50 min-w-[100px]">
+                    <TableHead className="h-9 px-3 text-right text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100/70 dark:bg-slate-700/40 min-w-[100px]">
                       Total
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {/* Status row */}
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Status
+                    </TableCell>
+                    {tableSortedData.map((row) => (
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm text-slate-600 dark:text-slate-300">
+                        {statusLabels[row.status]}
+                      </TableCell>
+                    ))}
+                    <TableCell className="px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-800/30">
+                      —
+                    </TableCell>
+                  </TableRow>
+
                   {/* Units row */}
                   <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -797,7 +779,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Revenue row */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                       {valueDisplay === 'PER_UNIT' ? 'Sell Price' : 'Revenue'}
                     </TableCell>
@@ -837,7 +819,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Freight */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
                       Freight
                     </TableCell>
@@ -867,7 +849,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* COGS Adjustment */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
                       Adjustment
                     </TableCell>
@@ -882,7 +864,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Total COGS */}
-                  <TableRow className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30 bg-slate-50/50 dark:bg-slate-800/20">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Total COGS
                     </TableCell>
@@ -922,7 +904,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* FBA */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
                       FBA
                     </TableCell>
@@ -952,7 +934,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* AMZ Adjustment */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 pl-6 text-sm text-slate-600 dark:text-slate-300">
                       Adjustment
                     </TableCell>
@@ -967,7 +949,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Total AMZ Fees */}
-                  <TableRow className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30 bg-slate-50/50 dark:bg-slate-800/20">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Total AMZ Fees
                     </TableCell>
@@ -982,7 +964,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* PPC - shown before GP as it's part of GP calculation, not OPEX */}
-                  <TableRow className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30 bg-slate-50/50 dark:bg-slate-800/20">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       PPC Spend
                     </TableCell>
@@ -1009,7 +991,13 @@ export function POProfitabilitySection({
                   {/* Gross Profit - shows before or after PPC based on toggle */}
                   <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                      {showGpAfterPpc ? 'Gross Profit (after PPC)' : 'Gross Profit'}
+                      <button
+                        type="button"
+                        onClick={() => filters?.setShowGpAfterPpc(!showGpAfterPpc)}
+                        className="hover:underline underline-offset-2 cursor-pointer text-left"
+                      >
+                        {showGpAfterPpc ? 'Gross Profit (After PPC)' : 'Gross Profit (Before PPC)'}
+                      </button>
                     </TableCell>
                     {tableSortedData.map((row) => {
                       const gpValue = showGpAfterPpc ? row.grossProfit - row.ppcSpend : row.grossProfit;
@@ -1028,7 +1016,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Gross Margin % */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
                       Gross Margin %
                     </TableCell>
@@ -1083,7 +1071,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Net Margin % */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm text-slate-600 dark:text-slate-300">
                       Net Margin %
                     </TableCell>
@@ -1101,7 +1089,7 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* ROI */}
-                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       ROI
                     </TableCell>
@@ -1127,18 +1115,3 @@ export function POProfitabilitySection({
   );
 }
 
-function StatusBadge({ status }: { status: POStatus }) {
-  const styles: Record<POStatus, string> = {
-    DRAFT: 'bg-slate-100 text-slate-700 dark:bg-slate-700/50 dark:text-slate-200 border-slate-200 dark:border-slate-600',
-    ISSUED: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200 border-violet-200 dark:border-violet-700',
-    MANUFACTURING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-200 border-amber-200 dark:border-amber-700',
-    OCEAN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200 border-sky-200 dark:border-sky-700',
-    WAREHOUSE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-200 dark:border-emerald-700',
-    SHIPPED: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700',
-  };
-  return (
-    <span className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold border ${styles[status]}`}>
-      {statusLabels[status]}
-    </span>
-  );
-}
