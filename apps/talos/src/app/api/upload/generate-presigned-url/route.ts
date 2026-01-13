@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile } from '@/lib/security/file-upload'
+import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,10 @@ interface PresignedUrlRequest {
 }
 
 export const POST = withAuth(async (request, session) => {
+ // Apply upload rate limiting (10 uploads per hour)
+ const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.upload)
+ if (rateLimitResponse) return rateLimitResponse
+
  try {
 
  const body: PresignedUrlRequest = await request.json()
