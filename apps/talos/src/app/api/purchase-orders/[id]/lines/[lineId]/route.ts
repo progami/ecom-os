@@ -87,9 +87,9 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
     skuDescription: line.skuDescription,
     batchLot: line.batchLot,
     cartonDimensionsCm: line.cartonDimensionsCm ?? null,
-    cartonLengthCm: toNumberOrNull(line.cartonLengthCm),
-    cartonWidthCm: toNumberOrNull(line.cartonWidthCm),
-    cartonHeightCm: toNumberOrNull(line.cartonHeightCm),
+    cartonSide1Cm: toNumberOrNull(line.cartonSide1Cm),
+    cartonSide2Cm: toNumberOrNull(line.cartonSide2Cm),
+    cartonSide3Cm: toNumberOrNull(line.cartonSide3Cm),
     cartonWeightKg: toNumberOrNull(line.cartonWeightKg),
     packagingType: line.packagingType ? line.packagingType.trim().toUpperCase() : null,
     storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
@@ -266,9 +266,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
           skuCode: true,
           description: true,
           cartonDimensionsCm: true,
-          cartonLengthCm: true,
-          cartonWidthCm: true,
-          cartonHeightCm: true,
+          cartonSide1Cm: true,
+          cartonSide2Cm: true,
+          cartonSide3Cm: true,
           cartonWeightKg: true,
           packagingType: true,
         },
@@ -287,9 +287,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
           id: true,
           batchCode: true,
           cartonDimensionsCm: true,
-          cartonLengthCm: true,
-          cartonWidthCm: true,
-          cartonHeightCm: true,
+          cartonSide1Cm: true,
+          cartonSide2Cm: true,
+          cartonSide3Cm: true,
           cartonWeightKg: true,
           packagingType: true,
           storageCartonsPerPallet: true,
@@ -305,9 +305,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
 
       updateData.batchLot = existingBatch.batchCode
       updateData.cartonDimensionsCm = existingBatch.cartonDimensionsCm ?? sku.cartonDimensionsCm ?? null
-      updateData.cartonLengthCm = existingBatch.cartonLengthCm ?? sku.cartonLengthCm ?? null
-      updateData.cartonWidthCm = existingBatch.cartonWidthCm ?? sku.cartonWidthCm ?? null
-      updateData.cartonHeightCm = existingBatch.cartonHeightCm ?? sku.cartonHeightCm ?? null
+      updateData.cartonSide1Cm = existingBatch.cartonSide1Cm ?? sku.cartonSide1Cm ?? null
+      updateData.cartonSide2Cm = existingBatch.cartonSide2Cm ?? sku.cartonSide2Cm ?? null
+      updateData.cartonSide3Cm = existingBatch.cartonSide3Cm ?? sku.cartonSide3Cm ?? null
       updateData.cartonWeightKg = existingBatch.cartonWeightKg ?? sku.cartonWeightKg ?? null
       updateData.packagingType = existingBatch.packagingType ?? sku.packagingType ?? null
       updateData.storageCartonsPerPallet = existingBatch.storageCartonsPerPallet ?? null
@@ -342,9 +342,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuDescription: line.skuDescription ?? null,
     batchLot: line.batchLot ?? null,
     cartonDimensionsCm: line.cartonDimensionsCm ?? null,
-    cartonLengthCm: toNumberOrNull(line.cartonLengthCm),
-    cartonWidthCm: toNumberOrNull(line.cartonWidthCm),
-    cartonHeightCm: toNumberOrNull(line.cartonHeightCm),
+    cartonSide1Cm: toNumberOrNull(line.cartonSide1Cm),
+    cartonSide2Cm: toNumberOrNull(line.cartonSide2Cm),
+    cartonSide3Cm: toNumberOrNull(line.cartonSide3Cm),
     cartonWeightKg: toNumberOrNull(line.cartonWeightKg),
     packagingType: line.packagingType ?? null,
     storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
@@ -364,9 +364,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuDescription: updated.skuDescription ?? null,
     batchLot: updated.batchLot ?? null,
     cartonDimensionsCm: updated.cartonDimensionsCm ?? null,
-    cartonLengthCm: toNumberOrNull(updated.cartonLengthCm),
-    cartonWidthCm: toNumberOrNull(updated.cartonWidthCm),
-    cartonHeightCm: toNumberOrNull(updated.cartonHeightCm),
+    cartonSide1Cm: toNumberOrNull(updated.cartonSide1Cm),
+    cartonSide2Cm: toNumberOrNull(updated.cartonSide2Cm),
+    cartonSide3Cm: toNumberOrNull(updated.cartonSide3Cm),
     cartonWeightKg: toNumberOrNull(updated.cartonWeightKg),
     packagingType: updated.packagingType ?? null,
     storageCartonsPerPallet: updated.storageCartonsPerPallet ?? null,
@@ -408,9 +408,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     skuDescription: updated.skuDescription,
     batchLot: updated.batchLot,
     cartonDimensionsCm: updated.cartonDimensionsCm ?? null,
-    cartonLengthCm: toNumberOrNull(updated.cartonLengthCm),
-    cartonWidthCm: toNumberOrNull(updated.cartonWidthCm),
-    cartonHeightCm: toNumberOrNull(updated.cartonHeightCm),
+    cartonSide1Cm: toNumberOrNull(updated.cartonSide1Cm),
+    cartonSide2Cm: toNumberOrNull(updated.cartonSide2Cm),
+    cartonSide3Cm: toNumberOrNull(updated.cartonSide3Cm),
     cartonWeightKg: toNumberOrNull(updated.cartonWeightKg),
     packagingType: updated.packagingType ? updated.packagingType.trim().toUpperCase() : null,
     storageCartonsPerPallet: updated.storageCartonsPerPallet ?? null,
@@ -481,9 +481,9 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
       skuDescription: line.skuDescription ?? null,
       batchLot: line.batchLot ?? null,
       cartonDimensionsCm: line.cartonDimensionsCm ?? null,
-      cartonLengthCm: toNumberOrNull(line.cartonLengthCm),
-      cartonWidthCm: toNumberOrNull(line.cartonWidthCm),
-      cartonHeightCm: toNumberOrNull(line.cartonHeightCm),
+      cartonSide1Cm: toNumberOrNull(line.cartonSide1Cm),
+      cartonSide2Cm: toNumberOrNull(line.cartonSide2Cm),
+      cartonSide3Cm: toNumberOrNull(line.cartonSide3Cm),
       cartonWeightKg: toNumberOrNull(line.cartonWeightKg),
       packagingType: line.packagingType ?? null,
       storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,

@@ -22,33 +22,33 @@ const packagingTypeSchema = z.preprocess(
 )
 
 type DimensionRefineShape = {
-  unitLengthCm: z.ZodTypeAny
-  unitWidthCm: z.ZodTypeAny
-  unitHeightCm: z.ZodTypeAny
-  cartonLengthCm: z.ZodTypeAny
-  cartonWidthCm: z.ZodTypeAny
-  cartonHeightCm: z.ZodTypeAny
+  unitSide1Cm: z.ZodTypeAny
+  unitSide2Cm: z.ZodTypeAny
+  unitSide3Cm: z.ZodTypeAny
+  cartonSide1Cm: z.ZodTypeAny
+  cartonSide2Cm: z.ZodTypeAny
+  cartonSide3Cm: z.ZodTypeAny
 }
 
 const refineDimensions = <T extends z.ZodRawShape & DimensionRefineShape>(schema: z.ZodObject<T>) =>
   schema.superRefine((value, ctx) => {
-    const unitValues = [value.unitLengthCm, value.unitWidthCm, value.unitHeightCm]
+    const unitValues = [value.unitSide1Cm, value.unitSide2Cm, value.unitSide3Cm]
     const unitAny = unitValues.some(part => part !== undefined && part !== null)
     const unitAll = unitValues.every(part => part !== undefined && part !== null)
     if (unitAny && !unitAll) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Unit dimensions require length, width, and height',
+        message: 'Unit dimensions require all three sides',
       })
     }
 
-    const cartonValues = [value.cartonLengthCm, value.cartonWidthCm, value.cartonHeightCm]
+    const cartonValues = [value.cartonSide1Cm, value.cartonSide2Cm, value.cartonSide3Cm]
     const cartonAny = cartonValues.some(part => part !== undefined && part !== null)
     const cartonAll = cartonValues.every(part => part !== undefined && part !== null)
     if (cartonAny && !cartonAll) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Carton dimensions require length, width, and height',
+        message: 'Carton dimensions require all three sides',
       })
     }
   })
@@ -69,14 +69,14 @@ const updateSchema = refineDimensions(
     storageCartonsPerPallet: z.number().int().positive().optional(),
     shippingCartonsPerPallet: z.number().int().positive().optional(),
     unitDimensionsCm: z.string().trim().max(120).optional().nullable(),
-    unitLengthCm: optionalDimensionValueSchema,
-    unitWidthCm: optionalDimensionValueSchema,
-    unitHeightCm: optionalDimensionValueSchema,
+    unitSide1Cm: optionalDimensionValueSchema,
+    unitSide2Cm: optionalDimensionValueSchema,
+    unitSide3Cm: optionalDimensionValueSchema,
     unitWeightKg: z.number().positive().optional(),
     cartonDimensionsCm: z.string().trim().max(120).optional().nullable(),
-    cartonLengthCm: optionalDimensionValueSchema,
-    cartonWidthCm: optionalDimensionValueSchema,
-    cartonHeightCm: optionalDimensionValueSchema,
+    cartonSide1Cm: optionalDimensionValueSchema,
+    cartonSide2Cm: optionalDimensionValueSchema,
+    cartonSide3Cm: optionalDimensionValueSchema,
     cartonWeightKg: z.number().positive().optional().nullable(),
   })
 )
@@ -211,20 +211,20 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
 
   const unitTouched =
     hasOwn('unitDimensionsCm') ||
-    hasOwn('unitLengthCm') ||
-    hasOwn('unitWidthCm') ||
-    hasOwn('unitHeightCm')
+    hasOwn('unitSide1Cm') ||
+    hasOwn('unitSide2Cm') ||
+    hasOwn('unitSide3Cm')
   if (unitTouched) {
     const unitTriplet = resolveDimensionTripletCm({
-      lengthCm: parsed.data.unitLengthCm,
-      widthCm: parsed.data.unitWidthCm,
-      heightCm: parsed.data.unitHeightCm,
+      side1Cm: parsed.data.unitSide1Cm,
+      side2Cm: parsed.data.unitSide2Cm,
+      side3Cm: parsed.data.unitSide3Cm,
       legacy: parsed.data.unitDimensionsCm,
     })
 
     const unitInputProvided =
       Boolean(parsed.data.unitDimensionsCm) ||
-      [parsed.data.unitLengthCm, parsed.data.unitWidthCm, parsed.data.unitHeightCm].some(
+      [parsed.data.unitSide1Cm, parsed.data.unitSide2Cm, parsed.data.unitSide3Cm].some(
         value => value !== undefined && value !== null
       )
 
@@ -233,27 +233,27 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
     }
 
     data.unitDimensionsCm = unitTriplet ? formatDimensionTripletCm(unitTriplet) : null
-    data.unitLengthCm = unitTriplet ? unitTriplet.lengthCm : null
-    data.unitWidthCm = unitTriplet ? unitTriplet.widthCm : null
-    data.unitHeightCm = unitTriplet ? unitTriplet.heightCm : null
+    data.unitSide1Cm = unitTriplet ? unitTriplet.side1Cm : null
+    data.unitSide2Cm = unitTriplet ? unitTriplet.side2Cm : null
+    data.unitSide3Cm = unitTriplet ? unitTriplet.side3Cm : null
   }
 
   const cartonTouched =
     hasOwn('cartonDimensionsCm') ||
-    hasOwn('cartonLengthCm') ||
-    hasOwn('cartonWidthCm') ||
-    hasOwn('cartonHeightCm')
+    hasOwn('cartonSide1Cm') ||
+    hasOwn('cartonSide2Cm') ||
+    hasOwn('cartonSide3Cm')
   if (cartonTouched) {
     const cartonTriplet = resolveDimensionTripletCm({
-      lengthCm: parsed.data.cartonLengthCm,
-      widthCm: parsed.data.cartonWidthCm,
-      heightCm: parsed.data.cartonHeightCm,
+      side1Cm: parsed.data.cartonSide1Cm,
+      side2Cm: parsed.data.cartonSide2Cm,
+      side3Cm: parsed.data.cartonSide3Cm,
       legacy: parsed.data.cartonDimensionsCm,
     })
 
     const cartonInputProvided =
       Boolean(parsed.data.cartonDimensionsCm) ||
-      [parsed.data.cartonLengthCm, parsed.data.cartonWidthCm, parsed.data.cartonHeightCm].some(
+      [parsed.data.cartonSide1Cm, parsed.data.cartonSide2Cm, parsed.data.cartonSide3Cm].some(
         value => value !== undefined && value !== null
       )
 
@@ -262,9 +262,9 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
     }
 
     data.cartonDimensionsCm = cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null
-    data.cartonLengthCm = cartonTriplet ? cartonTriplet.lengthCm : null
-    data.cartonWidthCm = cartonTriplet ? cartonTriplet.widthCm : null
-    data.cartonHeightCm = cartonTriplet ? cartonTriplet.heightCm : null
+    data.cartonSide1Cm = cartonTriplet ? cartonTriplet.side1Cm : null
+    data.cartonSide2Cm = cartonTriplet ? cartonTriplet.side2Cm : null
+    data.cartonSide3Cm = cartonTriplet ? cartonTriplet.side3Cm : null
   }
 
   try {

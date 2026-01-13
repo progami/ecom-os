@@ -78,26 +78,26 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
 
     // Update the SKU
     const unitTriplet = resolveDimensionTripletCm({
-      lengthCm: body.unitLengthCm,
-      widthCm: body.unitWidthCm,
-      heightCm: body.unitHeightCm,
+      side1Cm: body.unitSide1Cm,
+      side2Cm: body.unitSide2Cm,
+      side3Cm: body.unitSide3Cm,
       legacy: body.unitDimensionsCm,
     })
     const cartonTriplet = resolveDimensionTripletCm({
-      lengthCm: body.cartonLengthCm,
-      widthCm: body.cartonWidthCm,
-      heightCm: body.cartonHeightCm,
+      side1Cm: body.cartonSide1Cm,
+      side2Cm: body.cartonSide2Cm,
+      side3Cm: body.cartonSide3Cm,
       legacy: body.cartonDimensionsCm,
     })
 
     const unitInputProvided =
       Boolean(body.unitDimensionsCm) ||
-      [body.unitLengthCm, body.unitWidthCm, body.unitHeightCm].some(
+      [body.unitSide1Cm, body.unitSide2Cm, body.unitSide3Cm].some(
         value => value !== undefined && value !== null
       )
     const cartonInputProvided =
       Boolean(body.cartonDimensionsCm) ||
-      [body.cartonLengthCm, body.cartonWidthCm, body.cartonHeightCm].some(
+      [body.cartonSide1Cm, body.cartonSide2Cm, body.cartonSide3Cm].some(
         value => value !== undefined && value !== null
       )
 
@@ -139,15 +139,15 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
         packSize: body.packSize,
         material: body.material,
         unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+        unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
+        unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
+        unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
         unitWeightKg: body.unitWeightKg,
         unitsPerCarton: body.unitsPerCarton,
         cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
-        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
-        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
-        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
+        cartonSide1Cm: cartonTriplet ? cartonTriplet.side1Cm : null,
+        cartonSide2Cm: cartonTriplet ? cartonTriplet.side2Cm : null,
+        cartonSide3Cm: cartonTriplet ? cartonTriplet.side3Cm : null,
         cartonWeightKg: body.cartonWeightKg,
         packagingType,
       },

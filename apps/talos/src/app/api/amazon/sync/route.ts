@@ -193,14 +193,14 @@ async function syncProducts(session: Session) {
             Number.isFinite(width) &&
             Number.isFinite(height)
           ) {
-            const lengthCm = convertMeasurementToCm(length, lengthUnit)
-            const widthCm = convertMeasurementToCm(width, widthUnit)
-            const heightCm = convertMeasurementToCm(height, heightUnit)
-            if (lengthCm !== null && widthCm !== null && heightCm !== null) {
-              updates.cartonDimensionsCm = formatDimensionTripletCm({ lengthCm, widthCm, heightCm })
-              updates.cartonLengthCm = lengthCm
-              updates.cartonWidthCm = widthCm
-              updates.cartonHeightCm = heightCm
+            const side1Cm = convertMeasurementToCm(length, lengthUnit)
+            const side2Cm = convertMeasurementToCm(width, widthUnit)
+            const side3Cm = convertMeasurementToCm(height, heightUnit)
+            if (side1Cm !== null && side2Cm !== null && side3Cm !== null) {
+              updates.cartonDimensionsCm = formatDimensionTripletCm({ side1Cm, side2Cm, side3Cm })
+              updates.cartonSide1Cm = side1Cm
+              updates.cartonSide2Cm = side2Cm
+              updates.cartonSide3Cm = side3Cm
             }
           }
 
