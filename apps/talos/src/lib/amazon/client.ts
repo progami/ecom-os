@@ -1002,6 +1002,68 @@ export async function getProductFees(asin: string, price: number, tenantCode?: T
   }
 }
 
+/**
+ * Get the current listing price for an ASIN from Amazon's Pricing API.
+ * Returns the seller's own listing price if available, null otherwise.
+ */
+export async function getListingPrice(asin: string, tenantCode?: TenantCode): Promise<number | null> {
+  try {
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
+    const sellerId = config?.sellerId
+
+    const response = await callAmazonApi<{
+      payload?: {
+        Price?: Array<{
+          ASIN?: string
+          Product?: {
+            Offers?: Array<{
+              BuyingPrice?: {
+                ListingPrice?: {
+                  Amount?: number
+                }
+              }
+              SellerId?: string
+            }>
+          }
+        }>
+      }
+    }>(tenantCode, {
+      operation: 'getItemOffers',
+      endpoint: 'productPricing',
+      path: { Asin: asin },
+      query: {
+        MarketplaceId: marketplaceId,
+        ItemCondition: 'New',
+      },
+    })
+
+    // Find our seller's offer and return the listing price
+    const offers = response.payload?.Price?.[0]?.Product?.Offers ?? []
+    for (const offer of offers) {
+      if (sellerId && offer.SellerId === sellerId) {
+        const price = offer.BuyingPrice?.ListingPrice?.Amount
+        if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
+          return price
+        }
+      }
+    }
+
+    // If we can't find our own offer, return the first valid price as fallback
+    for (const offer of offers) {
+      const price = offer.BuyingPrice?.ListingPrice?.Amount
+      if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
+        return price
+      }
+    }
+
+    return null
+  } catch {
+    // Pricing API may fail for various reasons, return null to use default
+    return null
+  }
+}
+
 export async function getMonthlyStorageFees(
   startDate?: Date,
   endDate?: Date,
