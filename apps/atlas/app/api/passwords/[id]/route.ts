@@ -5,14 +5,12 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove } from '@/lib/permissions'
 
-const PasswordCategoryEnum = z.enum([
-  'SOCIAL_MEDIA',
-  'CLOUD_SERVICE',
-  'DEVELOPMENT',
+const PasswordDepartmentEnum = z.enum([
+  'OPS',
+  'SALES_MARKETING',
+  'LEGAL',
+  'HR',
   'FINANCE',
-  'COMMUNICATION',
-  'HR_SYSTEM',
-  'OTHER',
 ])
 
 const UpdatePasswordSchema = z.object({
@@ -20,7 +18,7 @@ const UpdatePasswordSchema = z.object({
   username: z.string().max(200).trim().optional().nullable(),
   password: z.string().min(1).max(500).optional(),
   url: z.string().max(500).trim().optional().nullable(),
-  category: PasswordCategoryEnum.optional(),
+  department: PasswordDepartmentEnum.optional(),
   notes: z.string().max(2000).trim().optional().nullable(),
 })
 
@@ -87,7 +85,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         username: data.username,
         password: data.password,
         url: data.url,
-        category: data.category,
+        department: data.department,
         notes: data.notes,
       },
     })
