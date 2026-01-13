@@ -314,7 +314,9 @@ export async function canEditField(
   const permission = FIELD_PERMISSIONS[fieldName]
 
   if (!permission) {
-    return { allowed: true } // Unknown field - allow by default
+    // SECURITY FIX: Unknown fields default to DENY instead of ALLOW
+    // This prevents new sensitive fields from being editable until explicitly configured
+    return { allowed: false, reason: 'Unknown field - permission not configured' }
   }
 
   if (permission === 'GOOGLE_CONTROLLED') {

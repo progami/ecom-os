@@ -40,6 +40,11 @@ export async function processManagerLeaveApproval(input: LeaveApprovalInput): Pr
     return { ok: false, status: 400, message: 'Leave request is not pending manager approval' }
   }
 
+  // SECURITY FIX: Prevent self-approval - actors cannot approve their own leave requests
+  if (input.actorId === leaveRequest.employeeId) {
+    return { ok: false, status: 403, message: 'Cannot approve your own leave request' }
+  }
+
   const isManager = await isManagerOf(input.actorId, leaveRequest.employeeId)
   const isHrOrAbove = await isHROrAbove(input.actorId)
 
@@ -152,6 +157,11 @@ export async function processHrLeaveApproval(input: LeaveApprovalInput): Promise
 
   if (!leaveRequest) return { ok: false, status: 404, message: 'Not found' }
 
+  // SECURITY FIX: Prevent self-approval at HR stage
+  if (input.actorId === leaveRequest.employeeId) {
+    return { ok: false, status: 403, message: 'Cannot approve your own leave request' }
+  }
+
   if (leaveRequest.status !== 'PENDING_HR') {
     return { ok: false, status: 400, message: 'Leave request is not pending HR approval' }
   }
@@ -260,6 +270,11 @@ export async function processSuperAdminLeaveApproval(input: LeaveApprovalInput):
   })
 
   if (!leaveRequest) return { ok: false, status: 404, message: 'Not found' }
+
+  // SECURITY FIX: Prevent self-approval at Super Admin stage
+  if (input.actorId === leaveRequest.employeeId) {
+    return { ok: false, status: 403, message: 'Cannot approve your own leave request' }
+  }
 
   if (leaveRequest.status !== 'PENDING_SUPER_ADMIN') {
     return { ok: false, status: 400, message: 'Leave request is not pending Super Admin approval' }
