@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { HR_ROLE_NAMES, PermissionLevel, isSuperAdmin } from '@/lib/permissions'
-import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit, withStrictRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 
 const CANONICAL_HR_ROLE_NAME = 'HR'
 
@@ -14,7 +14,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const rateLimitError = withRateLimit(request)
+  // Use strict rate limit for admin operations (100 requests/minute instead of default)
+  const rateLimitError = withStrictRateLimit(request)
   if (rateLimitError) return rateLimitError
 
   try {
@@ -110,8 +111,13 @@ export async function PATCH(
           updateData.roles = { connect: { id: hrRole.id } }
         }
       } else if (targetEmployee.roles.length > 0) {
-        updateData.roles = {
-          disconnect: targetEmployee.roles.map((r) => ({ id: r.id })),
+        // SECURITY FIX: Only disconnect HR-specific roles, not ALL roles
+        // This prevents accidentally removing non-HR roles (e.g., project manager, team lead)
+        const hrRolesToDisconnect = targetEmployee.roles.filter((r) => HR_ROLE_NAMES.includes(r.name))
+        if (hrRolesToDisconnect.length > 0) {
+          updateData.roles = {
+            disconnect: hrRolesToDisconnect.map((r) => ({ id: r.id })),
+          }
         }
       }
     }
@@ -120,6 +126,35 @@ export async function PATCH(
       await prisma.employee.update({
         where: { id: targetEmployeeId },
         data: updateData,
+      })
+
+      // SECURITY FIX: Add audit logging for admin access changes
+      await prisma.auditLog.create({
+        data: {
+          actorId: currentEmployeeId,
+          action: 'UPDATE',
+          entityType: 'EMPLOYEE',
+          entityId: targetEmployeeId,
+          summary: `Updated employee access: ${[
+            typeof newSuperAdminStatus === 'boolean' ? `isSuperAdmin=${newSuperAdminStatus}` : null,
+            typeof newHRStatus === 'boolean' ? `isHR=${newHRStatus}` : null,
+          ].filter(Boolean).join(', ')}`,
+          metadata: {
+            targetEmail: targetEmployee.email,
+            previousState: {
+              isSuperAdmin: targetEmployee.isSuperAdmin,
+              permissionLevel: targetEmployee.permissionLevel,
+              hrRoles: targetEmployee.roles.map((r) => r.name),
+            },
+            newState: {
+              isSuperAdmin: nextIsSuperAdmin,
+              permissionLevel: nextPermissionLevel,
+              isHR: nextIsHR,
+            },
+          },
+          ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: request.headers.get('user-agent') ?? null,
+        },
       })
     }
 

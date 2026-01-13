@@ -13,8 +13,11 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 }
 
 const RATE_LIMIT_WINDOW_MS = parsePositiveInt(process.env.ATLAS_RATE_LIMIT_WINDOW_MS, 60 * 1000) // 1 minute
-// Defaults intentionally generous to avoid blocking normal UI navigation/polling.
-const RATE_LIMIT_MAX_REQUESTS = parsePositiveInt(process.env.ATLAS_RATE_LIMIT_MAX_REQUESTS, 5000) // 5000 requests/minute
+// SECURITY FIX: Reduced default rate limit from 5000 to 500 requests/minute
+// 500 req/min (8.3/sec) is still generous for normal usage but limits abuse potential
+const RATE_LIMIT_MAX_REQUESTS = parsePositiveInt(process.env.ATLAS_RATE_LIMIT_MAX_REQUESTS, 500)
+// Stricter rate limit for sensitive admin operations (100 requests/minute)
+const STRICT_RATE_LIMIT_MAX_REQUESTS = parsePositiveInt(process.env.ATLAS_STRICT_RATE_LIMIT_MAX_REQUESTS, 100)
 
 function stableHash(input: string): string {
   // Fast, non-crypto hash (djb2) – good enough for in-memory rate-limit keys.
@@ -46,21 +49,21 @@ export function getRateLimitKey(request: Request): string {
   return `${ipPart}|id:${identityHash}`
 }
 
-export function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetIn: number } {
+export function checkRateLimit(key: string, maxRequests: number = RATE_LIMIT_MAX_REQUESTS): { allowed: boolean; remaining: number; resetIn: number } {
   const now = Date.now()
   const record = rateLimitMap.get(key)
 
   if (!record || now > record.resetTime) {
     rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS })
-    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1, resetIn: RATE_LIMIT_WINDOW_MS }
+    return { allowed: true, remaining: maxRequests - 1, resetIn: RATE_LIMIT_WINDOW_MS }
   }
 
-  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+  if (record.count >= maxRequests) {
     return { allowed: false, remaining: 0, resetIn: record.resetTime - now }
   }
 
   record.count++
-  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - record.count, resetIn: record.resetTime - now }
+  return { allowed: true, remaining: maxRequests - record.count, resetIn: record.resetTime - now }
 }
 
 export function rateLimitResponse(resetIn: number): NextResponse {
@@ -136,7 +139,21 @@ export function safeErrorResponse(error: unknown, defaultMessage: string, status
 // Apply rate limiting to a request
 export function withRateLimit(request: Request): NextResponse | null {
   const key = getRateLimitKey(request)
-  const { allowed, remaining, resetIn } = checkRateLimit(key)
+  const { allowed, resetIn } = checkRateLimit(key)
+
+  if (!allowed) {
+    return rateLimitResponse(resetIn)
+  }
+
+  return null // Continue processing
+}
+
+// Apply stricter rate limiting for sensitive admin operations
+export function withStrictRateLimit(request: Request): NextResponse | null {
+  // Use a separate key prefix for strict rate limiting to track admin operations separately
+  const baseKey = getRateLimitKey(request)
+  const key = `strict:${baseKey}`
+  const { allowed, resetIn } = checkRateLimit(key, STRICT_RATE_LIMIT_MAX_REQUESTS)
 
   if (!allowed) {
     return rateLimitResponse(resetIn)

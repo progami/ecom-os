@@ -94,12 +94,12 @@ export async function GET(req: Request, context: EmployeeRouteContext) {
         } : {}),
 
         // Compensation/admin fields (HR only)
+        // SECURITY FIX: Removed googleId from response - it should only be used internally for sync
         ...(canViewComp ? {
           salary: true,
           currency: true,
           permissionLevel: true,
           isSuperAdmin: true,
-          googleId: true,
         } : {}),
       },
     })
