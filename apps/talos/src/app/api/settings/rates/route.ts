@@ -7,11 +7,18 @@ import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
 import { UserRole } from '@targon/prisma-talos'
 export const dynamic = 'force-dynamic'
 
-const PLACEHOLDER_PASSWORD = process.env.WMS_SSO_PLACEHOLDER_PASSWORD
-if (!PLACEHOLDER_PASSWORD) {
- throw new Error('WMS_SSO_PLACEHOLDER_PASSWORD environment variable is required')
+// Lazy-loaded password hash to avoid build-time errors
+let _placeholderPasswordHash: string | null = null
+function getPlaceholderPasswordHash(): string {
+ if (!_placeholderPasswordHash) {
+  const password = process.env.WMS_SSO_PLACEHOLDER_PASSWORD
+  if (!password) {
+   throw new Error('WMS_SSO_PLACEHOLDER_PASSWORD environment variable is required')
+  }
+  _placeholderPasswordHash = bcrypt.hashSync(password, 10)
+ }
+ return _placeholderPasswordHash
 }
-const PLACEHOLDER_PASSWORD_HASH = bcrypt.hashSync(PLACEHOLDER_PASSWORD, 10)
 
 const normalizeRole = (role?: unknown): UserRole => {
  const allowed: UserRole[] = ['admin', 'staff']
@@ -44,7 +51,7 @@ const ensureWmsUser = async (session: Session, prisma: PrismaClient) => {
   create: {
    email,
    username: email,
-   passwordHash: PLACEHOLDER_PASSWORD_HASH,
+   passwordHash: getPlaceholderPasswordHash(),
    fullName,
    role,
    region,
