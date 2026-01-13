@@ -289,16 +289,33 @@ export function POProfitabilityHeaderControls({
       ) : null}
 
       <div className={SHEET_TOOLBAR_GROUP}>
-        <span className={SHEET_TOOLBAR_LABEL}>GP</span>
-        <select
-          value={showGpAfterPpc ? 'after-ppc' : 'before-ppc'}
-          onChange={(event) => setShowGpAfterPpc(event.target.value === 'after-ppc')}
-          className={SHEET_TOOLBAR_SELECT}
-          aria-label="Show GP before or after PPC"
-        >
-          <option value="before-ppc">Before PPC</option>
-          <option value="after-ppc">After PPC</option>
-        </select>
+        <span className={SHEET_TOOLBAR_LABEL}>Gross Profit</span>
+        <div className="inline-flex items-center rounded-md border border-border/60 bg-background/40 p-0.5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowGpAfterPpc(false)}
+            className={`h-6 px-2 text-xs rounded-sm transition-colors ${
+              !showGpAfterPpc
+                ? 'bg-secondary text-secondary-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            aria-label="Show GP before PPC"
+          >
+            Before PPC
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowGpAfterPpc(true)}
+            className={`h-6 px-2 text-xs rounded-sm transition-colors ${
+              showGpAfterPpc
+                ? 'bg-secondary text-secondary-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            aria-label="Show GP after PPC"
+          >
+            After PPC
+          </button>
+        </div>
       </div>
     </>
   );
@@ -798,7 +815,7 @@ export function POProfitabilitySection({
                   <TableRow className="hover:bg-transparent">
                     <TableCell
                       colSpan={tableSortedData.length + 2}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-orange-700 dark:text-orange-300 bg-orange-50/60 dark:bg-orange-900/20 border-y border-orange-200 dark:border-orange-800/50"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-700"
                     >
                       COGS
                     </TableCell>
@@ -865,16 +882,16 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Total COGS */}
-                  <TableRow className="hover:bg-orange-50/50 dark:hover:bg-orange-900/10 bg-orange-50/30 dark:bg-orange-900/10">
-                    <TableCell className="px-3 py-2 text-sm font-semibold text-orange-700 dark:text-orange-300">
+                  <TableRow className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30 bg-slate-50/50 dark:bg-slate-800/20">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Total COGS
                     </TableCell>
                     {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-orange-700 dark:text-orange-300">
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-slate-700 dark:text-slate-200">
                         {formatMoney(row.cogs, row.units)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-orange-700 dark:text-orange-300 bg-orange-50/50 dark:bg-orange-900/20">
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-100/50 dark:bg-slate-800/30">
                       {formatMoney(summary.totalCogs, summary.totalUnits)}
                     </TableCell>
                   </TableRow>
@@ -883,7 +900,7 @@ export function POProfitabilitySection({
                   <TableRow className="hover:bg-transparent">
                     <TableCell
                       colSpan={tableSortedData.length + 2}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-purple-700 dark:text-purple-300 bg-purple-50/60 dark:bg-purple-900/20 border-y border-purple-200 dark:border-purple-800/50"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-700"
                     >
                       Amazon Fees
                     </TableCell>
@@ -950,31 +967,31 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* Total AMZ Fees */}
-                  <TableRow className="hover:bg-purple-50/50 dark:hover:bg-purple-900/10 bg-purple-50/30 dark:bg-purple-900/10">
-                    <TableCell className="px-3 py-2 text-sm font-semibold text-purple-700 dark:text-purple-300">
+                  <TableRow className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30 bg-slate-50/50 dark:bg-slate-800/20">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Total AMZ Fees
                     </TableCell>
                     {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-purple-700 dark:text-purple-300">
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-slate-700 dark:text-slate-200">
                         {formatMoney(row.amazonFees, row.units)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-purple-700 dark:text-purple-300 bg-purple-50/50 dark:bg-purple-900/20">
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-100/50 dark:bg-slate-800/30">
                       {formatMoney(filteredData.reduce((sum, row) => sum + row.amazonFees, 0), summary.totalUnits)}
                     </TableCell>
                   </TableRow>
 
                   {/* PPC - shown before GP as it's part of GP calculation, not OPEX */}
-                  <TableRow className="hover:bg-cyan-50/50 dark:hover:bg-cyan-900/10 bg-cyan-50/30 dark:bg-cyan-900/10">
-                    <TableCell className="px-3 py-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
+                  <TableRow className="hover:bg-slate-100/50 dark:hover:bg-slate-800/30 bg-slate-50/50 dark:bg-slate-800/20">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       PPC Spend
                     </TableCell>
                     {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-cyan-700 dark:text-cyan-300">
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-semibold text-slate-700 dark:text-slate-200">
                         {formatMoney(row.ppcSpend, row.units)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-cyan-700 dark:text-cyan-300 bg-cyan-50/50 dark:bg-cyan-900/20">
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-100/50 dark:bg-slate-800/30">
                       {formatMoney(filteredData.reduce((sum, row) => sum + row.ppcSpend, 0), summary.totalUnits)}
                     </TableCell>
                   </TableRow>
@@ -983,7 +1000,7 @@ export function POProfitabilitySection({
                   <TableRow className="hover:bg-transparent">
                     <TableCell
                       colSpan={tableSortedData.length + 2}
-                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-900/20 border-y border-emerald-200 dark:border-emerald-800/50"
+                      className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-slate-700 dark:text-slate-300 bg-slate-100/80 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-700"
                     >
                       Profit
                     </TableCell>
@@ -1033,16 +1050,16 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* OPEX (Fixed Costs only - estimates in X-Plan) */}
-                  <TableRow className="hover:bg-sky-50/50 dark:hover:bg-sky-900/10 bg-sky-50/30 dark:bg-sky-900/10">
-                    <TableCell className="px-3 py-2 text-sm font-medium text-sky-700 dark:text-sky-300">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
                       OPEX (est.)
                     </TableCell>
                     {tableSortedData.map((row) => (
-                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-medium text-sky-700 dark:text-sky-300">
+                      <TableCell key={row.id} className="px-3 py-2 text-right text-sm tabular-nums font-medium text-slate-700 dark:text-slate-200">
                         {formatMoney(row.fixedCosts, row.units)}
                       </TableCell>
                     ))}
-                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-sky-700 dark:text-sky-300 bg-sky-50/50 dark:bg-sky-900/20">
+                    <TableCell className="px-3 py-2 text-right text-sm tabular-nums font-bold text-slate-900 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-800/30">
                       {formatMoney(filteredData.reduce((sum, row) => sum + row.fixedCosts, 0), summary.totalUnits)}
                     </TableCell>
                   </TableRow>
@@ -1084,8 +1101,8 @@ export function POProfitabilitySection({
                   </TableRow>
 
                   {/* ROI */}
-                  <TableRow className="hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 bg-emerald-50/30 dark:bg-emerald-900/10">
-                    <TableCell className="px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                  <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 bg-slate-50/30 dark:bg-slate-800/10">
+                    <TableCell className="px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
                       ROI
                     </TableCell>
                     {tableSortedData.map((row) => (
@@ -1096,7 +1113,7 @@ export function POProfitabilitySection({
                         {formatPercent(row.roi)}
                       </TableCell>
                     ))}
-                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-emerald-50/50 dark:bg-emerald-900/20 ${summary.roi >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
+                    <TableCell className={`px-3 py-2 text-right text-sm tabular-nums font-bold bg-slate-50/50 dark:bg-slate-800/30 ${summary.roi >= 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}`}>
                       {formatPercent(summary.roi)}
                     </TableCell>
                   </TableRow>
