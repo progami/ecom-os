@@ -1,7 +1,7 @@
 export type DimensionTriplet = {
-  lengthCm: number
-  widthCm: number
-  heightCm: number
+  side1Cm: number
+  side2Cm: number
+  side3Cm: number
 }
 
 function stripTrailingZeros(value: string): string {
@@ -21,13 +21,13 @@ export function parseDimensionTriplet(value: string | null | undefined): Dimensi
   const parsed = matches.slice(0, 3).map(match => Number(match))
   if (parsed.some(num => !Number.isFinite(num) || num <= 0)) return null
 
-  const [lengthCm, widthCm, heightCm] = parsed
-  return { lengthCm, widthCm, heightCm }
+  const [side1Cm, side2Cm, side3Cm] = parsed
+  return { side1Cm, side2Cm, side3Cm }
 }
 
 export function formatDimensionTripletCm(value: DimensionTriplet, decimals: number = 2): string {
-  return `${formatNumber(value.lengthCm, decimals)}x${formatNumber(value.widthCm, decimals)}x${formatNumber(
-    value.heightCm,
+  return `${formatNumber(value.side1Cm, decimals)}x${formatNumber(value.side2Cm, decimals)}x${formatNumber(
+    value.side3Cm,
     decimals
   )}`
 }
@@ -46,24 +46,24 @@ export function coerceFiniteNumber(value: unknown): number | null {
 }
 
 export function resolveDimensionTripletCm(options: {
-  lengthCm?: unknown
-  widthCm?: unknown
-  heightCm?: unknown
+  side1Cm?: unknown
+  side2Cm?: unknown
+  side3Cm?: unknown
   legacy?: string | null | undefined
 }): DimensionTriplet | null {
-  const lengthCm = coerceFiniteNumber(options.lengthCm)
-  const widthCm = coerceFiniteNumber(options.widthCm)
-  const heightCm = coerceFiniteNumber(options.heightCm)
+  const side1Cm = coerceFiniteNumber(options.side1Cm)
+  const side2Cm = coerceFiniteNumber(options.side2Cm)
+  const side3Cm = coerceFiniteNumber(options.side3Cm)
 
-  const anyNumeric = [lengthCm, widthCm, heightCm].some(value => value !== null)
+  const anyNumeric = [side1Cm, side2Cm, side3Cm].some(value => value !== null)
   if (anyNumeric) {
-    if (lengthCm === null || widthCm === null || heightCm === null) {
+    if (side1Cm === null || side2Cm === null || side3Cm === null) {
       return null
     }
-    if (lengthCm <= 0 || widthCm <= 0 || heightCm <= 0) {
+    if (side1Cm <= 0 || side2Cm <= 0 || side3Cm <= 0) {
       return null
     }
-    return { lengthCm, widthCm, heightCm }
+    return { side1Cm, side2Cm, side3Cm }
   }
 
   return parseDimensionTriplet(options.legacy)

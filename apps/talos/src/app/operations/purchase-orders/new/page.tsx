@@ -31,9 +31,9 @@ interface BatchOption {
   batchCode: string
   unitsPerCarton: number | null
   cartonDimensionsCm: string | null
-  cartonLengthCm: number | null
-  cartonWidthCm: number | null
-  cartonHeightCm: number | null
+  cartonSide1Cm: number | null
+  cartonSide2Cm: number | null
+  cartonSide3Cm: number | null
   cartonWeightKg: number | null
   packagingType: string | null
 }
@@ -216,9 +216,9 @@ export default function NewPurchaseOrderPage() {
             batchCode,
             unitsPerCarton: coercePositiveInt(batch?.unitsPerCarton),
             cartonDimensionsCm: coerceString(batch?.cartonDimensionsCm),
-            cartonLengthCm: coercePositiveNumber(batch?.cartonLengthCm),
-            cartonWidthCm: coercePositiveNumber(batch?.cartonWidthCm),
-            cartonHeightCm: coercePositiveNumber(batch?.cartonHeightCm),
+            cartonSide1Cm: coercePositiveNumber(batch?.cartonSide1Cm),
+            cartonSide2Cm: coercePositiveNumber(batch?.cartonSide2Cm),
+            cartonSide3Cm: coercePositiveNumber(batch?.cartonSide3Cm),
             cartonWeightKg: coercePositiveNumber(batch?.cartonWeightKg),
             packagingType: coerceString(batch?.packagingType)?.toUpperCase() ?? null,
           }
@@ -574,13 +574,13 @@ export default function NewPurchaseOrderPage() {
                       ? (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
                       : null
                     const cartonTriplet = batch ? resolveDimensionTripletCm({
-                      lengthCm: batch.cartonLengthCm,
-                      widthCm: batch.cartonWidthCm,
-                      heightCm: batch.cartonHeightCm,
+                      side1Cm: batch.cartonSide1Cm,
+                      side2Cm: batch.cartonSide2Cm,
+                      side3Cm: batch.cartonSide3Cm,
                       legacy: batch.cartonDimensionsCm,
                     }) : null
                     const cbmPerCarton = cartonTriplet
-                      ? (cartonTriplet.lengthCm * cartonTriplet.widthCm * cartonTriplet.heightCm) / 1_000_000
+                      ? (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
                       : null
                     const hasPackagingData = cartonTriplet || batch?.cartonWeightKg || batch?.packagingType
 
