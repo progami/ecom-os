@@ -16,7 +16,6 @@ import {
   OrgChartIcon,
   UsersIcon,
   LockClosedIcon,
-  ClipboardIcon,
   FolderIcon,
   BriefcaseIcon,
 } from '@/components/ui/Icons';
@@ -67,7 +66,6 @@ const navigation: NavSection[] = [
       { name: 'Leaves', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
       { name: 'Violations', href: '/performance/violations', icon: ExclamationTriangleIcon },
-      { name: 'Onboarding & Offboarding', href: '/onboarding', icon: ClipboardIcon, requireHR: true },
     ],
   },
   {
