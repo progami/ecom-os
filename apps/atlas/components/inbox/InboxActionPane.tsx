@@ -191,7 +191,7 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
   const category = getEntityCategory(item, item.entityData)
   const summary = getEntitySummary(item, item.entityData)
   const description = getEntityDescription(item, item.entityData)
-  const hasAction = item.primaryAction && item.flagActionRequired
+  const hasAction = item.primaryAction && item.isActionRequired
 
   const handleAction = async (actionId: ActionId) => {
     setActing(actionId)
