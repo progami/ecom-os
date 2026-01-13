@@ -26,14 +26,14 @@ interface SkuBatchRow {
   unitsPerCarton: number | null
   material: string | null
   unitDimensionsCm: string | null
-  unitLengthCm: number | string | null
-  unitWidthCm: number | string | null
-  unitHeightCm: number | string | null
+  unitSide1Cm: number | string | null
+  unitSide2Cm: number | string | null
+  unitSide3Cm: number | string | null
   unitWeightKg: number | string | null
   cartonDimensionsCm: string | null
-  cartonLengthCm: number | string | null
-  cartonWidthCm: number | string | null
-  cartonHeightCm: number | string | null
+  cartonSide1Cm: number | string | null
+  cartonSide2Cm: number | string | null
+  cartonSide3Cm: number | string | null
   cartonWeightKg: number | string | null
   packagingType: string | null
   storageCartonsPerPallet: number | null
@@ -58,9 +58,9 @@ interface SkuRow {
   amazonFbaFulfillmentFee?: number | string | null
   amazonReferenceWeightKg?: number | string | null
   itemDimensionsCm?: string | null
-  itemLengthCm?: number | string | null
-  itemWidthCm?: number | string | null
-  itemHeightCm?: number | string | null
+  itemSide1Cm?: number | string | null
+  itemSide2Cm?: number | string | null
+  itemSide3Cm?: number | string | null
   itemWeightKg?: number | string | null
   packSize: number | null
   defaultSupplierId?: string | null
@@ -104,8 +104,8 @@ interface SkuFormState {
 function buildFormState(sku?: SkuRow | null): SkuFormState {
   // Build item dimensions string from individual values if they exist
   let itemDims = ''
-  if (sku?.itemLengthCm && sku?.itemWidthCm && sku?.itemHeightCm) {
-    itemDims = `${sku.itemLengthCm} x ${sku.itemWidthCm} x ${sku.itemHeightCm}`
+  if (sku?.itemSide1Cm && sku?.itemSide2Cm && sku?.itemSide3Cm) {
+    itemDims = `${sku.itemSide1Cm} x ${sku.itemSide2Cm} x ${sku.itemSide3Cm}`
   } else if (sku?.itemDimensionsCm) {
     itemDims = sku.itemDimensionsCm
   }
@@ -287,34 +287,34 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
-    // Parse combined item dimensions (format: "L x W x H")
+    // Parse combined item dimensions (format: "S1 x S2 x S3")
     const itemDimsRaw = formState.itemDimensionsCm.trim()
     const itemWeightRaw = formState.itemWeightKg.trim()
 
-    let itemLengthCm: number | null = null
-    let itemWidthCm: number | null = null
-    let itemHeightCm: number | null = null
+    let itemSide1Cm: number | null = null
+    let itemSide2Cm: number | null = null
+    let itemSide3Cm: number | null = null
 
     if (itemDimsRaw) {
       const parts = itemDimsRaw.split(/\s*x\s*/i).map(p => p.trim())
       if (parts.length !== 3) {
-        toast.error('Item dimensions must be in format: L x W x H')
+        toast.error('Item dimensions must be in format: S1 x S2 x S3')
         return
       }
-      itemLengthCm = Number.parseFloat(parts[0])
-      itemWidthCm = Number.parseFloat(parts[1])
-      itemHeightCm = Number.parseFloat(parts[2])
+      itemSide1Cm = Number.parseFloat(parts[0])
+      itemSide2Cm = Number.parseFloat(parts[1])
+      itemSide3Cm = Number.parseFloat(parts[2])
 
-      if (!Number.isFinite(itemLengthCm) || itemLengthCm <= 0) {
-        toast.error('Item length must be a positive number')
+      if (!Number.isFinite(itemSide1Cm) || itemSide1Cm <= 0) {
+        toast.error('Item side 1 must be a positive number')
         return
       }
-      if (!Number.isFinite(itemWidthCm) || itemWidthCm <= 0) {
-        toast.error('Item width must be a positive number')
+      if (!Number.isFinite(itemSide2Cm) || itemSide2Cm <= 0) {
+        toast.error('Item side 2 must be a positive number')
         return
       }
-      if (!Number.isFinite(itemHeightCm) || itemHeightCm <= 0) {
-        toast.error('Item height must be a positive number')
+      if (!Number.isFinite(itemSide3Cm) || itemSide3Cm <= 0) {
+        toast.error('Item side 3 must be a positive number')
         return
       }
     }
@@ -399,9 +399,9 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         sizeTier: sizeTierValue,
         referralFeePercent,
         fbaFulfillmentFee,
-        itemLengthCm,
-        itemWidthCm,
-        itemHeightCm,
+        itemSide1Cm,
+        itemSide2Cm,
+        itemSide3Cm,
         itemWeightKg,
       }
 

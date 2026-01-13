@@ -102,15 +102,15 @@ async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClien
     'packSize',
     'material',
     'unitDimensionsCm',
-    'unitLengthCm',
-    'unitWidthCm',
-    'unitHeightCm',
+    'unitSide1Cm',
+    'unitSide2Cm',
+    'unitSide3Cm',
     'unitWeightKg',
     'unitsPerCarton',
     'cartonDimensionsCm',
-    'cartonLengthCm',
-    'cartonWidthCm',
-    'cartonHeightCm',
+    'cartonSide1Cm',
+    'cartonSide2Cm',
+    'cartonSide3Cm',
     'cartonWeightKg',
     'packagingType',
   ])
@@ -157,16 +157,16 @@ async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClien
 
       if (unitTriplet) {
         mappedData.unitDimensionsCm = formatDimensionTripletCm(unitTriplet)
-        mappedData.unitLengthCm = unitTriplet.lengthCm
-        mappedData.unitWidthCm = unitTriplet.widthCm
-        mappedData.unitHeightCm = unitTriplet.heightCm
+        mappedData.unitSide1Cm = unitTriplet.side1Cm
+        mappedData.unitSide2Cm = unitTriplet.side2Cm
+        mappedData.unitSide3Cm = unitTriplet.side3Cm
       }
 
       if (cartonTriplet) {
         mappedData.cartonDimensionsCm = formatDimensionTripletCm(cartonTriplet)
-        mappedData.cartonLengthCm = cartonTriplet.lengthCm
-        mappedData.cartonWidthCm = cartonTriplet.widthCm
-        mappedData.cartonHeightCm = cartonTriplet.heightCm
+        mappedData.cartonSide1Cm = cartonTriplet.side1Cm
+        mappedData.cartonSide2Cm = cartonTriplet.side2Cm
+        mappedData.cartonSide3Cm = cartonTriplet.side3Cm
       }
 
       const skuPayload = Object.fromEntries(

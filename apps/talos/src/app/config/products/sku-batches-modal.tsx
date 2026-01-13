@@ -23,9 +23,9 @@ interface SkuSummary {
   unitDimensionsCm: string | null
   amazonReferenceWeightKg: number | string | null
   itemDimensionsCm: string | null
-  itemLengthCm: number | string | null
-  itemWidthCm: number | string | null
-  itemHeightCm: number | string | null
+  itemSide1Cm: number | string | null
+  itemSide2Cm: number | string | null
+  itemSide3Cm: number | string | null
   itemWeightKg: number | string | null
 }
 
@@ -40,14 +40,14 @@ interface BatchRow {
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   unitDimensionsCm: string | null
-  unitLengthCm: number | string | null
-  unitWidthCm: number | string | null
-  unitHeightCm: number | string | null
+  unitSide1Cm: number | string | null
+  unitSide2Cm: number | string | null
+  unitSide3Cm: number | string | null
   unitWeightKg: number | string | null
   cartonDimensionsCm: string | null
-  cartonLengthCm: number | string | null
-  cartonWidthCm: number | string | null
-  cartonHeightCm: number | string | null
+  cartonSide1Cm: number | string | null
+  cartonSide2Cm: number | string | null
+  cartonSide3Cm: number | string | null
   cartonWeightKg: number | string | null
   createdAt: string
   updatedAt: string
@@ -75,13 +75,13 @@ interface BatchFormState {
 type UnitSystem = 'metric' | 'imperial'
 
 type BatchMeasurementState = {
-  unitLengthCm: number | null
-  unitWidthCm: number | null
-  unitHeightCm: number | null
+  unitSide1Cm: number | null
+  unitSide2Cm: number | null
+  unitSide3Cm: number | null
   unitWeightKg: number | null
-  cartonLengthCm: number | null
-  cartonWidthCm: number | null
-  cartonHeightCm: number | null
+  cartonSide1Cm: number | null
+  cartonSide2Cm: number | null
+  cartonSide3Cm: number | null
   cartonWeightKg: number | null
 }
 
@@ -113,26 +113,26 @@ function formatNumber(value: number, decimals: number): string {
 
 function buildMeasurementState(batch?: BatchRow | null): BatchMeasurementState {
   const unitTriplet = resolveDimensionTripletCm({
-    lengthCm: batch?.unitLengthCm,
-    widthCm: batch?.unitWidthCm,
-    heightCm: batch?.unitHeightCm,
+    side1Cm: batch?.unitSide1Cm,
+    side2Cm: batch?.unitSide2Cm,
+    side3Cm: batch?.unitSide3Cm,
     legacy: batch?.unitDimensionsCm,
   })
   const cartonTriplet = resolveDimensionTripletCm({
-    lengthCm: batch?.cartonLengthCm,
-    widthCm: batch?.cartonWidthCm,
-    heightCm: batch?.cartonHeightCm,
+    side1Cm: batch?.cartonSide1Cm,
+    side2Cm: batch?.cartonSide2Cm,
+    side3Cm: batch?.cartonSide3Cm,
     legacy: batch?.cartonDimensionsCm,
   })
 
   return {
-    unitLengthCm: unitTriplet?.lengthCm ?? null,
-    unitWidthCm: unitTriplet?.widthCm ?? null,
-    unitHeightCm: unitTriplet?.heightCm ?? null,
+    unitSide1Cm: unitTriplet?.side1Cm ?? null,
+    unitSide2Cm: unitTriplet?.side2Cm ?? null,
+    unitSide3Cm: unitTriplet?.side3Cm ?? null,
     unitWeightKg: coerceFiniteNumber(batch?.unitWeightKg),
-    cartonLengthCm: cartonTriplet?.lengthCm ?? null,
-    cartonWidthCm: cartonTriplet?.widthCm ?? null,
-    cartonHeightCm: cartonTriplet?.heightCm ?? null,
+    cartonSide1Cm: cartonTriplet?.side1Cm ?? null,
+    cartonSide2Cm: cartonTriplet?.side2Cm ?? null,
+    cartonSide3Cm: cartonTriplet?.side3Cm ?? null,
     cartonWeightKg: coerceFiniteNumber(batch?.cartonWeightKg),
   }
 }
@@ -164,13 +164,13 @@ function formatMeasurementFields(
   | 'cartonWeight'
 > {
   return {
-    unitLength: formatDimensionFromCm(measurements.unitLengthCm, unitSystem),
-    unitWidth: formatDimensionFromCm(measurements.unitWidthCm, unitSystem),
-    unitHeight: formatDimensionFromCm(measurements.unitHeightCm, unitSystem),
+    unitLength: formatDimensionFromCm(measurements.unitSide1Cm, unitSystem),
+    unitWidth: formatDimensionFromCm(measurements.unitSide2Cm, unitSystem),
+    unitHeight: formatDimensionFromCm(measurements.unitSide3Cm, unitSystem),
     unitWeight: formatWeightFromKg(measurements.unitWeightKg, unitSystem),
-    cartonLength: formatDimensionFromCm(measurements.cartonLengthCm, unitSystem),
-    cartonWidth: formatDimensionFromCm(measurements.cartonWidthCm, unitSystem),
-    cartonHeight: formatDimensionFromCm(measurements.cartonHeightCm, unitSystem),
+    cartonLength: formatDimensionFromCm(measurements.cartonSide1Cm, unitSystem),
+    cartonWidth: formatDimensionFromCm(measurements.cartonSide2Cm, unitSystem),
+    cartonHeight: formatDimensionFromCm(measurements.cartonSide3Cm, unitSystem),
     cartonWeight: formatWeightFromKg(measurements.cartonWeightKg, unitSystem),
   }
 }
@@ -384,12 +384,12 @@ function SkuBatchesManager({
   type WeightFieldKey = 'unitWeight' | 'cartonWeight'
 
   const dimensionFieldToMeasurementKey: Record<DimensionFieldKey, keyof BatchMeasurementState> = {
-    unitLength: 'unitLengthCm',
-    unitWidth: 'unitWidthCm',
-    unitHeight: 'unitHeightCm',
-    cartonLength: 'cartonLengthCm',
-    cartonWidth: 'cartonWidthCm',
-    cartonHeight: 'cartonHeightCm',
+    unitLength: 'unitSide1Cm',
+    unitWidth: 'unitSide2Cm',
+    unitHeight: 'unitSide3Cm',
+    cartonLength: 'cartonSide1Cm',
+    cartonWidth: 'cartonSide2Cm',
+    cartonHeight: 'cartonSide3Cm',
   }
 
   const weightFieldToMeasurementKey: Record<WeightFieldKey, keyof BatchMeasurementState> = {
@@ -531,13 +531,13 @@ function SkuBatchesManager({
         packagingType: formState.packagingType ? formState.packagingType : null,
         storageCartonsPerPallet,
         shippingCartonsPerPallet,
-        unitLengthCm: roundDimensionCm(measurements.unitLengthCm),
-        unitWidthCm: roundDimensionCm(measurements.unitWidthCm),
-        unitHeightCm: roundDimensionCm(measurements.unitHeightCm),
+        unitSide1Cm: roundDimensionCm(measurements.unitSide1Cm),
+        unitSide2Cm: roundDimensionCm(measurements.unitSide2Cm),
+        unitSide3Cm: roundDimensionCm(measurements.unitSide3Cm),
         unitWeightKg,
-        cartonLengthCm: roundDimensionCm(measurements.cartonLengthCm),
-        cartonWidthCm: roundDimensionCm(measurements.cartonWidthCm),
-        cartonHeightCm: roundDimensionCm(measurements.cartonHeightCm),
+        cartonSide1Cm: roundDimensionCm(measurements.cartonSide1Cm),
+        cartonSide2Cm: roundDimensionCm(measurements.cartonSide2Cm),
+        cartonSide3Cm: roundDimensionCm(measurements.cartonSide3Cm),
         cartonWeightKg: roundWeightKg(measurements.cartonWeightKg),
       }
 
@@ -668,24 +668,24 @@ function SkuBatchesManager({
                   <tbody>
                     {filteredBatches.map(batch => {
                       const unitTriplet = resolveDimensionTripletCm({
-                        lengthCm: batch.unitLengthCm,
-                        widthCm: batch.unitWidthCm,
-                        heightCm: batch.unitHeightCm,
+                        side1Cm: batch.unitSide1Cm,
+                        side2Cm: batch.unitSide2Cm,
+                        side3Cm: batch.unitSide3Cm,
                         legacy: batch.unitDimensionsCm,
                       })
                       const cartonTriplet = resolveDimensionTripletCm({
-                        lengthCm: batch.cartonLengthCm,
-                        widthCm: batch.cartonWidthCm,
-                        heightCm: batch.cartonHeightCm,
+                        side1Cm: batch.cartonSide1Cm,
+                        side2Cm: batch.cartonSide2Cm,
+                        side3Cm: batch.cartonSide3Cm,
                         legacy: batch.cartonDimensionsCm,
                       })
 
                       const formatTriplet = (triplet: typeof unitTriplet) => {
                         if (!triplet) return '—'
-                        return `${formatNumber(triplet.lengthCm, 2)}×${formatNumber(
-                          triplet.widthCm,
+                        return `${formatNumber(triplet.side1Cm, 2)}×${formatNumber(
+                          triplet.side2Cm,
                           2
-                        )}×${formatNumber(triplet.heightCm, 2)}`
+                        )}×${formatNumber(triplet.side3Cm, 2)}`
                       }
 
                       const batchCode = typeof batch.batchCode === 'string' ? batch.batchCode : '—'

@@ -21,9 +21,9 @@ type SkuSummary = {
   unitDimensionsCm: string | null
   amazonReferenceWeightKg: number | string | null
   itemDimensionsCm: string | null
-  itemLengthCm: number | string | null
-  itemWidthCm: number | string | null
-  itemHeightCm: number | string | null
+  itemSide1Cm: number | string | null
+  itemSide2Cm: number | string | null
+  itemSide3Cm: number | string | null
   itemWeightKg: number | string | null
 }
 
@@ -100,9 +100,9 @@ function ProductBatchesPageInner() {
           unitDimensionsCm: data.unitDimensionsCm ?? null,
           amazonReferenceWeightKg: data.amazonReferenceWeightKg ?? null,
           itemDimensionsCm: data.itemDimensionsCm ?? null,
-          itemLengthCm: data.itemLengthCm ?? null,
-          itemWidthCm: data.itemWidthCm ?? null,
-          itemHeightCm: data.itemHeightCm ?? null,
+          itemSide1Cm: data.itemSide1Cm ?? null,
+          itemSide2Cm: data.itemSide2Cm ?? null,
+          itemSide3Cm: data.itemSide3Cm ?? null,
           itemWeightKg: data.itemWeightKg ?? null,
         })
       })
