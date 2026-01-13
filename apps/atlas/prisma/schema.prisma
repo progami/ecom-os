@@ -1219,18 +1219,18 @@ enum CaseNoteVisibility {
 // ============ PASSWORDS & CONTRACTORS ============
 
 model Password {
-  id          String         @id @default(cuid())
+  id          String             @id @default(cuid())
   title       String
   username    String?
-  password    String         // Encrypted password value
+  password    String             // Encrypted password value
   url         String?
-  category    PasswordCategory @default(OTHER)
+  department  PasswordDepartment @default(OPS)
   notes       String?
 
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
-  @@index([category])
+  @@index([department])
   @@index([title])
 }
 
@@ -1264,14 +1264,12 @@ model Contractor {
   @@index([company])
 }
 
-enum PasswordCategory {
-  SOCIAL_MEDIA
-  CLOUD_SERVICE
-  DEVELOPMENT
+enum PasswordDepartment {
+  OPS
+  SALES_MARKETING
+  LEGAL
+  HR
   FINANCE
-  COMMUNICATION
-  HR_SYSTEM
-  OTHER
 }
 
 enum ContractorStatus {
