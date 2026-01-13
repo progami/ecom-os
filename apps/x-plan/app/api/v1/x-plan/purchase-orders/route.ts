@@ -3,11 +3,13 @@ import { Prisma } from '@targon/prisma-x-plan';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels';
-import { withXPlanAuth } from '@/lib/api/auth';
+import { withXPlanAuth, RATE_LIMIT_PRESETS } from '@/lib/api/auth';
 import { requireXPlanStrategiesAccess, requireXPlanStrategyAccess } from '@/lib/api/strategy-guard';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
+
+const EXPENSIVE_RATE_LIMIT = RATE_LIMIT_PRESETS.expensive;
 
 const allowedFields = [
   'productId',
@@ -266,10 +268,7 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
     if (debug) {
       console.log('[PUT /purchase-orders] validation error:', parsed.error.format());
     }
-    return NextResponse.json(
-      { error: 'Invalid payload', details: parsed.error.format() },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
   for (const update of parsed.data.updates) {
@@ -517,9 +516,9 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    return NextResponse.json({ error: 'Database error', details: String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
   }
-});
+}, { rateLimit: EXPENSIVE_RATE_LIMIT });
 
 function generateOrderCode() {
   const random = Math.random().toString(36).slice(-5).toUpperCase();
