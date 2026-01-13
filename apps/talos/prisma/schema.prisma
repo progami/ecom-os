@@ -89,6 +89,10 @@ model Sku {
   id                  String     @id @default(uuid())
   skuCode             String     @unique @map("sku_code")
   asin                String?
+  category             String?    @map("category")
+  sizeTier             String?    @map("size_tier")
+  referralFeePercent   Decimal?   @map("referral_fee_percent") @db.Decimal(5, 2)
+  fbaFulfillmentFee    Decimal?   @map("fba_fulfillment_fee") @db.Decimal(12, 2)
   amazonCategory       String?    @map("amazon_category")
   amazonSizeTier       String?    @map("amazon_size_tier")
   amazonReferralFeePercent Decimal? @map("amazon_referral_fee_percent") @db.Decimal(5, 2)

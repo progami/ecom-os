@@ -908,31 +908,23 @@ function SkuBatchesManager({
                   </div>
 
                   <div className="md:col-span-2 pt-4 border-t">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Dimensions & Weight</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Item Package Dimensions</h3>
                     <Tabs>
-                      <TabsList className="w-full">
-                        <button
+                      <TabsList className="w-full grid grid-cols-2">
+                        <TabsTrigger
                           type="button"
                           onClick={() => setBatchModalTab('reference')}
-                          className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
-                            batchModalTab === 'reference'
-                              ? 'bg-cyan-600 text-white'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
+                          data-state={batchModalTab === 'reference' ? 'active' : 'inactive'}
                         >
                           Reference
-                        </button>
-                        <button
+                        </TabsTrigger>
+                        <TabsTrigger
                           type="button"
                           onClick={() => setBatchModalTab('amazon')}
-                          className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
-                            batchModalTab === 'amazon'
-                              ? 'bg-cyan-600 text-white'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
+                          data-state={batchModalTab === 'amazon' ? 'active' : 'inactive'}
                         >
                           Amazon
-                        </button>
+                        </TabsTrigger>
                       </TabsList>
 
                       <TabsContent className={batchModalTab === 'reference' ? '' : 'hidden'}>
@@ -941,7 +933,7 @@ function SkuBatchesManager({
                             Team reference values (editable).
                           </p>
                           <div className="space-y-1">
-                            <Label>Item Package Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                            <Label>Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
                             <div className="grid grid-cols-3 gap-2">
                               <Input
                                 value={formState.unitLength}
@@ -965,7 +957,7 @@ function SkuBatchesManager({
                           </div>
                           <div className="space-y-1">
                             <Label htmlFor="unitWeight">
-                              Item Package Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                              Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
                             </Label>
                             <Input
                               id="unitWeight"
@@ -978,47 +970,6 @@ function SkuBatchesManager({
                               placeholder="Required"
                             />
                           </div>
-                          <div className="space-y-1">
-                            <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                            <div className="grid grid-cols-3 gap-2">
-                              <Input
-                                value={formState.cartonLength}
-                                onChange={event =>
-                                  handleDimensionChange('cartonLength', event.target.value)
-                                }
-                                placeholder="L"
-                                inputMode="decimal"
-                              />
-                              <Input
-                                value={formState.cartonWidth}
-                                onChange={event => handleDimensionChange('cartonWidth', event.target.value)}
-                                placeholder="W"
-                                inputMode="decimal"
-                              />
-                              <Input
-                                value={formState.cartonHeight}
-                                onChange={event =>
-                                  handleDimensionChange('cartonHeight', event.target.value)
-                                }
-                                placeholder="H"
-                                inputMode="decimal"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="cartonWeight">
-                              Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
-                            </Label>
-                            <Input
-                              id="cartonWeight"
-                              type="number"
-                              step="0.001"
-                              min={0.001}
-                              value={formState.cartonWeight}
-                              onChange={event => handleWeightChange('cartonWeight', event.target.value)}
-                              placeholder="Optional"
-                            />
-                          </div>
                         </div>
                       </TabsContent>
 
@@ -1028,7 +979,7 @@ function SkuBatchesManager({
                             Imported from Amazon (read-only).
                           </p>
                           <div className="space-y-1">
-                            <Label>Item Package Dimensions (cm)</Label>
+                            <Label>Dimensions (cm)</Label>
                             <Input
                               value={sku.unitDimensionsCm ?? ''}
                               disabled
@@ -1037,7 +988,7 @@ function SkuBatchesManager({
                             />
                           </div>
                           <div className="space-y-1">
-                            <Label>Item Package Weight (kg)</Label>
+                            <Label>Weight (kg)</Label>
                             <Input
                               value={sku.amazonReferenceWeightKg?.toString() ?? ''}
                               disabled
@@ -1045,27 +996,56 @@ function SkuBatchesManager({
                               placeholder="—"
                             />
                           </div>
-                          <div className="space-y-1">
-                            <Label>Carton Dimensions (cm)</Label>
-                            <Input
-                              value=""
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="N/A"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>Carton Weight (kg)</Label>
-                            <Input
-                              value=""
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="N/A"
-                            />
-                          </div>
                         </div>
                       </TabsContent>
                     </Tabs>
+                  </div>
+
+                  <div className="md:col-span-2 pt-4 border-t">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Carton Dimensions</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label>Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Input
+                            value={formState.cartonLength}
+                            onChange={event =>
+                              handleDimensionChange('cartonLength', event.target.value)
+                            }
+                            placeholder="L"
+                            inputMode="decimal"
+                          />
+                          <Input
+                            value={formState.cartonWidth}
+                            onChange={event => handleDimensionChange('cartonWidth', event.target.value)}
+                            placeholder="W"
+                            inputMode="decimal"
+                          />
+                          <Input
+                            value={formState.cartonHeight}
+                            onChange={event =>
+                              handleDimensionChange('cartonHeight', event.target.value)
+                            }
+                            placeholder="H"
+                            inputMode="decimal"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="cartonWeight">
+                          Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                        </Label>
+                        <Input
+                          id="cartonWeight"
+                          type="number"
+                          step="0.001"
+                          min={0.001}
+                          value={formState.cartonWeight}
+                          onChange={event => handleWeightChange('cartonWeight', event.target.value)}
+                          placeholder="Optional"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
