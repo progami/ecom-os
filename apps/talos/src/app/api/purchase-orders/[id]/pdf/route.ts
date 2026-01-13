@@ -583,7 +583,7 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
     incoterms: order.incoterms,
     paymentTerms: order.paymentTerms,
     shipToName: order.warehouseName ?? order.shipToName,
-    shipToAddress: order.warehouseAddress ?? order.shipToAddress ?? null,
+    shipToAddress: order.shipToAddress ?? null,
     notes: order.notes,
     lines,
   })
