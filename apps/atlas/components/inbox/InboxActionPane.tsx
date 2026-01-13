@@ -6,6 +6,16 @@ import type { ActionId } from '@/lib/contracts/action-ids'
 import type { WorkItemDTO, WorkItemEntityData } from '@/lib/contracts/work-items'
 import { formatWorkItemWhen, getWorkItemDueLabel } from '@/components/work-queue/work-item-utils'
 import { cn } from '@/lib/utils'
+import {
+  ClipboardCheck,
+  FileText,
+  CalendarDays,
+  TrendingUp,
+  AlertTriangle,
+  Check,
+  ExternalLink,
+  MousePointerClick,
+} from 'lucide-react'
 
 type InboxActionPaneProps = {
   item: WorkItemDTO | null
@@ -20,51 +30,31 @@ function getEntityTypeConfig(type: string) {
       accentColor: 'text-violet-400',
       iconBgColor: 'bg-violet-500',
       label: 'Task',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      ),
+      icon: <ClipboardCheck className="w-5 h-5" strokeWidth={2} />,
     },
     'POLICY': {
       accentColor: 'text-indigo-400',
       iconBgColor: 'bg-indigo-500',
       label: 'Policy',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
+      icon: <FileText className="w-5 h-5" strokeWidth={2} />,
     },
     'LEAVE_REQUEST': {
       accentColor: 'text-teal-400',
       iconBgColor: 'bg-teal-500',
       label: 'Leave Request',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
+      icon: <CalendarDays className="w-5 h-5" strokeWidth={2} />,
     },
     'PERFORMANCE_REVIEW': {
       accentColor: 'text-amber-400',
       iconBgColor: 'bg-amber-500',
       label: 'Performance Review',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-      ),
+      icon: <TrendingUp className="w-5 h-5" strokeWidth={2} />,
     },
     'DISCIPLINARY_ACTION': {
       accentColor: 'text-rose-400',
       iconBgColor: 'bg-rose-500',
       label: 'Disciplinary Action',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      ),
+      icon: <AlertTriangle className="w-5 h-5" strokeWidth={2} />,
     },
   }
 
@@ -161,9 +151,7 @@ function EmptyState() {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 rounded-2xl rotate-6 opacity-50" />
           <div className="absolute inset-0 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-2xl -rotate-3" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-            </svg>
+            <MousePointerClick className="w-8 h-8 text-slate-400 dark:text-slate-500" strokeWidth={1.5} />
           </div>
         </div>
         <h3 className="text-base font-semibold text-slate-600 dark:text-slate-300">
@@ -248,9 +236,7 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
       {showSuccess ? (
         <div className="shrink-0 px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+            <Check className="w-4 h-4" strokeWidth={2.5} />
             <span className="text-sm font-semibold">{successLabel} complete</span>
           </div>
         </div>
@@ -313,9 +299,7 @@ export function InboxActionPane({ item, onAction, currentIndex, totalCount }: In
           href={item.href}
           className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
+          <ExternalLink className="w-4 h-4" strokeWidth={2} />
           See full details
         </a>
       </div>
