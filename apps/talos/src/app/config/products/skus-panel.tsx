@@ -706,31 +706,86 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   </select>
                 </div>
 
-                <div className="md:col-span-2 pt-2">
+                <div className="md:col-span-2 pt-4 border-t">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-2">Amazon Fees</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="amazonCategory">Category</Label>
+                      <Input
+                        id="amazonCategory"
+                        value={formState.amazonCategory}
+                        disabled
+                        className="bg-slate-50 text-slate-500"
+                        placeholder="—"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="amazonSizeTier">Size Tier</Label>
+                      <Input
+                        id="amazonSizeTier"
+                        value={formState.amazonSizeTier}
+                        disabled
+                        className="bg-slate-50 text-slate-500"
+                        placeholder="—"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
+                      <Input
+                        id="amazonReferralFeePercent"
+                        type="number"
+                        value={formState.amazonReferralFeePercent}
+                        disabled
+                        className="bg-slate-50 text-slate-500"
+                        placeholder="—"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                      <Input
+                        id="amazonFbaFulfillmentFee"
+                        type="number"
+                        value={formState.amazonFbaFulfillmentFee}
+                        disabled
+                        className="bg-slate-50 text-slate-500"
+                        placeholder="—"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:col-span-2 pt-4 border-t">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-2">Item Dimensions</h3>
                   <Tabs>
                     <TabsList className="w-full">
-                      <TabsTrigger
+                      <button
                         type="button"
-                        data-state={modalTab === 'reference' ? 'active' : 'inactive'}
                         onClick={() => setModalTab('reference')}
-                        className={`flex-1 ${modalTab === 'reference' ? 'bg-cyan-600 text-white' : ''}`}
+                        className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                          modalTab === 'reference'
+                            ? 'bg-cyan-600 text-white'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
                       >
                         Reference
-                      </TabsTrigger>
-                      <TabsTrigger
+                      </button>
+                      <button
                         type="button"
-                        data-state={modalTab === 'amazon' ? 'active' : 'inactive'}
                         onClick={() => setModalTab('amazon')}
-                        className={`flex-1 ${modalTab === 'amazon' ? 'bg-cyan-600 text-white' : ''}`}
+                        className={`flex-1 rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
+                          modalTab === 'amazon'
+                            ? 'bg-cyan-600 text-white'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
                       >
                         Amazon
-                      </TabsTrigger>
+                      </button>
                     </TabsList>
 
-                    <TabsContent data-state={modalTab === 'reference' ? 'active' : 'inactive'} className={modalTab === 'reference' ? '' : 'hidden'}>
+                    <TabsContent className={modalTab === 'reference' ? '' : 'hidden'}>
                       <div className="space-y-4 pt-4">
                         <p className="text-xs text-slate-500">
-                          Team reference values for item dimensions (unpackaged product).
+                          Team reference values (editable).
                         </p>
                         <div className="space-y-1">
                           <Label>Item Dimensions (cm)</Label>
@@ -778,75 +833,28 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       </div>
                     </TabsContent>
 
-                    <TabsContent data-state={modalTab === 'amazon' ? 'active' : 'inactive'} className={modalTab === 'amazon' ? '' : 'hidden'}>
+                    <TabsContent className={modalTab === 'amazon' ? '' : 'hidden'}>
                       <div className="space-y-4 pt-4">
                         <p className="text-xs text-slate-500">
-                          Imported from Amazon. Re-import to refresh.
+                          Imported from Amazon (read-only).
                         </p>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="amazonCategory">Category</Label>
-                            <Input
-                              id="amazonCategory"
-                              value={formState.amazonCategory}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="amazonSizeTier">Size Tier</Label>
-                            <Input
-                              id="amazonSizeTier"
-                              value={formState.amazonSizeTier}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="amazonReferralFeePercent">Referral Fee (%)</Label>
-                            <Input
-                              id="amazonReferralFeePercent"
-                              type="number"
-                              value={formState.amazonReferralFeePercent}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="amazonFbaFulfillmentFee">FBA Fulfillment Fee</Label>
-                            <Input
-                              id="amazonFbaFulfillmentFee"
-                              type="number"
-                              value={formState.amazonFbaFulfillmentFee}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="productDimensionsCm">Item Package Dimensions (cm)</Label>
-                            <Input
-                              id="productDimensionsCm"
-                              value={formState.productDimensionsCm}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="amazonReferenceWeightKg">Item Package Weight (kg)</Label>
-                            <Input
-                              id="amazonReferenceWeightKg"
-                              type="number"
-                              value={formState.amazonReferenceWeightKg}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
+                        <div className="space-y-1">
+                          <Label>Item Dimensions (cm)</Label>
+                          <Input
+                            value={formState.productDimensionsCm}
+                            disabled
+                            className="bg-slate-50 text-slate-500"
+                            placeholder="—"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Item Weight (kg)</Label>
+                          <Input
+                            value={formState.amazonReferenceWeightKg}
+                            disabled
+                            className="bg-slate-50 text-slate-500"
+                            placeholder="—"
+                          />
                         </div>
                       </div>
                     </TabsContent>
