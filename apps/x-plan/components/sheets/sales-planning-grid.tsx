@@ -2250,16 +2250,6 @@ export function SalesPlanningGrid({
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          <span>Actual data (Sellerboard)</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="inline-block h-2 w-2 rounded-full border border-amber-400" />
-          <span>Projected / no actuals</span>
-        </div>
-      </div>
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
