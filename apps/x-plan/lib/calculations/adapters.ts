@@ -204,6 +204,9 @@ export function mapPurchaseOrders(
 
 export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {
   return rows.map((row) => {
+    const explicitHasActualData = (row as SalesWeek & { hasActualData?: boolean }).hasActualData;
+    const hasActualData =
+      explicitHasActualData === true ? true : row.actualSales != null;
     return {
       id: row.id,
       productId: row.productId,
@@ -217,7 +220,7 @@ export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {
       finalSales: row.finalSales ?? null,
       stockWeeks: row.stockWeeks != null ? coerceNumber(row.stockWeeks) : null,
       stockEnd: row.stockEnd ?? null,
-      hasActualData: (row as SalesWeek & { hasActualData?: boolean }).hasActualData ?? false,
+      hasActualData,
     };
   });
 }
