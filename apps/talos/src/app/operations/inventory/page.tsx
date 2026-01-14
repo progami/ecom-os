@@ -461,14 +461,14 @@ function InventoryPage() {
                           className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
                           onClick={() => handleSort('batch')}
                         >
-                          Batch / Lot
+                          Batch
                           {getSortIcon('batch')}
                         </button>
                         <Popover>
                           <PopoverTrigger asChild>
                             <button
                               type="button"
-                              aria-label="Filter batch / lot values"
+                              aria-label="Filter batch values"
                               className={cn(
                                 'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                                 isFilterActive(['batch'])
@@ -482,7 +482,7 @@ function InventoryPage() {
                           <PopoverContent align="end" className="w-64 space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium text-foreground">
-                                Batch / lot filter
+                                Batch filter
                               </span>
                               <button
                                 type="button"

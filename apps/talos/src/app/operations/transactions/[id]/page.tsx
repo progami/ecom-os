@@ -367,7 +367,7 @@ export default function TransactionDetailPage() {
                       SKU
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                      Batch/Lot
+                      Batch
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Cartons

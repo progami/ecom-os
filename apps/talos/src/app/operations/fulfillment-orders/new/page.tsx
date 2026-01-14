@@ -250,7 +250,7 @@ export default function NewFulfillmentOrderPage() {
         item => !item.skuCode || !item.batchLot || item.quantity <= 0
       )
       if (invalidLine) {
-        toast.error('Each line requires SKU, batch/lot, and quantity')
+        toast.error('Each line requires SKU, batch, and quantity')
         return
       }
 
@@ -473,7 +473,7 @@ export default function NewFulfillmentOrderPage() {
             <div className="rounded-lg border bg-white overflow-hidden">
               <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground p-3 border-b bg-slate-50/50">
                 <div className="col-span-3">SKU</div>
-                <div className="col-span-3">Batch/Lot</div>
+                <div className="col-span-3">Batch</div>
                 <div className="col-span-3">Description</div>
                 <div className="col-span-1">Qty</div>
                 <div className="col-span-1">Units</div>

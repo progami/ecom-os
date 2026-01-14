@@ -567,7 +567,7 @@ export const POST = withAuth(async (request, session) => {
       if (!item.batchLot || item.batchLot.trim() === '') {
         return NextResponse.json(
           {
-            error: `Batch/Lot is required for SKU ${item.skuCode}`,
+            error: `Batch is required for SKU ${item.skuCode}`,
           },
           { status: 400 }
         )
@@ -654,7 +654,7 @@ export const POST = withAuth(async (request, session) => {
         if (!batchRecord) {
           return NextResponse.json(
             {
-              error: `Batch/Lot ${item.batchLot} is not configured for SKU ${item.skuCode}. Create it in Config → Products → Batches.`,
+              error: `Batch ${item.batchLot} is not configured for SKU ${item.skuCode}. Create it in Config → Products → Batches.`,
             },
             { status: 400 }
           )
@@ -740,7 +740,7 @@ export const POST = withAuth(async (request, session) => {
 
         const batchRecord = batchMap.get(`${sku.id}::${item.batchLot}`)
         if (!batchRecord) {
-          throw new Error(`Batch/Lot ${item.batchLot} not found for SKU ${item.skuCode}`)
+          throw new Error(`Batch ${item.batchLot} not found for SKU ${item.skuCode}`)
         }
 
         const resolvedStorageCartonsPerPallet =
