@@ -256,17 +256,24 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
   // Use ?test-fees=ASIN to test with default price
   // Use ?test-fees=ASIN&price=8.99 to test with specific price
   // Use ?test-fees=ASIN&auto-price=1 to auto-fetch listing price from Amazon
+  // Use ?test-fees=ASIN&debug-pricing=1 to see raw getPricing response
   const testAsin = request.nextUrl.searchParams.get('test-fees')
   if (testAsin) {
     try {
       const tenantCode = await getCurrentTenantCode()
       const priceParam = request.nextUrl.searchParams.get('price')
       const autoPrice = request.nextUrl.searchParams.get('auto-price') === '1'
+      const debugPricing = request.nextUrl.searchParams.get('debug-pricing') === '1'
       let price: number
       let fetchedListingPrice: number | null = null
-      if (autoPrice) {
-        fetchedListingPrice = await getListingPrice(testAsin, tenantCode)
-        price = fetchedListingPrice ?? DEFAULT_FEE_ESTIMATE_PRICE
+      let debugPricingResponse: unknown = null
+      if (autoPrice || debugPricing) {
+        // For debugging, we need to call the pricing API and capture the raw response
+        const { getListingPriceDebug } = await import('@/lib/amazon/client')
+        const result = await getListingPriceDebug(testAsin, tenantCode)
+        fetchedListingPrice = result.price
+        debugPricingResponse = debugPricing ? result.rawResponse : undefined
+        price = fetchedListingPrice ?? (priceParam ? Number.parseFloat(priceParam) : DEFAULT_FEE_ESTIMATE_PRICE)
       } else {
         price = priceParam ? Number.parseFloat(priceParam) : DEFAULT_FEE_ESTIMATE_PRICE
       }
@@ -277,6 +284,7 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
         parsed: parsedFees,
         priceUsed: price,
         fetchedListingPrice,
+        ...(debugPricing ? { debugPricingResponse } : {}),
       })
     } catch (error) {
       return ApiResponses.success({

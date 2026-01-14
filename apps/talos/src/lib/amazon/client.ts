@@ -1008,35 +1008,23 @@ export async function getProductFees(asin: string, price: number, tenantCode?: T
  * Returns the seller's listing price if available, null otherwise.
  */
 export async function getListingPrice(asin: string, tenantCode?: TenantCode): Promise<number | null> {
+  const result = await getListingPriceDebug(asin, tenantCode)
+  return result.price
+}
+
+/**
+ * Debug version of getListingPrice that returns both the price and the raw API response.
+ */
+export async function getListingPriceDebug(
+  asin: string,
+  tenantCode?: TenantCode
+): Promise<{ price: number | null; rawResponse: unknown }> {
   try {
     const config = getAmazonSpApiConfigFromEnv(tenantCode)
     const marketplaceId = config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID
 
     // Use getPricing which returns our own seller's price for the ASIN
-    const response = await callAmazonApi<{
-      payload?: Array<{
-        ASIN?: string
-        status?: string
-        Product?: {
-          Offers?: Array<{
-            BuyingPrice?: {
-              ListingPrice?: {
-                Amount?: number
-                CurrencyCode?: string
-              }
-              LandedPrice?: {
-                Amount?: number
-                CurrencyCode?: string
-              }
-            }
-            RegularPrice?: {
-              Amount?: number
-              CurrencyCode?: string
-            }
-          }>
-        }
-      }>
-    }>(tenantCode, {
+    const response = await callAmazonApi<unknown>(tenantCode, {
       operation: 'getPricing',
       endpoint: 'productPricing',
       query: {
@@ -1047,8 +1035,24 @@ export async function getListingPrice(asin: string, tenantCode?: TenantCode): Pr
       },
     })
 
-    // getPricing returns our own seller's offers for the ASIN
-    const payload = response.payload ?? []
+    // Parse the response - getPricing returns our own seller's offers for the ASIN
+    const typedResponse = response as {
+      payload?: Array<{
+        ASIN?: string
+        status?: string
+        Product?: {
+          Offers?: Array<{
+            BuyingPrice?: {
+              ListingPrice?: { Amount?: number; CurrencyCode?: string }
+              LandedPrice?: { Amount?: number; CurrencyCode?: string }
+            }
+            RegularPrice?: { Amount?: number; CurrencyCode?: string }
+          }>
+        }
+      }>
+    }
+
+    const payload = typedResponse.payload ?? []
     for (const item of payload) {
       if (item.status !== 'Success') continue
       const offers = item.Product?.Offers ?? []
@@ -1056,15 +1060,15 @@ export async function getListingPrice(asin: string, tenantCode?: TenantCode): Pr
         // Try ListingPrice first, then RegularPrice
         const listingPrice = offer.BuyingPrice?.ListingPrice?.Amount ?? offer.RegularPrice?.Amount
         if (typeof listingPrice === 'number' && Number.isFinite(listingPrice) && listingPrice > 0) {
-          return listingPrice
+          return { price: listingPrice, rawResponse: response }
         }
       }
     }
 
-    return null
-  } catch {
+    return { price: null, rawResponse: response }
+  } catch (error) {
     // Pricing API may fail for various reasons, return null to use default
-    return null
+    return { price: null, rawResponse: { error: error instanceof Error ? error.message : 'Unknown error' } }
   }
 }
 
