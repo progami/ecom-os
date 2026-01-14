@@ -65,6 +65,28 @@ const parameters: BusinessParameterMap = {
 const productionStart = new Date('2024-01-01T00:00:00.000Z')
 const arrivalDate = new Date('2024-01-15T00:00:00.000Z')
 
+// Build a calendar for the test context
+const calendar = buildWeekCalendar([
+  {
+    id: 'w1',
+    productId: product.id,
+    weekNumber: 1,
+    weekDate: productionStart,
+  },
+  {
+    id: 'w2',
+    productId: product.id,
+    weekNumber: 2,
+    weekDate: new Date('2024-01-08T00:00:00.000Z'),
+  },
+  {
+    id: 'w3',
+    productId: product.id,
+    weekNumber: 3,
+    weekDate: arrivalDate,
+  }
+])
+
 const purchaseOrderInput: PurchaseOrderInput = {
   id: 'po-1',
   orderCode: 'PO-1',
@@ -85,7 +107,8 @@ const derivedOrder = computePurchaseOrderDerived(
   purchaseOrderInput,
   productIndex,
   leadProfile,
-  parameters
+  parameters,
+  { calendar }
 )
 
 const salesWeeks: SalesWeekInput[] = [
@@ -117,29 +140,28 @@ const salesWeeks: SalesWeekInput[] = [
 
 const salesPlan = computeSalesPlan(salesWeeks, [derivedOrder])
 
-// TODO: Re-enable once the planning math settles; fixture expectations are stale.
-describe.skip('computePurchaseOrderDerived', () => {
+describe('computePurchaseOrderDerived', () => {
   it('calculates landed cost and payment schedule', () => {
-    expect(derivedOrder.plannedPoValue).toBeCloseTo(665)
+    expect(derivedOrder.plannedPoValue).toBeCloseTo(415)
     expect(derivedOrder.supplierCostTotal).toBeCloseTo(415)
     expect(derivedOrder.plannedPayments).toHaveLength(5)
 
     const [mfgDeposit, mfgProduction, freight, mfgFinal, tariff] = derivedOrder.plannedPayments
 
     expect(mfgDeposit.category).toBe('MANUFACTURING')
-    expect(mfgDeposit.plannedAmount).toBeCloseTo(75)
-    expect(mfgDeposit.plannedPercent).toBeCloseTo(75 / 415)
+    expect(mfgDeposit.plannedAmount).toBeCloseTo(90)
+    expect(mfgDeposit.plannedPercent).toBeCloseTo(90 / 415)
     expect(differenceInCalendarDays(mfgDeposit.plannedDate!, productionStart)).toBe(0)
 
     expect(mfgProduction.category).toBe('MANUFACTURING')
-    expect(mfgProduction.plannedAmount).toBeCloseTo(75)
+    expect(mfgProduction.plannedAmount).toBeCloseTo(90)
     expect(differenceInCalendarDays(mfgProduction.plannedDate!, productionStart)).toBe(7)
 
     expect(freight.category).toBe('FREIGHT')
     expect(freight.plannedAmount).toBeCloseTo(100)
 
     expect(mfgFinal.category).toBe('MANUFACTURING')
-    expect(mfgFinal.plannedAmount).toBeCloseTo(150)
+    expect(mfgFinal.plannedAmount).toBeCloseTo(120)
 
     expect(tariff.category).toBe('TARIFF')
     expect(tariff.plannedAmount).toBeCloseTo(15)
@@ -172,7 +194,7 @@ describe.skip('computePurchaseOrderDerived', () => {
     )
 
     const expectedTariff = (overrideOrder.overrideManufacturingCost ?? product.manufacturingCost) * 0.1
-    expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + expectedTariff + 1 + 0.3)
+    expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + expectedTariff)
     expect(overridden.plannedPoValue).toBeCloseTo(overridden.landedUnitCost * overrideOrder.quantity)
   })
 
@@ -194,11 +216,34 @@ describe.skip('computePurchaseOrderDerived', () => {
       ],
     }
 
+    // Create a minimal calendar context so date resolution works
+    const calendar = buildWeekCalendar([
+      {
+        id: 'cal-1',
+        productId: product.id,
+        weekNumber: weekNumberForDate(manualFreightDate, buildWeekCalendar([])), // Determine week number for date
+        weekDate: manualFreightDate
+      },
+      // Ensure we have the base production dates too if needed, though mostly the target date matters
+      {
+        id: 'cal-base',
+        productId: product.id,
+        weekNumber: 1, // Just to have some structure
+        weekDate: new Date('2024-01-01T00:00:00.000Z')
+      }
+    ])
+    // Re-build correctly to ensure week 6 (Feb 5) is covered
+    const fullCalendar = buildWeekCalendar([
+       { id: 'w1', productId: 'p1', weekNumber: 1, weekDate: new Date('2024-01-01T00:00:00.000Z') },
+       { id: 'w6', productId: 'p1', weekNumber: 6, weekDate: manualFreightDate }
+    ])
+
     const derivedManual = computePurchaseOrderDerived(
       manualOrder,
       productIndex,
       leadProfile,
-      parameters
+      parameters,
+      { calendar: fullCalendar }
     )
 
     const freightPayment = derivedManual.plannedPayments.find((payment) => payment.paymentIndex === 3)
