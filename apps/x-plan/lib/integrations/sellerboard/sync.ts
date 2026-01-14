@@ -60,6 +60,7 @@ export async function syncSellerboardUsActualSales(options: {
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,
       productsMatched: 0,
+      asinDirectMatched: 0,
       asinMappingsFound: 0,
       asinProductsMatched: 0,
       updates: 0,
@@ -101,13 +102,44 @@ export async function syncSellerboardUsActualSales(options: {
 
   // Step 2: Match unmatched codes by ASIN field in X-Plan products
   let unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  let asinDirectMatched = 0;
   let asinMappingsFound = 0;
   let asinProductsMatched = 0;
 
-  // Note: ASIN field matching requires the database to have the asin column added
-  // For now, we skip this step - Talos ASIN mapping below handles the fallback
+  if (unmatchedCodes.length) {
+    logSync('Looking up products by ASIN', { unmatchedCount: unmatchedCodes.length, sample: unmatchedCodes.slice(0, 10) });
 
-  // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping
+    const asinProducts = (await prisma.product.findMany({
+      where: {
+        asin: { in: unmatchedCodes },
+        strategy: { region: 'US' },
+      },
+      select: {
+        id: true,
+        sku: true,
+        asin: true,
+        strategyId: true,
+      },
+    })) as unknown as Array<{ id: string; sku: string; asin: string | null; strategyId: string | null }>;
+
+    for (const product of asinProducts) {
+      if (!product.strategyId || !product.asin) continue;
+      directProductIds.add(product.id);
+      const list = productsByCode.get(product.asin) ?? [];
+      list.push({ id: product.id, strategyId: product.strategyId });
+      productsByCode.set(product.asin, list);
+      asinDirectMatched++;
+    }
+
+    logSync('Direct ASIN match results', {
+      productsFound: asinProducts.length,
+      asinDirectMatched,
+    });
+
+    unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  }
+
+  // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping (fallback)
   if (unmatchedCodes.length) {
     logSync('Looking up Talos ASIN mappings', { unmatchedCount: unmatchedCodes.length, sample: unmatchedCodes.slice(0, 10) });
 
@@ -231,6 +263,7 @@ export async function syncSellerboardUsActualSales(options: {
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
     productsMatched: uniqueProductsMatched.size,
+    asinDirectMatched,
     asinMappingsFound,
     asinProductsMatched,
     updates: upserts.length,
@@ -297,6 +330,7 @@ export async function syncSellerboardUsDashboard(options: {
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,
       productsMatched: 0,
+      asinDirectMatched: 0,
       asinMappingsFound: 0,
       asinProductsMatched: 0,
       updates: 0,
@@ -335,11 +369,46 @@ export async function syncSellerboardUsDashboard(options: {
     uniqueSkusMatched: productsByCode.size,
   });
 
-  // Step 2: Match unmatched codes via Talos ASIN->SKU mapping
-  const unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  // Step 2: Match unmatched codes by ASIN field in X-Plan products
+  let unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  let asinDirectMatched = 0;
   let asinMappingsFound = 0;
   let asinProductsMatched = 0;
 
+  if (unmatchedCodes.length) {
+    logSync('Looking up products by ASIN for Dashboard', { unmatchedCount: unmatchedCodes.length });
+
+    const asinProducts = (await prisma.product.findMany({
+      where: {
+        asin: { in: unmatchedCodes },
+        strategy: { region: 'US' },
+      },
+      select: {
+        id: true,
+        sku: true,
+        asin: true,
+        strategyId: true,
+      },
+    })) as unknown as Array<{ id: string; sku: string; asin: string | null; strategyId: string | null }>;
+
+    for (const product of asinProducts) {
+      if (!product.strategyId || !product.asin) continue;
+      directProductIds.add(product.id);
+      const list = productsByCode.get(product.asin) ?? [];
+      list.push({ id: product.id, strategyId: product.strategyId });
+      productsByCode.set(product.asin, list);
+      asinDirectMatched++;
+    }
+
+    logSync('Direct ASIN match results for Dashboard', {
+      productsFound: asinProducts.length,
+      asinDirectMatched,
+    });
+
+    unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
+  }
+
+  // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping (fallback)
   if (unmatchedCodes.length) {
     logSync('Looking up Talos ASIN mappings for Dashboard', {
       unmatchedCount: unmatchedCodes.length,
@@ -460,6 +529,7 @@ export async function syncSellerboardUsDashboard(options: {
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
     productsMatched: uniqueProductsMatched.size,
+    asinDirectMatched,
     asinMappingsFound,
     asinProductsMatched,
     updates: upserts.length,
@@ -472,6 +542,7 @@ export async function syncSellerboardUsDashboard(options: {
     rowsParsed: result.rowsParsed,
     rowsSkipped: result.rowsSkipped,
     productsMatched: result.productsMatched,
+    asinDirectMatched: result.asinDirectMatched,
     updates: result.updates,
   });
 
