@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
-import { syncSellerboardUsActualSales } from '@/lib/integrations/sellerboard-us-actual-sales-sync';
+import { syncSellerboardUsActualSales } from '@/lib/integrations/sellerboard';
 
 export const runtime = 'nodejs';
 

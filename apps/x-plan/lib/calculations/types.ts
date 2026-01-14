@@ -154,6 +154,7 @@ export interface SalesWeekInput {
   finalSales?: number | null;
   stockWeeks?: number | null;
   stockEnd?: number | null;
+  hasActualData?: boolean;
 }
 
 export interface ProfitAndLossWeekInput {

@@ -4,8 +4,12 @@ import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
-import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard-orders';
+import { parseSellerboardOrdersWeeklyUnits } from './orders';
+import { fetchSellerboardCsv } from './client';
 import { getTalosPrisma } from '@/lib/integrations/talos-client';
+import type { SellerboardUsActualSalesSyncResult } from './types';
+
+export type { SellerboardUsActualSalesSyncResult };
 
 function logSync(message: string, data?: Record<string, unknown>) {
   const timestamp = new Date().toISOString();
@@ -15,18 +19,6 @@ function logSync(message: string, data?: Record<string, unknown>) {
     console.log(`[sellerboard-sync] ${timestamp} ${message}`);
   }
 }
-
-export type SellerboardUsActualSalesSyncResult = {
-  rowsParsed: number;
-  rowsSkipped: number;
-  productsMatched: number;
-  asinMappingsFound: number;
-  asinProductsMatched: number;
-  updates: number;
-  csvSha256: string;
-  oldestPurchaseDateUtc: Date | null;
-  newestPurchaseDateUtc: Date | null;
-};
 
 export async function syncSellerboardUsActualSales(options: {
   reportUrl: string;
@@ -39,12 +31,7 @@ export async function syncSellerboardUsActualSales(options: {
   }
 
   logSync('Fetching CSV from Sellerboard');
-  const response = await fetch(reportUrl, { method: 'GET' });
-  if (!response.ok) {
-    throw new Error(`Sellerboard fetch failed (${response.status})`);
-  }
-
-  const csv = await response.text();
+  const csv = await fetchSellerboardCsv(reportUrl);
   logSync('CSV fetched', { bytes: csv.length });
 
   const weekStartsOn = weekStartsOnForRegion('US');
@@ -115,13 +102,9 @@ export async function syncSellerboardUsActualSales(options: {
   let unmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
   let asinMappingsFound = 0;
   let asinProductsMatched = 0;
-  let xplanAsinMatched = 0;
 
   // Note: ASIN field matching requires the database to have the asin column added
-  // This is done via migration but TypeScript types may not reflect it until CI regenerates
-  // For now, we skip this step if there are TypeScript issues - Talos ASIN mapping below handles the fallback
-
-  // Update unmatched codes (X-Plan ASIN matching skipped for now - using Talos fallback)
+  // For now, we skip this step - Talos ASIN mapping below handles the fallback
 
   // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping
   if (unmatchedCodes.length) {
@@ -144,8 +127,8 @@ export async function syncSellerboardUsActualSales(options: {
         new Set(
           mappings
             .map((row: { skuCode: string | null }) => row.skuCode?.trim())
-            .filter((value: string | undefined): value is string => Boolean(value)),
-        ),
+            .filter((value: string | undefined): value is string => Boolean(value))
+        )
       );
 
       if (mappedSkuCodes.length) {
@@ -223,7 +206,7 @@ export async function syncSellerboardUsActualSales(options: {
             hasActualData: true,
             finalSales: null,
           },
-        }),
+        })
       );
     }
   }

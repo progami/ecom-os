@@ -745,15 +745,16 @@ describe('calendar continuity', () => {
       },
     ]
 
+    // Now using Monday as week start (weekStartsOn=1 by default)
     const calendar = buildWeekCalendar(anchoredWeeks)
-    expect(calendar.calendarStart?.toISOString()).toBe('2025-10-19T00:00:00.000Z')
+    expect(calendar.calendarStart?.toISOString()).toBe('2025-10-20T00:00:00.000Z') // Monday
     expect(calendar.anchorWeekNumber).toBe(42)
 
     const filledWeek40 = getCalendarDateForWeek(40, calendar)
-    expect(filledWeek40?.toISOString().slice(0, 10)).toBe('2025-10-05')
+    expect(filledWeek40?.toISOString().slice(0, 10)).toBe('2025-10-06') // Monday
 
     const filledWeek60 = getCalendarDateForWeek(60, calendar)
-    expect(filledWeek60?.toISOString().slice(0, 10)).toBe('2026-02-22')
+    expect(filledWeek60?.toISOString().slice(0, 10)).toBe('2026-02-23') // Monday
 
     const derivedWeek42 = weekNumberForDate(new Date('2025-10-20T12:00:00.000Z'), calendar)
     const derivedWeek40 = weekNumberForDate(new Date('2025-10-06T00:00:00.000Z'), calendar)

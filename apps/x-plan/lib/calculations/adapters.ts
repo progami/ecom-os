@@ -217,6 +217,7 @@ export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {
       finalSales: row.finalSales ?? null,
       stockWeeks: row.stockWeeks != null ? coerceNumber(row.stockWeeks) : null,
       stockEnd: row.stockEnd ?? null,
+      hasActualData: (row as SalesWeek & { hasActualData?: boolean }).hasActualData ?? false,
     };
   });
 }

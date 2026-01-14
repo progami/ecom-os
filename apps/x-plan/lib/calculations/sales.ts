@@ -49,6 +49,7 @@ export interface SalesWeekDerived {
   stockEnd: number;
   stockWeeks: number;
   batchAllocations?: BatchAllocation[];
+  hasActualData: boolean;
 }
 
 interface BatchInventory {
@@ -343,6 +344,7 @@ export function computeSalesPlan(
         stockEnd,
         stockWeeks,
         batchAllocations: allocations.length > 0 ? allocations : undefined,
+        hasActualData: week?.hasActualData ?? false,
       });
     }
   }

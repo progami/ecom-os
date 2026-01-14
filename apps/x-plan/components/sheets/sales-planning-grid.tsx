@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table';
 import { Tooltip } from '@/components/ui/tooltip';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
+import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -57,7 +58,7 @@ import { getSelectionBorderBoxShadow } from '@/lib/grid/selection-border';
 import { formatDateDisplay } from '@/lib/utils/dates';
 
 const PLANNING_ANCHOR_WEEK = 1;
-const PLANNING_ANCHOR_DATE = new Date('2025-01-05T00:00:00.000Z');
+const PLANNING_ANCHOR_DATE = new Date('2025-01-06T00:00:00.000Z'); // Monday
 
 function formatWeekDateFallback(weekNumber: number): string {
   return formatDateDisplay(addWeeks(PLANNING_ANCHOR_DATE, weekNumber - PLANNING_ANCHOR_WEEK));
@@ -69,6 +70,7 @@ type SalesRow = {
   weekDate: string;
   arrivalDetail?: string;
   arrivalNote?: string;
+  hasActualData?: string;
   [key: string]: string | undefined;
 };
 
@@ -552,6 +554,12 @@ export function SalesPlanningGrid({
       columnHelper.accessor('weekLabel', {
         id: 'weekLabel',
         header: () => 'Week',
+        cell: (info) => (
+          <span className="flex items-center gap-1">
+            {info.getValue()}
+            <RealWeekIndicator hasActualData={info.row.original.hasActualData === 'true'} />
+          </span>
+        ),
         meta: { sticky: true, stickyOffset: 0, width: 80, kind: 'pinned' },
       }),
       columnHelper.accessor('weekDate', {

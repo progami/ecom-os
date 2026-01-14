@@ -1658,10 +1658,22 @@ function getSalesPlanningView(
     const weekLabel =
       segment != null ? String(weekNumber - segment.startWeekNumber + 1) : String(weekNumber);
     const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar);
+
+    // Check if any product has actual data for this week
+    let hasActualData = false;
+    for (const product of productList) {
+      const derived = salesLookup.get(`${product.id}-${weekNumber}`);
+      if (derived?.hasActualData) {
+        hasActualData = true;
+        break;
+      }
+    }
+
     const row: SalesRow = {
       weekNumber: String(weekNumber),
       weekLabel,
       weekDate: calendarDate ? formatDate(calendarDate) : '',
+      hasActualData: hasActualData ? 'true' : undefined,
     };
 
     const inboundSummary: InboundSummary = new Map();
@@ -1828,6 +1840,14 @@ function getProfitAndLossView(
   const quarterlySummary = filterSummaryByYear(quarterly, activeYear);
   const segmentStart = activeSegment?.startWeekNumber ?? null;
 
+  // Build lookup for weeks with actual data from salesPlan
+  const weeksWithActualData = new Set<number>();
+  for (const entry of financialData.salesPlan) {
+    if (entry.hasActualData) {
+      weeksWithActualData.add(entry.weekNumber);
+    }
+  }
+
   return {
     weekly: filteredWeekly.map((entry) => ({
       weekNumber: String(entry.weekNumber),
@@ -1847,6 +1867,7 @@ function getProfitAndLossView(
       fixedCosts: formatNumeric(entry.fixedCosts),
       netProfit: formatNumeric(entry.netProfit),
       netMargin: formatPercentDecimal(entry.revenue === 0 ? 0 : entry.netProfit / entry.revenue),
+      hasActualData: weeksWithActualData.has(entry.weekNumber) ? 'true' : undefined,
     })),
     monthlySummary: monthlySummary.map((entry) => ({
       periodLabel: entry.periodLabel,
@@ -1880,6 +1901,14 @@ function getCashFlowView(
   const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment));
   const segmentStart = activeSegment?.startWeekNumber ?? null;
 
+  // Build lookup for weeks with actual data from salesPlan
+  const weeksWithActualData = new Set<number>();
+  for (const entry of financialData.salesPlan) {
+    if (entry.hasActualData) {
+      weeksWithActualData.add(entry.weekNumber);
+    }
+  }
+
   return {
     weekly: filteredWeekly.map((entry) => ({
       weekNumber: String(entry.weekNumber),
@@ -1893,6 +1922,7 @@ function getCashFlowView(
       fixedCosts: formatNumeric(entry.fixedCosts),
       netCash: formatNumeric(entry.netCash),
       cashBalance: formatNumeric(entry.cashBalance),
+      hasActualData: weeksWithActualData.has(entry.weekNumber) ? 'true' : undefined,
     })),
   };
 }
