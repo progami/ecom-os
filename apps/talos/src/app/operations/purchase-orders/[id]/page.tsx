@@ -1842,31 +1842,6 @@ export default function PurchaseOrderDetailPage() {
                   </Button>
                 )}
 
-                {/* Secondary: Back to Draft (ISSUED only) */}
-                {order.status === 'ISSUED' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleTransition('DRAFT')}
-                    disabled={transitioning}
-                    className="gap-2"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Draft
-                  </Button>
-                )}
-
-                {/* Secondary: Mark Rejected (ISSUED only) */}
-                {order.status === 'ISSUED' && (
-                  <Button
-                    variant="outline"
-                    onClick={() => handleTransition('REJECTED')}
-                    disabled={transitioning}
-                    className="gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                  >
-                    <PackageX className="h-4 w-4" />
-                    Mark Rejected
-                  </Button>
-                )}
               </div>
 
               {order.status === 'WAREHOUSE' && (
