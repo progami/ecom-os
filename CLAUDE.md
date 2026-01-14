@@ -19,6 +19,21 @@ If you're working in a worktree (`targonos-wt/<app>-1` or `<app>-2`), determine 
 
 Run `pnpm dev` from `apps/<app>` to start hot reload. Test at your slot's URL (e.g., `dev1-targonos.targonglobal.com/talos` for talos-1).
 
+## Database
+
+All apps share `portal_db` on localhost:5432 with separate schemas per app. Connection strings are in each app's `.env.local` file.
+
+| App | Schema |
+|-----|--------|
+| talos | dev_wms_us, dev_wms_uk |
+| atlas | dev_hrms |
+| x-plan | dev_xplan |
+| kairos | chronos |
+| sso | dev_auth |
+| plutus | (no DB - uses QuickBooks API) |
+
+Access via Prisma Studio: `pnpm prisma studio` from the app folder.
+
 ## Code Style
 
 - No OR statements as fallbacks - let the code fail
