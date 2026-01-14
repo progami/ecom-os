@@ -7,6 +7,7 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  getWeek,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
@@ -57,7 +58,7 @@ function useIsDarkMode() {
   return isDark;
 }
 
-const WEEK_OPTIONS = { weekStartsOn: 0 as const };
+const WEEK_OPTIONS = { weekStartsOn: 1 as const };
 
 type TimelineComputedSegment = PurchaseTimelineOrder['segments'][number] & {
   startDate: Date;
@@ -190,7 +191,7 @@ export function PurchaseTimeline({
       const end = endOfWeek(start, WEEK_OPTIONS);
       weeks.push({
         key: start.toISOString(),
-        weekNumber: format(start, 'w'),
+        weekNumber: String(getWeek(start, WEEK_OPTIONS)),
         start,
         end,
       });

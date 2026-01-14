@@ -29,6 +29,7 @@ declare module '@targon/prisma-x-plan' {
     strategyId?: string;
     name: string;
     sku: string;
+    asin?: string | null;
     isActive: boolean;
     createdAt?: Date;
     updatedAt?: Date;
@@ -171,6 +172,7 @@ declare module '@targon/prisma-x-plan' {
 
   export interface SalesWeek {
     id: string;
+    strategyId?: string;
     productId: string;
     weekNumber: number;
     weekDate: Date | null;
@@ -182,6 +184,25 @@ declare module '@targon/prisma-x-plan' {
     finalSales?: number | null;
     stockWeeks?: number | null;
     stockEnd?: number | null;
+    hasActualData?: boolean;
+  }
+
+  export interface SalesWeekFinancials {
+    id: string;
+    strategyId: string;
+    productId: string;
+    weekNumber: number;
+    weekDate: Date | null;
+    actualRevenue?: Prisma.Decimal | number | null;
+    actualAmazonFees?: Prisma.Decimal | number | null;
+    actualReferralFees?: Prisma.Decimal | number | null;
+    actualFbaFees?: Prisma.Decimal | number | null;
+    actualRefunds?: Prisma.Decimal | number | null;
+    actualPpcSpend?: Prisma.Decimal | number | null;
+    actualNetProfit?: Prisma.Decimal | number | null;
+    syncedAt?: Date;
+    createdAt?: Date;
+    updatedAt?: Date;
   }
 
   export interface ProfitAndLossWeek {
@@ -312,6 +333,7 @@ declare module '@targon/prisma-x-plan' {
     batchTableRow: ModelDelegate<BatchTableRow>;
     purchaseOrderPayment: ModelDelegate<PurchaseOrderPayment>;
     salesWeek: ModelDelegate<SalesWeek>;
+    salesWeekFinancials: ModelDelegate<SalesWeekFinancials>;
     profitAndLossWeek: ModelDelegate<ProfitAndLossWeek>;
     cashFlowWeek: ModelDelegate<CashFlowWeek>;
     monthlySummary: ModelDelegate<MonthlySummary>;
