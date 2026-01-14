@@ -19,6 +19,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma"
   },
   "dependencies": {
+    "@targon/amazon-sp-api": "workspace:*",
     "@targon/auth": "workspace:*",
     "@targon/config": "workspace:*",
     "@targon/logger": "workspace:*",
