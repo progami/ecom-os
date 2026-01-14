@@ -820,7 +820,7 @@ export async function createPurchaseOrder(
       keySet.add(key)
 
       if (!line.batchLot || line.batchLot === 'DEFAULT') {
-        throw new ValidationError(`Batch / lot is required for SKU ${line.skuCode}`)
+        throw new ValidationError(`Batch is required for SKU ${line.skuCode}`)
       }
 
       if (typeof line.currency !== 'string' || line.currency.trim().length === 0) {
@@ -890,7 +890,7 @@ export async function createPurchaseOrder(
 
 	            const batchCode = line.batchLot?.trim().toUpperCase() ?? ''
 	            if (!batchCode || batchCode === 'DEFAULT') {
-	              throw new ValidationError(`Batch / lot is required for SKU ${skuRecord.skuCode}`)
+	              throw new ValidationError(`Batch is required for SKU ${skuRecord.skuCode}`)
 	            }
 
 	            const key = `${skuRecord.id}::${batchCode}`
@@ -1216,7 +1216,7 @@ export async function transitionPurchaseOrderStage(
 
     for (const line of order.lines) {
       if (!line.batchLot) {
-        throw new ValidationError(`Batch/Lot is required for SKU ${line.skuCode}`)
+        throw new ValidationError(`Batch is required for SKU ${line.skuCode}`)
       }
     }
   }
@@ -1534,7 +1534,7 @@ export async function transitionPurchaseOrderStage(
         const batch = batchMap.get(`${sku.id}::${batchLot}`)
         if (!batch) {
           throw new ValidationError(
-            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → Batches.`
+            `Batch ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → Batches.`
           )
         }
 
