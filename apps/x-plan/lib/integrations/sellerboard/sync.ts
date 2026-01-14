@@ -445,8 +445,7 @@ export async function syncSellerboardUsDashboard(options: {
 
   if (upserts.length) {
     logSync('Executing Dashboard database transaction');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await prisma.$transaction(upserts as any);
+    await prisma.$transaction(upserts as never);
     logSync('Dashboard database transaction complete');
   }
 
