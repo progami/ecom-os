@@ -81,3 +81,40 @@ export type SellerboardUsActualSalesSyncResult = {
   oldestPurchaseDateUtc: Date | null;
   newestPurchaseDateUtc: Date | null;
 };
+
+// Weekly financials from Dashboard report
+export type SellerboardWeeklyFinancials = {
+  productCode: string;
+  weekNumber: number;
+  revenue: number;
+  amazonFees: number;
+  referralFees: number;
+  fbaFees: number;
+  refunds: number;
+  ppcSpend: number;
+  netProfit: number;
+};
+
+// Parse result from Dashboard CSV
+export type SellerboardDashboardParseResult = {
+  rowsParsed: number;
+  rowsSkipped: number;
+  weekStartsOn: 0 | 1;
+  weeklyFinancials: SellerboardWeeklyFinancials[];
+  csvSha256: string;
+  oldestDateUtc: Date | null;
+  newestDateUtc: Date | null;
+};
+
+// Dashboard Sync result
+export type SellerboardDashboardSyncResult = {
+  rowsParsed: number;
+  rowsSkipped: number;
+  productsMatched: number;
+  asinMappingsFound: number;
+  asinProductsMatched: number;
+  updates: number;
+  csvSha256: string;
+  oldestDateUtc: Date | null;
+  newestDateUtc: Date | null;
+};
