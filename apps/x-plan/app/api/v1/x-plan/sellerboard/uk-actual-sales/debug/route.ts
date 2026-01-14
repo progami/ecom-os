@@ -16,10 +16,10 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const reportUrl = process.env.SELLERBOARD_US_ORDERS_REPORT_URL?.trim();
+  const reportUrl = process.env.SELLERBOARD_UK_ORDERS_REPORT_URL?.trim();
   if (!reportUrl) {
     return NextResponse.json(
-      { error: 'Missing SELLERBOARD_US_ORDERS_REPORT_URL' },
+      { error: 'Missing SELLERBOARD_UK_ORDERS_REPORT_URL' },
       { status: 500 },
     );
   }
@@ -35,7 +35,7 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
 
     const csv = await response.text();
     const reportTimeZone = inferSellerboardReportTimeZoneFromCsv(csv);
-    const weekStartsOn = weekStartsOnForRegion('US');
+    const weekStartsOn = weekStartsOnForRegion('UK');
     const planning = await loadPlanningCalendar(weekStartsOn);
 
     const parsed = parseSellerboardOrdersWeeklyUnits(csv, planning, {
@@ -43,17 +43,14 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
       excludeStatuses: ['Cancelled'],
     });
 
-    // Group by week for easier reading
     const byWeek = new Map<number, Map<string, number>>();
     for (const entry of parsed.weeklyUnits) {
-      if (!byWeek.has(entry.weekNumber)) {
-        byWeek.set(entry.weekNumber, new Map());
-      }
-      const weekMap = byWeek.get(entry.weekNumber)!;
+      const existing = byWeek.get(entry.weekNumber);
+      const weekMap = existing ?? new Map<string, number>();
       weekMap.set(entry.productCode, (weekMap.get(entry.productCode) ?? 0) + entry.units);
+      byWeek.set(entry.weekNumber, weekMap);
     }
 
-    // Convert to JSON-friendly format
     const weeklyData: Record<string, Record<string, number>> = {};
     for (const [weekNumber, products] of byWeek.entries()) {
       const weekDate = planning.calendar.weekDates.get(weekNumber);
@@ -61,7 +58,6 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
       weeklyData[weekKey] = Object.fromEntries(products);
     }
 
-    // Show first 50 lines of raw CSV for debugging
     const csvLines = csv.split('\n').slice(0, 50);
 
     return NextResponse.json({

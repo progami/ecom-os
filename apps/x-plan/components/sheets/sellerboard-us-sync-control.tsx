@@ -32,6 +32,25 @@ type SellerboardUsSyncResult = {
   newestPurchaseDateUtc: string | null;
 };
 
+type SellerboardSyncKind = 'actual-sales' | 'dashboard';
+
+type SellerboardDashboardSyncResult = {
+  ok: true;
+  durationMs: number;
+  rowsParsed: number;
+  rowsSkipped: number;
+  productsMatched: number;
+  asinDirectMatched: number;
+  asinMappingsFound: number;
+  asinProductsMatched: number;
+  updates: number;
+  csvSha256: string;
+  oldestDateUtc: string | null;
+  newestDateUtc: string | null;
+};
+
+type SellerboardSyncResult = SellerboardUsSyncResult | SellerboardDashboardSyncResult;
+
 function formatIsoTimestamp(value: string | null): string {
   if (!value) return '—';
   const date = new Date(value);
@@ -51,23 +70,41 @@ function formatDuration(durationMs: number): string {
 export function SellerboardUsSyncControl({
   isSuperAdmin,
   strategyRegion,
+  kind,
 }: {
   isSuperAdmin: boolean;
   strategyRegion: 'US' | 'UK';
+  kind: SellerboardSyncKind;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [result, setResult] = useState<SellerboardUsSyncResult | null>(null);
+  const [result, setResult] = useState<SellerboardSyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const canRender = isSuperAdmin && strategyRegion === 'US';
+  const canRender = isSuperAdmin;
+  const regionSlug = strategyRegion === 'UK' ? 'uk' : 'us';
   const status = useMemo(() => {
     if (isSyncing) return 'syncing';
     if (result) return 'done';
     if (error) return 'error';
     return 'idle';
   }, [error, isSyncing, result]);
+
+  const endpoint =
+    kind === 'dashboard'
+      ? `/api/v1/x-plan/sellerboard/${regionSlug}-dashboard/manual`
+      : `/api/v1/x-plan/sellerboard/${regionSlug}-actual-sales/manual`;
+
+  const title =
+    kind === 'dashboard' ? 'Sync Sellerboard financials' : 'Sync Sellerboard actuals';
+  const subtitle =
+    kind === 'dashboard'
+      ? `Updates weekly revenue/fees from Sellerboard for ${strategyRegion} strategies`
+      : `Updates the Actual column for ${strategyRegion} strategies`;
+
+  const toolbarLabel = kind === 'dashboard' ? 'Financials' : 'Actuals';
+  const syncButtonLabel = kind === 'dashboard' ? 'Sync financials' : 'Sync actuals';
 
   const runSync = async () => {
     if (isSyncing) return;
@@ -76,19 +113,16 @@ export function SellerboardUsSyncControl({
     setResult(null);
 
     try {
-      const response = await fetch(
-        withAppBasePath('/api/v1/x-plan/sellerboard/us-actual-sales/manual'),
-        { method: 'POST' },
-      );
+      const response = await fetch(withAppBasePath(endpoint), { method: 'POST' });
       const json = (await response.json().catch(() => null)) as any;
       if (!response.ok) {
         const message = typeof json?.error === 'string' ? json.error : 'Sync failed';
         throw new Error(message);
       }
 
-      setResult(json as SellerboardUsSyncResult);
+      setResult(json as SellerboardSyncResult);
       toast.success('Sellerboard sync complete', {
-        description: `Updated ${Number(json?.updates ?? 0).toLocaleString()} cells.`,
+        description: `Updated ${Number(json?.updates ?? 0).toLocaleString()} records.`,
       });
       router.refresh();
     } catch (syncError) {
@@ -102,10 +136,15 @@ export function SellerboardUsSyncControl({
 
   if (!canRender) return null;
 
+  const newestTimestamp =
+    kind === 'dashboard'
+      ? (result as SellerboardDashboardSyncResult | null)?.newestDateUtc ?? null
+      : (result as SellerboardUsSyncResult | null)?.newestPurchaseDateUtc ?? null;
+
   return (
     <>
       <div className={SHEET_TOOLBAR_GROUP}>
-        <span className={SHEET_TOOLBAR_LABEL}>Actuals</span>
+        <span className={SHEET_TOOLBAR_LABEL}>{toolbarLabel}</span>
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -159,10 +198,10 @@ export function SellerboardUsSyncControl({
                 </div>
                 <div>
                   <AlertDialogTitle className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
-                    Sync Sellerboard actuals
+                    {title}
                   </AlertDialogTitle>
                   <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                    Updates the Actual column for US strategies
+                    {subtitle}
                   </p>
                 </div>
               </div>
@@ -193,7 +232,7 @@ export function SellerboardUsSyncControl({
                             Sync in progress…
                           </p>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Fetching report → parsing orders → updating weekly actuals
+                            Fetching report → parsing → writing sync results
                           </p>
                         </div>
                       </div>
@@ -229,7 +268,7 @@ export function SellerboardUsSyncControl({
                           Snapshot newest
                         </span>
                         <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {formatIsoTimestamp(result.newestPurchaseDateUtc)}
+                          {formatIsoTimestamp(newestTimestamp)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -263,7 +302,7 @@ export function SellerboardUsSyncControl({
                   disabled={isSyncing}
                   className="flex-1 bg-gradient-to-r from-cyan-500 to-cyan-600 font-medium text-white shadow-lg shadow-cyan-500/25 transition-all hover:from-cyan-600 hover:to-cyan-700 hover:shadow-xl hover:shadow-cyan-500/30 disabled:opacity-70 dark:from-[#00c2b9] dark:to-[#00a89d] dark:text-[#002430] dark:shadow-[#00c2b9]/25 dark:hover:from-[#00d5cb] dark:hover:to-[#00c2b9]"
                 >
-                  {isSyncing ? 'Syncing…' : 'Sync now'}
+                  {isSyncing ? 'Syncing…' : syncButtonLabel}
                 </AlertDialogAction>
               )}
             </AlertDialogFooter>
@@ -272,4 +311,12 @@ export function SellerboardUsSyncControl({
       </AlertDialog>
     </>
   );
+}
+
+export function SellerboardSyncControl(props: {
+  isSuperAdmin: boolean;
+  strategyRegion: 'US' | 'UK';
+  kind: SellerboardSyncKind;
+}) {
+  return <SellerboardUsSyncControl {...props} />;
 }

@@ -4,7 +4,8 @@ import type { BusinessParameterMap, CashFlowWeekInput, ProfitAndLossWeekInput } 
 import type { PurchaseOrderDerived } from './ops';
 import type { SalesWeekDerived } from './sales';
 import { ProductCostSummary } from './product';
-import { buildWeekCalendar, getCalendarDateForWeek } from './calendar';
+import { buildWeekCalendar, getCalendarDateForWeek, weekNumberForDate } from './calendar';
+import type { SalesWeekInput } from './types';
 
 /** Actual financials from Sellerboard Dashboard sync */
 export interface ActualWeekFinancials {
@@ -80,6 +81,7 @@ export function computeProfitAndLoss(
   businessParams: BusinessParameterMap,
   weeklyOverrides: ProfitAndLossWeekInput[],
   actualFinancials: ActualWeekFinancials[] = [],
+  options: { calendar?: ReturnType<typeof buildWeekCalendar>; asOfDate?: Date } = {},
 ): {
   weekly: ProfitAndLossWeekDerived[];
   monthly: FinancialSummaryRow[];
@@ -110,11 +112,16 @@ export function computeProfitAndLoss(
     (a, b) => a - b,
   );
 
+  const calendar = options.calendar ?? buildWeekCalendar(sales as unknown as SalesWeekInput[]);
+  const asOfDate = options.asOfDate ?? new Date();
+  const currentWeekNumber = weekNumberForDate(asOfDate, calendar) ?? Number.NEGATIVE_INFINITY;
+
   const weekly: ProfitAndLossWeekDerived[] = [];
 
   for (const weekNumber of weekNumbers) {
     const salesRows = salesByWeek.get(weekNumber) ?? [];
     const override = overridesByWeek.get(weekNumber);
+    const isPastWeek = weekNumber < currentWeekNumber;
 
     let weekDate: Date | null = null;
     if (override?.weekDate) {
@@ -144,6 +151,11 @@ export function computeProfitAndLoss(
           acc.amazonFees += actual.actualAmazonFees ?? 0;
           acc.ppcSpend += actual.actualPpcSpend ?? 0;
           acc.hasActual = true;
+          return acc;
+        }
+
+        // Past weeks must not use projected/estimated financials.
+        if (isPastWeek) {
           return acc;
         }
 
