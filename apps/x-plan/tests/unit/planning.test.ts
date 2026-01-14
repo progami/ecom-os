@@ -22,22 +22,25 @@ describe('planning calendar coverage', () => {
     expect(firstWeekDateUk?.toISOString()).toBe('2025-01-06T00:00:00.000Z')
     expect(lastWeekDateUk?.toISOString()).toBe('2027-12-27T00:00:00.000Z')
 
-    const weeksUs = ensurePlanningCalendarCoverage([], 0)
-    expect(weeksUs).toHaveLength(261)
+    // US now also uses Monday start (weekStartsOn=1) to align with Sellerboard
+    // Test that default (no weekStartsOn) uses Monday
+    const weeksDefault = ensurePlanningCalendarCoverage([])
+    expect(weeksDefault).toHaveLength(261)
 
-    const calendarUs = buildWeekCalendar(weeksUs, 0)
-    const segmentsUs = buildYearSegments(calendarUs)
+    const calendarDefault = buildWeekCalendar(weeksDefault)
+    const segmentsDefault = buildYearSegments(calendarDefault)
 
-    expect(segmentsUs.map((segment) => segment.year)).toEqual([2023, 2024, 2025, 2026, 2027])
-    expect(segmentsUs.map((segment) => segment.weekCount)).toEqual([53, 52, 52, 52, 52])
+    // Default should match UK (Monday start)
+    expect(segmentsDefault.map((segment) => segment.year)).toEqual([2023, 2024, 2025, 2026, 2027])
+    expect(segmentsDefault.map((segment) => segment.weekCount)).toEqual([52, 53, 52, 52, 52])
 
-    const first2023WeekDateUs = getCalendarDateForWeek(-104, calendarUs)
-    const firstWeekDateUs = getCalendarDateForWeek(1, calendarUs)
-    const lastWeekDateUs = getCalendarDateForWeek(156, calendarUs)
+    const first2023WeekDateDefault = getCalendarDateForWeek(-104, calendarDefault)
+    const firstWeekDateDefault = getCalendarDateForWeek(1, calendarDefault)
+    const lastWeekDateDefault = getCalendarDateForWeek(156, calendarDefault)
 
-    expect(first2023WeekDateUs?.toISOString()).toBe('2023-01-01T00:00:00.000Z')
-    expect(firstWeekDateUs?.toISOString()).toBe('2025-01-05T00:00:00.000Z')
-    expect(lastWeekDateUs?.toISOString()).toBe('2027-12-26T00:00:00.000Z')
+    expect(first2023WeekDateDefault?.toISOString()).toBe('2023-01-02T00:00:00.000Z')
+    expect(firstWeekDateDefault?.toISOString()).toBe('2025-01-06T00:00:00.000Z')
+    expect(lastWeekDateDefault?.toISOString()).toBe('2027-12-27T00:00:00.000Z')
   })
 
   it('fills missing weeks and dates without overwriting populated rows', () => {

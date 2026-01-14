@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { safeEqual } from '@/lib/integrations/sellerboard-orders';
-import { syncSellerboardUsActualSales } from '@/lib/integrations/sellerboard-us-actual-sales-sync';
+import { safeEqual, syncSellerboardUsActualSales } from '@/lib/integrations/sellerboard';
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMIT_PRESETS } from '@/lib/api/rate-limit';
 
 export const runtime = 'nodejs';

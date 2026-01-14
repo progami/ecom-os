@@ -263,6 +263,7 @@ model SalesWeek {
   finalSales    Int?
   stockWeeks    Decimal? @db.Decimal(8, 2)
   stockEnd      Int?
+  hasActualData Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   strategy      Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)

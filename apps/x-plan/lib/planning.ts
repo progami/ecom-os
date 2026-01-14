@@ -44,7 +44,7 @@ function getFallbackWeeks(weekStartsOn: WeekStartsOn): SalesWeekInput[] {
 
 export function ensurePlanningCalendarCoverage(
   salesWeeks: SalesWeekInput[],
-  weekStartsOn: WeekStartsOn = 0,
+  weekStartsOn: WeekStartsOn = 1,
 ): SalesWeekInput[] {
   const fallbackWeeks = getFallbackWeeks(weekStartsOn);
   if (!salesWeeks.length) {
@@ -87,7 +87,7 @@ export interface PlanningCalendar {
 }
 
 export async function loadPlanningCalendar(
-  weekStartsOn: WeekStartsOn = 0,
+  weekStartsOn: WeekStartsOn = 1,
 ): Promise<PlanningCalendar> {
   const salesWeeks = getFallbackWeeks(weekStartsOn);
   const calendar = buildWeekCalendar(salesWeeks, weekStartsOn);

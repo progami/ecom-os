@@ -3,8 +3,8 @@ import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
 import {
   parseCsv,
-  parseSellerboardPurchaseDateUtc,
-} from '@/lib/integrations/sellerboard-orders';
+  parseSellerboardDateUtc,
+} from '@/lib/integrations/sellerboard';
 
 export const runtime = 'nodejs';
 
@@ -101,7 +101,7 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
         continue;
       }
 
-      const purchaseDate = parseSellerboardPurchaseDateUtc(dateValue);
+      const purchaseDate = parseSellerboardDateUtc(dateValue);
       if (!purchaseDate) continue;
 
       // Check if within date range

@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { weekNumberForDate } from '@/lib/calculations/calendar';
-import {
-  parseCsv,
-  parseSellerboardOrdersWeeklyUnits,
-  parseSellerboardPurchaseDateUtc,
-} from '@/lib/integrations/sellerboard-orders';
+import { parseCsv, parseSellerboardDateUtc } from '@/lib/integrations/sellerboard/client';
+import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard/orders';
 
 describe('sellerboard orders parsing', () => {
   it('parses CSV with BOM and quoted commas', () => {
@@ -17,12 +14,13 @@ describe('sellerboard orders parsing', () => {
   });
 
   it('parses Sellerboard PurchaseDate(UTC) as a UTC Date', () => {
-    const parsed = parseSellerboardPurchaseDateUtc('12/30/2025 6:07:04 PM');
+    const parsed = parseSellerboardDateUtc('12/30/2025 6:07:04 PM');
     expect(parsed?.toISOString()).toBe('2025-12-30T18:07:04.000Z');
   });
 
   it('aggregates weekly units per product and excludes cancelled orders', async () => {
-    const planning = await loadPlanningCalendar(0);
+    // Use Monday start (1) which is now the default for all regions
+    const planning = await loadPlanningCalendar(1);
     const csv = [
       '"AmazonOrderId","PurchaseDate(UTC)","OrderStatus","NumberOfItems","Products"',
       '"111","1/1/2026 11:36:55 PM","Shipped","2.00","SKU-1"',
@@ -40,7 +38,7 @@ describe('sellerboard orders parsing', () => {
     }
 
     const result = parseSellerboardOrdersWeeklyUnits(csv, planning, {
-      weekStartsOn: 0,
+      weekStartsOn: 1,
       excludeStatuses: ['Cancelled'],
     });
 
