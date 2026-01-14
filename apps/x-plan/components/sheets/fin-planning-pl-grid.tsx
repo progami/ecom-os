@@ -32,7 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
-import { RealWeekIndicator, WeekIndicatorLegend } from '@/components/ui/real-week-indicator';
+import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
 import {
   formatNumericInput,
   parseNumericInput,
@@ -1032,7 +1032,6 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
   return (
     <section className="space-y-4">
-      <WeekIndicatorLegend />
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
