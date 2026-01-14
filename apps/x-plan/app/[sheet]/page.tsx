@@ -1204,34 +1204,41 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
       }
     | undefined;
 
-  const [operations, salesRows, profitOverrideRows, cashOverrideRows, financialsRows] =
-    await Promise.all([
-      loadOperationsContext(strategyId, planning.calendar),
-      safeFindMany<SalesWeek[]>(
-        salesDelegate,
-        { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
-        [],
-        'salesWeek',
-      ),
-      safeFindMany<ProfitAndLossWeek[]>(
-        profitDelegate,
-        { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
-        [],
-        'profitAndLossWeek',
-      ),
-      safeFindMany<CashFlowWeek[]>(
-        cashDelegate,
-        { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
-        [],
-        'cashFlowWeek',
-      ),
-      safeFindMany<SalesWeekFinancialsRow[]>(
-        financialsDelegate,
-        { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
-        [],
-        'salesWeekFinancials',
-      ),
-    ]);
+  const [operations, salesRows, profitOverrideRows, cashOverrideRows] = await Promise.all([
+    loadOperationsContext(strategyId, planning.calendar),
+    safeFindMany<SalesWeek[]>(
+      salesDelegate,
+      { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
+      [],
+      'salesWeek',
+    ),
+    safeFindMany<ProfitAndLossWeek[]>(
+      profitDelegate,
+      { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
+      [],
+      'profitAndLossWeek',
+    ),
+    safeFindMany<CashFlowWeek[]>(
+      cashDelegate,
+      { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
+      [],
+      'cashFlowWeek',
+    ),
+  ]);
+
+  // SalesWeekFinancials table may not exist yet - gracefully handle missing table
+  let financialsRows: SalesWeekFinancialsRow[] = [];
+  if (financialsDelegate) {
+    try {
+      financialsRows = await financialsDelegate.findMany({
+        where: { strategyId },
+        orderBy: { weekNumber: 'asc' },
+      });
+    } catch {
+      // Table doesn't exist yet - this is expected until migration is run
+      console.log('[x-plan] SalesWeekFinancials table not available, using empty array');
+    }
+  }
 
   const derivedOrders = deriveOrders(operations, planning.calendar);
   const salesOverrides = mapSalesWeeks(salesRows);
