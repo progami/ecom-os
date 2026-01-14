@@ -23,14 +23,15 @@ model Strategy {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
-  products           Product[]
-  businessParameters BusinessParameter[]
-  purchaseOrders     PurchaseOrder[]
-  salesWeeks         SalesWeek[]
-  profitAndLossWeeks ProfitAndLossWeek[]
-  cashFlowWeeks      CashFlowWeek[]
-  monthlySummaries   MonthlySummary[]
-  quarterlySummaries QuarterlySummary[]
+  products             Product[]
+  businessParameters   BusinessParameter[]
+  purchaseOrders       PurchaseOrder[]
+  salesWeeks           SalesWeek[]
+  salesWeekFinancials  SalesWeekFinancials[]
+  profitAndLossWeeks   ProfitAndLossWeek[]
+  cashFlowWeeks        CashFlowWeek[]
+  monthlySummaries     MonthlySummary[]
+  quarterlySummaries   QuarterlySummary[]
 
   @@index([status])
   @@index([createdById])
@@ -68,11 +69,12 @@ model Product {
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  strategy           Strategy           @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  leadTimeOverrides  LeadTimeOverride[]
-  purchaseOrders     PurchaseOrder[]
-  batchTableRows     BatchTableRow[]
-  salesWeeks         SalesWeek[]
+  strategy            Strategy              @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  leadTimeOverrides   LeadTimeOverride[]
+  purchaseOrders      PurchaseOrder[]
+  batchTableRows      BatchTableRow[]
+  salesWeeks          SalesWeek[]
+  salesWeekFinancials SalesWeekFinancials[]
 
   @@unique([strategyId, sku])
   @@index([strategyId])
@@ -272,6 +274,38 @@ model SalesWeek {
   @@unique([strategyId, productId, weekNumber])
   @@index([strategyId])
   @@index([weekDate])
+}
+
+/// Weekly financial actuals from Sellerboard Dashboard by Day report
+model SalesWeekFinancials {
+  id                  String   @id @default(cuid())
+  strategyId          String
+  productId           String
+  weekNumber          Int
+  weekDate            DateTime /// Monday of the week
+
+  /// From Sellerboard Dashboard
+  actualRevenue       Decimal? @db.Decimal(12, 2)
+  actualAmazonFees    Decimal? @db.Decimal(12, 2)
+  actualReferralFees  Decimal? @db.Decimal(12, 2)
+  actualFbaFees       Decimal? @db.Decimal(12, 2)
+  actualRefunds       Decimal? @db.Decimal(12, 2)
+  actualPpcSpend      Decimal? @db.Decimal(12, 2)
+  actualNetProfit     Decimal? @db.Decimal(12, 2)
+
+  /// Metadata
+  syncedAt            DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  /// Relations
+  strategy            Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  product             Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([strategyId, productId, weekNumber])
+  @@index([strategyId])
+  @@index([productId])
+  @@index([weekNumber])
 }
 
 /// Weekly P&L metrics ("4. Fin Planning P&L")

@@ -23,7 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
-import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
+import { RealWeekIndicator, WeekIndicatorLegend } from '@/components/ui/real-week-indicator';
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators';
 import { useGridUndoRedo, type CellEdit } from '@/hooks/useGridUndoRedo';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
@@ -935,6 +935,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
   return (
     <section className="space-y-4">
+      <WeekIndicatorLegend />
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
@@ -1017,6 +1018,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                         editingCell?.coords.col === colIndex;
                       const isEvenRow = rowIndex % 2 === 1;
                       const isPinned = config.sticky;
+                      const isWeekCellWithActualData =
+                        config.key === 'weekLabel' && row.original.hasActualData === 'true';
                       const boxShadow = getSelectionBorderBoxShadow(selectionRange, {
                         row: rowIndex,
                         col: colIndex,
@@ -1079,6 +1082,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                               : isEvenRow
                                 ? 'bg-muted/30'
                                 : 'bg-card',
+                            isWeekCellWithActualData &&
+                              'bg-cyan-100 dark:bg-cyan-900/50',
                             isPinned && 'sticky z-10',
                             colIndex === 1 && 'border-r-2',
                             config.editable &&
