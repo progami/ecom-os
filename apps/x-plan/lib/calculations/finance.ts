@@ -6,6 +6,19 @@ import type { SalesWeekDerived } from './sales';
 import { ProductCostSummary } from './product';
 import { buildWeekCalendar, getCalendarDateForWeek } from './calendar';
 
+/** Actual financials from Sellerboard Dashboard sync */
+export interface ActualWeekFinancials {
+  productId: string;
+  weekNumber: number;
+  actualRevenue: number | null;
+  actualAmazonFees: number | null;
+  actualReferralFees: number | null;
+  actualFbaFees: number | null;
+  actualRefunds: number | null;
+  actualPpcSpend: number | null;
+  actualNetProfit: number | null;
+}
+
 export interface ProfitAndLossWeekDerived {
   weekNumber: number;
   weekDate: Date | null;
@@ -19,6 +32,8 @@ export interface ProfitAndLossWeekDerived {
   fixedCosts: number;
   totalOpex: number;
   netProfit: number;
+  /** Whether this week's financials include actual data from Sellerboard */
+  hasActualFinancials?: boolean;
 }
 
 export interface FinancialSummaryRow {
@@ -64,6 +79,7 @@ export function computeProfitAndLoss(
   products: Map<string, ProductCostSummary>,
   businessParams: BusinessParameterMap,
   weeklyOverrides: ProfitAndLossWeekInput[],
+  actualFinancials: ActualWeekFinancials[] = [],
 ): {
   weekly: ProfitAndLossWeekDerived[];
   monthly: FinancialSummaryRow[];
@@ -82,6 +98,12 @@ export function computeProfitAndLoss(
   const overridesByWeek = new Map<number, ProfitAndLossWeekInput>();
   for (const override of weeklyOverrides) {
     overridesByWeek.set(override.weekNumber, override);
+  }
+
+  // Build index of actual financials by productId-weekNumber
+  const actualFinancialsIndex = new Map<string, ActualWeekFinancials>();
+  for (const af of actualFinancials) {
+    actualFinancialsIndex.set(`${af.productId}-${af.weekNumber}`, af);
   }
 
   const weekNumbers = Array.from(new Set([...salesByWeek.keys(), ...overridesByWeek.keys()])).sort(
@@ -104,6 +126,27 @@ export function computeProfitAndLoss(
 
     const derived = salesRows.reduce(
       (acc, row) => {
+        // Check if we have actual financials for this product-week
+        const actualKey = `${row.productId}-${row.weekNumber}`;
+        const actual = actualFinancialsIndex.get(actualKey);
+
+        // If row has actual data AND we have actual financials, use them
+        if (row.hasActualData && actual) {
+          const units = row.actualSales ?? row.finalSales;
+          acc.units += units;
+          acc.revenue += actual.actualRevenue ?? 0;
+          // For COGS, we still need to calculate since Sellerboard doesn't provide it
+          // Use batch allocations or product defaults for COGS calculation
+          const product = products.get(row.productId);
+          if (product) {
+            acc.cogs += units * product.landedUnitCost;
+          }
+          acc.amazonFees += actual.actualAmazonFees ?? 0;
+          acc.ppcSpend += actual.actualPpcSpend ?? 0;
+          acc.hasActual = true;
+          return acc;
+        }
+
         // Use batch allocations if available (FIFO costing)
         if (row.batchAllocations && row.batchAllocations.length > 0) {
           let allocatedUnits = 0;
@@ -165,7 +208,7 @@ export function computeProfitAndLoss(
         }
         return acc;
       },
-      { units: 0, revenue: 0, cogs: 0, amazonFees: 0, ppcSpend: 0 },
+      { units: 0, revenue: 0, cogs: 0, amazonFees: 0, ppcSpend: 0, hasActual: false },
     );
 
     const units = override?.units != null ? coerceNumber(override.units) : derived.units;
@@ -206,6 +249,7 @@ export function computeProfitAndLoss(
       fixedCosts,
       totalOpex,
       netProfit,
+      hasActualFinancials: derived.hasActual,
     });
   }
 

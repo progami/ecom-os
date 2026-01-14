@@ -16,13 +16,19 @@ export type {
   SellerboardDashboardRow,
   SellerboardWeeklyData,
   SellerboardWeeklyUnits,
+  SellerboardWeeklyFinancials,
   SellerboardOrdersParseResult,
+  SellerboardDashboardParseResult,
   SellerboardSyncResult,
   SellerboardUsActualSalesSyncResult,
+  SellerboardDashboardSyncResult,
 } from './types';
 
 // Orders parsing
 export { parseSellerboardOrdersWeeklyUnits } from './orders';
 
+// Dashboard parsing
+export { parseSellerboardDashboardWeeklyFinancials } from './dashboard';
+
 // Sync operations
-export { syncSellerboardUsActualSales } from './sync';
+export { syncSellerboardUsActualSales, syncSellerboardUsDashboard } from './sync';
