@@ -896,6 +896,9 @@ importers:
       '@total-typescript/ts-reset':
         specifier: ^0.6.1
         version: 0.6.1
+      amazon-sp-api:
+        specifier: ^1.0.12
+        version: 1.1.6
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
