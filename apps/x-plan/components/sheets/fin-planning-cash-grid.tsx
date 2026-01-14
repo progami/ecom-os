@@ -1017,6 +1017,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                         editingCell?.coords.col === colIndex;
                       const isEvenRow = rowIndex % 2 === 1;
                       const isPinned = config.sticky;
+                      const isWeekCellWithActualData =
+                        config.key === 'weekLabel' && row.original.hasActualData === 'true';
                       const boxShadow = getSelectionBorderBoxShadow(selectionRange, {
                         row: rowIndex,
                         col: colIndex,
@@ -1079,6 +1081,8 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
                               : isEvenRow
                                 ? 'bg-muted/30'
                                 : 'bg-card',
+                            isWeekCellWithActualData &&
+                              'bg-cyan-100 dark:bg-cyan-900/50',
                             isPinned && 'sticky z-10',
                             colIndex === 1 && 'border-r-2',
                             config.editable &&

@@ -2357,6 +2357,8 @@ export function SalesPlanningGrid({
 
                     const isEvenRow = visibleRowIndex % 2 === 1;
                     const isPinned = colIndex <= 2;
+                    const isWeekCellWithActualData =
+                      column.id === 'weekLabel' && row.original.hasActualData === 'true';
 
                     const cellContent = isEditing ? (
                       <Input
@@ -2423,6 +2425,8 @@ export function SalesPlanningGrid({
                             : isEvenRow
                               ? 'bg-muted/30'
                               : 'bg-card',
+                          isWeekCellWithActualData &&
+                            'bg-cyan-100 dark:bg-cyan-900/50',
                           meta?.sticky && 'sticky z-10',
                           colIndex === 2 && 'border-r-2',
                           presentation.isEditable && 'cursor-text font-medium',

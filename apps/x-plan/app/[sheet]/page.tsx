@@ -89,6 +89,7 @@ import {
   type PurchaseOrderInput,
   type LeadTimeProfile,
   type BusinessParameterMap,
+  type ActualWeekFinancials,
 } from '@/lib/calculations';
 import type { ProductCostSummary } from '@/lib/calculations/product';
 import {
@@ -1161,6 +1162,25 @@ function deriveOrders(
     );
 }
 
+// SalesWeekFinancials row from database
+type SalesWeekFinancialsRow = {
+  productId: string;
+  weekNumber: number;
+  actualRevenue: { toNumber: () => number } | number | null;
+  actualAmazonFees: { toNumber: () => number } | number | null;
+  actualReferralFees: { toNumber: () => number } | number | null;
+  actualFbaFees: { toNumber: () => number } | number | null;
+  actualRefunds: { toNumber: () => number } | number | null;
+  actualPpcSpend: { toNumber: () => number } | number | null;
+  actualNetProfit: { toNumber: () => number } | number | null;
+};
+
+function coerceDecimal(value: { toNumber: () => number } | number | null): number | null {
+  if (value == null) return null;
+  if (typeof value === 'number') return value;
+  return value.toNumber();
+}
+
 async function loadFinancialData(planning: PlanningCalendar, strategyId: string) {
   const prismaAny = prisma as unknown as Record<string, unknown>;
   const salesDelegate = prismaAny.salesWeek as
@@ -1176,6 +1196,11 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
   const cashDelegate = prismaAny.cashFlowWeek as
     | {
         findMany: (args?: unknown) => Promise<CashFlowWeek[]>;
+      }
+    | undefined;
+  const financialsDelegate = prismaAny.salesWeekFinancials as
+    | {
+        findMany: (args?: unknown) => Promise<SalesWeekFinancialsRow[]>;
       }
     | undefined;
 
@@ -1201,6 +1226,20 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     ),
   ]);
 
+  // SalesWeekFinancials table may not exist yet - gracefully handle missing table
+  let financialsRows: SalesWeekFinancialsRow[] = [];
+  if (financialsDelegate) {
+    try {
+      financialsRows = await financialsDelegate.findMany({
+        where: { strategyId },
+        orderBy: { weekNumber: 'asc' },
+      });
+    } catch {
+      // Table doesn't exist yet - this is expected until migration is run
+      console.log('[x-plan] SalesWeekFinancials table not available, using empty array');
+    }
+  }
+
   const derivedOrders = deriveOrders(operations, planning.calendar);
   const salesOverrides = mapSalesWeeks(salesRows);
   const salesPlan = computeSalesPlan(
@@ -1214,11 +1253,26 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
 
   const profitOverrides = mapProfitAndLossWeeks(profitOverrideRows);
   const cashOverrides = mapCashFlowWeeks(cashOverrideRows);
+
+  // Map SalesWeekFinancials rows to ActualWeekFinancials format
+  const actualFinancials: ActualWeekFinancials[] = financialsRows.map((row) => ({
+    productId: row.productId,
+    weekNumber: row.weekNumber,
+    actualRevenue: coerceDecimal(row.actualRevenue),
+    actualAmazonFees: coerceDecimal(row.actualAmazonFees),
+    actualReferralFees: coerceDecimal(row.actualReferralFees),
+    actualFbaFees: coerceDecimal(row.actualFbaFees),
+    actualRefunds: coerceDecimal(row.actualRefunds),
+    actualPpcSpend: coerceDecimal(row.actualPpcSpend),
+    actualNetProfit: coerceDecimal(row.actualNetProfit),
+  }));
+
   const profit = computeProfitAndLoss(
     salesPlan,
     operations.productIndex,
     operations.parameters,
     profitOverrides,
+    actualFinancials,
   );
   const cash = computeCashFlow(
     profit.weekly,
