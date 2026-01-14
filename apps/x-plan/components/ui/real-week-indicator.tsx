@@ -27,9 +27,8 @@ type WeekIndicatorLegendProps = {
 
 export function WeekIndicatorLegend({ className }: WeekIndicatorLegendProps) {
   return (
-    <div className={cn('flex items-center gap-1.5 text-xs text-muted-foreground', className)}>
-      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-      <span>Actual data from Sellerboard</span>
+    <div className={cn('flex items-center gap-1 text-xs text-muted-foreground', className)}>
+      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Actual data from Sellerboard" />
     </div>
   );
 }
