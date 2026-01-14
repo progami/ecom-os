@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/table';
 import { Tooltip } from '@/components/ui/tooltip';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
-import { RealWeekIndicator, WeekIndicatorLegend } from '@/components/ui/real-week-indicator';
+import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -2237,7 +2237,6 @@ export function SalesPlanningGrid({
 
   return (
     <section className="space-y-4">
-      <WeekIndicatorLegend />
       <div
         className="relative overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10"
         style={{ height: 'calc(100vh - 180px)', minHeight: '420px' }}
