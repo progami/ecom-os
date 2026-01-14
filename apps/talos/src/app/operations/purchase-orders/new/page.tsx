@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, FileEdit, Loader2, Plus, Trash2, AlertTriangle, Package, ClipboardList } from '@/lib/lucide-icons'
+import { ArrowLeft, FileEdit, Loader2, Plus, Trash2, AlertTriangle, Package, FileText } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
@@ -567,7 +567,7 @@ export default function NewPurchaseOrderPage() {
                     : 'text-muted-foreground hover:text-slate-700'
                 }`}
               >
-                <ClipboardList className="h-4 w-4" />
+                <FileText className="h-4 w-4" />
                 PO Details
               </button>
               <button
