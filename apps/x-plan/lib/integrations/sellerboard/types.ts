@@ -74,6 +74,7 @@ export type SellerboardUsActualSalesSyncResult = {
   rowsParsed: number;
   rowsSkipped: number;
   productsMatched: number;
+  asinDirectMatched: number;
   asinMappingsFound: number;
   asinProductsMatched: number;
   updates: number;
@@ -111,6 +112,7 @@ export type SellerboardDashboardSyncResult = {
   rowsParsed: number;
   rowsSkipped: number;
   productsMatched: number;
+  asinDirectMatched: number;
   asinMappingsFound: number;
   asinProductsMatched: number;
   updates: number;
