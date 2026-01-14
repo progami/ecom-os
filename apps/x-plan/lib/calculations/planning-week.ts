@@ -31,7 +31,7 @@ export function planningWeekNumberForDate(
   const anchor = coerceAnchor(config);
   if (!anchor) return null;
 
-  const weekStartsOn = config.weekStartsOn ?? 0;
+  const weekStartsOn = config.weekStartsOn ?? 1;
   const base = startOfWeekUtc(anchor.anchorDate, weekStartsOn);
   const offset = differenceInCalendarWeeksUtc(date, base, weekStartsOn);
   const weekNumber = anchor.anchorWeekNumber + offset;
@@ -58,7 +58,7 @@ export function planningWeekDateForWeekNumber(
   const numericWeek = Number(weekNumber);
   if (!Number.isFinite(numericWeek)) return null;
 
-  const weekStartsOn = config.weekStartsOn ?? 0;
+  const weekStartsOn = config.weekStartsOn ?? 1;
   const base = startOfWeekUtc(anchor.anchorDate, weekStartsOn);
   return addWeeksUtc(base, numericWeek - anchor.anchorWeekNumber);
 }

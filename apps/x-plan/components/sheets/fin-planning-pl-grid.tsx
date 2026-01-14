@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
+import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
 import {
   formatNumericInput,
   parseNumericInput,
@@ -112,11 +113,14 @@ type WeeklyRow = {
   fixedCosts: string;
   netProfit: string;
   netMargin: string;
+  hasActualData?: string;
 };
+
+type DisplayColumnKey = Exclude<keyof WeeklyRow, 'hasActualData'>;
 
 type UpdatePayload = {
   weekNumber: number;
-  values: Partial<Record<keyof WeeklyRow, string>>;
+  values: Partial<Record<DisplayColumnKey, string>>;
 };
 
 interface ProfitAndLossGridProps {
@@ -124,7 +128,7 @@ interface ProfitAndLossGridProps {
   weekly: WeeklyRow[];
 }
 
-const editableFields = new Set<keyof WeeklyRow>([
+const editableFields = new Set<DisplayColumnKey>([
   'units',
   'revenue',
   'cogs',
@@ -134,7 +138,7 @@ const editableFields = new Set<keyof WeeklyRow>([
 ]);
 
 const columnConfig: Array<{
-  key: keyof WeeklyRow;
+  key: DisplayColumnKey;
   label: string;
   width: number;
   format: 'text' | 'number' | 'currency' | 'percent';
@@ -273,7 +277,7 @@ function parseNumericCandidate(value: unknown): number | null {
 
 function computeSelectionStats(
   data: WeeklyRow[],
-  columnKeys: (keyof WeeklyRow)[],
+  columnKeys: DisplayColumnKey[],
   range: CellRange | null,
 ): SelectionStats | null {
   if (!range) return null;
@@ -375,7 +379,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
   const [editingCell, setEditingCell] = useState<{
     coords: CellCoords;
-    key: keyof WeeklyRow;
+    key: DisplayColumnKey;
     value: string;
   } | null>(null);
 
@@ -421,7 +425,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
           if (!Number.isFinite(rowIndex)) continue;
           if (rowIndex < 0 || rowIndex >= next.length) continue;
 
-          const key = edit.field as keyof WeeklyRow;
+          const key = edit.field as DisplayColumnKey;
           if (!editableFields.has(key)) continue;
 
           const row = next[rowIndex];
@@ -642,7 +646,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
 
       if (rows.length === 0) return;
 
-      const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; value: string }> = [];
+      const updates: Array<{ rowIndex: number; key: DisplayColumnKey; value: string }> = [];
       const undoEdits: CellEdit<string>[] = [];
 
       for (let r = 0; r < rows.length; r += 1) {
@@ -793,7 +797,7 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
         e.preventDefault();
         const range = selection ?? { from: activeCell, to: activeCell };
         const { top, bottom, left, right } = normalizeRange(range);
-        const updates: Array<{ rowIndex: number; key: keyof WeeklyRow; oldValue: string }> = [];
+        const updates: Array<{ rowIndex: number; key: DisplayColumnKey; oldValue: string }> = [];
 
         for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
           const row = data[rowIndex];
@@ -1152,6 +1156,11 @@ export function ProfitAndLossGrid({ strategyId, weekly }: ProfitAndLossGridProps
                         }}
                         className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent p-0 text-right text-sm font-medium shadow-none focus:bg-background focus:outline-none"
                       />
+                    ) : config.key === 'weekLabel' ? (
+                      <span className="flex items-center gap-1">
+                        {displayValue}
+                        <RealWeekIndicator hasActualData={row.original.hasActualData === 'true'} />
+                      </span>
                     ) : (
                       <span
                         className={cn(

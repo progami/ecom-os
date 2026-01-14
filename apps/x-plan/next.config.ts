@@ -24,6 +24,13 @@ const nextConfig: NextConfig = {
   ],
 
   serverExternalPackages: ['@targon/prisma-x-plan'],
+
+  turbopack: {
+    resolveAlias: {
+      '@targon/prisma-x-plan': '../../packages/prisma-x-plan/generated/index.js',
+      '@targon/auth': '../../packages/auth/dist/index.js',
+    },
+  },
 };
 
 export default nextConfig;

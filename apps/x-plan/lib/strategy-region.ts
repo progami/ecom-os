@@ -12,5 +12,6 @@ export function parseStrategyRegion(value: unknown): StrategyRegion | null {
 }
 
 export function weekStartsOnForRegion(region: StrategyRegion | null | undefined): WeekStartsOn {
-  return region === 'UK' ? 1 : 0;
+  // All regions use Monday as week start to align with Sellerboard
+  return 1;
 }

@@ -32,7 +32,7 @@ function coerceDate(value: Date | string | number | null | undefined): Date | nu
 
 export function buildWeekCalendar(
   salesWeeks: SalesWeekInput[],
-  weekStartsOn: WeekStartsOn = 0,
+  weekStartsOn: WeekStartsOn = 1,
 ): WeekCalendar {
   const sorted = [...salesWeeks].sort((a, b) => a.weekNumber - b.weekNumber);
   const weekDates = new Map<number, Date | null>();

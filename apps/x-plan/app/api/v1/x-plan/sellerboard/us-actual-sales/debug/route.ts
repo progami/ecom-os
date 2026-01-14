@@ -3,7 +3,7 @@ import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { weekStartsOnForRegion } from '@/lib/strategy-region';
-import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard-orders';
+import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard';
 
 export const runtime = 'nodejs';
 

@@ -371,7 +371,7 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
 
     const preparedUpdates = parsed.data.updates.map(({ id, values }) => {
       const data: Record<string, unknown> = {};
-      const weekStartsOn = weekStartsOnByOrder.get(id) ?? 0;
+      const weekStartsOn = weekStartsOnByOrder.get(id) ?? 1;
       const calendar = calendarsByStart.get(weekStartsOn);
 
       for (const field of allowedFields) {

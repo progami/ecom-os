@@ -101,6 +101,7 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
     totalCost: line.totalCost ? Number(line.totalCost) : null,
     currency: line.currency || tenant.currency,
     status: line.status,
+    postedQuantity: line.postedQuantity,
     quantityReceived: line.quantityReceived,
     lineNotes: line.lineNotes,
     createdAt: line.createdAt.toISOString(),
@@ -422,8 +423,10 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     totalCost: updated.totalCost ? Number(updated.totalCost) : null,
     currency: updated.currency,
     status: updated.status,
+    postedQuantity: updated.postedQuantity,
     quantityReceived: updated.quantityReceived,
     lineNotes: updated.lineNotes,
+    createdAt: updated.createdAt.toISOString(),
     updatedAt: updated.updatedAt.toISOString(),
   })
 })

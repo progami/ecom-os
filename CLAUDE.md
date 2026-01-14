@@ -1,5 +1,20 @@
 # Claude Code Instructions
 
+## Database
+
+All apps share `portal_db` on localhost:5432 with separate schemas per app. Connection strings are in each app's `.env.local` file.
+
+| App | Schema |
+|-----|--------|
+| talos | dev_wms_us, dev_wms_uk |
+| atlas | dev_hrms |
+| x-plan | dev_xplan |
+| kairos | chronos |
+| sso | dev_auth |
+| plutus | (no DB - uses QuickBooks API) |
+
+Access via Prisma Studio: `pnpm prisma studio` from the app folder.
+
 ## Code Style
 
 - No OR statements as fallbacks - let the code fail
@@ -7,7 +22,7 @@
 
 ## Testing
 
-- All testing should be done via Chrome browser directly to `https://targonos.targonglobal.com/<app>` (e.g., `https://targonos.targonglobal.com/x-plan`)
+- Test via Chrome browser at `https://dev-targonos.targonglobal.com/<app>`
 - Do not test on localhost
 - **CRITICAL: Always test changes in Chrome BEFORE creating any PR** - Verify your changes work visually before committing
 

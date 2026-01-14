@@ -92,7 +92,7 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
   await prisma.$transaction(
     updates.map(({ id, values }) => {
       const data: Record<string, unknown> = {};
-      const weekStartsOn = weekStartsOnByPayment.get(id) ?? 0;
+      const weekStartsOn = weekStartsOnByPayment.get(id) ?? 1;
       const calendar = calendarsByStart.get(weekStartsOn);
 
       for (const field of allowedFields) {
