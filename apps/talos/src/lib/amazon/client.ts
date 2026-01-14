@@ -1036,23 +1036,28 @@ export async function getListingPriceDebug(
     })
 
     // Parse the response - getPricing returns our own seller's offers for the ASIN
-    const typedResponse = response as {
-      payload?: Array<{
-        ASIN?: string
-        status?: string
-        Product?: {
-          Offers?: Array<{
-            BuyingPrice?: {
-              ListingPrice?: { Amount?: number; CurrencyCode?: string }
-              LandedPrice?: { Amount?: number; CurrencyCode?: string }
-            }
-            RegularPrice?: { Amount?: number; CurrencyCode?: string }
-          }>
-        }
-      }>
+    // Response can be either an array directly or wrapped in { payload: [...] }
+    type PricingItem = {
+      ASIN?: string
+      status?: string
+      Product?: {
+        Offers?: Array<{
+          BuyingPrice?: {
+            ListingPrice?: { Amount?: number; CurrencyCode?: string }
+            LandedPrice?: { Amount?: number; CurrencyCode?: string }
+          }
+          RegularPrice?: { Amount?: number; CurrencyCode?: string }
+        }>
+      }
     }
 
-    const payload = typedResponse.payload ?? []
+    let payload: PricingItem[] = []
+    if (Array.isArray(response)) {
+      payload = response as PricingItem[]
+    } else if (response && typeof response === 'object') {
+      const obj = response as { payload?: PricingItem[] }
+      payload = obj.payload ?? []
+    }
     for (const item of payload) {
       if (item.status !== 'Success') continue
       const offers = item.Product?.Offers ?? []
