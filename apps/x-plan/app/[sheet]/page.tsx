@@ -9,7 +9,7 @@ import {
   SalesPlanningFocusProvider,
 } from '@/components/sheets/sales-planning-grid';
 import { SalesPlanningVisual } from '@/components/sheets/sales-planning-visual';
-import { SellerboardUsSyncControl } from '@/components/sheets/sellerboard-us-sync-control';
+import { SellerboardSyncControl } from '@/components/sheets/sellerboard-us-sync-control';
 import {
   ProfitAndLossGrid,
   ProfitAndLossFiltersProvider,
@@ -1126,9 +1126,12 @@ async function updatePurchaseOrderPayment(
 function deriveOrders(
   context: Awaited<ReturnType<typeof loadOperationsContext>>,
   calendar?: PlanningCalendar['calendar'],
+  options: { includeDraft?: boolean } = {},
 ) {
+  const includeDraft = options.includeDraft === true;
   return context.purchaseOrderInputs
     .map((order) => {
+      if (!includeDraft && order.status === 'DRAFT') return null;
       if (!context.productIndex.has(order.productId)) return null;
       const profile = getLeadTimeProfile(order.productId, context.leadProfiles);
       const productNames =
@@ -1273,6 +1276,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     operations.parameters,
     profitOverrides,
     actualFinancials,
+    { calendar: planning.calendar, asOfDate: new Date() },
   );
   const cash = computeCashFlow(
     profit.weekly,
@@ -1302,7 +1306,7 @@ async function getOpsPlanningView(
   const context = await loadOperationsContext(strategyId, planning?.calendar);
   const { rawPurchaseOrders } = context;
 
-  const derivedOrders = deriveOrders(context, planning?.calendar);
+  const derivedOrders = deriveOrders(context, planning?.calendar, { includeDraft: true });
 
   const visibleOrders = derivedOrders;
   const visibleOrderIds = new Set(visibleOrders.map((item) => item.derived.id));
@@ -2354,10 +2358,19 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
       controls.push(
-        <SellerboardUsSyncControl
-          key="sellerboard-us-sync"
+        <SellerboardSyncControl
+          key="sellerboard-sync-actual-sales"
           isSuperAdmin={viewer.isSuperAdmin}
           strategyRegion={strategyRegion}
+          kind="actual-sales"
+        />,
+      );
+      controls.push(
+        <SellerboardSyncControl
+          key="sellerboard-sync-dashboard"
+          isSuperAdmin={viewer.isSuperAdmin}
+          strategyRegion={strategyRegion}
+          kind="dashboard"
         />,
       );
       wrapLayout = (node) => (
@@ -2406,6 +2419,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
       controls.push(<ProfitAndLossHeaderControls key="pnl-controls" />);
+      controls.push(
+        <SellerboardSyncControl
+          key="sellerboard-sync-dashboard-pnl"
+          isSuperAdmin={viewer.isSuperAdmin}
+          strategyRegion={strategyRegion}
+          kind="dashboard"
+        />,
+      );
       wrapLayout = (node) => (
         <ProfitAndLossFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}

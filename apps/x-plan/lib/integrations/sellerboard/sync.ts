@@ -3,14 +3,14 @@ import 'server-only';
 import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar';
-import { weekStartsOnForRegion } from '@/lib/strategy-region';
+import { weekStartsOnForRegion, type StrategyRegion } from '@/lib/strategy-region';
 import { parseSellerboardOrdersWeeklyUnits } from './orders';
 import { fetchSellerboardCsv } from './client';
 import { getTalosPrisma } from '@/lib/integrations/talos-client';
-import type { SellerboardUsActualSalesSyncResult, SellerboardDashboardSyncResult } from './types';
+import type { SellerboardActualSalesSyncResult, SellerboardDashboardSyncResult } from './types';
 import { parseSellerboardDashboardWeeklyFinancials } from './dashboard';
 
-export type { SellerboardUsActualSalesSyncResult, SellerboardDashboardSyncResult };
+export type { SellerboardActualSalesSyncResult, SellerboardDashboardSyncResult };
 
 function logSync(message: string, data?: Record<string, unknown>) {
   const timestamp = new Date().toISOString();
@@ -21,21 +21,22 @@ function logSync(message: string, data?: Record<string, unknown>) {
   }
 }
 
-export async function syncSellerboardUsActualSales(options: {
+export async function syncSellerboardActualSales(options: {
+  region: StrategyRegion;
   reportUrl: string;
-}): Promise<SellerboardUsActualSalesSyncResult> {
-  logSync('Starting Sellerboard US actual sales sync');
+}): Promise<SellerboardActualSalesSyncResult> {
+  logSync(`Starting Sellerboard ${options.region} actual sales sync`);
 
   const reportUrl = options.reportUrl.trim();
   if (!reportUrl) {
     throw new Error('Missing Sellerboard report URL');
   }
 
-  logSync('Fetching CSV from Sellerboard');
+  logSync(`Fetching CSV from Sellerboard (${options.region})`);
   const csv = await fetchSellerboardCsv(reportUrl);
-  logSync('CSV fetched', { bytes: csv.length });
+  logSync(`CSV fetched (${options.region})`, { bytes: csv.length });
 
-  const weekStartsOn = weekStartsOnForRegion('US');
+  const weekStartsOn = weekStartsOnForRegion(options.region);
   const planning = await loadPlanningCalendar(weekStartsOn);
 
   const parsed = parseSellerboardOrdersWeeklyUnits(csv, planning, {
@@ -43,7 +44,7 @@ export async function syncSellerboardUsActualSales(options: {
     excludeStatuses: ['Cancelled'],
   });
 
-  logSync('CSV parsed', {
+  logSync(`CSV parsed (${options.region})`, {
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
     weeklyUnitsCount: parsed.weeklyUnits.length,
@@ -52,10 +53,13 @@ export async function syncSellerboardUsActualSales(options: {
   });
 
   const productCodes = Array.from(new Set(parsed.weeklyUnits.map((entry) => entry.productCode)));
-  logSync('Unique product codes from CSV', { count: productCodes.length, sample: productCodes.slice(0, 10) });
+  logSync(`Unique product codes from CSV (${options.region})`, {
+    count: productCodes.length,
+    sample: productCodes.slice(0, 10),
+  });
 
   if (productCodes.length === 0) {
-    logSync('No product codes found in CSV, returning early');
+    logSync(`No product codes found in CSV (${options.region}), returning early`);
     return {
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,
@@ -71,11 +75,11 @@ export async function syncSellerboardUsActualSales(options: {
   }
 
   // Step 1: Match products by SKU
-  logSync('Looking up products by SKU');
+  logSync(`Looking up products by SKU (${options.region})`);
   const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
-      strategy: { region: 'US' },
+      strategy: { region: options.region },
     },
     select: {
       id: true,
@@ -94,7 +98,7 @@ export async function syncSellerboardUsActualSales(options: {
     productsByCode.set(product.sku, list);
   }
 
-  logSync('Direct SKU match results', {
+  logSync(`Direct SKU match results (${options.region})`, {
     productsFound: directProducts.length,
     uniqueSkusMatched: productsByCode.size,
     matchedSkus: Array.from(productsByCode.keys()).slice(0, 10),
@@ -107,12 +111,15 @@ export async function syncSellerboardUsActualSales(options: {
   let asinProductsMatched = 0;
 
   if (unmatchedCodes.length) {
-    logSync('Looking up products by ASIN', { unmatchedCount: unmatchedCodes.length, sample: unmatchedCodes.slice(0, 10) });
+    logSync(`Looking up products by ASIN (${options.region})`, {
+      unmatchedCount: unmatchedCodes.length,
+      sample: unmatchedCodes.slice(0, 10),
+    });
 
     const asinProducts = (await prisma.product.findMany({
       where: {
         asin: { in: unmatchedCodes },
-        strategy: { region: 'US' },
+        strategy: { region: options.region },
       },
       select: {
         id: true,
@@ -131,7 +138,7 @@ export async function syncSellerboardUsActualSales(options: {
       asinDirectMatched++;
     }
 
-    logSync('Direct ASIN match results', {
+    logSync(`Direct ASIN match results (${options.region})`, {
       productsFound: asinProducts.length,
       asinDirectMatched,
     });
@@ -141,9 +148,12 @@ export async function syncSellerboardUsActualSales(options: {
 
   // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping (fallback)
   if (unmatchedCodes.length) {
-    logSync('Looking up Talos ASIN mappings', { unmatchedCount: unmatchedCodes.length, sample: unmatchedCodes.slice(0, 10) });
+    logSync(`Looking up Talos ASIN mappings (${options.region})`, {
+      unmatchedCount: unmatchedCodes.length,
+      sample: unmatchedCodes.slice(0, 10),
+    });
 
-    const talos = getTalosPrisma('US');
+    const talos = getTalosPrisma(options.region);
     if (talos) {
       const mappings = await talos.sku.findMany({
         where: { asin: { in: unmatchedCodes } },
@@ -151,9 +161,12 @@ export async function syncSellerboardUsActualSales(options: {
       });
       asinMappingsFound = mappings.length;
 
-      logSync('Talos ASIN mappings found', {
+      logSync(`Talos ASIN mappings found (${options.region})`, {
         count: mappings.length,
-        sample: mappings.slice(0, 5).map((m: { asin: string | null; skuCode: string | null }) => ({ asin: m.asin, skuCode: m.skuCode })),
+        sample: mappings.slice(0, 5).map((m: { asin: string | null; skuCode: string | null }) => ({
+          asin: m.asin,
+          skuCode: m.skuCode,
+        })),
       });
 
       const mappedSkuCodes = Array.from(
@@ -168,12 +181,14 @@ export async function syncSellerboardUsActualSales(options: {
         const mappedProducts = await prisma.product.findMany({
           where: {
             sku: { in: mappedSkuCodes },
-            strategy: { region: 'US' },
+            strategy: { region: options.region },
           },
           select: { id: true, sku: true, strategyId: true },
         });
 
-        logSync('Products found via Talos mapping', { count: mappedProducts.length });
+        logSync(`Products found via Talos mapping (${options.region})`, {
+          count: mappedProducts.length,
+        });
 
         const productsBySku = new Map<string, Array<{ id: string; strategyId: string }>>();
         for (const product of mappedProducts) {
@@ -193,7 +208,9 @@ export async function syncSellerboardUsActualSales(options: {
           productsByCode.set(asin, products);
         }
 
-        logSync('Talos ASIN->SKU matching complete', { asinProductsMatched });
+        logSync(`Talos ASIN->SKU matching complete (${options.region})`, {
+          asinProductsMatched,
+        });
       }
     }
   }
@@ -201,7 +218,7 @@ export async function syncSellerboardUsActualSales(options: {
   // Log final unmatched codes for debugging
   const finalUnmatchedCodes = productCodes.filter((code) => !productsByCode.has(code));
   if (finalUnmatchedCodes.length) {
-    logSync('Unmatched product codes (no X-Plan product found)', {
+    logSync(`Unmatched product codes (no X-Plan product found) (${options.region})`, {
       count: finalUnmatchedCodes.length,
       codes: finalUnmatchedCodes.slice(0, 20),
     });
@@ -226,6 +243,7 @@ export async function syncSellerboardUsActualSales(options: {
             },
           },
           update: {
+            weekDate,
             actualSales: entry.units,
             hasActualData: true,
             finalSales: null,
@@ -244,12 +262,12 @@ export async function syncSellerboardUsActualSales(options: {
     }
   }
 
-  logSync('Preparing upserts', { count: upserts.length });
+  logSync(`Preparing upserts (${options.region})`, { count: upserts.length });
 
   if (upserts.length) {
-    logSync('Executing database transaction');
+    logSync(`Executing database transaction (${options.region})`);
     await prisma.$transaction(upserts);
-    logSync('Database transaction complete');
+    logSync(`Database transaction complete (${options.region})`);
   }
 
   const uniqueProductsMatched = new Set<string>(directProductIds);
@@ -272,7 +290,7 @@ export async function syncSellerboardUsActualSales(options: {
     newestPurchaseDateUtc: parsed.newestPurchaseDateUtc,
   };
 
-  logSync('Sync complete', {
+  logSync(`Sync complete (${options.region})`, {
     rowsParsed: result.rowsParsed,
     rowsSkipped: result.rowsSkipped,
     productsMatched: result.productsMatched,
@@ -284,31 +302,44 @@ export async function syncSellerboardUsActualSales(options: {
   return result;
 }
 
+export async function syncSellerboardUsActualSales(options: {
+  reportUrl: string;
+}): Promise<SellerboardActualSalesSyncResult> {
+  return syncSellerboardActualSales({ region: 'US', reportUrl: options.reportUrl });
+}
+
+export async function syncSellerboardUkActualSales(options: {
+  reportUrl: string;
+}): Promise<SellerboardActualSalesSyncResult> {
+  return syncSellerboardActualSales({ region: 'UK', reportUrl: options.reportUrl });
+}
+
 /**
  * Sync Sellerboard Dashboard by Day data to SalesWeekFinancials table
  */
-export async function syncSellerboardUsDashboard(options: {
+export async function syncSellerboardDashboard(options: {
+  region: StrategyRegion;
   reportUrl: string;
 }): Promise<SellerboardDashboardSyncResult> {
-  logSync('Starting Sellerboard US Dashboard sync');
+  logSync(`Starting Sellerboard ${options.region} Dashboard sync`);
 
   const reportUrl = options.reportUrl.trim();
   if (!reportUrl) {
     throw new Error('Missing Sellerboard Dashboard report URL');
   }
 
-  logSync('Fetching Dashboard CSV from Sellerboard');
+  logSync(`Fetching Dashboard CSV from Sellerboard (${options.region})`);
   const csv = await fetchSellerboardCsv(reportUrl);
-  logSync('Dashboard CSV fetched', { bytes: csv.length });
+  logSync(`Dashboard CSV fetched (${options.region})`, { bytes: csv.length });
 
-  const weekStartsOn = weekStartsOnForRegion('US');
+  const weekStartsOn = weekStartsOnForRegion(options.region);
   const planning = await loadPlanningCalendar(weekStartsOn);
 
   const parsed = parseSellerboardDashboardWeeklyFinancials(csv, planning, {
     weekStartsOn,
   });
 
-  logSync('Dashboard CSV parsed', {
+  logSync(`Dashboard CSV parsed (${options.region})`, {
     rowsParsed: parsed.rowsParsed,
     rowsSkipped: parsed.rowsSkipped,
     weeklyFinancialsCount: parsed.weeklyFinancials.length,
@@ -319,13 +350,13 @@ export async function syncSellerboardUsDashboard(options: {
   const productCodes = Array.from(
     new Set(parsed.weeklyFinancials.map((entry) => entry.productCode))
   );
-  logSync('Unique product codes from Dashboard CSV', {
+  logSync(`Unique product codes from Dashboard CSV (${options.region})`, {
     count: productCodes.length,
     sample: productCodes.slice(0, 10),
   });
 
   if (productCodes.length === 0) {
-    logSync('No product codes found in Dashboard CSV, returning early');
+    logSync(`No product codes found in Dashboard CSV (${options.region}), returning early`);
     return {
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,
@@ -341,11 +372,11 @@ export async function syncSellerboardUsDashboard(options: {
   }
 
   // Step 1: Match products by SKU
-  logSync('Looking up products by SKU for Dashboard');
+  logSync(`Looking up products by SKU for Dashboard (${options.region})`);
   const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
-      strategy: { region: 'US' },
+      strategy: { region: options.region },
     },
     select: {
       id: true,
@@ -364,7 +395,7 @@ export async function syncSellerboardUsDashboard(options: {
     productsByCode.set(product.sku, list);
   }
 
-  logSync('Direct SKU match results for Dashboard', {
+  logSync(`Direct SKU match results for Dashboard (${options.region})`, {
     productsFound: directProducts.length,
     uniqueSkusMatched: productsByCode.size,
   });
@@ -376,12 +407,14 @@ export async function syncSellerboardUsDashboard(options: {
   let asinProductsMatched = 0;
 
   if (unmatchedCodes.length) {
-    logSync('Looking up products by ASIN for Dashboard', { unmatchedCount: unmatchedCodes.length });
+    logSync(`Looking up products by ASIN for Dashboard (${options.region})`, {
+      unmatchedCount: unmatchedCodes.length,
+    });
 
     const asinProducts = (await prisma.product.findMany({
       where: {
         asin: { in: unmatchedCodes },
-        strategy: { region: 'US' },
+        strategy: { region: options.region },
       },
       select: {
         id: true,
@@ -400,7 +433,7 @@ export async function syncSellerboardUsDashboard(options: {
       asinDirectMatched++;
     }
 
-    logSync('Direct ASIN match results for Dashboard', {
+    logSync(`Direct ASIN match results for Dashboard (${options.region})`, {
       productsFound: asinProducts.length,
       asinDirectMatched,
     });
@@ -410,11 +443,11 @@ export async function syncSellerboardUsDashboard(options: {
 
   // Step 3: Match remaining unmatched codes via Talos ASIN->SKU mapping (fallback)
   if (unmatchedCodes.length) {
-    logSync('Looking up Talos ASIN mappings for Dashboard', {
+    logSync(`Looking up Talos ASIN mappings for Dashboard (${options.region})`, {
       unmatchedCount: unmatchedCodes.length,
     });
 
-    const talos = getTalosPrisma('US');
+    const talos = getTalosPrisma(options.region);
     if (talos) {
       const mappings = await talos.sku.findMany({
         where: { asin: { in: unmatchedCodes } },
@@ -434,7 +467,7 @@ export async function syncSellerboardUsDashboard(options: {
         const mappedProducts = await prisma.product.findMany({
           where: {
             sku: { in: mappedSkuCodes },
-            strategy: { region: 'US' },
+            strategy: { region: options.region },
           },
           select: { id: true, sku: true, strategyId: true },
         });
@@ -483,6 +516,7 @@ export async function syncSellerboardUsDashboard(options: {
             },
           },
           update: {
+            weekDate,
             actualRevenue: entry.revenue,
             actualAmazonFees: entry.amazonFees,
             actualReferralFees: entry.referralFees,
@@ -510,12 +544,12 @@ export async function syncSellerboardUsDashboard(options: {
     }
   }
 
-  logSync('Preparing Dashboard upserts', { count: upserts.length });
+  logSync(`Preparing Dashboard upserts (${options.region})`, { count: upserts.length });
 
   if (upserts.length) {
-    logSync('Executing Dashboard database transaction');
+    logSync(`Executing Dashboard database transaction (${options.region})`);
     await prisma.$transaction(upserts as never);
-    logSync('Dashboard database transaction complete');
+    logSync(`Dashboard database transaction complete (${options.region})`);
   }
 
   const uniqueProductsMatched = new Set<string>(directProductIds);
@@ -538,7 +572,7 @@ export async function syncSellerboardUsDashboard(options: {
     newestDateUtc: parsed.newestDateUtc,
   };
 
-  logSync('Dashboard sync complete', {
+  logSync(`Dashboard sync complete (${options.region})`, {
     rowsParsed: result.rowsParsed,
     rowsSkipped: result.rowsSkipped,
     productsMatched: result.productsMatched,
@@ -547,4 +581,16 @@ export async function syncSellerboardUsDashboard(options: {
   });
 
   return result;
+}
+
+export async function syncSellerboardUsDashboard(options: {
+  reportUrl: string;
+}): Promise<SellerboardDashboardSyncResult> {
+  return syncSellerboardDashboard({ region: 'US', reportUrl: options.reportUrl });
+}
+
+export async function syncSellerboardUkDashboard(options: {
+  reportUrl: string;
+}): Promise<SellerboardDashboardSyncResult> {
+  return syncSellerboardDashboard({ region: 'UK', reportUrl: options.reportUrl });
 }

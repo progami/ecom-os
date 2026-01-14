@@ -8,7 +8,11 @@ export {
   parseSellerboardCsv,
   safeEqual,
   parseSellerboardDateUtc,
+  inferSellerboardReportTimeZoneFromHeaders,
+  inferSellerboardReportTimeZoneFromCsv,
 } from './client';
+
+export type { SellerboardReportTimeZone } from './client';
 
 // Types
 export type {
@@ -20,7 +24,7 @@ export type {
   SellerboardOrdersParseResult,
   SellerboardDashboardParseResult,
   SellerboardSyncResult,
-  SellerboardUsActualSalesSyncResult,
+  SellerboardActualSalesSyncResult,
   SellerboardDashboardSyncResult,
 } from './types';
 
@@ -31,4 +35,11 @@ export { parseSellerboardOrdersWeeklyUnits } from './orders';
 export { parseSellerboardDashboardWeeklyFinancials } from './dashboard';
 
 // Sync operations
-export { syncSellerboardUsActualSales, syncSellerboardUsDashboard } from './sync';
+export {
+  syncSellerboardActualSales,
+  syncSellerboardDashboard,
+  syncSellerboardUsActualSales,
+  syncSellerboardUkActualSales,
+  syncSellerboardUsDashboard,
+  syncSellerboardUkDashboard,
+} from './sync';

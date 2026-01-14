@@ -43,10 +43,10 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
     return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
   }
 
-  const reportUrl = process.env.SELLERBOARD_US_ORDERS_REPORT_URL?.trim();
+  const reportUrl = process.env.SELLERBOARD_UK_ORDERS_REPORT_URL?.trim();
   if (!reportUrl) {
     return NextResponse.json(
-      { error: 'Missing SELLERBOARD_US_ORDERS_REPORT_URL' },
+      { error: 'Missing SELLERBOARD_UK_ORDERS_REPORT_URL' },
       { status: 500 },
     );
   }
@@ -97,7 +97,6 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
 
       if (!productCode || !dateValue) continue;
 
-      // Skip cancelled orders
       if (status.toLowerCase() === 'cancelled') {
         skippedCancelled++;
         continue;
@@ -106,13 +105,11 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
       const purchaseDate = parseSellerboardDateUtc(dateValue);
       if (!purchaseDate) continue;
 
-      // Check if within date range
       if (purchaseDate < startDate || purchaseDate > endDate) {
         outsideDateRange++;
         continue;
       }
 
-      // Apply ASIN filter if provided
       if (asinFilter && productCode !== asinFilter) continue;
 
       const units = parseInt(unitsValue, 10);
@@ -122,23 +119,16 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
       totalUnits += units;
       unitsByProduct.set(productCode, (unitsByProduct.get(productCode) ?? 0) + units);
 
-      // Track individual orders for debugging
-      if (!ordersByProduct.has(productCode)) {
-        ordersByProduct.set(productCode, []);
-      }
-      ordersByProduct.get(productCode)!.push({
-        date: purchaseDate.toISOString(),
-        units,
-        status,
-      });
+      const existing = ordersByProduct.get(productCode);
+      const nextList = existing ?? [];
+      nextList.push({ date: purchaseDate.toISOString(), units, status });
+      ordersByProduct.set(productCode, nextList);
     }
 
-    // Convert to sorted array
     const productTotals = Array.from(unitsByProduct.entries())
       .map(([asin, units]) => ({ asin, units }))
       .sort((a, b) => b.units - a.units);
 
-    // Get order details for filtered product
     const orderDetails = asinFilter ? ordersByProduct.get(asinFilter) ?? [] : [];
 
     return NextResponse.json({

@@ -8,6 +8,7 @@ interface ComputeSalesPlanOptions {
   productIds?: string[];
   calendar?: ReturnType<typeof buildWeekCalendar>;
   mode?: 'DEFAULT' | 'PROJECTED' | 'REAL';
+  asOfDate?: Date;
 }
 
 const PLANNING_PLACEHOLDER_PRODUCT_ID = '__planning__';
@@ -237,6 +238,8 @@ export function computeSalesPlan(
   }
 
   const weekNumbers = Array.from(calendar.weekDates.keys()).sort((a, b) => a - b);
+  const currentWeekNumber =
+    weekNumberForDate(options.asOfDate ?? new Date(), calendar) ?? Number.NEGATIVE_INFINITY;
 
   for (const productId of productIds) {
     if (!productId || productId === PLANNING_PLACEHOLDER_PRODUCT_ID) continue;
@@ -278,9 +281,21 @@ export function computeSalesPlan(
         week?.systemForecastSales != null ? coerceNumber(week.systemForecastSales) : null;
       const systemForecastVersion = week?.systemForecastVersion ?? null;
 
+      const isPastWeek = weekNumber < currentWeekNumber;
       let computedFinalSales: number;
       let finalSalesSource: SalesWeekDerived['finalSalesSource'];
-      if (week?.finalSales != null) {
+
+      const actualOnly = mode === 'REAL' || (mode === 'DEFAULT' && isPastWeek);
+
+      if (actualOnly) {
+        if (week?.hasActualData && actualSales != null) {
+          computedFinalSales = clampNonNegative(actualSales);
+          finalSalesSource = 'ACTUAL';
+        } else {
+          computedFinalSales = 0;
+          finalSalesSource = 'ZERO';
+        }
+      } else if (week?.finalSales != null) {
         computedFinalSales = clampNonNegative(coerceNumber(week.finalSales));
         finalSalesSource = 'OVERRIDE';
       } else {
@@ -289,7 +304,7 @@ export function computeSalesPlan(
           source: SalesWeekDerived['finalSalesSource'];
         }> = [];
 
-        if (mode === 'DEFAULT' || mode === 'REAL') {
+        if (mode === 'DEFAULT') {
           candidates.push({ value: actualSales, source: 'ACTUAL' });
         }
         if (mode === 'DEFAULT' || mode === 'PROJECTED') {

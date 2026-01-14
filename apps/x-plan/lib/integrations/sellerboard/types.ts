@@ -69,8 +69,8 @@ export type SellerboardSyncResult = {
   };
 };
 
-// US Actual Sales Sync result
-export type SellerboardUsActualSalesSyncResult = {
+// Actual Sales Sync result (Orders report)
+export type SellerboardActualSalesSyncResult = {
   rowsParsed: number;
   rowsSkipped: number;
   productsMatched: number;

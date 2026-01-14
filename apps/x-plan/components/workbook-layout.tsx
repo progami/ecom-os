@@ -15,6 +15,7 @@ import {
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { TimeZoneClocks } from '@/components/timezone-clocks';
 
 type SheetSlug = WorkbookSheetStatus['slug'];
 
@@ -421,6 +422,8 @@ export function WorkbookLayout({
                       </span>
                     </div>
                   )}
+
+                  <TimeZoneClocks />
 
                   {/* Theme toggle */}
                   <ThemeToggle />

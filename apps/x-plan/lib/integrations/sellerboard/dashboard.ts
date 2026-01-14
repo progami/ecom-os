@@ -86,10 +86,16 @@ export function parseSellerboardDashboardWeeklyFinancials(
   };
 
   const parseNumeric = (value: string): number => {
-    // Remove currency symbols, commas, and parse
-    const cleaned = value.replace(/[$,]/g, '').trim();
+    const trimmed = value.trim();
+    if (!trimmed) return 0;
+
+    const negativeParens = trimmed.startsWith('(') && trimmed.endsWith(')');
+    const normalized = trimmed.replace(/[()]/g, '').replace(/[^0-9.,-]/g, '');
+    const cleaned = normalized.replace(/,/g, '');
     const num = Number(cleaned);
-    return Number.isFinite(num) ? num : 0;
+
+    if (!Number.isFinite(num)) return 0;
+    return negativeParens ? -num : num;
   };
 
   // Map: productCode -> weekNumber -> accumulated financials
