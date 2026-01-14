@@ -1,24 +1,5 @@
 # Claude Code Instructions
 
-## Worktree Development
-
-If you're working in a worktree (`targonos-wt/<app>-1` or `<app>-2`), determine your dev URL from your folder:
-
-| Folder Pattern | Slot | Dev URL Base | Ports |
-|---------------|------|--------------|-------|
-| `*-1/` | 1 | https://dev1-targonos.targonglobal.com | 32xx |
-| `*-2/` | 2 | https://dev2-targonos.targonglobal.com | 33xx |
-
-**Port assignments:**
-- talos: 3201/3301
-- sso: 3204/3304
-- atlas: 3206/3306
-- x-plan: 3208/3308
-- kairos: 3210/3310
-- plutus: 3212/3312
-
-Run `pnpm dev` from `apps/<app>` to start hot reload. Test at your slot's URL (e.g., `dev1-targonos.targonglobal.com/talos` for talos-1).
-
 ## Database
 
 All apps share `portal_db` on localhost:5432 with separate schemas per app. Connection strings are in each app's `.env.local` file.
@@ -41,10 +22,7 @@ Access via Prisma Studio: `pnpm prisma studio` from the app folder.
 
 ## Testing
 
-- Test via Chrome browser at your environment's URL:
-  - Production: `https://targonos.targonglobal.com/<app>`
-  - Worktree slot 1: `https://dev1-targonos.targonglobal.com/<app>`
-  - Worktree slot 2: `https://dev2-targonos.targonglobal.com/<app>`
+- Test via Chrome browser at `https://dev-targonos.targonglobal.com/<app>`
 - Do not test on localhost
 - **CRITICAL: Always test changes in Chrome BEFORE creating any PR** - Verify your changes work visually before committing
 
