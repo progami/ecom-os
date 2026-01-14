@@ -1321,7 +1321,7 @@ export default function PurchaseOrderDetailPage() {
 
     const batchLot = editLineDraft.batchLot.trim().toUpperCase()
     if (!batchLot || batchLot === 'DEFAULT') {
-      toast.error('Batch / lot is required')
+      toast.error('Batch is required')
       return
     }
 
@@ -1429,7 +1429,7 @@ export default function PurchaseOrderDetailPage() {
 
     const batchLot = newLineDraft.batchLot.trim()
     if (!batchLot) {
-      toast.error('Please select a batch / lot')
+      toast.error('Please select a batch')
       return
     }
 
@@ -2035,7 +2035,7 @@ export default function PurchaseOrderDetailPage() {
 
                         <div className="space-y-2">
                           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                            Batch / Lot
+                            Batch
                           </label>
                           <select
                             value={newLineDraft.batchLot}
@@ -2299,7 +2299,7 @@ export default function PurchaseOrderDetailPage() {
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
                         <th className="px-4 py-2 text-left font-semibold">SKU</th>
-                        <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
+                        <th className="px-4 py-2 text-left font-semibold">Batch</th>
                         <th className="px-4 py-2 text-left font-semibold">Description</th>
                         <th className="px-4 py-2 text-right font-semibold">Units</th>
                         <th className="px-4 py-2 text-right font-semibold">Units/Ctn</th>
@@ -3427,7 +3427,7 @@ export default function PurchaseOrderDetailPage() {
                     <>
                       <div className="space-y-2">
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Batch / Lot
+                          Batch
                         </label>
                         <select
                           value={editLineDraft.batchLot}

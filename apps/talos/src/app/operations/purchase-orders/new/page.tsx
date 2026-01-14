@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, FileEdit, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
+import { ArrowLeft, FileEdit, Loader2, Plus, Trash2, AlertTriangle, Package, ClipboardList } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
@@ -77,6 +77,8 @@ export default function NewPurchaseOrderPage() {
     notes: '',
   })
   const selectedSupplier = suppliers.find(supplier => supplier.id === formData.supplierId) ?? null
+  const [activeTab, setActiveTab] = useState<'details' | 'attributes'>('details')
+  const [showAttributesConfirm, setShowAttributesConfirm] = useState(false)
   const [lineItems, setLineItems] = useState<LineItem[]>([
     {
       id: generateTempId(),
@@ -317,14 +319,12 @@ export default function NewPurchaseOrderPage() {
     return parsed
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.supplierId) { toast.error('Please select a supplier'); return }
-    if (!formData.expectedDate) { toast.error('Please set a cargo ready date'); return }
-    if (!formData.incoterms) { toast.error('Please select incoterms'); return }
-    if (!formData.paymentTerms.trim()) { toast.error('Please enter payment terms'); return }
-    if (lineItems.length === 0) { toast.error('Please add at least one line item'); return }
+  const validateForm = (): boolean => {
+    if (!formData.supplierId) { toast.error('Please select a supplier'); return false }
+    if (!formData.expectedDate) { toast.error('Please set a cargo ready date'); return false }
+    if (!formData.incoterms) { toast.error('Please select incoterms'); return false }
+    if (!formData.paymentTerms.trim()) { toast.error('Please enter payment terms'); return false }
+    if (lineItems.length === 0) { toast.error('Please add at least one line item'); return false }
 
     const isPositiveInteger = (value: unknown): value is number =>
       typeof value === 'number' && Number.isInteger(value) && value > 0
@@ -337,18 +337,31 @@ export default function NewPurchaseOrderPage() {
       return false
     })
     if (invalidLines.length > 0) {
-      toast.error('Please fill in SKU, batch/lot, units ordered, and units per carton for all line items')
-      return
+      toast.error('Please fill in SKU, batch, units ordered, and units per carton for all line items')
+      return false
     }
 
-    if (!selectedSupplier) { toast.error('Invalid supplier selected'); return }
+    if (!selectedSupplier) { toast.error('Invalid supplier selected'); return false }
 
     const invalidCostLine = lineItems.find(line => line.totalCost.trim() && parseMoney(line.totalCost) === null)
     if (invalidCostLine) {
       toast.error(`Invalid cost for SKU ${invalidCostLine.skuCode || 'line item'}`)
-      return
+      return false
     }
 
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validateForm()) return
+
+    // Show attributes confirmation modal
+    setShowAttributesConfirm(true)
+  }
+
+  const handleConfirmAndCreate = async () => {
+    setShowAttributesConfirm(false)
     setSubmitting(true)
     try {
       const response = await fetchWithCSRF('/api/purchase-orders', {
@@ -527,9 +540,9 @@ export default function NewPurchaseOrderPage() {
             </div>
           </div>
 
-          {/* Products Table */}
+          {/* Products Table with Tabs */}
           <div className="rounded-xl border bg-white overflow-hidden">
-            <div className="px-5 py-4 border-b flex items-center justify-between">
+            <div className="px-5 py-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold">Products</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -537,62 +550,75 @@ export default function NewPurchaseOrderPage() {
                   {totals.cost > 0 && ` · ${formData.currency} ${totals.cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </p>
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={addLineItem} className="gap-1.5">
+              <Button type="button" variant="outline" size="sm" onClick={addLineItem} className="gap-1.5 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Add Row
               </Button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-slate-50/50">
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[110px]">SKU</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[100px]">Batch / Lot</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[180px]">Description</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Units</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[80px]">Units/Ctn</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[70px]">Cartons</th>
-                    <th className="text-right font-medium text-muted-foreground px-4 py-3 w-[110px]">Total</th>
-                    <th className="text-left font-medium text-muted-foreground px-4 py-3 w-[120px]">Notes</th>
-                    <th className="w-[44px]"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lineItems.map((item, idx) => {
-                    const cartons = item.unitsPerCarton && item.unitsOrdered > 0
-                      ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
-                      : null
-                    const totalCost = parseMoney(item.totalCost)
-                    const unitCost = totalCost !== null && item.unitsOrdered > 0
-                      ? (totalCost / item.unitsOrdered).toFixed(4)
-                      : null
-                    const isLast = idx === lineItems.length - 1
+            {/* Tabs */}
+            <div className="flex border-b bg-slate-50/50">
+              <button
+                type="button"
+                onClick={() => setActiveTab('details')}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  activeTab === 'details'
+                    ? 'text-cyan-700 border-b-2 border-cyan-600 bg-white -mb-px'
+                    : 'text-muted-foreground hover:text-slate-700'
+                }`}
+              >
+                <ClipboardList className="h-4 w-4" />
+                PO Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('attributes')}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  activeTab === 'attributes'
+                    ? 'text-cyan-700 border-b-2 border-cyan-600 bg-white -mb-px'
+                    : 'text-muted-foreground hover:text-slate-700'
+                }`}
+              >
+                <Package className="h-4 w-4" />
+                Attributes
+              </button>
+            </div>
 
-                    // Build packaging details from batch data
-                    const batch = item.skuId && item.batchLot
-                      ? (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
-                      : null
-                    const cartonTriplet = batch ? resolveDimensionTripletCm({
-                      side1Cm: batch.cartonSide1Cm,
-                      side2Cm: batch.cartonSide2Cm,
-                      side3Cm: batch.cartonSide3Cm,
-                      legacy: batch.cartonDimensionsCm,
-                    }) : null
-                    const cbmPerCarton = cartonTriplet
-                      ? (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
-                      : null
-                    const hasPackagingData = cartonTriplet || batch?.cartonWeightKg || batch?.packagingType
+            {/* PO Details Tab */}
+            {activeTab === 'details' && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[800px]">
+                  <thead>
+                    <tr className="border-b bg-slate-50/50">
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">SKU</th>
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Batch</th>
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Description</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Units</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Units/Ctn</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Cartons</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Total</th>
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Notes</th>
+                      <th className="w-[44px]"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineItems.map((item) => {
+                      const cartons = item.unitsPerCarton && item.unitsOrdered > 0
+                        ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
+                        : null
+                      const totalCost = parseMoney(item.totalCost)
+                      const unitCost = totalCost !== null && item.unitsOrdered > 0
+                        ? (totalCost / item.unitsOrdered).toFixed(4)
+                        : null
 
-                    return (
-                      <Fragment key={item.id}>
-                        <tr className="border-t border-slate-200 hover:bg-slate-50/50">
+                      return (
+                        <tr key={item.id} className="border-t border-slate-200 hover:bg-slate-50/50">
                           {/* SKU */}
                           <td className="px-4 py-2.5">
                             <select
                               value={item.skuCode}
                               onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
-                              className="w-full h-9 px-2 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                              className="w-full min-w-[100px] h-9 px-2 border rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                               required
                             >
                               <option value="">Select...</option>
@@ -602,12 +628,12 @@ export default function NewPurchaseOrderPage() {
                             </select>
                           </td>
 
-                          {/* Batch / Lot */}
+                          {/* Batch */}
                           <td className="px-4 py-2.5">
                             <select
                               value={item.batchLot}
                               onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
-                              className="w-full h-9 px-2 border rounded bg-white text-sm disabled:bg-slate-50 disabled:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                              className="w-full min-w-[90px] h-9 px-2 border rounded bg-white text-sm disabled:bg-slate-50 disabled:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                               required
                               disabled={!item.skuId}
                             >
@@ -636,7 +662,7 @@ export default function NewPurchaseOrderPage() {
                               value={item.skuDescription}
                               onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
                               placeholder="Description"
-                              className="h-9 text-sm"
+                              className="h-9 text-sm min-w-[140px]"
                             />
                           </td>
 
@@ -647,7 +673,7 @@ export default function NewPurchaseOrderPage() {
                               min="1"
                               value={item.unitsOrdered}
                               onChange={e => updateLineItem(item.id, 'unitsOrdered', parseInt(e.target.value) || 0)}
-                              className="h-9 text-sm text-right tabular-nums"
+                              className="h-9 text-sm text-right tabular-nums min-w-[70px]"
                               required
                             />
                           </td>
@@ -663,20 +689,20 @@ export default function NewPurchaseOrderPage() {
                                 updateLineItem(item.id, 'unitsPerCarton', Number.isInteger(parsed) && parsed > 0 ? parsed : null)
                               }}
                               placeholder="—"
-                              className="h-9 text-sm text-right tabular-nums disabled:bg-slate-50"
+                              className="h-9 text-sm text-right tabular-nums disabled:bg-slate-50 min-w-[70px]"
                               disabled={!item.skuId || !item.batchLot}
                               required
                             />
                           </td>
 
                           {/* Cartons (calculated) */}
-                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold">
+                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold whitespace-nowrap">
                             {cartons ?? '—'}
                           </td>
 
                           {/* Total */}
                           <td className="px-4 py-2.5">
-                            <div className="relative">
+                            <div className="relative min-w-[100px]">
                               <Input
                                 type="number"
                                 step="0.01"
@@ -701,7 +727,7 @@ export default function NewPurchaseOrderPage() {
                               value={item.notes}
                               onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
                               placeholder="Notes..."
-                              className="h-9 text-sm"
+                              className="h-9 text-sm min-w-[100px]"
                             />
                           </td>
 
@@ -719,62 +745,80 @@ export default function NewPurchaseOrderPage() {
                             </Button>
                           </td>
                         </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-                        {/* Packaging details sub-row */}
-                        {hasPackagingData ? (
-                          <tr className={`bg-slate-50/40 ${!isLast ? 'border-b-2 border-slate-200' : ''}`}>
-                            <td colSpan={9} className="px-4 pb-2 pt-1">
-                              <div className="grid grid-cols-6 gap-3 text-xs border-l-2 border-cyan-400 pl-3 py-1">
-                                <div>
-                                  <span className="text-muted-foreground">Carton</span>
-                                  <p className="font-medium text-slate-700">
-                                    {cartonTriplet ? `${formatDimensionTripletCm(cartonTriplet)} cm` : '—'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">CBM/ctn</span>
-                                  <p className="font-medium text-slate-700">
-                                    {cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : '—'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">CBM Total</span>
-                                  <p className="font-medium text-slate-700">
-                                    {cbmPerCarton !== null && cartons ? (cbmPerCarton * cartons).toFixed(3) : '—'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">KG/ctn</span>
-                                  <p className="font-medium text-slate-700">
-                                    {batch?.cartonWeightKg ? batch.cartonWeightKg.toFixed(2) : '—'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">KG Total</span>
-                                  <p className="font-medium text-slate-700">
-                                    {batch?.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : '—'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Pkg Type</span>
-                                  <p className="font-medium text-slate-700">
-                                    {batch?.packagingType ?? '—'}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : !isLast ? (
-                          <tr className="border-b-2 border-slate-200">
-                            <td colSpan={9} className="h-0"></td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {/* Attributes Tab */}
+            {activeTab === 'attributes' && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[900px]">
+                  <thead>
+                    <tr className="border-b bg-slate-50/50">
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">SKU</th>
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Batch</th>
+                      <th className="text-left font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Carton Size</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">CBM/ctn</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">CBM Total</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">KG/ctn</th>
+                      <th className="text-right font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">KG Total</th>
+                      <th className="text-center font-medium text-muted-foreground px-4 py-3 whitespace-nowrap">Pkg Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineItems.map((item) => {
+                      const cartons = item.unitsPerCarton && item.unitsOrdered > 0
+                        ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
+                        : null
+                      const batch = item.skuId && item.batchLot
+                        ? (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
+                        : null
+                      const cartonTriplet = batch ? resolveDimensionTripletCm({
+                        side1Cm: batch.cartonSide1Cm,
+                        side2Cm: batch.cartonSide2Cm,
+                        side3Cm: batch.cartonSide3Cm,
+                        legacy: batch.cartonDimensionsCm,
+                      }) : null
+                      const cbmPerCarton = cartonTriplet
+                        ? (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
+                        : null
+
+                      return (
+                        <tr key={item.id} className="border-t border-slate-200 hover:bg-slate-50/50">
+                          <td className="px-4 py-3 font-medium">{item.skuCode || '—'}</td>
+                          <td className="px-4 py-3 text-slate-600">{item.batchLot || '—'}</td>
+                          <td className="px-4 py-3">
+                            {cartonTriplet ? `${formatDimensionTripletCm(cartonTriplet)} cm` : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {cbmPerCarton !== null ? cbmPerCarton.toFixed(3) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium">
+                            {cbmPerCarton !== null && cartons ? (cbmPerCarton * cartons).toFixed(3) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {batch?.cartonWeightKg ? batch.cartonWeightKg.toFixed(2) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right tabular-nums font-medium">
+                            {batch?.cartonWeightKg && cartons ? (batch.cartonWeightKg * cartons).toFixed(2) : <span className="text-slate-400">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {batch?.packagingType ? (
+                              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-slate-100 text-slate-700">
+                                {batch.packagingType}
+                              </span>
+                            ) : <span className="text-slate-400">—</span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -802,6 +846,154 @@ export default function NewPurchaseOrderPage() {
             </Button>
           </div>
         </form>
+
+        {/* Attributes Verification Modal */}
+        {showAttributesConfirm && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <div
+                className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
+                onClick={() => setShowAttributesConfirm(false)}
+              />
+              <div className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
+                <div className="bg-white px-6 pt-6 pb-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-cyan-100">
+                      <Package className="h-6 w-6 text-cyan-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        Verify Product Attributes
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        Please review the carton dimensions and weights before creating the purchase order.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-slate-50">
+                          <th className="text-left font-medium text-slate-600 px-4 py-2">SKU</th>
+                          <th className="text-left font-medium text-slate-600 px-4 py-2">Batch</th>
+                          <th className="text-left font-medium text-slate-600 px-4 py-2">Carton Size</th>
+                          <th className="text-right font-medium text-slate-600 px-4 py-2">CBM Total</th>
+                          <th className="text-right font-medium text-slate-600 px-4 py-2">KG Total</th>
+                          <th className="text-center font-medium text-slate-600 px-4 py-2">Pkg Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lineItems.map((item) => {
+                          const cartons = item.unitsPerCarton && item.unitsOrdered > 0
+                            ? Math.ceil(item.unitsOrdered / item.unitsPerCarton)
+                            : null
+                          const batch = item.skuId && item.batchLot
+                            ? (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
+                            : null
+                          const cartonTriplet = batch ? resolveDimensionTripletCm({
+                            side1Cm: batch.cartonSide1Cm,
+                            side2Cm: batch.cartonSide2Cm,
+                            side3Cm: batch.cartonSide3Cm,
+                            legacy: batch.cartonDimensionsCm,
+                          }) : null
+                          const cbmPerCarton = cartonTriplet
+                            ? (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
+                            : null
+                          const hasData = cartonTriplet || batch?.cartonWeightKg
+
+                          return (
+                            <tr key={item.id} className="border-t">
+                              <td className="px-4 py-2 font-medium">{item.skuCode}</td>
+                              <td className="px-4 py-2 text-slate-600">{item.batchLot}</td>
+                              <td className="px-4 py-2">
+                                {cartonTriplet ? (
+                                  `${formatDimensionTripletCm(cartonTriplet)} cm`
+                                ) : (
+                                  <span className="text-amber-600 flex items-center gap-1">
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                    Missing
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-right tabular-nums">
+                                {cbmPerCarton !== null && cartons ? (
+                                  (cbmPerCarton * cartons).toFixed(3)
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-right tabular-nums">
+                                {batch?.cartonWeightKg && cartons ? (
+                                  (batch.cartonWeightKg * cartons).toFixed(2)
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-center">
+                                {batch?.packagingType ? (
+                                  <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded bg-slate-100">
+                                    {batch.packagingType}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {lineItems.some(item => {
+                    const batch = item.skuId && item.batchLot
+                      ? (batchesBySkuId[item.skuId] ?? []).find(b => b.batchCode === item.batchLot.trim().toUpperCase())
+                      : null
+                    const cartonTriplet = batch ? resolveDimensionTripletCm({
+                      side1Cm: batch.cartonSide1Cm,
+                      side2Cm: batch.cartonSide2Cm,
+                      side3Cm: batch.cartonSide3Cm,
+                      legacy: batch.cartonDimensionsCm,
+                    }) : null
+                    return !cartonTriplet && !batch?.cartonWeightKg
+                  }) && (
+                    <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <span>Some products are missing carton dimensions or weights. You can still proceed, but shipping calculations may be incomplete.</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-slate-50 px-6 py-4 flex flex-col sm:flex-row-reverse gap-3">
+                  <Button
+                    onClick={handleConfirmAndCreate}
+                    disabled={submitting}
+                    className="w-full sm:w-auto"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      'Confirm & Create PO'
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAttributesConfirm(false)}
+                    disabled={submitting}
+                    className="w-full sm:w-auto"
+                  >
+                    Go Back
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </PageContent>
     </PageContainer>
   )

@@ -757,7 +757,7 @@ export default function FulfillmentOrderDetailPage() {
               <div className="rounded-lg border bg-white overflow-hidden">
                 <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground p-3 border-b bg-slate-50/50">
                   <div className="col-span-3">SKU</div>
-                  <div className="col-span-3">Batch/Lot</div>
+                  <div className="col-span-3">Batch</div>
                   <div className="col-span-4">Description</div>
                   <div className="col-span-2 text-right">Qty</div>
                   <div className="col-span-2">Status</div>
