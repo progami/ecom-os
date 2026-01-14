@@ -13,16 +13,13 @@ import {
   Mail,
   MapPin,
   Search,
-  Trash2,
   Users,
   Phone,
-  Plus,
 } from '@/lib/lucide-icons'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Warehouse {
   id: string
@@ -53,7 +50,6 @@ export default function WarehousesPanel() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [deleteConfirm, setDeleteConfirm] = useState<Warehouse | null>(null)
 
   const loadWarehouses = useCallback(async () => {
     setLoading(true)
@@ -89,32 +85,6 @@ export default function WarehousesPanel() {
   useEffect(() => {
     loadWarehouses()
   }, [loadWarehouses])
-
-  const handleDelete = (warehouse: Warehouse) => {
-    setDeleteConfirm(warehouse)
-  }
-
-  const handleConfirmDelete = async () => {
-    const warehouse = deleteConfirm
-    if (!warehouse) return
-
-    setDeleteConfirm(null)
-
-    try {
-      const response = await fetchWithCSRF(`/api/warehouses?id=${warehouse.id}`, {
-        method: 'DELETE',
-      })
-
-      const result = await response.json().catch(() => null)
-      if (!response.ok) {
-        throw new Error(result?.error ?? 'Failed to delete warehouse')
-      }
-      toast.success(result?.message || 'Warehouse deleted')
-      await loadWarehouses()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete warehouse')
-    }
-  }
 
   const goToRatesPage = (warehouseId: string) => {
     router.push(`/config/warehouses/${warehouseId}/rates`)
@@ -212,16 +182,8 @@ export default function WarehousesPanel() {
             <div>
               <p className="text-base font-semibold text-slate-900">No warehouses to show</p>
               <p className="text-sm text-slate-500">
-                Create a warehouse to start attaching rate sheets and inventory.
+                Contact an administrator to configure warehouses.
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button asChild className="gap-2">
-                <Link href="/config/warehouses/new">
-                  <Plus className="h-4 w-4" />
-                  New Warehouse
-                </Link>
-              </Button>
             </div>
           </div>
         ) : (
@@ -254,30 +216,17 @@ export default function WarehousesPanel() {
                       </div>
                       <h3 className="text-lg font-semibold text-slate-900">{warehouse.name}</h3>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <Link href={`/config/warehouses/${warehouse.id}/edit`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 text-red-600 hover:bg-red-50"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          handleDelete(warehouse)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Link href={`/config/warehouses/${warehouse.id}/edit`}>
+                        <Edit className="h-4 w-4" />
+                      </Link>
+                    </Button>
                   </div>
 
                   <div className="flex-1 flex flex-col gap-3">
@@ -359,21 +308,6 @@ export default function WarehousesPanel() {
         )}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={deleteConfirm !== null}
-        onClose={() => setDeleteConfirm(null)}
-        onConfirm={handleConfirmDelete}
-        title="Delete Warehouse?"
-        message={
-          deleteConfirm
-            ? `Delete ${deleteConfirm.name || 'this warehouse'}? This cannot be undone.`
-            : ''
-        }
-        type="danger"
-        confirmText="Delete"
-        cancelText="Cancel"
-      />
     </div>
   )
 }
