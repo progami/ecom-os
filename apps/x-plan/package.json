@@ -21,6 +21,7 @@
   "dependencies": {
     "@targon/amazon-sp-api": "workspace:*",
     "@targon/auth": "workspace:*",
+    "amazon-sp-api": "^1.0.12",
     "@targon/config": "workspace:*",
     "@targon/logger": "workspace:*",
     "@targon/prisma-talos": "workspace:*",
