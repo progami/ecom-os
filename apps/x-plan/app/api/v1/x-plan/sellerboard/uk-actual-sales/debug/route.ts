@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
 import { loadPlanningCalendar } from '@/lib/planning';
-import { weekStartsOnForRegion } from '@/lib/strategy-region';
+import { sellerboardReportTimeZoneForRegion, weekStartsOnForRegion } from '@/lib/strategy-region';
 import {
   inferSellerboardReportTimeZoneFromCsv,
   parseSellerboardOrdersWeeklyUnits,
@@ -34,12 +34,14 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
     }
 
     const csv = await response.text();
-    const reportTimeZone = inferSellerboardReportTimeZoneFromCsv(csv);
+    const reportTimeZone = sellerboardReportTimeZoneForRegion('UK');
+    const inferredTimeZone = inferSellerboardReportTimeZoneFromCsv(csv);
     const weekStartsOn = weekStartsOnForRegion('UK');
     const planning = await loadPlanningCalendar(weekStartsOn);
 
     const parsed = parseSellerboardOrdersWeeklyUnits(csv, planning, {
       weekStartsOn,
+      reportTimeZone,
       excludeStatuses: ['Cancelled'],
     });
 
@@ -62,6 +64,7 @@ export const GET = withXPlanAuth(async (_request: Request, session) => {
 
     return NextResponse.json({
       reportTimeZone,
+      inferredTimeZone,
       reportUrl: reportUrl.substring(0, 50) + '...',
       rowsParsed: parsed.rowsParsed,
       rowsSkipped: parsed.rowsSkipped,

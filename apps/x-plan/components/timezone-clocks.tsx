@@ -2,12 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-const REPORT_TIME_ZONE = 'UTC';
-
 function formatTimestamp(value: Date, timeZone: string) {
   return new Intl.DateTimeFormat('en-GB', {
     year: 'numeric',
-    month: 'short',
+    month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
@@ -19,7 +17,7 @@ function formatTimestamp(value: Date, timeZone: string) {
     .replace(',', '');
 }
 
-export function TimeZoneClocks() {
+export function TimeZoneClocks({ reportTimeZone }: { reportTimeZone: string }) {
   const [now, setNow] = useState(() => new Date());
 
   const userTimeZone = useMemo(() => {
@@ -31,7 +29,7 @@ export function TimeZoneClocks() {
     return () => clearInterval(id);
   }, []);
 
-  const reportNow = formatTimestamp(now, REPORT_TIME_ZONE);
+  const reportNow = formatTimestamp(now, reportTimeZone);
   const userNow = formatTimestamp(now, userTimeZone);
 
   return (
@@ -41,7 +39,7 @@ export function TimeZoneClocks() {
           Report TZ
         </span>
         <span className="tabular-nums text-slate-800 dark:text-slate-100">
-          {REPORT_TIME_ZONE} {reportNow}
+          {reportTimeZone} {reportNow}
         </span>
       </div>
       <span className="text-slate-300 dark:text-slate-600">|</span>

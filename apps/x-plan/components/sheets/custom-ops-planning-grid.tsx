@@ -1131,8 +1131,8 @@ export function CustomOpsPlanningGrid({
             }
           }
 
-          if (startDate && endDate.getTime() <= startDate.getTime()) {
-            toast.error('End date must be after the start date');
+          if (startDate && endDate.getTime() < startDate.getTime()) {
+            toast.error('End date must be on or after the start date');
             cancelEditing();
             return;
           }
