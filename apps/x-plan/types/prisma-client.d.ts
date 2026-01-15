@@ -325,6 +325,7 @@ declare module '@targon/prisma-x-plan' {
     $transaction<R>(fn: (client: PrismaClient) => Promise<R>): Promise<R>;
     $extends<ExtArgs = DefaultArgs>(...args: any[]): PrismaClient<T, U, ExtArgs>;
     $executeRawUnsafe(query: string): Promise<unknown>;
+    strategy: ModelDelegate<Strategy>;
     product: ModelDelegate<Product>;
     businessParameter: ModelDelegate<BusinessParameter>;
     leadStageTemplate: ModelDelegate<LeadStageTemplate>;

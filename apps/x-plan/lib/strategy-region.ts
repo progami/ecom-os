@@ -15,3 +15,7 @@ export function weekStartsOnForRegion(region: StrategyRegion | null | undefined)
   // All regions use Monday as week start to align with Sellerboard
   return 1;
 }
+
+export function sellerboardReportTimeZoneForRegion(region: StrategyRegion): string {
+  return 'UTC';
+}

@@ -1,6 +1,7 @@
 import { isValid } from 'date-fns';
 import { coerceNumber } from '@/lib/utils/numbers';
 import { buildWeekCalendar, weekNumberForDate } from './calendar';
+import { differenceInCalendarWeeksUtc, startOfWeekUtc } from './week-utils';
 import type { PurchaseOrderDerived } from './ops';
 import type { SalesWeekInput } from './types';
 
@@ -238,8 +239,19 @@ export function computeSalesPlan(
   }
 
   const weekNumbers = Array.from(calendar.weekDates.keys()).sort((a, b) => a - b);
+  const asOfDate = options.asOfDate ?? new Date();
+  const boundedCurrentWeekNumber = weekNumberForDate(asOfDate, calendar);
   const currentWeekNumber =
-    weekNumberForDate(options.asOfDate ?? new Date(), calendar) ?? Number.NEGATIVE_INFINITY;
+    boundedCurrentWeekNumber ??
+    (calendar.calendarStart && calendar.anchorWeekNumber != null
+      ? calendar.anchorWeekNumber +
+        differenceInCalendarWeeksUtc(
+          asOfDate,
+          startOfWeekUtc(calendar.calendarStart, calendar.weekStartsOn),
+          calendar.weekStartsOn,
+        )
+      : null) ??
+    Number.NEGATIVE_INFINITY;
 
   for (const productId of productIds) {
     if (!productId || productId === PLANNING_PLACEHOLDER_PRODUCT_ID) continue;
@@ -280,6 +292,7 @@ export function computeSalesPlan(
       const systemForecastSales =
         week?.systemForecastSales != null ? coerceNumber(week.systemForecastSales) : null;
       const systemForecastVersion = week?.systemForecastVersion ?? null;
+      const hasActualDataFlag = week?.hasActualData ?? (actualSales != null);
 
       const isPastWeek = weekNumber < currentWeekNumber;
       let computedFinalSales: number;
@@ -288,7 +301,7 @@ export function computeSalesPlan(
       const actualOnly = mode === 'REAL' || (mode === 'DEFAULT' && isPastWeek);
 
       if (actualOnly) {
-        if (week?.hasActualData && actualSales != null) {
+        if (hasActualDataFlag && actualSales != null) {
           computedFinalSales = clampNonNegative(actualSales);
           finalSalesSource = 'ACTUAL';
         } else {
@@ -304,9 +317,6 @@ export function computeSalesPlan(
           source: SalesWeekDerived['finalSalesSource'];
         }> = [];
 
-        if (mode === 'DEFAULT') {
-          candidates.push({ value: actualSales, source: 'ACTUAL' });
-        }
         if (mode === 'DEFAULT' || mode === 'PROJECTED') {
           candidates.push({ value: forecastSales, source: 'PLANNER' });
           candidates.push({ value: systemForecastSales, source: 'SYSTEM' });
@@ -359,7 +369,7 @@ export function computeSalesPlan(
         stockEnd,
         stockWeeks,
         batchAllocations: allocations.length > 0 ? allocations : undefined,
-        hasActualData: week?.hasActualData ?? false,
+        hasActualData: isPastWeek && hasActualDataFlag,
       });
     }
   }
