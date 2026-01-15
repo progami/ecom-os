@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
 import { loadPlanningCalendar } from '@/lib/planning';
-import { weekStartsOnForRegion } from '@/lib/strategy-region';
+import { sellerboardReportTimeZoneForRegion, weekStartsOnForRegion } from '@/lib/strategy-region';
 import { parseSellerboardOrdersWeeklyUnits } from '@/lib/integrations/sellerboard';
 import { getTalosPrisma } from '@/lib/integrations/talos-client';
 
@@ -61,10 +61,12 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
 
     const csv = await response.text();
     const weekStartsOn = weekStartsOnForRegion('UK');
+    const reportTimeZone = sellerboardReportTimeZoneForRegion('UK');
     const planning = await loadPlanningCalendar(weekStartsOn);
 
     const parsed = parseSellerboardOrdersWeeklyUnits(csv, planning, {
       weekStartsOn,
+      reportTimeZone,
       excludeStatuses: ['Cancelled'],
     });
 
@@ -240,4 +242,3 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 });
-

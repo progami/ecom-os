@@ -2,13 +2,21 @@ import 'server-only';
 
 import prisma from '@/lib/prisma';
 import { loadPlanningCalendar } from '@/lib/planning';
-import { getCalendarDateForWeek } from '@/lib/calculations/calendar';
-import { weekStartsOnForRegion, type StrategyRegion } from '@/lib/strategy-region';
+import { getCalendarDateForWeek, weekNumberForDate } from '@/lib/calculations/calendar';
+import {
+  sellerboardReportTimeZoneForRegion,
+  weekStartsOnForRegion,
+  type StrategyRegion,
+} from '@/lib/strategy-region';
 import { parseSellerboardOrdersWeeklyUnits } from './orders';
-import { fetchSellerboardCsv } from './client';
+import { getUtcDateForTimeZone } from '@/lib/utils/dates';
+import { fetchSellerboardCsv, parseCsv } from './client';
 import { getTalosPrisma } from '@/lib/integrations/talos-client';
 import type { SellerboardActualSalesSyncResult, SellerboardDashboardSyncResult } from './types';
-import { parseSellerboardDashboardWeeklyFinancials } from './dashboard';
+import {
+  parseSellerboardDashboardWeeklyFinancials,
+  parseSellerboardDashboardWeeklyTotals,
+} from './dashboard';
 
 export type { SellerboardActualSalesSyncResult, SellerboardDashboardSyncResult };
 
@@ -37,10 +45,12 @@ export async function syncSellerboardActualSales(options: {
   logSync(`CSV fetched (${options.region})`, { bytes: csv.length });
 
   const weekStartsOn = weekStartsOnForRegion(options.region);
+  const reportTimeZone = sellerboardReportTimeZoneForRegion(options.region);
   const planning = await loadPlanningCalendar(weekStartsOn);
 
   const parsed = parseSellerboardOrdersWeeklyUnits(csv, planning, {
     weekStartsOn,
+    reportTimeZone,
     excludeStatuses: ['Cancelled'],
   });
 
@@ -224,9 +234,14 @@ export async function syncSellerboardActualSales(options: {
     });
   }
 
+  const currentWeekNumber =
+    weekNumberForDate(getUtcDateForTimeZone(new Date(), reportTimeZone), planning.calendar) ??
+    Number.NEGATIVE_INFINITY;
+  const weeklyUnits = parsed.weeklyUnits.filter((entry) => entry.weekNumber < currentWeekNumber);
+
   const upserts: ReturnType<(typeof prisma.salesWeek)['upsert']>[] = [];
 
-  for (const entry of parsed.weeklyUnits) {
+  for (const entry of weeklyUnits) {
     const products = productsByCode.get(entry.productCode);
     if (!products?.length) continue;
     const weekDate = getCalendarDateForWeek(entry.weekNumber, planning.calendar);
@@ -335,9 +350,101 @@ export async function syncSellerboardDashboard(options: {
   const weekStartsOn = weekStartsOnForRegion(options.region);
   const planning = await loadPlanningCalendar(weekStartsOn);
 
-  const parsed = parseSellerboardDashboardWeeklyFinancials(csv, planning, {
-    weekStartsOn,
-  });
+  const headerRow = parseCsv(csv)[0] ?? [];
+  const headerSet = new Set(headerRow.map((value) => value.trim()));
+  const isTotalsReport = headerSet.has('SalesOrganic') && !headerSet.has('Product');
+
+  if (isTotalsReport) {
+    const parsed = parseSellerboardDashboardWeeklyTotals(csv, planning, { weekStartsOn });
+
+    logSync(`Dashboard totals CSV parsed (${options.region})`, {
+      rowsParsed: parsed.rowsParsed,
+      rowsSkipped: parsed.rowsSkipped,
+      weeklyTotalsCount: parsed.weeklyTotals.length,
+      oldestDate: parsed.oldestDate?.toISOString(),
+      newestDate: parsed.newestDate?.toISOString(),
+    });
+
+    const reportTimeZone = sellerboardReportTimeZoneForRegion(options.region);
+    const currentWeekNumber =
+      weekNumberForDate(getUtcDateForTimeZone(new Date(), reportTimeZone), planning.calendar) ??
+      Number.NEGATIVE_INFINITY;
+
+    const weeklyTotals = parsed.weeklyTotals.filter((entry) => entry.weekNumber < currentWeekNumber);
+
+    const strategies = await prisma.strategy.findMany({
+      where: { region: options.region },
+      select: { id: true },
+    });
+
+    const upserts: ReturnType<(typeof prisma.profitAndLossWeek)['upsert']>[] = [];
+
+    for (const entry of weeklyTotals) {
+      const weekDate = getCalendarDateForWeek(entry.weekNumber, planning.calendar);
+      if (!weekDate) continue;
+
+      for (const strategy of strategies) {
+        upserts.push(
+          prisma.profitAndLossWeek.upsert({
+            where: { strategyId_weekNumber: { strategyId: strategy.id, weekNumber: entry.weekNumber } },
+            update: {
+              weekDate,
+              units: Math.round(entry.units),
+              revenue: entry.revenue,
+              cogs: entry.cogs,
+              grossProfit: entry.grossProfit,
+              amazonFees: entry.amazonFees,
+              ppcSpend: entry.ppcSpend,
+              netProfit: entry.netProfit,
+            },
+            create: {
+              strategyId: strategy.id,
+              weekNumber: entry.weekNumber,
+              weekDate,
+              units: Math.round(entry.units),
+              revenue: entry.revenue,
+              cogs: entry.cogs,
+              grossProfit: entry.grossProfit,
+              amazonFees: entry.amazonFees,
+              ppcSpend: entry.ppcSpend,
+              netProfit: entry.netProfit,
+            },
+          }),
+        );
+      }
+    }
+
+    logSync(`Preparing Dashboard totals upserts (${options.region})`, { count: upserts.length });
+
+    if (upserts.length) {
+      logSync(`Executing Dashboard totals database transaction (${options.region})`);
+      await prisma.$transaction(upserts);
+      logSync(`Dashboard totals database transaction complete (${options.region})`);
+    }
+
+    const result = {
+      rowsParsed: parsed.rowsParsed,
+      rowsSkipped: parsed.rowsSkipped,
+      productsMatched: 0,
+      asinDirectMatched: 0,
+      asinMappingsFound: 0,
+      asinProductsMatched: 0,
+      updates: upserts.length,
+      csvSha256: parsed.csvSha256,
+      oldestDateUtc: parsed.oldestDate,
+      newestDateUtc: parsed.newestDate,
+    };
+
+    logSync(`Dashboard totals sync complete (${options.region})`, {
+      rowsParsed: result.rowsParsed,
+      rowsSkipped: result.rowsSkipped,
+      updates: result.updates,
+    });
+
+    return result;
+  }
+
+  const parsed = parseSellerboardDashboardWeeklyFinancials(csv, planning, { weekStartsOn });
 
   logSync(`Dashboard CSV parsed (${options.region})`, {
     rowsParsed: parsed.rowsParsed,
@@ -347,8 +454,16 @@ export async function syncSellerboardDashboard(options: {
     newestDate: parsed.newestDateUtc?.toISOString(),
   });
 
+  const reportTimeZone = sellerboardReportTimeZoneForRegion(options.region);
+  const currentWeekNumber =
+    weekNumberForDate(getUtcDateForTimeZone(new Date(), reportTimeZone), planning.calendar) ??
+    Number.NEGATIVE_INFINITY;
+  const weeklyFinancials = parsed.weeklyFinancials.filter(
+    (entry) => entry.weekNumber < currentWeekNumber,
+  );
+
   const productCodes = Array.from(
-    new Set(parsed.weeklyFinancials.map((entry) => entry.productCode))
+    new Set(weeklyFinancials.map((entry) => entry.productCode))
   );
   logSync(`Unique product codes from Dashboard CSV (${options.region})`, {
     count: productCodes.length,
@@ -499,7 +614,7 @@ export async function syncSellerboardDashboard(options: {
   const financialsDelegate = prismaAny.salesWeekFinancials;
   const upserts: unknown[] = [];
 
-  for (const entry of parsed.weeklyFinancials) {
+  for (const entry of weeklyFinancials) {
     const products = productsByCode.get(entry.productCode);
     if (!products?.length) continue;
     const weekDate = getCalendarDateForWeek(entry.weekNumber, planning.calendar);

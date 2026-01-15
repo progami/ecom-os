@@ -62,6 +62,7 @@ import { getCanonicalSheetSlug, getSheetConfig } from '@/lib/sheets';
 import { getWorkbookStatus } from '@/lib/workbook';
 import { WorkbookLayout } from '@/components/workbook-layout';
 import { ActiveStrategyIndicator } from '@/components/active-strategy-indicator';
+import { getUtcDateForTimeZone } from '@/lib/utils/dates';
 import {
   mapProducts,
   mapLeadStageTemplates,
@@ -106,7 +107,12 @@ import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/
 import type { PlanningCalendar } from '@/lib/planning';
 import { weekLabelForWeekNumber, type PlanningWeekConfig } from '@/lib/calculations/planning-week';
 import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates';
-import { weekStartsOnForRegion, type StrategyRegion } from '@/lib/strategy-region';
+import {
+  sellerboardReportTimeZoneForRegion,
+  parseStrategyRegion,
+  weekStartsOnForRegion,
+  type StrategyRegion,
+} from '@/lib/strategy-region';
 
 const SALES_METRICS = [
   'stockStart',
@@ -1131,7 +1137,13 @@ function deriveOrders(
   const includeDraft = options.includeDraft === true;
   return context.purchaseOrderInputs
     .map((order) => {
-      if (!includeDraft && order.status === 'DRAFT') return null;
+      if (
+        !includeDraft &&
+        typeof order.status === 'string' &&
+        order.status.trim().toUpperCase() === 'DRAFT'
+      ) {
+        return null;
+      }
       if (!context.productIndex.has(order.productId)) return null;
       const profile = getLeadTimeProfile(order.productId, context.leadProfiles);
       const productNames =
@@ -1184,7 +1196,7 @@ function coerceDecimal(value: { toNumber: () => number } | number | null): numbe
   return value.toNumber();
 }
 
-async function loadFinancialData(planning: PlanningCalendar, strategyId: string) {
+async function loadFinancialData(planning: PlanningCalendar, strategyId: string, asOfDate: Date) {
   const prismaAny = prisma as unknown as Record<string, unknown>;
   const salesDelegate = prismaAny.salesWeek as
     | {
@@ -1251,6 +1263,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     {
       productIds: operations.productInputs.map((product) => product.id),
       calendar: planning.calendar,
+      asOfDate,
     },
   );
 
@@ -1276,7 +1289,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     operations.parameters,
     profitOverrides,
     actualFinancials,
-    { calendar: planning.calendar, asOfDate: new Date() },
+    { calendar: planning.calendar, asOfDate },
   );
   const cash = computeCashFlow(
     profit.weekly,
@@ -2130,8 +2143,19 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       })
     : null;
   const activeStrategyName: string | null = activeStrategyRow?.name ?? null;
-  const strategyRegion: StrategyRegion = activeStrategyRow?.region === 'UK' ? 'UK' : 'US';
+  const strategyRegion: StrategyRegion =
+    strategyId && activeStrategyRow
+      ? (() => {
+          const parsedRegion = parseStrategyRegion(activeStrategyRow.region);
+          if (!parsedRegion) {
+            throw new Error('StrategyRegionInvalid');
+          }
+          return parsedRegion;
+        })()
+      : 'US';
   const weekStartsOn = weekStartsOnForRegion(strategyRegion);
+  const reportTimeZone = strategyId ? sellerboardReportTimeZoneForRegion(strategyRegion) : null;
+  const reportAsOfDate = reportTimeZone ? getUtcDateForTimeZone(new Date(), reportTimeZone) : new Date();
 
   const [workbookStatus, planningCalendar] = await Promise.all([
     getWorkbookStatus(),
@@ -2168,7 +2192,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     return strategyId;
   };
 
-  const getFinancialData = () => loadFinancialData(planningCalendar, requireStrategyId());
+  const getFinancialData = () => loadFinancialData(planningCalendar, requireStrategyId(), reportAsOfDate);
   const weeklyLabelControl = (label: string) => (
     <div key="weekly-label" className={SHEET_TOOLBAR_GROUP}>
       <span className={SHEET_TOOLBAR_LABEL}>{label}</span>
@@ -2683,6 +2707,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       activeSlug={config.slug}
       planningYears={planningCalendar.yearSegments}
       activeYear={activeYear}
+      reportTimeZone={reportTimeZone ?? undefined}
       meta={meta}
       ribbon={ribbon}
       contextPane={contextPane}

@@ -262,8 +262,8 @@ describe('computeSalesPlan', () => {
 
     expect(week3).toBeDefined()
     expect(week3?.stockStart).toBe(490)
-    expect(week3?.finalSales).toBe(70)
-    expect(week3?.stockEnd).toBe(420)
+    expect(week3?.finalSales).toBe(0)
+    expect(week3?.stockEnd).toBe(490)
 
     const arrivalRow = salesPlan.find((row) => row.arrivalOrders.length > 0)
     expect(arrivalRow?.arrivalOrders[0]?.orderCode).toBe(purchaseOrderInput.orderCode)
@@ -436,9 +436,9 @@ describe('computeSalesPlan', () => {
     const week52 = plan.find((row) => row.productId === product.id && row.weekNumber === 52)
     const week53 = plan.find((row) => row.productId === product.id && row.weekNumber === 53)
 
-    expect(week52?.stockEnd).toBe(30)
+    expect(week52?.stockEnd).toBe(40)
     expect(week53).toBeDefined()
-    expect(week53?.stockStart).toBe(30)
+    expect(week53?.stockStart).toBe(40)
     expect(week53?.finalSales).toBe(0)
   })
 

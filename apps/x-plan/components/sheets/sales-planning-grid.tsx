@@ -22,7 +22,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { ChevronLeft, ChevronRight, Info, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -35,9 +35,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tooltip } from '@/components/ui/tooltip';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
 import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -553,20 +553,7 @@ export function SalesPlanningGrid({
     const baseColumns = [
       columnHelper.accessor('weekLabel', {
         id: 'weekLabel',
-        header: () => (
-          <div className="flex items-center gap-1">
-            <span>Week</span>
-            <Tooltip content={'Actual data (Sellerboard)\nProjected / no actuals'}>
-              <button
-                type="button"
-                className="inline-flex items-center rounded p-0.5 text-muted-foreground hover:text-foreground"
-                aria-label="Week indicator legend"
-              >
-                <Info className="h-3 w-3" />
-              </button>
-            </Tooltip>
-          </div>
-        ),
+        header: () => 'Week',
         cell: (info) => (
           <span className="flex items-center gap-1">
             {info.getValue()}

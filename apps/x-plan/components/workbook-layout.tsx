@@ -24,6 +24,7 @@ interface WorkbookLayoutProps {
   activeSlug: SheetSlug;
   planningYears?: YearSegment[];
   activeYear?: number | null;
+  reportTimeZone?: string;
   meta?: {
     rows?: number;
     updated?: string;
@@ -50,6 +51,7 @@ export function WorkbookLayout({
   activeSlug,
   planningYears,
   activeYear,
+  reportTimeZone,
   meta,
   ribbon,
   contextPane,
@@ -423,7 +425,7 @@ export function WorkbookLayout({
                     </div>
                   )}
 
-                  <TimeZoneClocks />
+                  {reportTimeZone ? <TimeZoneClocks reportTimeZone={reportTimeZone} /> : null}
 
                   {/* Theme toggle */}
                   <ThemeToggle />

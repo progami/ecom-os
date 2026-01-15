@@ -1,5 +1,6 @@
 import { weekNumberForDate } from '@/lib/calculations/calendar';
 import type { PlanningCalendar } from '@/lib/planning';
+import { getUtcDateForTimeZone } from '@/lib/utils/dates';
 import { parseCsv, hashCsvContent, parseSellerboardDateUtc } from './client';
 import type { SellerboardWeeklyUnits, SellerboardOrdersParseResult } from './types';
 
@@ -13,6 +14,7 @@ export function parseSellerboardOrdersWeeklyUnits(
   planning: PlanningCalendar,
   options: {
     weekStartsOn: 0 | 1;
+    reportTimeZone: string;
     productCodeHeader?: string;
     purchaseDateHeader?: string;
     unitsHeader?: string;
@@ -96,7 +98,8 @@ export function parseSellerboardOrdersWeeklyUnits(
     }
 
     const units = Math.max(0, Math.round(rawUnits));
-    const weekNumber = weekNumberForDate(purchaseDateUtc, planning.calendar);
+    const reportDate = getUtcDateForTimeZone(purchaseDateUtc, options.reportTimeZone);
+    const weekNumber = weekNumberForDate(reportDate, planning.calendar);
     if (weekNumber == null) {
       rowsSkipped += 1;
       continue;
