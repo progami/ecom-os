@@ -187,8 +187,8 @@ function validatePurchaseOrderStageDates(dates: {
     ] as const;
 
     for (const check of checks) {
-      if (check.date && check.date.getTime() <= poDate.getTime()) {
-        return `${check.label} must be after PO Date`;
+      if (check.date && check.date.getTime() < poDate.getTime()) {
+        return `${check.label} must be on or after PO Date`;
       }
     }
   }
@@ -196,25 +196,25 @@ function validatePurchaseOrderStageDates(dates: {
   if (
     productionStart &&
     productionComplete &&
-    productionComplete.getTime() <= productionStart.getTime()
+    productionComplete.getTime() < productionStart.getTime()
   ) {
-    return 'Mfg Done must be after Mfg Start';
+    return 'Mfg Done must be on or after Mfg Start';
   }
 
   if (
     productionComplete &&
     sourceDeparture &&
-    sourceDeparture.getTime() <= productionComplete.getTime()
+    sourceDeparture.getTime() < productionComplete.getTime()
   ) {
-    return 'Departure must be after Mfg Done';
+    return 'Departure must be on or after Mfg Done';
   }
 
-  if (sourceDeparture && portEta && portEta.getTime() <= sourceDeparture.getTime()) {
-    return 'Port Arrival must be after Departure';
+  if (sourceDeparture && portEta && portEta.getTime() < sourceDeparture.getTime()) {
+    return 'Port Arrival must be on or after Departure';
   }
 
-  if (portEta && availableDate && availableDate.getTime() <= portEta.getTime()) {
-    return 'Warehouse must be after Port Arrival';
+  if (portEta && availableDate && availableDate.getTime() < portEta.getTime()) {
+    return 'Warehouse must be on or after Port Arrival';
   }
 
   return null;

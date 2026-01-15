@@ -96,6 +96,20 @@ export type SellerboardWeeklyFinancials = {
   netProfit: number;
 };
 
+// Weekly totals from Dashboard by day (breakdown enabled) report
+export type SellerboardWeeklyTotals = {
+  weekNumber: number;
+  revenue: number;
+  units: number;
+  orders: number;
+  cogs: number;
+  amazonFees: number;
+  ppcSpend: number;
+  grossProfit: number;
+  netProfit: number;
+  estimatedPayout: number;
+};
+
 // Parse result from Dashboard CSV
 export type SellerboardDashboardParseResult = {
   rowsParsed: number;
@@ -105,6 +119,16 @@ export type SellerboardDashboardParseResult = {
   csvSha256: string;
   oldestDateUtc: Date | null;
   newestDateUtc: Date | null;
+};
+
+export type SellerboardDashboardTotalsParseResult = {
+  rowsParsed: number;
+  rowsSkipped: number;
+  weekStartsOn: 0 | 1;
+  weeklyTotals: SellerboardWeeklyTotals[];
+  csvSha256: string;
+  oldestDate: Date | null;
+  newestDate: Date | null;
 };
 
 // Dashboard Sync result

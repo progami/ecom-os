@@ -39,6 +39,7 @@ describe('sellerboard orders parsing', () => {
 
     const result = parseSellerboardOrdersWeeklyUnits(csv, planning, {
       weekStartsOn: 1,
+      reportTimeZone: 'UTC',
       excludeStatuses: ['Cancelled'],
     });
 
