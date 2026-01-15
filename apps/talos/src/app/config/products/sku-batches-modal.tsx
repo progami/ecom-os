@@ -909,7 +909,7 @@ function SkuBatchesManager({
 
                   <div className="md:col-span-2 pt-4 border-t">
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">Unit Dimensions</h3>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
                       <Tabs>
                         <TabsList className="w-full grid grid-cols-2 mb-4">
                           <TabsTrigger
@@ -930,7 +930,7 @@ function SkuBatchesManager({
 
                         <TabsContent className={batchModalTab === 'reference' ? '' : 'hidden'}>
                           <div className="space-y-4">
-                            <p className="text-xs text-cyan-600">
+                            <p className="text-xs text-slate-500">
                               Team reference values (editable).
                             </p>
                             <div className="space-y-1">
@@ -1005,7 +1005,7 @@ function SkuBatchesManager({
 
                   <div className="md:col-span-2 pt-4 border-t">
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">Carton Dimensions</h3>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-1">
                           <Label>Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
