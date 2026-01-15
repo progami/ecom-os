@@ -981,12 +981,33 @@ function SkuBatchesManager({
                             </p>
                             <div className="space-y-1">
                               <Label>Dimensions (cm)</Label>
-                              <Input
-                                value={sku.unitDimensionsCm ?? ''}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
+                              <div className="grid grid-cols-3 gap-2">
+                                {(() => {
+                                  const dims = (sku.unitDimensionsCm ?? '').split(/[×x]/);
+                                  return (
+                                    <>
+                                      <Input
+                                        value={dims[0]?.trim() ?? ''}
+                                        disabled
+                                        className="bg-slate-100 text-slate-500"
+                                        placeholder="S1"
+                                      />
+                                      <Input
+                                        value={dims[1]?.trim() ?? ''}
+                                        disabled
+                                        className="bg-slate-100 text-slate-500"
+                                        placeholder="S2"
+                                      />
+                                      <Input
+                                        value={dims[2]?.trim() ?? ''}
+                                        disabled
+                                        className="bg-slate-100 text-slate-500"
+                                        placeholder="S3"
+                                      />
+                                    </>
+                                  );
+                                })()}
+                              </div>
                             </div>
                             <div className="space-y-1">
                               <Label>Weight (kg)</Label>
