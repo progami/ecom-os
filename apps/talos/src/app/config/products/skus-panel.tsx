@@ -770,133 +770,109 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="md:col-span-2 pt-4 border-t">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Item Dimensions</h3>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-                    <Tabs>
-                      <TabsList className="w-full grid grid-cols-2 mb-4">
-                        <TabsTrigger
-                          type="button"
-                          onClick={() => setModalTab('reference')}
-                          data-state={modalTab === 'reference' ? 'active' : 'inactive'}
-                        >
-                          Reference
-                        </TabsTrigger>
-                        <TabsTrigger
-                          type="button"
-                          onClick={() => setModalTab('amazon')}
-                          data-state={modalTab === 'amazon' ? 'active' : 'inactive'}
-                        >
-                          Amazon
-                        </TabsTrigger>
-                      </TabsList>
+                  <Tabs>
+                    <TabsList className="w-full grid grid-cols-2 mb-4">
+                      <TabsTrigger
+                        type="button"
+                        onClick={() => setModalTab('reference')}
+                        data-state={modalTab === 'reference' ? 'active' : 'inactive'}
+                      >
+                        Reference
+                      </TabsTrigger>
+                      <TabsTrigger
+                        type="button"
+                        onClick={() => setModalTab('amazon')}
+                        data-state={modalTab === 'amazon' ? 'active' : 'inactive'}
+                      >
+                        Amazon
+                      </TabsTrigger>
+                    </TabsList>
 
-                      <TabsContent className={modalTab === 'reference' ? '' : 'hidden'}>
-                        <div className="space-y-4">
-                          <p className="text-xs text-cyan-600">
-                            Team reference values (editable).
-                          </p>
-                          <div className="space-y-1">
-                            <Label>Dimensions (cm)</Label>
-                            <div className="grid grid-cols-3 gap-2">
+                    <p className="text-xs text-slate-500 mb-4">
+                      {modalTab === 'reference'
+                        ? 'Team reference values (editable).'
+                        : 'Imported from Amazon (read-only).'}
+                    </p>
+
+                    <div className="space-y-4">
+                      {/* Item Dimensions Card */}
+                      <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
+                        <h4 className="text-sm font-semibold text-slate-900 mb-3">Item Dimensions</h4>
+                        {modalTab === 'reference' ? (
+                          <div className="space-y-3">
+                            <div className="space-y-1">
+                              <Label>Dimensions (cm)</Label>
+                              <div className="grid grid-cols-3 gap-2">
+                                <Input
+                                  value={formState.itemSide1Cm}
+                                  onChange={event =>
+                                    setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
+                                  }
+                                  placeholder="S1"
+                                  inputMode="decimal"
+                                />
+                                <Input
+                                  value={formState.itemSide2Cm}
+                                  onChange={event =>
+                                    setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
+                                  }
+                                  placeholder="S2"
+                                  inputMode="decimal"
+                                />
+                                <Input
+                                  value={formState.itemSide3Cm}
+                                  onChange={event =>
+                                    setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
+                                  }
+                                  placeholder="S3"
+                                  inputMode="decimal"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="itemWeightKg">Weight (kg)</Label>
                               <Input
-                                value={formState.itemSide1Cm}
+                                id="itemWeightKg"
+                                type="number"
+                                step="0.001"
+                                min={0.001}
+                                value={formState.itemWeightKg}
                                 onChange={event =>
-                                  setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
+                                  setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
                                 }
-                                placeholder="S1"
-                                inputMode="decimal"
-                              />
-                              <Input
-                                value={formState.itemSide2Cm}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
-                                }
-                                placeholder="S2"
-                                inputMode="decimal"
-                              />
-                              <Input
-                                value={formState.itemSide3Cm}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
-                                }
-                                placeholder="S3"
-                                inputMode="decimal"
+                                placeholder="Optional"
                               />
                             </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="itemWeightKg">Weight (kg)</Label>
-                            <Input
-                              id="itemWeightKg"
-                              type="number"
-                              step="0.001"
-                              min={0.001}
-                              value={formState.itemWeightKg}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
-                              }
-                              placeholder="Optional"
-                            />
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="space-y-1">
+                              <Label>Dimensions (cm)</Label>
+                              <Input
+                                value={formState.productDimensionsCm}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Weight (kg)</Label>
+                              <Input
+                                value={formState.amazonReferenceWeightKg}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
                           </div>
-                        </div>
-                      </TabsContent>
+                        )}
+                      </div>
 
-                      <TabsContent className={modalTab === 'amazon' ? '' : 'hidden'}>
-                        <div className="space-y-4">
-                          <p className="text-xs text-slate-500">
-                            Imported from Amazon (read-only).
-                          </p>
-                          <div className="space-y-1">
-                            <Label>Dimensions (cm)</Label>
-                            <Input
-                              value={formState.productDimensionsCm}
-                              disabled
-                              className="bg-slate-100 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>Weight (kg)</Label>
-                            <Input
-                              value={formState.amazonReferenceWeightKg}
-                              disabled
-                              className="bg-slate-100 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-                </div>
-
-                <div className="md:col-span-2 pt-4 border-t">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Amazon Fees</h3>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-                    <Tabs>
-                      <TabsList className="w-full grid grid-cols-2 mb-4">
-                        <TabsTrigger
-                          type="button"
-                          onClick={() => setModalTab('reference')}
-                          data-state={modalTab === 'reference' ? 'active' : 'inactive'}
-                        >
-                          Reference
-                        </TabsTrigger>
-                        <TabsTrigger
-                          type="button"
-                          onClick={() => setModalTab('amazon')}
-                          data-state={modalTab === 'amazon' ? 'active' : 'inactive'}
-                        >
-                          Amazon
-                        </TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent className={modalTab === 'reference' ? '' : 'hidden'}>
-                        <div className="space-y-4">
-                          <p className="text-xs text-cyan-600">
-                            Team reference values (editable).
-                          </p>
-                          <div className="grid gap-4 md:grid-cols-2">
+                      {/* Amazon Fees Card */}
+                      <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
+                        <h4 className="text-sm font-semibold text-slate-900 mb-3">Amazon Fees</h4>
+                        {modalTab === 'reference' ? (
+                          <div className="grid gap-3 md:grid-cols-2">
                             <div className="space-y-1">
                               <Label htmlFor="category">Category</Label>
                               <Input
@@ -949,15 +925,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                               />
                             </div>
                           </div>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent className={modalTab === 'amazon' ? '' : 'hidden'}>
-                        <div className="space-y-4">
-                          <p className="text-xs text-slate-500">
-                            Imported from Amazon (read-only).
-                          </p>
-                          <div className="grid gap-4 md:grid-cols-2">
+                        ) : (
+                          <div className="grid gap-3 md:grid-cols-2">
                             <div className="space-y-1">
                               <Label>Category</Label>
                               <Input
@@ -995,10 +964,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                               />
                             </div>
                           </div>
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
+                        )}
+                      </div>
+                    </div>
+                  </Tabs>
                 </div>
 
                 {!editingSku ? (
