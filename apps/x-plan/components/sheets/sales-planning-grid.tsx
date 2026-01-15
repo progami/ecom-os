@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
 import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
