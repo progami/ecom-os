@@ -7,6 +7,7 @@ import { DataTable, ColumnMeta } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TransactionEditModal } from '@/components/transaction-edit-modal';
+import { NotConnectedScreen } from '@/components/not-connected-screen';
 import { cn } from '@/lib/utils';
 
 interface Purchase {
@@ -317,6 +318,10 @@ export default function TransactionsPage() {
   );
 
   if (error) {
+    if (error === 'Not connected to QBO') {
+      return <NotConnectedScreen title="Transactions" />;
+    }
+
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">

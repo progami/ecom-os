@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { NotConnectedScreen } from '@/components/not-connected-screen';
 import { cn } from '@/lib/utils';
 import type { ComplianceStatus, BulkUpdateRequest, BulkUpdateResponse } from '@/lib/sop/types';
 
@@ -227,14 +228,17 @@ export default function ReconcilePage() {
   }, [selectedIds]);
 
   if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load transactions';
+    if (errorMessage === 'Not connected to QBO') {
+      return <NotConnectedScreen title="Reconciliation" />;
+    }
+
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">
           <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/50 p-8 text-center">
             <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Error</h2>
-            <p className="text-red-600 dark:text-red-300 mb-4">
-              {error instanceof Error ? error.message : 'Failed to load transactions'}
-            </p>
+            <p className="text-red-600 dark:text-red-300 mb-4">{errorMessage}</p>
             <Button onClick={() => refetch()} variant="outline">
               <RefreshIcon className="h-4 w-4 mr-2" />
               Retry
