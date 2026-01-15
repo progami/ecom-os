@@ -138,11 +138,25 @@ export default function TransactionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
   const [filter, setFilter] = useState<'all' | 'compliant' | 'partial' | 'non-compliant'>('all');
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
 
-  const fetchPurchases = useCallback(async (page: number = 1) => {
+  const checkConnectionAndFetch = useCallback(async (page: number = 1) => {
     setLoading(true);
     setError(null);
     try {
+      // First check connection status
+      const statusRes = await fetch(`${basePath}/api/qbo/status`);
+      const statusData = await statusRes.json();
+
+      if (!statusData.connected) {
+        setIsConnected(false);
+        setLoading(false);
+        return;
+      }
+
+      setIsConnected(true);
+
+      // Now fetch purchases
       const res = await fetch(`${basePath}/api/qbo/purchases?page=${page}&pageSize=50`);
       if (!res.ok) {
         const data = await res.json();
@@ -159,11 +173,11 @@ export default function TransactionsPage() {
   }, []);
 
   useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases]);
+    checkConnectionAndFetch();
+  }, [checkConnectionAndFetch]);
 
   const handlePageChange = (newPage: number) => {
-    fetchPurchases(newPage);
+    checkConnectionAndFetch(newPage);
   };
 
   const handleEdit = (purchase: Purchase) => {
@@ -317,18 +331,18 @@ export default function TransactionsPage() {
     []
   );
 
-  if (error) {
-    if (error === 'Not connected to QBO') {
-      return <NotConnectedScreen title="Transactions" />;
-    }
+  if (isConnected === false) {
+    return <NotConnectedScreen title="Transactions" />;
+  }
 
+  if (error) {
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">
           <div className="rounded-xl border border-danger-200 bg-danger-50 dark:border-danger-900 dark:bg-danger-950/50 p-8 text-center">
             <h2 className="text-lg font-semibold text-danger-700 dark:text-danger-400 mb-2">Error</h2>
             <p className="text-danger-600 dark:text-danger-300 mb-4">{error}</p>
-            <Button onClick={() => fetchPurchases()} variant="outline">
+            <Button onClick={() => checkConnectionAndFetch()} variant="outline">
               <RefreshIcon className="h-4 w-4 mr-2" />
               Retry
             </Button>
@@ -353,7 +367,7 @@ export default function TransactionsPage() {
             </Link>
             <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Transactions</h1>
           </div>
-          <Button onClick={() => fetchPurchases(pagination.page)} variant="outline" size="sm">
+          <Button onClick={() => checkConnectionAndFetch(pagination.page)} variant="outline" size="sm">
             <RefreshIcon className="h-4 w-4 mr-2" />
             Refresh
           </Button>
