@@ -28,6 +28,15 @@ interface PurchasesResponse {
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
 
+interface ConnectionStatus {
+  connected: boolean;
+}
+
+async function fetchConnectionStatus(): Promise<ConnectionStatus> {
+  const res = await fetch(`${basePath}/api/qbo/status`);
+  return res.json();
+}
+
 async function fetchPurchases(page: number = 1): Promise<PurchasesResponse> {
   const res = await fetch(`${basePath}/api/qbo/purchases?page=${page}&limit=100`);
   if (!res.ok) {
@@ -128,10 +137,17 @@ export default function ReconcilePage() {
   const [accountFilter, setAccountFilter] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  const { data: connectionStatus, isLoading: isCheckingConnection } = useQuery({
+    queryKey: ['qbo-status'],
+    queryFn: fetchConnectionStatus,
+    staleTime: 30 * 1000,
+  });
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['qbo-purchases-reconcile'],
     queryFn: () => fetchPurchases(1),
     staleTime: 2 * 60 * 1000,
+    enabled: connectionStatus?.connected === true,
   });
 
   const bulkUpdateMutation = useMutation({
@@ -227,12 +243,12 @@ export default function ReconcilePage() {
     // TODO: Open bulk edit modal with SOP selection
   }, [selectedIds]);
 
+  if (!isCheckingConnection && connectionStatus?.connected === false) {
+    return <NotConnectedScreen title="Reconciliation" />;
+  }
+
   if (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to load transactions';
-    if (errorMessage === 'Not connected to QBO') {
-      return <NotConnectedScreen title="Reconciliation" />;
-    }
-
     return (
       <div className="min-h-screen bg-background p-8">
         <div className="max-w-7xl mx-auto">
@@ -353,7 +369,7 @@ export default function ReconcilePage() {
 
         {/* Grouped Transactions */}
         <div className="space-y-6">
-          {isLoading ? (
+          {isLoading || isCheckingConnection ? (
             <div className="rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 p-8">
               <div className="flex items-center justify-center gap-2 text-slate-500">
                 <RefreshIcon className="h-5 w-5 animate-spin" />
