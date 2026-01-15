@@ -769,6 +769,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   </select>
                 </div>
 
+                {/* Amazon Fees Section */}
                 <div className="md:col-span-2 pt-4 border-t">
                   <Tabs>
                     <TabsList className="w-full grid grid-cols-2 mb-4">
@@ -788,184 +789,107 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       </TabsTrigger>
                     </TabsList>
 
-                    <p className="text-xs text-slate-500 mb-4">
-                      {modalTab === 'reference'
-                        ? 'Team reference values (editable).'
-                        : 'Imported from Amazon (read-only).'}
-                    </p>
-
-                    <div className="space-y-4">
-                      {/* Item Dimensions Card */}
-                      <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-3">Item Dimensions</h4>
-                        {modalTab === 'reference' ? (
-                          <div className="space-y-3">
-                            <div className="space-y-1">
-                              <Label>Dimensions (cm)</Label>
-                              <div className="grid grid-cols-3 gap-2">
-                                <Input
-                                  value={formState.itemSide1Cm}
-                                  onChange={event =>
-                                    setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
-                                  }
-                                  placeholder="S1"
-                                  inputMode="decimal"
-                                />
-                                <Input
-                                  value={formState.itemSide2Cm}
-                                  onChange={event =>
-                                    setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
-                                  }
-                                  placeholder="S2"
-                                  inputMode="decimal"
-                                />
-                                <Input
-                                  value={formState.itemSide3Cm}
-                                  onChange={event =>
-                                    setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
-                                  }
-                                  placeholder="S3"
-                                  inputMode="decimal"
-                                />
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <Label htmlFor="itemWeightKg">Weight (kg)</Label>
-                              <Input
-                                id="itemWeightKg"
-                                type="number"
-                                step="0.001"
-                                min={0.001}
-                                value={formState.itemWeightKg}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
-                                }
-                                placeholder="Optional"
-                              />
-                            </div>
+                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
+                      <h4 className="text-sm font-semibold text-slate-900 mb-1">Amazon Fees</h4>
+                      <p className="text-xs text-slate-500 mb-3">
+                        {modalTab === 'reference'
+                          ? 'Team reference values (editable).'
+                          : 'Imported from Amazon (read-only).'}
+                      </p>
+                      {modalTab === 'reference' ? (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="category">Category</Label>
+                            <Input
+                              id="category"
+                              value={formState.category}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, category: event.target.value }))
+                              }
+                              placeholder="e.g. Home & Kitchen"
+                            />
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="space-y-1">
-                              <Label>Dimensions (cm)</Label>
-                              <Input
-                                value={formState.productDimensionsCm}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label>Weight (kg)</Label>
-                              <Input
-                                value={formState.amazonReferenceWeightKg}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="sizeTier">Size Tier</Label>
+                            <Input
+                              id="sizeTier"
+                              value={formState.sizeTier}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
+                              }
+                              placeholder="e.g. Small Standard-Size"
+                            />
                           </div>
-                        )}
-                      </div>
-
-                      {/* Amazon Fees Card */}
-                      <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-3">Amazon Fees</h4>
-                        {modalTab === 'reference' ? (
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <Label htmlFor="category">Category</Label>
-                              <Input
-                                id="category"
-                                value={formState.category}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, category: event.target.value }))
-                                }
-                                placeholder="e.g. Home & Kitchen"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label htmlFor="sizeTier">Size Tier</Label>
-                              <Input
-                                id="sizeTier"
-                                value={formState.sizeTier}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
-                                }
-                                placeholder="e.g. Small Standard-Size"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
-                              <Input
-                                id="referralFeePercent"
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                max={100}
-                                value={formState.referralFeePercent}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, referralFeePercent: event.target.value }))
-                                }
-                                placeholder="e.g. 15"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label htmlFor="fbaFulfillmentFee">FBA Fulfillment Fee</Label>
-                              <Input
-                                id="fbaFulfillmentFee"
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                value={formState.fbaFulfillmentFee}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, fbaFulfillmentFee: event.target.value }))
-                                }
-                                placeholder="e.g. 3.22"
-                              />
-                            </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
+                            <Input
+                              id="referralFeePercent"
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              max={100}
+                              value={formState.referralFeePercent}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, referralFeePercent: event.target.value }))
+                              }
+                              placeholder="e.g. 15"
+                            />
                           </div>
-                        ) : (
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <Label>Category</Label>
-                              <Input
-                                value={formState.amazonCategory}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label>Size Tier</Label>
-                              <Input
-                                value={formState.amazonSizeTier}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label>Referral Fee (%)</Label>
-                              <Input
-                                value={formState.amazonReferralFeePercent}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label>FBA Fulfillment Fee</Label>
-                              <Input
-                                value={formState.amazonFbaFulfillmentFee}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="fbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                            <Input
+                              id="fbaFulfillmentFee"
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              value={formState.fbaFulfillmentFee}
+                              onChange={event =>
+                                setFormState(prev => ({ ...prev, fbaFulfillmentFee: event.target.value }))
+                              }
+                              placeholder="e.g. 3.22"
+                            />
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-1">
+                            <Label>Category</Label>
+                            <Input
+                              value={formState.amazonCategory}
+                              disabled
+                              className="bg-slate-100 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Size Tier</Label>
+                            <Input
+                              value={formState.amazonSizeTier}
+                              disabled
+                              className="bg-slate-100 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Referral Fee (%)</Label>
+                            <Input
+                              value={formState.amazonReferralFeePercent}
+                              disabled
+                              className="bg-slate-100 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>FBA Fulfillment Fee</Label>
+                            <Input
+                              value={formState.amazonFbaFulfillmentFee}
+                              disabled
+                              className="bg-slate-100 text-slate-500"
+                              placeholder="—"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </Tabs>
                 </div>
