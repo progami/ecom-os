@@ -1240,15 +1240,6 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label>Subcategory</Label>
-                              <Input
-                                value={formState.amazonSubcategory}
-                                disabled
-                                className="bg-slate-100 text-slate-500"
-                                placeholder="—"
-                              />
-                            </div>
-                            <div className="space-y-1">
                               <Label>Size Tier</Label>
                               <Input
                                 value={formState.amazonSizeTier}
@@ -1287,6 +1278,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                                   className="bg-slate-100 text-slate-500"
                                   placeholder="—"
                                 />
+                                <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
                               </div>
                               <div className="space-y-1">
                                 <Label>Unit Weight (kg)</Label>
@@ -1296,6 +1288,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                                   className="bg-slate-100 text-slate-500"
                                   placeholder="—"
                                 />
+                                <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
                               </div>
                             </div>
                           </div>
