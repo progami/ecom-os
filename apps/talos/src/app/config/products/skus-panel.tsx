@@ -125,6 +125,7 @@ interface SkuRow {
   description: string
   asin: string | null
   category?: string | null
+  subcategory?: string | null
   sizeTier?: string | null
   referralFeePercent?: number | string | null
   fbaFulfillmentFee?: number | string | null
@@ -156,6 +157,7 @@ interface SkuFormState {
   description: string
   asin: string
   category: string
+  subcategory: string
   sizeTier: string
   referralFeePercent: string
   fbaFulfillmentFee: string
@@ -220,6 +222,7 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
     category,
+    subcategory: sku?.subcategory ?? '',
     sizeTier: sku?.sizeTier ?? '',
     referralFeePercent: sku?.referralFeePercent?.toString?.() ?? '',
     fbaFulfillmentFee: sku?.fbaFulfillmentFee?.toString?.() ?? '',
@@ -685,6 +688,9 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
 
     setIsSubmitting(true)
     try {
+      const subcategoryTrimmed = formState.subcategory.trim()
+      const subcategoryValue = subcategoryTrimmed ? subcategoryTrimmed : null
+
       const payload: Record<string, unknown> = {
         skuCode,
         asin: asinValue,
@@ -692,6 +698,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
         category: categoryValue,
+        subcategory: subcategoryValue,
         sizeTier: sizeTierValue,
         referralFeePercent,
         fbaFulfillmentFee,
@@ -1170,6 +1177,17 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                                   </option>
                                 ))}
                               </select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="subcategory">Subcategory</Label>
+                              <Input
+                                id="subcategory"
+                                value={formState.subcategory}
+                                onChange={event =>
+                                  setFormState(prev => ({ ...prev, subcategory: event.target.value }))
+                                }
+                                placeholder="Optional"
+                              />
                             </div>
                             <div className="space-y-1">
                               <Label htmlFor="sizeTier">Size Tier</Label>
