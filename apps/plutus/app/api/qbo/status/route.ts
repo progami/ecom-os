@@ -46,9 +46,12 @@ export async function GET() {
       logger.info('QBO token refreshed successfully');
     }
   } catch (refreshError) {
-    // Token refresh failed - log but still try with existing token
-    logger.warn('Token refresh failed, trying with existing token', {
+    logger.warn('Token refresh failed', {
       error: refreshError instanceof Error ? refreshError.message : String(refreshError),
+    });
+    return NextResponse.json<QboConnectionStatus>({
+      connected: false,
+      error: 'Session expired. Please reconnect to QuickBooks.',
     });
   }
 
