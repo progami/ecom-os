@@ -213,30 +213,30 @@ function parseCatalogItemWeightKg(attributes: {
   return null
 }
 
-function parseCatalogCategory(catalog: { summaries?: unknown }): string | null {
+function parseCatalogCategories(catalog: { summaries?: unknown }): { category: string | null; subcategory: string | null } {
   const summaries = catalog.summaries
   if (Array.isArray(summaries) && summaries.length > 0) {
     const summary = summaries[0]
     if (summary && typeof summary === 'object') {
       const summaryRecord = summary as Record<string, unknown>
-      const browse = summaryRecord.browseClassification
-      if (browse && typeof browse === 'object') {
-        const browseRecord = browse as Record<string, unknown>
-        const display = browseRecord.displayName
-        if (typeof display === 'string' && display.trim()) {
-          const sanitized = sanitizeForDisplay(display.trim())
-          return sanitized ? sanitized : null
-        }
-      }
+      const displayGroupRaw = summaryRecord.websiteDisplayGroupName
+      const displayGroup =
+        typeof displayGroupRaw === 'string' && displayGroupRaw.trim()
+          ? sanitizeForDisplay(displayGroupRaw.trim())
+          : null
 
-      const displayGroup = summaryRecord.websiteDisplayGroupName
-      if (typeof displayGroup === 'string' && displayGroup.trim()) {
-        const sanitized = sanitizeForDisplay(displayGroup.trim())
-        return sanitized ? sanitized : null
-      }
+      const browse = summaryRecord.browseClassification
+      const browseDisplayRaw =
+        browse && typeof browse === 'object' ? (browse as Record<string, unknown>).displayName : null
+      const browseDisplay =
+        typeof browseDisplayRaw === 'string' && browseDisplayRaw.trim()
+          ? sanitizeForDisplay(browseDisplayRaw.trim())
+          : null
+
+      return { category: displayGroup ?? null, subcategory: browseDisplay ?? null }
     }
   }
-  return null
+  return { category: null, subcategory: null }
 }
 
 function roundToTwoDecimals(value: number): number | null {
@@ -624,6 +624,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     let itemWeightKg: number | null = null
     let itemTriplet: { side1Cm: number; side2Cm: number; side3Cm: number } | null = null
     let amazonCategory: string | null = null
+    let amazonSubcategory: string | null = null
     let amazonReferralFeePercent: number | null = null
     let amazonFbaFulfillmentFee: number | null = null
     let amazonSizeTier: string | null = null
@@ -644,7 +645,9 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         itemWeightKg = parseCatalogItemWeightKg(attributes)
         itemTriplet = parseCatalogItemDimensions(attributes)
       }
-      amazonCategory = parseCatalogCategory(catalog)
+      const categories = parseCatalogCategories(catalog)
+      amazonCategory = categories.category
+      amazonSubcategory = categories.subcategory
     } catch (error) {
       errors.push(
         `Amazon catalog lookup failed for ${skuCode} (ASIN ${asin}): ${
@@ -736,6 +739,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         const skuUpdateData: Prisma.SkuUpdateInput = {
           description,
           amazonCategory,
+          amazonSubcategory,
           amazonSizeTier,
           amazonReferralFeePercent,
           amazonFbaFulfillmentFee,
@@ -786,6 +790,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               asin,
               description,
               amazonCategory,
+              amazonSubcategory,
               amazonSizeTier,
               amazonReferralFeePercent,
               amazonFbaFulfillmentFee,

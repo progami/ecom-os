@@ -94,6 +94,7 @@ model Sku {
   referralFeePercent   Decimal?   @map("referral_fee_percent") @db.Decimal(5, 2)
   fbaFulfillmentFee    Decimal?   @map("fba_fulfillment_fee") @db.Decimal(12, 2)
   amazonCategory       String?    @map("amazon_category")
+  amazonSubcategory    String?    @map("amazon_subcategory")
   amazonSizeTier       String?    @map("amazon_size_tier")
   amazonReferralFeePercent Decimal? @map("amazon_referral_fee_percent") @db.Decimal(5, 2)
   amazonFbaFulfillmentFee Decimal? @map("amazon_fba_fulfillment_fee") @db.Decimal(12, 2)

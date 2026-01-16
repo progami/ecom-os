@@ -16,6 +16,62 @@ import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-ico
 
 type SkuModalTab = 'reference' | 'amazon'
 
+const AMAZON_REFERRAL_CATEGORIES_2026 = [
+  'Amazon Device Accessories',
+  'Appliances - Compact',
+  'Appliances - Full-size',
+  'Automotive and Powersports',
+  'Baby Products',
+  'Backpacks, Handbags, Luggage',
+  'Base Equipment Power Tools',
+  'Beauty, Health, Personal Care',
+  'Books',
+  'Business, Industrial, Scientific',
+  'Clothing and Accessories',
+  'Computers',
+  'Consumer Electronics',
+  'DVD',
+  'Electronics Accessories',
+  'Everything Else',
+  'Eyewear',
+  'Fine Art',
+  'Footwear',
+  'Furniture',
+  'Gift Cards',
+  'Grocery and Gourmet',
+  'Home and Kitchen',
+  'Jewelry',
+  'Lawn and Garden',
+  'Lawn Mowers & Snow Throwers',
+  'Mattresses',
+  'Merchant Fulfilled Services',
+  'Music',
+  'Musical Instruments & AV',
+  'Office Products',
+  'Pet Supplies',
+  'Software',
+  'Sports and Outdoors',
+  'Tires',
+  'Tools and Home Improvement',
+  'Toys and Games',
+  'Video',
+  'Video Game Consoles',
+  'Video Games & Gaming Accessories',
+  'Watches',
+] as const
+
+const AMAZON_SIZE_TIER_OPTIONS = [
+  'Small Standard-Size',
+  'Large Standard-Size',
+  'Standard-Size',
+  'Small Oversize',
+  'Medium Oversize',
+  'Large Oversize',
+  'Special Oversize',
+  'Oversize',
+  'Small and Light',
+] as const
+
 interface SkuBatchRow {
   id: string
   batchCode: string
@@ -53,6 +109,7 @@ interface SkuRow {
   referralFeePercent?: number | string | null
   fbaFulfillmentFee?: number | string | null
   amazonCategory?: string | null
+  amazonSubcategory?: string | null
   amazonSizeTier?: string | null
   amazonReferralFeePercent?: number | string | null
   amazonFbaFulfillmentFee?: number | string | null
@@ -84,6 +141,7 @@ interface SkuFormState {
   referralFeePercent: string
   fbaFulfillmentFee: string
   amazonCategory: string
+  amazonSubcategory: string
   amazonSizeTier: string
   amazonReferralFeePercent: string
   amazonFbaFulfillmentFee: string
@@ -139,6 +197,7 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     referralFeePercent: sku?.referralFeePercent?.toString?.() ?? '',
     fbaFulfillmentFee: sku?.fbaFulfillmentFee?.toString?.() ?? '',
     amazonCategory: sku?.amazonCategory ?? '',
+    amazonSubcategory: sku?.amazonSubcategory ?? '',
     amazonSizeTier: sku?.amazonSizeTier ?? '',
     amazonReferralFeePercent: sku?.amazonReferralFeePercent?.toString?.() ?? '',
     amazonFbaFulfillmentFee: sku?.amazonFbaFulfillmentFee?.toString?.() ?? '',
@@ -820,25 +879,39 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                           <div className="grid gap-3 md:grid-cols-2">
                             <div className="space-y-1">
                               <Label htmlFor="category">Category</Label>
-                              <Input
+                              <select
                                 id="category"
                                 value={formState.category}
                                 onChange={event =>
                                   setFormState(prev => ({ ...prev, category: event.target.value }))
                                 }
-                                placeholder="e.g. Home & Kitchen"
-                              />
+                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              >
+                                <option value="">Select category</option>
+                                {AMAZON_REFERRAL_CATEGORIES_2026.map(category => (
+                                  <option key={category} value={category}>
+                                    {category}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <div className="space-y-1">
                               <Label htmlFor="sizeTier">Size Tier</Label>
-                              <Input
+                              <select
                                 id="sizeTier"
                                 value={formState.sizeTier}
                                 onChange={event =>
                                   setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
                                 }
-                                placeholder="e.g. Small Standard-Size"
-                              />
+                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              >
+                                <option value="">Select size tier</option>
+                                {AMAZON_SIZE_TIER_OPTIONS.map(sizeTier => (
+                                  <option key={sizeTier} value={sizeTier}>
+                                    {sizeTier}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <div className="space-y-1">
                               <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
@@ -946,6 +1019,15 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                               <Label>Category</Label>
                               <Input
                                 value={formState.amazonCategory}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Subcategory</Label>
+                              <Input
+                                value={formState.amazonSubcategory}
                                 disabled
                                 className="bg-slate-100 text-slate-500"
                                 placeholder="—"
