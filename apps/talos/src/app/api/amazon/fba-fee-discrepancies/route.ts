@@ -37,13 +37,7 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
       description: true,
       asin: true,
       fbaFulfillmentFee: true,
-      amazonFbaFulfillmentFee: true,
       amazonListingPrice: true,
-      amazonReferenceWeightKg: true,
-      unitDimensionsCm: true,
-      unitSide1Cm: true,
-      unitSide2Cm: true,
-      unitSide3Cm: true,
       itemDimensionsCm: true,
       itemSide1Cm: true,
       itemSide2Cm: true,
@@ -53,15 +47,44 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
         where: { isActive: true },
         orderBy: { createdAt: 'desc' },
         take: 1,
-        select: { batchCode: true },
+        select: {
+          batchCode: true,
+          unitDimensionsCm: true,
+          unitSide1Cm: true,
+          unitSide2Cm: true,
+          unitSide3Cm: true,
+          unitWeightKg: true,
+          amazonItemPackageDimensionsCm: true,
+          amazonItemPackageSide1Cm: true,
+          amazonItemPackageSide2Cm: true,
+          amazonItemPackageSide3Cm: true,
+          amazonReferenceWeightKg: true,
+          amazonSizeTier: true,
+          amazonFbaFulfillmentFee: true,
+        },
       },
     },
   })
 
-  const resolvedSkus = skus.map(({ batches, ...sku }) => ({
-    ...sku,
-    latestBatchCode: batches[0]?.batchCode ?? null,
-  }))
+  const resolvedSkus = skus.map(({ batches, ...sku }) => {
+    const latestBatch = batches[0] ?? null
+    return {
+      ...sku,
+      latestBatchCode: latestBatch?.batchCode ?? null,
+      referenceItemPackageDimensionsCm: latestBatch?.unitDimensionsCm ?? null,
+      referenceItemPackageSide1Cm: latestBatch?.unitSide1Cm ?? null,
+      referenceItemPackageSide2Cm: latestBatch?.unitSide2Cm ?? null,
+      referenceItemPackageSide3Cm: latestBatch?.unitSide3Cm ?? null,
+      referenceItemPackageWeightKg: latestBatch?.unitWeightKg ?? null,
+      amazonItemPackageDimensionsCm: latestBatch?.amazonItemPackageDimensionsCm ?? null,
+      amazonItemPackageSide1Cm: latestBatch?.amazonItemPackageSide1Cm ?? null,
+      amazonItemPackageSide2Cm: latestBatch?.amazonItemPackageSide2Cm ?? null,
+      amazonItemPackageSide3Cm: latestBatch?.amazonItemPackageSide3Cm ?? null,
+      amazonItemPackageWeightKg: latestBatch?.amazonReferenceWeightKg ?? null,
+      amazonSizeTier: latestBatch?.amazonSizeTier ?? null,
+      amazonFbaFulfillmentFee: latestBatch?.amazonFbaFulfillmentFee ?? null,
+    }
+  })
 
   return ApiResponses.success({ currencyCode, skus: resolvedSkus })
 })

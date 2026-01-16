@@ -34,6 +34,7 @@
     "db:migrate:sku-dimensions": "tsx scripts/migrations/add-sku-dimension-columns.ts",
     "db:migrate:sku-batch-attributes": "tsx scripts/migrations/add-sku-batch-attribute-columns.ts",
     "db:migrate:sku-batch-amazon-defaults": "tsx scripts/migrations/add-sku-batch-amazon-default-columns.ts",
+    "db:migrate:sku-batch-amazon-item-package-dimensions": "tsx scripts/migrations/add-sku-batch-amazon-item-package-dimensions.ts",
     "db:migrate:sku-amazon-reference-weight": "tsx scripts/migrations/add-sku-amazon-reference-weight.ts",
     "db:migrate:sku-amazon-categories": "tsx scripts/migrations/add-sku-amazon-category-columns.ts",
     "db:migrate:supplier-defaults": "tsx scripts/migrations/add-supplier-default-columns.ts",
