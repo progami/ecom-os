@@ -2383,18 +2383,9 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       );
       controls.push(
         <SellerboardSyncControl
-          key="sellerboard-sync-actual-sales"
+          key="sellerboard-sync"
           isSuperAdmin={viewer.isSuperAdmin}
           strategyRegion={strategyRegion}
-          kind="actual-sales"
-        />,
-      );
-      controls.push(
-        <SellerboardSyncControl
-          key="sellerboard-sync-dashboard"
-          isSuperAdmin={viewer.isSuperAdmin}
-          strategyRegion={strategyRegion}
-          kind="dashboard"
         />,
       );
       wrapLayout = (node) => (
@@ -2445,10 +2436,9 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       controls.push(<ProfitAndLossHeaderControls key="pnl-controls" />);
       controls.push(
         <SellerboardSyncControl
-          key="sellerboard-sync-dashboard-pnl"
+          key="sellerboard-sync"
           isSuperAdmin={viewer.isSuperAdmin}
           strategyRegion={strategyRegion}
-          kind="dashboard"
         />,
       );
       wrapLayout = (node) => (
