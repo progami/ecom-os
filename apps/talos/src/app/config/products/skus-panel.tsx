@@ -9,12 +9,91 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PortalModal } from '@/components/ui/portal-modal'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
+import {
+  calculateFbaFulfillmentFee2026NonPeakExcludingApparel,
+  calculateSizeTier,
+  getReferralFeePercent2026,
+} from '@/lib/amazon/fees'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
 type SkuModalTab = 'reference' | 'amazon'
+
+const AMAZON_REFERRAL_CATEGORIES_2026 = [
+  'Amazon Device Accessories',
+  'Appliances - Compact',
+  'Appliances - Full-size',
+  'Automotive and Powersports',
+  'Baby Products',
+  'Backpacks, Handbags, Luggage',
+  'Base Equipment Power Tools',
+  'Beauty, Health, Personal Care',
+  'Books',
+  'Business, Industrial, Scientific',
+  'Clothing and Accessories',
+  'Computers',
+  'Consumer Electronics',
+  'DVD',
+  'Electronics Accessories',
+  'Everything Else',
+  'Eyewear',
+  'Fine Art',
+  'Footwear',
+  'Furniture',
+  'Gift Cards',
+  'Grocery and Gourmet',
+  'Home and Kitchen',
+  'Jewelry',
+  'Lawn and Garden',
+  'Lawn Mowers & Snow Throwers',
+  'Mattresses',
+  'Merchant Fulfilled Services',
+  'Music',
+  'Musical Instruments & AV',
+  'Office Products',
+  'Pet Supplies',
+  'Software',
+  'Sports and Outdoors',
+  'Tires',
+  'Tools and Home Improvement',
+  'Toys and Games',
+  'Video',
+  'Video Game Consoles',
+  'Video Games & Gaming Accessories',
+  'Watches',
+] as const
+
+type AmazonReferralCategory = (typeof AMAZON_REFERRAL_CATEGORIES_2026)[number]
+
+const AMAZON_CATEGORY_TO_REFERRAL_CATEGORY = new Map<string, AmazonReferralCategory>([
+  ['Home Improvement', 'Tools and Home Improvement'],
+])
+
+function normalizeReferralCategory(value: string): string {
+  const mapped = AMAZON_CATEGORY_TO_REFERRAL_CATEGORY.get(value)
+  if (mapped) return mapped
+  return value
+}
+
+function formatReferralCategoryLabel(category: AmazonReferralCategory): string {
+  if (category === 'Tools and Home Improvement') return 'Tools and Home Improvement (Home Improvement)'
+  return category
+}
+
+const AMAZON_SIZE_TIER_OPTIONS = [
+  'Small Standard-Size',
+  'Large Standard-Size',
+  'Small Bulky',
+  'Large Bulky',
+  'Extra-Large 0 to 50 lb',
+  'Extra-Large 50+ to 70 lb',
+  'Extra-Large 70+ to 150 lb',
+  'Extra-Large 150+ lb',
+  'Overmax 0 to 150 lb',
+  'Small and Light',
+] as const
 
 interface SkuBatchRow {
   id: string
@@ -48,14 +127,20 @@ interface SkuRow {
   description: string
   asin: string | null
   unitDimensionsCm?: string | null
+  unitSide1Cm?: number | string | null
+  unitSide2Cm?: number | string | null
+  unitSide3Cm?: number | string | null
+  unitWeightKg?: number | string | null
   category?: string | null
   sizeTier?: string | null
   referralFeePercent?: number | string | null
   fbaFulfillmentFee?: number | string | null
   amazonCategory?: string | null
+  amazonSubcategory?: string | null
   amazonSizeTier?: string | null
   amazonReferralFeePercent?: number | string | null
   amazonFbaFulfillmentFee?: number | string | null
+  amazonListingPrice?: number | string | null
   amazonReferenceWeightKg?: number | string | null
   itemDimensionsCm?: string | null
   itemSide1Cm?: number | string | null
@@ -84,11 +169,14 @@ interface SkuFormState {
   referralFeePercent: string
   fbaFulfillmentFee: string
   amazonCategory: string
+  amazonSubcategory: string
   amazonSizeTier: string
   amazonReferralFeePercent: string
   amazonFbaFulfillmentFee: string
   amazonReferenceWeightKg: string
-  itemDimensionsCm: string
+  itemSide1Cm: string
+  itemSide2Cm: string
+  itemSide3Cm: string
   itemWeightKg: string
   defaultSupplierId: string
   secondarySupplierId: string
@@ -102,12 +190,37 @@ interface SkuFormState {
 }
 
 function buildFormState(sku?: SkuRow | null): SkuFormState {
-  // Build item dimensions string from individual values if they exist
-  let itemDims = ''
-  if (sku?.itemSide1Cm && sku?.itemSide2Cm && sku?.itemSide3Cm) {
-    itemDims = `${sku.itemSide1Cm} x ${sku.itemSide2Cm} x ${sku.itemSide3Cm}`
-  } else if (sku?.itemDimensionsCm) {
-    itemDims = sku.itemDimensionsCm
+  // Parse item dimensions from individual values or legacy combined string
+  let side1 = ''
+  let side2 = ''
+  let side3 = ''
+
+  if (sku?.itemSide1Cm != null) {
+    side1 = String(sku.itemSide1Cm)
+  }
+  if (sku?.itemSide2Cm != null) {
+    side2 = String(sku.itemSide2Cm)
+  }
+  if (sku?.itemSide3Cm != null) {
+    side3 = String(sku.itemSide3Cm)
+  }
+
+  // Fallback to parsing legacy combined string if individual values not present
+  if (!side1 && !side2 && !side3 && sku?.itemDimensionsCm) {
+    const parts = sku.itemDimensionsCm.split(/[x×]/i).map(p => p.trim())
+    if (parts.length === 3) {
+      side1 = parts[0]
+      side2 = parts[1]
+      side3 = parts[2]
+    }
+  }
+
+  let category = ''
+  if (sku?.category) {
+    category = sku.category
+  } else if (sku?.amazonCategory) {
+    const mapped = AMAZON_CATEGORY_TO_REFERRAL_CATEGORY.get(sku.amazonCategory)
+    if (mapped) category = mapped
   }
 
   return {
@@ -115,16 +228,19 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
     productDimensionsCm: sku?.unitDimensionsCm ?? '',
-    category: sku?.category ?? '',
+    category,
     sizeTier: sku?.sizeTier ?? '',
     referralFeePercent: sku?.referralFeePercent?.toString?.() ?? '',
     fbaFulfillmentFee: sku?.fbaFulfillmentFee?.toString?.() ?? '',
     amazonCategory: sku?.amazonCategory ?? '',
+    amazonSubcategory: sku?.amazonSubcategory ?? '',
     amazonSizeTier: sku?.amazonSizeTier ?? '',
     amazonReferralFeePercent: sku?.amazonReferralFeePercent?.toString?.() ?? '',
     amazonFbaFulfillmentFee: sku?.amazonFbaFulfillmentFee?.toString?.() ?? '',
     amazonReferenceWeightKg: sku?.amazonReferenceWeightKg?.toString?.() ?? '',
-    itemDimensionsCm: itemDims,
+    itemSide1Cm: side1,
+    itemSide2Cm: side2,
+    itemSide3Cm: side3,
     itemWeightKg: sku?.itemWeightKg?.toString?.() ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
@@ -138,12 +254,76 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
   }
 }
 
+function parseFiniteNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number.parseFloat(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+type ListingPriceResolution =
+  | { listingPrice: number; source: 'EXACT' }
+  | { listingPrice: number; source: 'BAND' }
+
+function resolveAmazonListingPriceForFeeCalculation(sku: SkuRow | null): ListingPriceResolution | null {
+  if (!sku) return null
+
+  const explicitListingPrice = parseFiniteNumber(sku.amazonListingPrice)
+  if (explicitListingPrice !== null && explicitListingPrice >= 0) {
+    return { listingPrice: explicitListingPrice, source: 'EXACT' }
+  }
+
+  const amazonFee = parseFiniteNumber(sku.amazonFbaFulfillmentFee)
+  const amazonSizeTier = typeof sku.amazonSizeTier === 'string' ? sku.amazonSizeTier.trim() : ''
+  const unitWeightKg = parseFiniteNumber(sku.amazonReferenceWeightKg)
+
+  const side1Cm = parseFiniteNumber(sku.unitSide1Cm)
+  const side2Cm = parseFiniteNumber(sku.unitSide2Cm)
+  const side3Cm = parseFiniteNumber(sku.unitSide3Cm)
+
+  if (amazonFee === null) return null
+  if (!amazonSizeTier) return null
+  if (unitWeightKg === null) return null
+  if (side1Cm === null || side2Cm === null || side3Cm === null) return null
+
+  const normalizedAmazonFee = Number(amazonFee.toFixed(2))
+
+  const candidates = [
+    { listingPrice: 9.99 },
+    { listingPrice: 10 },
+    { listingPrice: 51 },
+  ]
+
+  for (const candidate of candidates) {
+    const computed = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
+      side1Cm,
+      side2Cm,
+      side3Cm,
+      unitWeightKg,
+      listingPrice: candidate.listingPrice,
+      sizeTier: amazonSizeTier,
+    })
+    if (computed === null) continue
+    if (Number(computed.toFixed(2)) === normalizedAmazonFee) {
+      return { listingPrice: candidate.listingPrice, source: 'BAND' }
+    }
+  }
+
+  return null
+}
+
 interface SkusPanelProps {
   externalModalOpen?: boolean
+  externalEditSkuId?: string | null
   onExternalModalClose?: () => void
 }
 
-export default function SkusPanel({ externalModalOpen, onExternalModalClose }: SkusPanelProps) {
+export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExternalModalClose }: SkusPanelProps) {
   const router = useRouter()
   const [skus, setSkus] = useState<SkuRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -158,6 +338,85 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
   const [confirmDelete, setConfirmDelete] = useState<SkuRow | null>(null)
   const [modalTab, setModalTab] = useState<SkuModalTab>('reference')
+  const [externalEditOpened, setExternalEditOpened] = useState(false)
+
+  const autoFillReferenceFees = useCallback(
+    (mode: 'blankOnly' | 'force') => {
+      const categoryTrimmed = formState.category.trim()
+      const normalizedCategory = categoryTrimmed ? normalizeReferralCategory(categoryTrimmed) : ''
+      if (!normalizedCategory) return
+
+      const side1Cm = parseFiniteNumber(formState.itemSide1Cm)
+      const side2Cm = parseFiniteNumber(formState.itemSide2Cm)
+      const side3Cm = parseFiniteNumber(formState.itemSide3Cm)
+      const unitWeightKg = parseFiniteNumber(formState.itemWeightKg)
+
+      if (side1Cm === null || side2Cm === null || side3Cm === null) return
+      if (unitWeightKg === null) return
+
+      const selectedSizeTier = formState.sizeTier.trim()
+      const computedSizeTier =
+        selectedSizeTier ? selectedSizeTier : calculateSizeTier(side1Cm, side2Cm, side3Cm, unitWeightKg)
+      if (!computedSizeTier) return
+
+      const listingPriceResolution = resolveAmazonListingPriceForFeeCalculation(editingSku)
+      if (listingPriceResolution === null) {
+        if (mode === 'force') {
+          const message =
+            'Amazon listing price not available yet. Run Amazon import/sync so we can auto-calc 2026 fees.'
+          toast.error(message)
+        }
+        return
+      }
+      const listingPrice = listingPriceResolution.listingPrice
+
+      const referralFeePercent =
+        listingPriceResolution.source === 'EXACT'
+          ? getReferralFeePercent2026(normalizedCategory, listingPrice)
+          : null
+      const fallbackReferralFeePercent = parseFiniteNumber(editingSku?.amazonReferralFeePercent)
+      const resolvedReferralFeePercent =
+        referralFeePercent !== null ? referralFeePercent : fallbackReferralFeePercent
+
+      const fbaFee = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
+        side1Cm,
+        side2Cm,
+        side3Cm,
+        unitWeightKg,
+        listingPrice,
+        sizeTier: computedSizeTier,
+      })
+
+      if (resolvedReferralFeePercent === null && fbaFee === null) return
+
+      setFormState(prev => {
+        const next: SkuFormState = { ...prev }
+
+        if (mode === 'force' || !next.category.trim()) {
+          next.category = normalizedCategory
+        }
+
+        if (mode === 'force' || !next.sizeTier.trim()) {
+          next.sizeTier = computedSizeTier
+        }
+
+        if (resolvedReferralFeePercent !== null) {
+          if (mode === 'force' || !next.referralFeePercent.trim()) {
+            next.referralFeePercent = String(resolvedReferralFeePercent)
+          }
+        }
+
+        if (fbaFee !== null) {
+          if (mode === 'force' || !next.fbaFulfillmentFee.trim()) {
+            next.fbaFulfillmentFee = fbaFee.toFixed(2)
+          }
+        }
+
+        return next
+      })
+    },
+    [editingSku, formState.category, formState.itemSide1Cm, formState.itemSide2Cm, formState.itemSide3Cm, formState.itemWeightKg, formState.sizeTier]
+  )
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -167,6 +426,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       setIsModalOpen(true)
     }
   }, [externalModalOpen])
+
+  useEffect(() => {
+    setExternalEditOpened(false)
+  }, [externalEditSkuId])
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
@@ -238,19 +501,48 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     })
   }, [skus, searchTerm])
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditingSku(null)
     setFormState(buildFormState(null))
     setModalTab('reference')
     setIsModalOpen(true)
-  }
+  }, [])
 
-  const openEdit = (sku: SkuRow) => {
+  const openEdit = useCallback((sku: SkuRow) => {
     setEditingSku(sku)
     setFormState(buildFormState(sku))
     setModalTab('reference')
     setIsModalOpen(true)
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    if (modalTab !== 'reference') return
+
+    const hasReferenceFee = formState.fbaFulfillmentFee.trim()
+    const hasReferralFee = formState.referralFeePercent.trim()
+    const hasSizeTier = formState.sizeTier.trim()
+    if (hasReferenceFee && hasReferralFee && hasSizeTier) return
+
+    autoFillReferenceFees('blankOnly')
+  }, [
+    autoFillReferenceFees,
+    formState.fbaFulfillmentFee,
+    formState.referralFeePercent,
+    formState.sizeTier,
+    isModalOpen,
+    modalTab,
+  ])
+
+  useEffect(() => {
+    if (!externalEditSkuId) return
+    if (externalEditOpened) return
+    if (skus.length === 0) return
+    const sku = skus.find(item => item.id === externalEditSkuId)
+    if (!sku) return
+    openEdit(sku)
+    setExternalEditOpened(true)
+  }, [externalEditOpened, externalEditSkuId, openEdit, skus])
 
   const closeModal = () => {
     if (isSubmitting) return
@@ -287,34 +579,38 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
-    // Parse combined item dimensions (format: "S1 x S2 x S3")
-    const itemDimsRaw = formState.itemDimensionsCm.trim()
+    // Parse reference unit dimension fields
+    const side1Raw = formState.itemSide1Cm.trim()
+    const side2Raw = formState.itemSide2Cm.trim()
+    const side3Raw = formState.itemSide3Cm.trim()
     const itemWeightRaw = formState.itemWeightKg.trim()
 
     let itemSide1Cm: number | null = null
     let itemSide2Cm: number | null = null
     let itemSide3Cm: number | null = null
 
-    if (itemDimsRaw) {
-      const parts = itemDimsRaw.split(/\s*x\s*/i).map(p => p.trim())
-      if (parts.length !== 3) {
-        toast.error('Item dimensions must be in format: S1 x S2 x S3')
+    // All three dimensions must be provided together, or none at all
+    const hasAnyDimension = side1Raw || side2Raw || side3Raw
+    if (hasAnyDimension) {
+      if (!side1Raw || !side2Raw || !side3Raw) {
+        toast.error('Unit dimensions require length, width, and height')
         return
       }
-      itemSide1Cm = Number.parseFloat(parts[0])
-      itemSide2Cm = Number.parseFloat(parts[1])
-      itemSide3Cm = Number.parseFloat(parts[2])
+
+      itemSide1Cm = Number.parseFloat(side1Raw)
+      itemSide2Cm = Number.parseFloat(side2Raw)
+      itemSide3Cm = Number.parseFloat(side3Raw)
 
       if (!Number.isFinite(itemSide1Cm) || itemSide1Cm <= 0) {
-        toast.error('Item side 1 must be a positive number')
+        toast.error('Unit length must be a positive number')
         return
       }
       if (!Number.isFinite(itemSide2Cm) || itemSide2Cm <= 0) {
-        toast.error('Item side 2 must be a positive number')
+        toast.error('Unit width must be a positive number')
         return
       }
       if (!Number.isFinite(itemSide3Cm) || itemSide3Cm <= 0) {
-        toast.error('Item side 3 must be a positive number')
+        toast.error('Unit height must be a positive number')
         return
       }
     }
@@ -323,14 +619,17 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     if (itemWeightRaw) {
       itemWeightKg = Number.parseFloat(itemWeightRaw)
       if (!Number.isFinite(itemWeightKg) || itemWeightKg <= 0) {
-        toast.error('Item weight (kg) must be a positive number')
+        toast.error('Unit weight (kg) must be a positive number')
         return
       }
     }
 
     // Parse reference fee fields
-    const categoryValue = formState.category.trim() || null
-    const sizeTierValue = formState.sizeTier.trim() || null
+    const categoryTrimmed = formState.category.trim()
+    const normalizedCategory = categoryTrimmed ? normalizeReferralCategory(categoryTrimmed) : ''
+    const categoryValue = normalizedCategory ? normalizedCategory : null
+    const sizeTierTrimmed = formState.sizeTier.trim()
+    const sizeTierValue = sizeTierTrimmed ? sizeTierTrimmed : null
     let referralFeePercent: number | null = null
     let fbaFulfillmentFee: number | null = null
 
@@ -383,7 +682,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         packSize,
         unitsPerCarton,
         unitWeightKg,
-        packagingType: formState.initialBatch.packagingType || null,
+        packagingType: formState.initialBatch.packagingType ? formState.initialBatch.packagingType : null,
       }
     }
 
@@ -489,7 +788,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       .filter(Boolean)
       .join(' • ')
 
-    return summary || '—'
+    if (summary) return summary
+    return '—'
   }
 
   return (
@@ -744,10 +1044,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   </select>
                 </div>
 
+                {/* Amazon Fees Section */}
                 <div className="md:col-span-2 pt-4 border-t">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Amazon Fees & Item Dimensions</h3>
                   <Tabs>
-                    <TabsList className="w-full grid grid-cols-2">
+                    <TabsList className="w-full grid grid-cols-2 mb-4">
                       <TabsTrigger
                         type="button"
                         onClick={() => setModalTab('reference')}
@@ -762,161 +1062,239 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       >
                         Amazon
                       </TabsTrigger>
-                    </TabsList>
+	                    </TabsList>
 
-                    <TabsContent className={modalTab === 'reference' ? '' : 'hidden'}>
-                      <div className="space-y-4 pt-4">
-                        <p className="text-xs text-slate-500">
-                          Team reference values (editable).
-                        </p>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="category">Category</Label>
-                            <Input
-                              id="category"
-                              value={formState.category}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, category: event.target.value }))
-                              }
-                              placeholder="e.g. Home & Kitchen"
-                            />
+	                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
+	                      <div className="flex items-start justify-between gap-3 mb-3">
+	                        <div>
+	                          <h4 className="text-sm font-semibold text-slate-900 mb-1">
+	                            Amazon Fees & Unit Dimensions
+	                          </h4>
+	                          <p className="text-xs text-slate-500">
+	                            {modalTab === 'reference'
+	                              ? 'Team reference values (editable).'
+	                              : 'Imported from Amazon (read-only).'}
+	                          </p>
+	                        </div>
+	                        {modalTab === 'reference' ? (
+	                          <Button
+	                            type="button"
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => autoFillReferenceFees('force')}
+	                            disabled={isSubmitting}
+	                            className="h-8 px-3 text-xs"
+	                          >
+	                            Auto-fill
+	                          </Button>
+	                        ) : null}
+	                      </div>
+	                      {modalTab === 'reference' ? (
+	                        <div className="space-y-4">
+	                          <div className="grid gap-3 md:grid-cols-2">
+	                            <div className="space-y-1">
+                              <Label htmlFor="category">Category</Label>
+                              <select
+                                id="category"
+                                value={formState.category}
+                                onChange={event =>
+                                  setFormState(prev => ({ ...prev, category: event.target.value }))
+                                }
+                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              >
+                                <option value="">Select category</option>
+                                {AMAZON_REFERRAL_CATEGORIES_2026.map(category => (
+                                  <option key={category} value={category}>
+                                    {formatReferralCategoryLabel(category)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="sizeTier">Size Tier</Label>
+                              <select
+                                id="sizeTier"
+                                value={formState.sizeTier}
+                                onChange={event =>
+                                  setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
+                                }
+                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                              >
+                                <option value="">Select size tier</option>
+                                {AMAZON_SIZE_TIER_OPTIONS.map(sizeTier => (
+                                  <option key={sizeTier} value={sizeTier}>
+                                    {sizeTier}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
+                              <Input
+                                id="referralFeePercent"
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                max={100}
+                                value={formState.referralFeePercent}
+                                onChange={event =>
+                                  setFormState(prev => ({
+                                    ...prev,
+                                    referralFeePercent: event.target.value,
+                                  }))
+                                }
+                                placeholder="e.g. 15"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="fbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                              <Input
+                                id="fbaFulfillmentFee"
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                value={formState.fbaFulfillmentFee}
+                                onChange={event =>
+                                  setFormState(prev => ({
+                                    ...prev,
+                                    fbaFulfillmentFee: event.target.value,
+                                  }))
+                                }
+                                placeholder="e.g. 3.22"
+                              />
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="sizeTier">Size Tier</Label>
-                            <Input
-                              id="sizeTier"
-                              value={formState.sizeTier}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
-                              }
-                              placeholder="e.g. Small Standard-Size"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
-                            <Input
-                              id="referralFeePercent"
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              max={100}
-                              value={formState.referralFeePercent}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, referralFeePercent: event.target.value }))
-                              }
-                              placeholder="e.g. 15"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="fbaFulfillmentFee">FBA Fulfillment Fee</Label>
-                            <Input
-                              id="fbaFulfillmentFee"
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              value={formState.fbaFulfillmentFee}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, fbaFulfillmentFee: event.target.value }))
-                              }
-                              placeholder="e.g. 3.22"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2 pt-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="itemDimensionsCm">Item Dimensions (cm)</Label>
-                            <Input
-                              id="itemDimensionsCm"
-                              value={formState.itemDimensionsCm}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, itemDimensionsCm: event.target.value }))
-                              }
-                              placeholder="L x W x H"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="itemWeightKg">Item Weight (kg)</Label>
-                            <Input
-                              id="itemWeightKg"
-                              type="number"
-                              step="0.001"
-                              min={0.001}
-                              value={formState.itemWeightKg}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
-                              }
-                              placeholder="Optional"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </TabsContent>
 
-                    <TabsContent className={modalTab === 'amazon' ? '' : 'hidden'}>
-                      <div className="space-y-4 pt-4">
-                        <p className="text-xs text-slate-500">
-                          Imported from Amazon (read-only).
-                        </p>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label>Category</Label>
-                            <Input
-                              value={formState.amazonCategory}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>Size Tier</Label>
-                            <Input
-                              value={formState.amazonSizeTier}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>Referral Fee (%)</Label>
-                            <Input
-                              value={formState.amazonReferralFeePercent}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>FBA Fulfillment Fee</Label>
-                            <Input
-                              value={formState.amazonFbaFulfillmentFee}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
+                          <div className="border-t border-slate-200 pt-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="space-y-1">
+                                <Label>Unit Dimensions (cm)</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <Input
+                                    id="itemSide1Cm"
+                                    type="number"
+                                    step="0.01"
+                                    min={0.01}
+                                    value={formState.itemSide1Cm}
+                                    onChange={event =>
+                                      setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
+                                    }
+                                    placeholder="L"
+                                    inputMode="decimal"
+                                  />
+                                  <Input
+                                    id="itemSide2Cm"
+                                    type="number"
+                                    step="0.01"
+                                    min={0.01}
+                                    value={formState.itemSide2Cm}
+                                    onChange={event =>
+                                      setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
+                                    }
+                                    placeholder="W"
+                                    inputMode="decimal"
+                                  />
+                                  <Input
+                                    id="itemSide3Cm"
+                                    type="number"
+                                    step="0.01"
+                                    min={0.01}
+                                    value={formState.itemSide3Cm}
+                                    onChange={event =>
+                                      setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
+                                    }
+                                    placeholder="H"
+                                    inputMode="decimal"
+                                  />
+                                </div>
+                                <p className="text-xs text-slate-500">Required for size-tier discrepancy checks.</p>
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="itemWeightKg">Unit Weight (kg)</Label>
+                                <Input
+                                  id="itemWeightKg"
+                                  type="number"
+                                  step="0.001"
+                                  min={0.001}
+                                  value={formState.itemWeightKg}
+                                  onChange={event =>
+                                    setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
+                                  }
+                                  placeholder="e.g. 0.29"
+                                />
+                                <p className="text-xs text-slate-500">Required for size-tier discrepancy checks.</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="grid gap-4 md:grid-cols-2 pt-2">
-                          <div className="space-y-1">
-                            <Label>Item Dimensions (cm)</Label>
-                            <Input
-                              value={formState.productDimensionsCm}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label>Category</Label>
+                              <Input
+                                value={formState.amazonCategory}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Size Tier</Label>
+                              <Input
+                                value={formState.amazonSizeTier}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Referral Fee (%)</Label>
+                              <Input
+                                value={formState.amazonReferralFeePercent}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>FBA Fulfillment Fee</Label>
+                              <Input
+                                value={formState.amazonFbaFulfillmentFee}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label>Item Weight (kg)</Label>
-                            <Input
-                              value={formState.amazonReferenceWeightKg}
-                              disabled
-                              className="bg-slate-50 text-slate-500"
-                              placeholder="—"
-                            />
+
+                          <div className="border-t border-slate-200 pt-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="space-y-1">
+                                <Label>Unit Dimensions (cm)</Label>
+                                <Input
+                                  value={formState.productDimensionsCm}
+                                  disabled
+                                  className="bg-slate-100 text-slate-500"
+                                  placeholder="—"
+                                />
+                                <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Unit Weight (kg)</Label>
+                                <Input
+                                  value={formState.amazonReferenceWeightKg}
+                                  disabled
+                                  className="bg-slate-100 text-slate-500"
+                                  placeholder="—"
+                                />
+                                <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TabsContent>
+                      )}
+                    </div>
                   </Tabs>
                 </div>
 

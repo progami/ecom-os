@@ -662,29 +662,35 @@ async function computeManufacturingCargoTotals(
 }
 
 /**
- * Generate the next PO number in sequence (PO-0001 format)
+ * Generate the next PO number in sequence (TG-<Country>-<number> format)
+ * Format: TG-US-2601, TG-US-2602, etc. for US tenant
+ *         TG-UK-2601, TG-UK-2602, etc. for UK tenant
+ * Starting number: 2601
  */
 export async function generatePoNumber(): Promise<string> {
   const prisma = await getTenantPrisma()
+  const tenant = await getCurrentTenant()
+  const prefix = `TG-${tenant.code}-`
+  const startingNumber = 2601
 
-  // Find the highest existing PO number
+  // Find the highest existing PO number with this tenant's prefix
   const lastPo = await prisma.purchaseOrder.findFirst({
     where: {
-      poNumber: { startsWith: 'PO-' },
+      poNumber: { startsWith: prefix },
     },
     orderBy: { poNumber: 'desc' },
     select: { poNumber: true },
   })
 
-  let nextNumber = 1
+  let nextNumber = startingNumber
   if (lastPo?.poNumber) {
-    const match = lastPo.poNumber.match(/PO-(\d+)/)
+    const match = lastPo.poNumber.match(new RegExp(`${prefix}(\\d+)`))
     if (match) {
       nextNumber = parseInt(match[1], 10) + 1
     }
   }
 
-  return `PO-${nextNumber.toString().padStart(4, '0')}`
+  return `${prefix}${nextNumber}`
 }
 
 export interface CreatePurchaseOrderLineInput {

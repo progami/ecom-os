@@ -63,13 +63,13 @@ function parseArgs(): ScriptOptions {
 
 function showHelp() {
   console.log(`
-Truncate SKU Description to 64 Characters
+Truncate SKU Description to 42 Characters
 
-Truncates existing SKU descriptions to 64 characters and alters the column type
-to VARCHAR(64) to enforce the limit at the database level.
+Truncates existing SKU descriptions to 42 characters and alters the column type
+to VARCHAR(42) to enforce the limit at the database level.
 
 Usage:
-  pnpm --filter @targon/talos tsx scripts/migrations/truncate-sku-description-64.ts [options]
+  pnpm --filter @targon/talos tsx scripts/migrations/truncate-sku-description-42.ts [options]
 
 Options:
   --tenant=US|UK|ALL        Which tenant(s) to process (default: ALL)
@@ -83,27 +83,27 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
 
   // First, check how many rows will be affected
   const countResult = await prisma.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*) as count FROM skus WHERE LENGTH(description) > 64
+    SELECT COUNT(*) as count FROM skus WHERE LENGTH(description) > 42
   `
   const affectedCount = Number(countResult[0]?.count ?? 0)
-  console.log(`[${tenant}] Found ${affectedCount} SKUs with description > 64 characters`)
+  console.log(`[${tenant}] Found ${affectedCount} SKUs with description > 42 characters`)
 
   if (options.dryRun) {
-    console.log(`[${tenant}] DRY RUN: Would truncate ${affectedCount} descriptions to 64 characters`)
-    console.log(`[${tenant}] DRY RUN: Would alter column type to VARCHAR(64)`)
+    console.log(`[${tenant}] DRY RUN: Would truncate ${affectedCount} descriptions to 42 characters`)
+    console.log(`[${tenant}] DRY RUN: Would alter column type to VARCHAR(42)`)
     return
   }
 
   // Truncate existing descriptions
-  console.log(`[${tenant}] Truncating descriptions to 64 characters...`)
+  console.log(`[${tenant}] Truncating descriptions to 42 characters...`)
   await prisma.$executeRawUnsafe(`
-    UPDATE skus SET description = LEFT(description, 64) WHERE LENGTH(description) > 64
+    UPDATE skus SET description = LEFT(description, 42) WHERE LENGTH(description) > 42
   `)
 
   // Alter column type to enforce limit
-  console.log(`[${tenant}] Altering column type to VARCHAR(64)...`)
+  console.log(`[${tenant}] Altering column type to VARCHAR(42)...`)
   await prisma.$executeRawUnsafe(`
-    ALTER TABLE skus ALTER COLUMN description TYPE VARCHAR(64)
+    ALTER TABLE skus ALTER COLUMN description TYPE VARCHAR(42)
   `)
 
   console.log(`[${tenant}] Done!`)

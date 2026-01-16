@@ -67,9 +67,11 @@ interface CustomOpsPlanningGridProps {
   onSelectOrder?: (orderId: string) => void;
   onRowsChange?: (rows: OpsInputRow[]) => void;
   onCreateOrder?: () => void;
+  onImportFromTalos?: () => void;
   onDuplicateOrder?: (orderId: string) => void;
   onDeleteOrder?: (orderId: string) => void;
   disableCreate?: boolean;
+  disableImport?: boolean;
   disableDuplicate?: boolean;
   disableDelete?: boolean;
 }
@@ -506,9 +508,8 @@ function cellDomId(rowId: string, colKey: keyof OpsInputRow): string {
   return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`;
 }
 
-function isGridEditableColumn(column: ColumnDef, stageMode: StageMode): boolean {
+function isGridEditableColumn(column: ColumnDef, _stageMode: StageMode): boolean {
   if ((column.editable ?? true) === false) return false;
-  if (column.type === 'stage' && stageMode === 'weeks') return false;
   return true;
 }
 
@@ -520,7 +521,7 @@ function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageM
       const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
       return row[overrideField] ?? '';
     } else {
-      // Weeks mode is read-only, but return calculated value for display
+      // Weeks mode shows the derived duration between milestone dates.
       const weeks = calculateWeeksFromDates(row, column.key as StageWeeksKey);
       return weeks !== null ? formatNumericInput(weeks, 2) : '';
     }
@@ -541,7 +542,7 @@ function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageM
 function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
   if (column.type === 'stage') {
     if (stageMode === 'weeks') {
-      // Calculate weeks from dates (read-only derived value)
+      // Calculate weeks from dates (derived value)
       const weeks = calculateWeeksFromDates(row, column.key as StageWeeksKey);
       if (weeks === null) return '';
       return formatNumericInput(weeks, 2);
@@ -638,9 +639,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
     >
       {COLUMNS.map((column, colIndex) => {
         const isEditing = editingColKey === column.key;
-        // Stage columns are read-only in weeks mode (weeks are calculated from dates)
-        const isStageInWeeksMode = column.type === 'stage' && stageMode === 'weeks';
-        const isEditable = column.editable !== false && !isStageInWeeksMode;
+        const isEditable = column.editable !== false;
         const isDateCell =
           column.type === 'date' || (column.type === 'stage' && stageMode === 'dates');
         const isDropdownCell = column.type === 'dropdown';
@@ -806,9 +805,11 @@ export function CustomOpsPlanningGrid({
   onSelectOrder,
   onRowsChange,
   onCreateOrder,
+  onImportFromTalos,
   onDuplicateOrder,
   onDeleteOrder,
   disableCreate,
+  disableImport,
   disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
@@ -1007,6 +1008,26 @@ export function CustomOpsPlanningGrid({
         }
         const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
         finalValue = normalizeNumeric(finalValue, precision);
+      } else if (column.type === 'stage' && stageMode === 'weeks') {
+        const trimmed = finalValue.trim();
+        if (!trimmed) {
+          finalValue = '';
+        } else {
+          const validator = validateNumeric;
+          if (!validator(finalValue)) {
+            toast.error('Invalid number');
+            cancelEditing();
+            return;
+          }
+          const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
+          finalValue = normalizeNumeric(finalValue, precision);
+          const parsed = sanitizeNumeric(finalValue);
+          if (!Number.isFinite(parsed) || parsed < 0) {
+            toast.error('Weeks must be a non-negative number');
+            cancelEditing();
+            return;
+          }
+        }
       } else if (column.type === 'date') {
         if (!finalValue || finalValue.trim() === '') {
           finalValue = '';
@@ -1069,6 +1090,20 @@ export function CustomOpsPlanningGrid({
             return;
           }
         }
+      } else if (column.type === 'stage' && stageMode === 'weeks') {
+        const stageField = colKey as StageWeeksKey;
+        const currentWeeks = calculateWeeksFromDates(row, stageField);
+        const currentNormalized = currentWeeks !== null ? formatNumericInput(currentWeeks, 2) : '';
+
+        if (!finalValue || finalValue.trim() === '') {
+          cancelEditing();
+          return;
+        }
+
+        if (finalValue === currentNormalized) {
+          cancelEditing();
+          return;
+        }
       } else if (column.type === 'date') {
         const currentIso = row[colKey] ? (toIsoDate(row[colKey]) ?? '') : '';
         if (currentIso === finalValue) {
@@ -1101,7 +1136,7 @@ export function CustomOpsPlanningGrid({
       const entry = pendingRef.current.get(rowId)!;
       const previousEntryValues = { ...entry.values };
 
-      // Handle stage columns in date mode (weeks mode is read-only)
+      // Handle stage columns in date mode (date <-> weeks sync)
       if (column.type === 'stage' && stageMode === 'dates') {
         const stageField = colKey as StageWeeksKey;
         const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
@@ -1131,8 +1166,8 @@ export function CustomOpsPlanningGrid({
             }
           }
 
-          if (startDate && endDate.getTime() <= startDate.getTime()) {
-            toast.error('End date must be after the start date');
+          if (startDate && endDate.getTime() < startDate.getTime()) {
+            toast.error('End date must be on or after the start date');
             cancelEditing();
             return;
           }
@@ -1152,8 +1187,76 @@ export function CustomOpsPlanningGrid({
             }
           }
         }
+      } else if (column.type === 'stage' && stageMode === 'weeks') {
+        const stageField = colKey as StageWeeksKey;
+        const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
+        if (!finalValue) {
+          cancelEditing();
+          return;
+        }
+
+        const weeks = sanitizeNumeric(finalValue);
+        if (!Number.isFinite(weeks) || weeks < 0) {
+          toast.error('Weeks must be a non-negative number');
+          cancelEditing();
+          return;
+        }
+
+        const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageField);
+
+        let startDate: Date | null = null;
+        if (stageField === 'productionWeeks') {
+          startDate = parseIsoDate(row.productionStart);
+        } else if (stageIndex > 0) {
+          const prevStage = STAGE_CONFIG[stageIndex - 1];
+          startDate = parseIsoDate(row[prevStage.overrideKey]);
+        }
+
+        if (!startDate) {
+          toast.error(
+            stageField === 'productionWeeks'
+              ? 'Set Mfg Start before editing weeks'
+              : 'Set the previous stage date before editing weeks',
+          );
+          cancelEditing();
+          return;
+        }
+
+        const MS_PER_DAY = 24 * 60 * 60 * 1000;
+        const days = Math.max(0, Math.round(weeks * 7));
+        const endDate = new Date(startDate.getTime() + days * MS_PER_DAY);
+
+        if (endDate.getTime() < startDate.getTime()) {
+          toast.error('End date must be on or after the start date');
+          cancelEditing();
+          return;
+        }
+
+        const iso = toIsoDate(endDate) ?? '';
+        const oldEndDate = parseIsoDate(row[overrideField]);
+        const deltaMs = oldEndDate ? endDate.getTime() - oldEndDate.getTime() : null;
+
+        if (row[colKey] !== finalValue) {
+          entry.values[colKey] = finalValue;
+        }
+        if ((row[overrideField] ?? '') !== iso) {
+          entry.values[overrideField] = iso;
+        }
+
+        // Shift downstream stage dates to preserve their durations.
+        if (deltaMs !== null && stageIndex >= 0 && deltaMs !== 0) {
+          for (let i = stageIndex + 1; i < STAGE_CONFIG.length; i += 1) {
+            const downstreamOverride = STAGE_CONFIG[i].overrideKey;
+            const existing = parseIsoDate(row[downstreamOverride]);
+            if (!existing) continue;
+            const shifted = new Date(existing.getTime() + deltaMs);
+            const shiftedIso = toIsoDate(shifted) ?? '';
+            if ((row[downstreamOverride] ?? '') !== shiftedIso) {
+              entry.values[downstreamOverride] = shiftedIso;
+            }
+          }
+        }
       } else if (NUMERIC_FIELDS.has(colKey)) {
-        // Stage weeks are now read-only, so this only handles other numeric fields
         entry.values[colKey] = finalValue;
       } else if (DATE_FIELDS.has(colKey)) {
         entry.values[colKey] = finalValue;
@@ -1184,7 +1287,7 @@ export function CustomOpsPlanningGrid({
       const shouldValidateStageOrder =
         colKey === 'poDate' ||
         colKey === 'productionStart' ||
-        (column.type === 'stage' && stageMode === 'dates');
+        column.type === 'stage';
 
       if (shouldValidateStageOrder) {
         const stageError = validateStageDates(updatedRow);
@@ -1654,13 +1757,64 @@ export function CustomOpsPlanningGrid({
           const { column, colKey } = update;
           let rawValue = update.value;
 
-          // Stage columns: only allow paste in dates mode, weeks mode is read-only
+          // Stage columns: allow paste in both date and weeks modes.
           if (column.type === 'stage') {
-            if (stageMode === 'weeks') continue;
-
             const stageField = colKey as StageWeeksKey;
             const overrideField = STAGE_OVERRIDE_FIELDS[stageField];
             const trimmed = rawValue.trim();
+
+            if (stageMode === 'weeks') {
+              if (!trimmed) continue;
+
+              const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
+              const normalizedWeeks = normalizeNumeric(trimmed, precision);
+              const parsedWeeks = parseWeeks(normalizedWeeks);
+              if (parsedWeeks == null || parsedWeeks < 0) continue;
+
+              const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageField);
+              let startDate: Date | null = null;
+
+              if (stageField === 'productionWeeks') {
+                startDate = parseIsoDate(nextRow.productionStart);
+              } else if (stageIndex > 0) {
+                const prevStage = STAGE_CONFIG[stageIndex - 1];
+                startDate = parseIsoDate(nextRow[prevStage.overrideKey]);
+              }
+
+              if (!startDate) continue;
+
+              const MS_PER_DAY = 24 * 60 * 60 * 1000;
+              const days = Math.max(0, Math.round(parsedWeeks * 7));
+              const endDate = new Date(startDate.getTime() + days * MS_PER_DAY);
+
+              if (endDate.getTime() < startDate.getTime()) continue;
+
+              const iso = toIsoDate(endDate);
+              if (!iso) continue;
+
+              const existingEnd = parseIsoDate(nextRow[overrideField]);
+              const deltaMs = existingEnd ? endDate.getTime() - existingEnd.getTime() : null;
+
+              nextRow = { ...nextRow, [stageField]: normalizedWeeks, [overrideField]: iso };
+              nextValues[stageField] = normalizedWeeks;
+              nextValues[overrideField] = iso;
+
+              if (deltaMs !== null && deltaMs !== 0 && stageIndex >= 0) {
+                for (let i = stageIndex + 1; i < STAGE_CONFIG.length; i += 1) {
+                  const downstreamOverride = STAGE_CONFIG[i].overrideKey;
+                  const downstreamDate = parseIsoDate(nextRow[downstreamOverride]);
+                  if (!downstreamDate) continue;
+                  const shifted = new Date(downstreamDate.getTime() + deltaMs);
+                  const shiftedIso = toIsoDate(shifted);
+                  if (!shiftedIso) continue;
+
+                  nextRow = { ...nextRow, [downstreamOverride]: shiftedIso };
+                  nextValues[downstreamOverride] = shiftedIso;
+                }
+              }
+
+              continue;
+            }
 
             if (!trimmed) {
               const hadOverride = (nextRow[overrideField] ?? '') !== '';
@@ -2062,7 +2216,7 @@ export function CustomOpsPlanningGrid({
             PO Table
           </h2>
         </div>
-        {(onCreateOrder || onDuplicateOrder || onDeleteOrder) && (
+        {(onCreateOrder || onImportFromTalos || onDuplicateOrder || onDeleteOrder) && (
           <div className="flex flex-wrap gap-2">
             {onCreateOrder ? (
               <button
@@ -2072,6 +2226,16 @@ export function CustomOpsPlanningGrid({
                 className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
               >
                 Add purchase order
+              </button>
+            ) : null}
+            {onImportFromTalos ? (
+              <button
+                type="button"
+                onClick={onImportFromTalos}
+                disabled={Boolean(disableImport)}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+              >
+                Import from Talos
               </button>
             ) : null}
             {onDuplicateOrder ? (

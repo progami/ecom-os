@@ -22,7 +22,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from '@tanstack/react-table';
-import { ChevronLeft, ChevronRight, Info, LayoutGrid } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -35,9 +35,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tooltip } from '@/components/ui/tooltip';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
 import { RealWeekIndicator } from '@/components/ui/real-week-indicator';
+import { Tooltip } from '@/components/ui/tooltip';
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -221,6 +221,18 @@ interface SalesPlanningGridProps {
 
 type CellCoords = { row: number; col: number };
 type CellRange = { from: CellCoords; to: CellCoords };
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('input, textarea, [contenteditable="true"]'));
+}
+
+function clearNativeSelection() {
+  const selection = window.getSelection();
+  if (!selection) return;
+  if (selection.type !== 'Range') return;
+  selection.removeAllRanges();
+}
 
 function normalizeRange(range: CellRange): {
   top: number;
@@ -515,21 +527,14 @@ export function SalesPlanningGrid({
     displayedProducts.forEach((product) => {
       const keys = keyByProductField.get(product.id) ?? {};
       const stockStartKey = keys.stockStart;
-      const stockEndKey = keys.stockEnd;
-      if (!stockStartKey || !stockEndKey) return;
+      if (!stockStartKey) return;
+      const inboundKey = stockStartKey.replace(/_stockStart$/, '_hasInbound');
 
       const inboundWeeks = new Set<number>();
-      for (let index = 1; index < data.length; index += 1) {
-        const row = data[index];
-        const prevRow = data[index - 1];
+      for (const row of data) {
         const week = Number(row?.weekNumber);
-        if (!Number.isFinite(week) || !row || !prevRow) continue;
-        const stockStart = parseNumericInput(row[stockStartKey]);
-        const prevStockEnd = parseNumericInput(prevRow[stockEndKey]);
-        if (stockStart == null || prevStockEnd == null) continue;
-        if (stockStart - prevStockEnd > 0) {
-          inboundWeeks.add(week);
-        }
+        if (!Number.isFinite(week) || !row) continue;
+        if (row[inboundKey] === 'true') inboundWeeks.add(week);
       }
 
       map.set(product.id, inboundWeeks);
@@ -553,20 +558,7 @@ export function SalesPlanningGrid({
     const baseColumns = [
       columnHelper.accessor('weekLabel', {
         id: 'weekLabel',
-        header: () => (
-          <div className="flex items-center gap-1">
-            <span>Week</span>
-            <Tooltip content={'Actual data (Sellerboard)\nProjected / no actuals'}>
-              <button
-                type="button"
-                className="inline-flex items-center rounded p-0.5 text-muted-foreground hover:text-foreground"
-                aria-label="Week indicator legend"
-              >
-                <Info className="h-3 w-3" />
-              </button>
-            </Tooltip>
-          </div>
-        ),
+        header: () => 'Week',
         cell: (info) => (
           <span className="flex items-center gap-1">
             {info.getValue()}
@@ -1722,6 +1714,10 @@ export function SalesPlanningGrid({
 
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLTableCellElement>, row: number, col: number) => {
+      if (event.pointerType === 'touch') return;
+      if (event.button !== 0) return;
+      if (isEditableTarget(event.target)) return;
+      clearNativeSelection();
       scrollRef.current?.focus();
 
       const coords = { row, col };
@@ -1742,6 +1738,7 @@ export function SalesPlanningGrid({
 
   const handlePointerMove = useCallback(
     (event: PointerEvent<HTMLTableCellElement>, row: number, col: number) => {
+      if (event.pointerType === 'touch') return;
       if (!event.buttons) return;
       if (!selectionAnchorRef.current) return;
       setSelection({ from: selectionAnchorRef.current, to: { row, col } });
@@ -2261,15 +2258,15 @@ export function SalesPlanningGrid({
           className="fixed left-0 top-0 h-1 w-1 opacity-0 pointer-events-none"
           onPaste={handleClipboardPaste}
         />
-        <div
-          ref={scrollRef}
-          tabIndex={0}
-          className="h-full overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          onPointerDownCapture={() => {
-            if (!editingCell) {
-              scrollRef.current?.focus();
-            }
-          }}
+	        <div
+	          ref={scrollRef}
+	          tabIndex={0}
+	          className="h-full select-none overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+	          onPointerDownCapture={() => {
+	            if (!editingCell) {
+	              scrollRef.current?.focus();
+	            }
+	          }}
           onKeyDown={handleKeyDown}
           onCopy={handleCopy}
           onPaste={handlePaste}
@@ -2397,7 +2394,9 @@ export function SalesPlanningGrid({
                             cancelEditing();
                           }
                         }}
-                        className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        className="h-8 w-full min-w-0 select-text rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     ) : (
                       <div
@@ -2409,6 +2408,12 @@ export function SalesPlanningGrid({
                         <span className="block min-w-0 truncate tabular-nums">
                           {presentation.display}
                         </span>
+                        {column.id === 'weekLabel' ? (
+                          <RealWeekIndicator
+                            hasActualData={isWeekCellWithActualData}
+                            className="shrink-0"
+                          />
+                        ) : null}
                         {presentation.badge ? (
                           <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
                             {presentation.badge}
@@ -2427,14 +2432,14 @@ export function SalesPlanningGrid({
                     );
 
                     const cell = (
-                      <TableCell
-                        key={column.id}
-                        className={cn(
-                          'h-8 whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
-                          meta?.sticky
-                            ? isEvenRow
-                              ? 'bg-muted'
-                              : 'bg-card'
+	                      <TableCell
+	                        key={column.id}
+	                        className={cn(
+	                          'h-8 select-none whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
+	                          meta?.sticky
+	                            ? isEvenRow
+	                              ? 'bg-muted'
+	                              : 'bg-card'
                             : isEvenRow
                               ? 'bg-muted/30'
                               : 'bg-card',
@@ -2453,7 +2458,6 @@ export function SalesPlanningGrid({
                             'bg-warning-100/95 dark:bg-warning-500/25 dark:ring-1 dark:ring-inset dark:ring-warning-300/45',
                           presentation.highlight === 'inbound' &&
                             'bg-success-100/90 dark:bg-success-500/25 dark:ring-1 dark:ring-inset dark:ring-success-300/45',
-                          isSelected && 'bg-accent',
                           isCurrent && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
                         )}
                         style={{

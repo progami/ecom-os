@@ -62,6 +62,7 @@ import { getCanonicalSheetSlug, getSheetConfig } from '@/lib/sheets';
 import { getWorkbookStatus } from '@/lib/workbook';
 import { WorkbookLayout } from '@/components/workbook-layout';
 import { ActiveStrategyIndicator } from '@/components/active-strategy-indicator';
+import { getUtcDateForTimeZone } from '@/lib/utils/dates';
 import {
   mapProducts,
   mapLeadStageTemplates,
@@ -106,7 +107,12 @@ import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/
 import type { PlanningCalendar } from '@/lib/planning';
 import { weekLabelForWeekNumber, type PlanningWeekConfig } from '@/lib/calculations/planning-week';
 import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates';
-import { weekStartsOnForRegion, type StrategyRegion } from '@/lib/strategy-region';
+import {
+  sellerboardReportTimeZoneForRegion,
+  parseStrategyRegion,
+  weekStartsOnForRegion,
+  type StrategyRegion,
+} from '@/lib/strategy-region';
 
 const SALES_METRICS = [
   'stockStart',
@@ -1131,7 +1137,13 @@ function deriveOrders(
   const includeDraft = options.includeDraft === true;
   return context.purchaseOrderInputs
     .map((order) => {
-      if (!includeDraft && order.status === 'DRAFT') return null;
+      if (
+        !includeDraft &&
+        typeof order.status === 'string' &&
+        order.status.trim().toUpperCase() === 'DRAFT'
+      ) {
+        return null;
+      }
       if (!context.productIndex.has(order.productId)) return null;
       const profile = getLeadTimeProfile(order.productId, context.leadProfiles);
       const productNames =
@@ -1184,7 +1196,7 @@ function coerceDecimal(value: { toNumber: () => number } | number | null): numbe
   return value.toNumber();
 }
 
-async function loadFinancialData(planning: PlanningCalendar, strategyId: string) {
+async function loadFinancialData(planning: PlanningCalendar, strategyId: string, asOfDate: Date) {
   const prismaAny = prisma as unknown as Record<string, unknown>;
   const salesDelegate = prismaAny.salesWeek as
     | {
@@ -1251,6 +1263,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     {
       productIds: operations.productInputs.map((product) => product.id),
       calendar: planning.calendar,
+      asOfDate,
     },
   );
 
@@ -1276,7 +1289,7 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     operations.parameters,
     profitOverrides,
     actualFinancials,
-    { calendar: planning.calendar, asOfDate: new Date() },
+    { calendar: planning.calendar, asOfDate },
   );
   const cash = computeCashFlow(
     profit.weekly,
@@ -1285,7 +1298,16 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     cashOverrides,
     { calendar: planning.calendar },
   );
-  return { operations, derivedOrders, salesOverrides, profitOverrides, salesPlan, profit, cash };
+  return {
+    operations,
+    derivedOrders,
+    salesOverrides,
+    profitOverrides,
+    salesPlan,
+    actualFinancials,
+    profit,
+    cash,
+  };
 }
 
 type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>;
@@ -1699,6 +1721,13 @@ function getSalesPlanningView(
     }
   });
 
+  const weeksWithActualData = new Set<number>();
+  for (const entry of financialData.salesPlan) {
+    if (entry.hasActualData) {
+      weeksWithActualData.add(entry.weekNumber);
+    }
+  }
+
   const segmentForWeek = (weekNumber: number): YearSegment | null => {
     if (!planning.yearSegments.length) return null;
     return (
@@ -1717,21 +1746,11 @@ function getSalesPlanningView(
       segment != null ? String(weekNumber - segment.startWeekNumber + 1) : String(weekNumber);
     const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar);
 
-    // Check if any product has actual data for this week
-    let hasActualData = false;
-    for (const product of productList) {
-      const derived = salesLookup.get(`${product.id}-${weekNumber}`);
-      if (derived?.hasActualData) {
-        hasActualData = true;
-        break;
-      }
-    }
-
     const row: SalesRow = {
       weekNumber: String(weekNumber),
       weekLabel,
       weekDate: calendarDate ? formatDate(calendarDate) : '',
-      hasActualData: hasActualData ? 'true' : undefined,
+      hasActualData: weeksWithActualData.has(weekNumber) ? 'true' : undefined,
     };
 
     const inboundSummary: InboundSummary = new Map();
@@ -1752,6 +1771,9 @@ function getSalesPlanningView(
       const derived = salesLookup.get(keyRoot);
       if (!row.weekDate && derived?.weekDate) {
         row.weekDate = formatDate(derived.weekDate);
+      }
+      if (derived && derived.arrivals > 0) {
+        row[`p${productIdx}_hasInbound`] = 'true';
       }
 
       SALES_METRICS.forEach((metric) => {
@@ -2012,6 +2034,7 @@ type POProfitabilityDataset = {
 function getPOProfitabilityView(
   financialData: FinancialData,
   planning: PlanningCalendar,
+  asOfDate: Date,
 ): { projected: POProfitabilityDataset; real: POProfitabilityDataset } {
   const productIds = financialData.operations.productInputs.map((product) => product.id);
   const orders = financialData.derivedOrders.map((item) => item.derived);
@@ -2032,12 +2055,15 @@ function getPOProfitabilityView(
       productIds,
       calendar: planning.calendar,
       mode,
+      asOfDate,
     });
     const profit = computeProfitAndLoss(
       salesPlan,
       financialData.operations.productIndex,
       financialData.operations.parameters,
       financialData.profitOverrides,
+      financialData.actualFinancials,
+      { calendar: planning.calendar, asOfDate },
     );
     const ledger = buildAllocationLedger(salesPlan, financialData.operations.productIndex);
     const result = buildPoPnlRows({
@@ -2130,8 +2156,19 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       })
     : null;
   const activeStrategyName: string | null = activeStrategyRow?.name ?? null;
-  const strategyRegion: StrategyRegion = activeStrategyRow?.region === 'UK' ? 'UK' : 'US';
+  const strategyRegion: StrategyRegion =
+    strategyId && activeStrategyRow
+      ? (() => {
+          const parsedRegion = parseStrategyRegion(activeStrategyRow.region);
+          if (!parsedRegion) {
+            throw new Error('StrategyRegionInvalid');
+          }
+          return parsedRegion;
+        })()
+      : 'US';
   const weekStartsOn = weekStartsOnForRegion(strategyRegion);
+  const reportTimeZone = strategyId ? sellerboardReportTimeZoneForRegion(strategyRegion) : null;
+  const reportAsOfDate = reportTimeZone ? getUtcDateForTimeZone(new Date(), reportTimeZone) : new Date();
 
   const [workbookStatus, planningCalendar] = await Promise.all([
     getWorkbookStatus(),
@@ -2168,7 +2205,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     return strategyId;
   };
 
-  const getFinancialData = () => loadFinancialData(planningCalendar, requireStrategyId());
+  const getFinancialData = () => loadFinancialData(planningCalendar, requireStrategyId(), reportAsOfDate);
   const weeklyLabelControl = (label: string) => (
     <div key="weekly-label" className={SHEET_TOOLBAR_GROUP}>
       <span className={SHEET_TOOLBAR_LABEL}>{label}</span>
@@ -2357,22 +2394,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
-      controls.push(
-        <SellerboardSyncControl
-          key="sellerboard-sync-actual-sales"
-          isSuperAdmin={viewer.isSuperAdmin}
-          strategyRegion={strategyRegion}
-          kind="actual-sales"
-        />,
-      );
-      controls.push(
-        <SellerboardSyncControl
-          key="sellerboard-sync-dashboard"
-          isSuperAdmin={viewer.isSuperAdmin}
-          strategyRegion={strategyRegion}
-          kind="dashboard"
-        />,
-      );
+	      controls.push(
+	        <SellerboardSyncControl
+	          key="sellerboard-sync"
+	          isSuperAdmin={viewer.isSuperAdmin}
+	          strategyRegion={strategyRegion}
+	          strategyId={activeStrategyId}
+	        />,
+	      );
       wrapLayout = (node) => (
         <SalesPlanningFocusProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}
@@ -2419,14 +2448,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
       controls.push(<ProfitAndLossHeaderControls key="pnl-controls" />);
-      controls.push(
-        <SellerboardSyncControl
-          key="sellerboard-sync-dashboard-pnl"
-          isSuperAdmin={viewer.isSuperAdmin}
-          strategyRegion={strategyRegion}
-          kind="dashboard"
-        />,
-      );
+	      controls.push(
+	        <SellerboardSyncControl
+	          key="sellerboard-sync"
+	          isSuperAdmin={viewer.isSuperAdmin}
+	          strategyRegion={strategyRegion}
+	          strategyId={activeStrategyId}
+	        />,
+	      );
       wrapLayout = (node) => (
         <ProfitAndLossFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}
@@ -2489,7 +2518,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '6-po-profitability': {
       const activeStrategyId = requireStrategyId();
       const data = await getFinancialData();
-      const view = getPOProfitabilityView(data, planningCalendar);
+      const view = getPOProfitabilityView(data, planningCalendar, reportAsOfDate);
       const productOptions = data.operations.productInputs
         .map((product) => ({ id: product.id, name: productLabel(product) }))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -2683,6 +2712,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       activeSlug={config.slug}
       planningYears={planningCalendar.yearSegments}
       activeYear={activeYear}
+      reportTimeZone={reportTimeZone ?? undefined}
       meta={meta}
       ribbon={ribbon}
       contextPane={contextPane}

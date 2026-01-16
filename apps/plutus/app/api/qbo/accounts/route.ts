@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { fetchAccounts, type QboConnection } from '@/lib/qbo/api';
 import { createLogger } from '@targon/logger';
+import { ensureServerQboConnection, saveServerQboConnection } from '@/lib/qbo/connection-store';
 
 const logger = createLogger({ name: 'qbo-accounts' });
 
@@ -34,6 +35,7 @@ export async function GET() {
     }
 
     const connection: QboConnection = JSON.parse(connectionCookie);
+    await ensureServerQboConnection(connection);
 
     const { accounts, updatedConnection } = await fetchAccounts(connection);
 
@@ -46,6 +48,7 @@ export async function GET() {
         maxAge: 60 * 60 * 24 * 100,
         path: '/',
       });
+      await saveServerQboConnection(updatedConnection);
     }
 
     // Transform all accounts for frontend (matching QBO's Chart of Accounts view)
