@@ -215,27 +215,29 @@ function SalesMappingStep({
 
   // Initialize mappings for any new brands
   useEffect(() => {
-    const currentBrandNames = mappings.map((m) => m.brand);
+    const safeMappings = mappings || [];
+    const currentBrandNames = safeMappings.map((m) => m.brand);
     const newMappings = brands
       .filter((b) => !currentBrandNames.includes(b))
       .map((brand) => ({ brand, salesAccountId: null, salesAccountName: null }));
 
-    if (newMappings.length > 0) {
+    if (newMappings.length > 0 || safeMappings.length !== brands.length) {
       // Also remove mappings for brands that no longer exist
-      const validMappings = mappings.filter((m) => brands.includes(m.brand));
+      const validMappings = safeMappings.filter((m) => brands.includes(m.brand));
       onMappingsChange([...validMappings, ...newMappings]);
     }
   }, [brands, mappings, onMappingsChange]);
 
   const updateMapping = (brand: string, accountId: string | null, accountName: string | null) => {
-    const updated = mappings.map((m) =>
+    const safeMappings = mappings || [];
+    const updated = safeMappings.map((m) =>
       m.brand === brand ? { ...m, salesAccountId: accountId, salesAccountName: accountName } : m
     );
     onMappingsChange(updated);
   };
 
   const allMapped = brands.every((brand) => {
-    const mapping = mappings.find((m) => m.brand === brand);
+    const mapping = (mappings || []).find((m) => m.brand === brand);
     return mapping?.salesAccountId != null;
   });
 
@@ -263,7 +265,7 @@ function SalesMappingStep({
       {!loading && !error && (
         <div className="space-y-4">
           {brands.map((brand) => {
-            const mapping = mappings.find((m) => m.brand === brand);
+            const mapping = (mappings || []).find((m) => m.brand === brand);
             return (
               <div key={brand} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
@@ -652,7 +654,18 @@ export default function SetupPage() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        setState(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        // Migrate old state format (had chartType instead of salesMappings)
+        if (parsed.chartType !== undefined && parsed.salesMappings === undefined) {
+          // Old format - reset to step 1
+          localStorage.removeItem(STORAGE_KEY);
+          return;
+        }
+        // Ensure salesMappings is always an array
+        setState({
+          ...parsed,
+          salesMappings: parsed.salesMappings || [],
+        });
       } catch {
         // Ignore
       }
