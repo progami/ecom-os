@@ -23,7 +23,7 @@ interface Account {
   isFirstInGroup?: boolean;
 }
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/plutus';
 
 interface ConnectionStatus {
   connected: boolean;
@@ -38,7 +38,7 @@ async function fetchAccounts(): Promise<{ accounts: Account[]; total: number }> 
   const res = await fetch(`${basePath}/api/qbo/accounts`);
   if (!res.ok) {
     const data = await res.json();
-    throw new Error(data.error || 'Failed to fetch accounts');
+    throw new Error(data.error ?? 'Failed to fetch accounts');
   }
   return res.json();
 }
@@ -171,7 +171,7 @@ export default function ChartOfAccountsPage() {
     enabled: connectionStatus?.connected === true,
   });
 
-  const accounts = data?.accounts ?? [];
+  const accounts = useMemo(() => data?.accounts ?? [], [data?.accounts]);
   const total = data?.total ?? 0;
 
   const accountTypes = useMemo(() => {
@@ -268,8 +268,11 @@ export default function ChartOfAccountsPage() {
 
           {/* Type Filter Dropdown */}
           <select
-            value={selectedType || ''}
-            onChange={(e) => setSelectedType(e.target.value || null)}
+            value={selectedType ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSelectedType(value === '' ? null : value);
+            }}
             className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-teal-500/30 focus:border-brand-teal-500 dark:border-white/10 dark:bg-white/5 dark:text-white"
           >
             <option value="">All</option>
@@ -348,7 +351,7 @@ export default function ChartOfAccountsPage() {
                         <div
                           className="col-span-5 flex items-center gap-2 min-w-0"
                           style={{ paddingLeft: `${account.depth * 20}px` }}
-                          title={account.fullyQualifiedName || account.name}
+                          title={account.fullyQualifiedName ?? account.name}
                         >
                           {account.isSubAccount && (
                             <span className="text-slate-400 dark:text-slate-500 text-xs flex-shrink-0">
@@ -374,7 +377,7 @@ export default function ChartOfAccountsPage() {
 
                         {/* Detail Type */}
                         <div className="col-span-2 flex items-center text-slate-600 dark:text-slate-400 text-sm truncate">
-                          {account.subType || '—'}
+                          {account.subType ?? '—'}
                         </div>
 
                         {/* Currency */}
