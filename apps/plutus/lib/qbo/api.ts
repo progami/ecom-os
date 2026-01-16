@@ -317,7 +317,83 @@ export async function fetchAccounts(
   }
 
   const data = await response.json();
-  return { accounts: data.QueryResponse?.Account || [], updatedConnection };
+  return { accounts: data.QueryResponse?.Account ?? [], updatedConnection };
+}
+
+export async function fetchAccountsByFullyQualifiedName(
+  connection: QboConnection,
+  fullyQualifiedName: string
+): Promise<{ accounts: QboAccount[]; updatedConnection?: QboConnection }> {
+  const { accessToken, updatedConnection } = await getValidToken(connection);
+  const baseUrl = getApiBaseUrl();
+
+  const query = `SELECT * FROM Account WHERE FullyQualifiedName = '${fullyQualifiedName.replace(/'/g, "\\'")}' MAXRESULTS 10`;
+  const queryUrl = `${baseUrl}/v3/company/${connection.realmId}/query?query=${encodeURIComponent(query)}`;
+
+  logger.info('Fetching account by fully qualified name from QBO', { fullyQualifiedName });
+
+  const response = await fetchWithTimeout(queryUrl, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error('Failed to fetch account', { status: response.status, error: errorText });
+    throw new Error(`Failed to fetch account: ${response.status} ${errorText}`);
+  }
+
+  const data = (await response.json()) as QboQueryResponse;
+  return { accounts: data.QueryResponse?.Account ?? [], updatedConnection };
+}
+
+export async function createAccount(
+  connection: QboConnection,
+  input: {
+    name: string;
+    accountType: string;
+    accountSubType?: string;
+    parentId?: string;
+  }
+): Promise<{ account: QboAccount; updatedConnection?: QboConnection }> {
+  const { accessToken, updatedConnection } = await getValidToken(connection);
+  const baseUrl = getApiBaseUrl();
+
+  const url = `${baseUrl}/v3/company/${connection.realmId}/account`;
+  const payload: Record<string, unknown> = {
+    Name: input.name,
+    AccountType: input.accountType,
+  };
+  if (input.accountSubType) {
+    payload.AccountSubType = input.accountSubType;
+  }
+  if (input.parentId) {
+    payload.SubAccount = true;
+    payload.ParentRef = { value: input.parentId };
+  }
+
+  logger.info('Creating account in QBO', { name: input.name, accountType: input.accountType, parentId: input.parentId });
+
+  const response = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error('Failed to create account', { status: response.status, error: errorText, name: input.name });
+    throw new Error(`Failed to create account: ${response.status} ${errorText}`);
+  }
+
+  const data = (await response.json()) as { Account: QboAccount };
+  return { account: data.Account, updatedConnection };
 }
 
 export async function updateAccountActive(
