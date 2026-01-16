@@ -70,6 +70,7 @@ export interface QboPurchase {
 
 export interface QboAccount {
   Id: string;
+  SyncToken: string;
   Name: string;
   AccountType: string;
   AccountSubType?: string;
@@ -317,4 +318,43 @@ export async function fetchAccounts(
 
   const data = await response.json();
   return { accounts: data.QueryResponse?.Account || [], updatedConnection };
+}
+
+export async function updateAccountActive(
+  connection: QboConnection,
+  accountId: string,
+  syncToken: string,
+  active: boolean
+): Promise<{ account: QboAccount; updatedConnection?: QboConnection }> {
+  const { accessToken, updatedConnection } = await getValidToken(connection);
+  const baseUrl = getApiBaseUrl();
+
+  const url = `${baseUrl}/v3/company/${connection.realmId}/account?operation=update`;
+  const payload = {
+    sparse: true,
+    Id: accountId,
+    SyncToken: syncToken,
+    Active: active,
+  };
+
+  logger.info('Updating account in QBO', { accountId, active });
+
+  const response = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    logger.error('Failed to update account', { accountId, status: response.status, error: errorText });
+    throw new Error(`Failed to update account: ${response.status} ${errorText}`);
+  }
+
+  const data = await response.json();
+  return { account: data.Account, updatedConnection };
 }
