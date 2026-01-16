@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PortalModal } from '@/components/ui/portal-modal'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
@@ -161,10 +161,11 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
 
 interface SkusPanelProps {
   externalModalOpen?: boolean
+  externalEditSkuId?: string | null
   onExternalModalClose?: () => void
 }
 
-export default function SkusPanel({ externalModalOpen, onExternalModalClose }: SkusPanelProps) {
+export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExternalModalClose }: SkusPanelProps) {
   const router = useRouter()
   const [skus, setSkus] = useState<SkuRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -179,6 +180,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
   const [confirmDelete, setConfirmDelete] = useState<SkuRow | null>(null)
   const [modalTab, setModalTab] = useState<SkuModalTab>('reference')
+  const [externalEditOpened, setExternalEditOpened] = useState(false)
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -188,6 +190,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       setIsModalOpen(true)
     }
   }, [externalModalOpen])
+
+  useEffect(() => {
+    setExternalEditOpened(false)
+  }, [externalEditSkuId])
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
@@ -259,19 +265,29 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     })
   }, [skus, searchTerm])
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditingSku(null)
     setFormState(buildFormState(null))
     setModalTab('reference')
     setIsModalOpen(true)
-  }
+  }, [])
 
-  const openEdit = (sku: SkuRow) => {
+  const openEdit = useCallback((sku: SkuRow) => {
     setEditingSku(sku)
     setFormState(buildFormState(sku))
     setModalTab('reference')
     setIsModalOpen(true)
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!externalEditSkuId) return
+    if (externalEditOpened) return
+    if (skus.length === 0) return
+    const sku = skus.find(item => item.id === externalEditSkuId)
+    if (!sku) return
+    openEdit(sku)
+    setExternalEditOpened(true)
+  }, [externalEditOpened, externalEditSkuId, openEdit, skus])
 
   const closeModal = () => {
     if (isSubmitting) return
@@ -308,7 +324,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
-    // Parse individual item dimension fields
+    // Parse reference unit dimension fields
     const side1Raw = formState.itemSide1Cm.trim()
     const side2Raw = formState.itemSide2Cm.trim()
     const side3Raw = formState.itemSide3Cm.trim()
@@ -322,7 +338,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     const hasAnyDimension = side1Raw || side2Raw || side3Raw
     if (hasAnyDimension) {
       if (!side1Raw || !side2Raw || !side3Raw) {
-        toast.error('All three dimensions must be provided')
+        toast.error('Unit dimensions require length, width, and height')
         return
       }
 
@@ -331,15 +347,15 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       itemSide3Cm = Number.parseFloat(side3Raw)
 
       if (!Number.isFinite(itemSide1Cm) || itemSide1Cm <= 0) {
-        toast.error('Dimension 1 must be a positive number')
+        toast.error('Unit length must be a positive number')
         return
       }
       if (!Number.isFinite(itemSide2Cm) || itemSide2Cm <= 0) {
-        toast.error('Dimension 2 must be a positive number')
+        toast.error('Unit width must be a positive number')
         return
       }
       if (!Number.isFinite(itemSide3Cm) || itemSide3Cm <= 0) {
-        toast.error('Dimension 3 must be a positive number')
+        toast.error('Unit height must be a positive number')
         return
       }
     }
@@ -348,14 +364,16 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     if (itemWeightRaw) {
       itemWeightKg = Number.parseFloat(itemWeightRaw)
       if (!Number.isFinite(itemWeightKg) || itemWeightKg <= 0) {
-        toast.error('Weight must be a positive number')
+        toast.error('Unit weight (kg) must be a positive number')
         return
       }
     }
 
     // Parse reference fee fields
-    const categoryValue = formState.category.trim() || null
-    const sizeTierValue = formState.sizeTier.trim() || null
+    const categoryTrimmed = formState.category.trim()
+    const categoryValue = categoryTrimmed ? categoryTrimmed : null
+    const sizeTierTrimmed = formState.sizeTier.trim()
+    const sizeTierValue = sizeTierTrimmed ? sizeTierTrimmed : null
     let referralFeePercent: number | null = null
     let fbaFulfillmentFee: number | null = null
 
@@ -408,7 +426,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         packSize,
         unitsPerCarton,
         unitWeightKg,
-        packagingType: formState.initialBatch.packagingType || null,
+        packagingType: formState.initialBatch.packagingType ? formState.initialBatch.packagingType : null,
       }
     }
 
@@ -514,7 +532,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       .filter(Boolean)
       .join(' • ')
 
-    return summary || '—'
+    if (summary) return summary
+    return '—'
   }
 
   return (
@@ -790,103 +809,198 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                     </TabsList>
 
                     <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
-                      <h4 className="text-sm font-semibold text-slate-900 mb-1">Amazon Fees</h4>
+                      <h4 className="text-sm font-semibold text-slate-900 mb-1">Amazon Fees & Unit Dimensions</h4>
                       <p className="text-xs text-slate-500 mb-3">
                         {modalTab === 'reference'
                           ? 'Team reference values (editable).'
                           : 'Imported from Amazon (read-only).'}
                       </p>
                       {modalTab === 'reference' ? (
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label htmlFor="category">Category</Label>
-                            <Input
-                              id="category"
-                              value={formState.category}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, category: event.target.value }))
-                              }
-                              placeholder="e.g. Home & Kitchen"
-                            />
+                        <div className="space-y-4">
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label htmlFor="category">Category</Label>
+                              <Input
+                                id="category"
+                                value={formState.category}
+                                onChange={event =>
+                                  setFormState(prev => ({ ...prev, category: event.target.value }))
+                                }
+                                placeholder="e.g. Home & Kitchen"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="sizeTier">Size Tier</Label>
+                              <Input
+                                id="sizeTier"
+                                value={formState.sizeTier}
+                                onChange={event =>
+                                  setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
+                                }
+                                placeholder="e.g. Small Standard-Size"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
+                              <Input
+                                id="referralFeePercent"
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                max={100}
+                                value={formState.referralFeePercent}
+                                onChange={event =>
+                                  setFormState(prev => ({
+                                    ...prev,
+                                    referralFeePercent: event.target.value,
+                                  }))
+                                }
+                                placeholder="e.g. 15"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor="fbaFulfillmentFee">FBA Fulfillment Fee</Label>
+                              <Input
+                                id="fbaFulfillmentFee"
+                                type="number"
+                                step="0.01"
+                                min={0}
+                                value={formState.fbaFulfillmentFee}
+                                onChange={event =>
+                                  setFormState(prev => ({
+                                    ...prev,
+                                    fbaFulfillmentFee: event.target.value,
+                                  }))
+                                }
+                                placeholder="e.g. 3.22"
+                              />
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="sizeTier">Size Tier</Label>
-                            <Input
-                              id="sizeTier"
-                              value={formState.sizeTier}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
-                              }
-                              placeholder="e.g. Small Standard-Size"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="referralFeePercent">Referral Fee (%)</Label>
-                            <Input
-                              id="referralFeePercent"
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              max={100}
-                              value={formState.referralFeePercent}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, referralFeePercent: event.target.value }))
-                              }
-                              placeholder="e.g. 15"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label htmlFor="fbaFulfillmentFee">FBA Fulfillment Fee</Label>
-                            <Input
-                              id="fbaFulfillmentFee"
-                              type="number"
-                              step="0.01"
-                              min={0}
-                              value={formState.fbaFulfillmentFee}
-                              onChange={event =>
-                                setFormState(prev => ({ ...prev, fbaFulfillmentFee: event.target.value }))
-                              }
-                              placeholder="e.g. 3.22"
-                            />
+
+                          <div className="border-t border-slate-200 pt-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="space-y-1">
+                                <Label>Unit Dimensions (cm)</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <Input
+                                    id="itemSide1Cm"
+                                    type="number"
+                                    step="0.01"
+                                    min={0.01}
+                                    value={formState.itemSide1Cm}
+                                    onChange={event =>
+                                      setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
+                                    }
+                                    placeholder="L"
+                                    inputMode="decimal"
+                                  />
+                                  <Input
+                                    id="itemSide2Cm"
+                                    type="number"
+                                    step="0.01"
+                                    min={0.01}
+                                    value={formState.itemSide2Cm}
+                                    onChange={event =>
+                                      setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
+                                    }
+                                    placeholder="W"
+                                    inputMode="decimal"
+                                  />
+                                  <Input
+                                    id="itemSide3Cm"
+                                    type="number"
+                                    step="0.01"
+                                    min={0.01}
+                                    value={formState.itemSide3Cm}
+                                    onChange={event =>
+                                      setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
+                                    }
+                                    placeholder="H"
+                                    inputMode="decimal"
+                                  />
+                                </div>
+                                <p className="text-xs text-slate-500">Required for size-tier discrepancy checks.</p>
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor="itemWeightKg">Unit Weight (kg)</Label>
+                                <Input
+                                  id="itemWeightKg"
+                                  type="number"
+                                  step="0.001"
+                                  min={0.001}
+                                  value={formState.itemWeightKg}
+                                  onChange={event =>
+                                    setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
+                                  }
+                                  placeholder="e.g. 0.29"
+                                />
+                                <p className="text-xs text-slate-500">Required for size-tier discrepancy checks.</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <div className="space-y-1">
-                            <Label>Category</Label>
-                            <Input
-                              value={formState.amazonCategory}
-                              disabled
-                              className="bg-slate-100 text-slate-500"
-                              placeholder="—"
-                            />
+                        <div className="space-y-4">
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <Label>Category</Label>
+                              <Input
+                                value={formState.amazonCategory}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Size Tier</Label>
+                              <Input
+                                value={formState.amazonSizeTier}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>Referral Fee (%)</Label>
+                              <Input
+                                value={formState.amazonReferralFeePercent}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label>FBA Fulfillment Fee</Label>
+                              <Input
+                                value={formState.amazonFbaFulfillmentFee}
+                                disabled
+                                className="bg-slate-100 text-slate-500"
+                                placeholder="—"
+                              />
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <Label>Size Tier</Label>
-                            <Input
-                              value={formState.amazonSizeTier}
-                              disabled
-                              className="bg-slate-100 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>Referral Fee (%)</Label>
-                            <Input
-                              value={formState.amazonReferralFeePercent}
-                              disabled
-                              className="bg-slate-100 text-slate-500"
-                              placeholder="—"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label>FBA Fulfillment Fee</Label>
-                            <Input
-                              value={formState.amazonFbaFulfillmentFee}
-                              disabled
-                              className="bg-slate-100 text-slate-500"
-                              placeholder="—"
-                            />
+
+                          <div className="border-t border-slate-200 pt-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="space-y-1">
+                                <Label>Unit Dimensions (cm)</Label>
+                                <Input
+                                  value={formState.productDimensionsCm}
+                                  disabled
+                                  className="bg-slate-100 text-slate-500"
+                                  placeholder="—"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label>Unit Weight (kg)</Label>
+                                <Input
+                                  value={formState.amazonReferenceWeightKg}
+                                  disabled
+                                  className="bg-slate-100 text-slate-500"
+                                  placeholder="—"
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}

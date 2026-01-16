@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { safeEqual, syncSellerboardUsDashboard } from '@/lib/integrations/sellerboard';
 import { checkRateLimit, getRateLimitIdentifier, RATE_LIMIT_PRESETS } from '@/lib/api/rate-limit';
+import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
@@ -53,7 +54,25 @@ export const POST = async (request: Request) => {
   }
 
   try {
-    const result = await syncSellerboardUsDashboard({ reportUrl });
+    const url = new URL(request.url);
+    const rawStrategyId = url.searchParams.get('strategyId');
+    const strategyId = rawStrategyId ? rawStrategyId.trim() : '';
+    if (!strategyId) {
+      return NextResponse.json({ error: 'Missing strategyId' }, { status: 400 });
+    }
+
+    const strategy = await prisma.strategy.findUnique({
+      where: { id: strategyId },
+      select: { region: true },
+    });
+    if (!strategy) {
+      return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
+    }
+    if (strategy.region !== 'US') {
+      return NextResponse.json({ error: 'Strategy region mismatch' }, { status: 400 });
+    }
+
+    const result = await syncSellerboardUsDashboard({ reportUrl, strategyId });
     return NextResponse.json({
       ok: true,
       ...result,

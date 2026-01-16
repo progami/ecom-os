@@ -303,9 +303,95 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
 
     // Purchase order line snapshots (avoid dynamic SKU/batch enrichment after creation)
     `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_dimensions_cm" text`,
-    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_length_cm" numeric(8, 2)`,
-    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_width_cm" numeric(8, 2)`,
-    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_height_cm" numeric(8, 2)`,
+    `
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_length_cm'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_side1_cm'
+        ) THEN
+          ALTER TABLE "purchase_order_lines" RENAME COLUMN "carton_length_cm" TO "carton_side1_cm";
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_width_cm'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_side2_cm'
+        ) THEN
+          ALTER TABLE "purchase_order_lines" RENAME COLUMN "carton_width_cm" TO "carton_side2_cm";
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_height_cm'
+        ) AND NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_side3_cm'
+        ) THEN
+          ALTER TABLE "purchase_order_lines" RENAME COLUMN "carton_height_cm" TO "carton_side3_cm";
+        END IF;
+      END $$;
+    `,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_side1_cm" numeric(8, 2)`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_side2_cm" numeric(8, 2)`,
+    `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_side3_cm" numeric(8, 2)`,
+    `
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_length_cm'
+        ) THEN
+          UPDATE purchase_order_lines
+          SET carton_side1_cm = COALESCE(carton_side1_cm, carton_length_cm)
+          WHERE carton_length_cm IS NOT NULL AND carton_side1_cm IS NULL;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_width_cm'
+        ) THEN
+          UPDATE purchase_order_lines
+          SET carton_side2_cm = COALESCE(carton_side2_cm, carton_width_cm)
+          WHERE carton_width_cm IS NOT NULL AND carton_side2_cm IS NULL;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'purchase_order_lines'
+            AND column_name = 'carton_height_cm'
+        ) THEN
+          UPDATE purchase_order_lines
+          SET carton_side3_cm = COALESCE(carton_side3_cm, carton_height_cm)
+          WHERE carton_height_cm IS NOT NULL AND carton_side3_cm IS NULL;
+        END IF;
+      END $$;
+    `,
+    `ALTER TABLE "purchase_order_lines" DROP COLUMN IF EXISTS "carton_length_cm"`,
+    `ALTER TABLE "purchase_order_lines" DROP COLUMN IF EXISTS "carton_width_cm"`,
+    `ALTER TABLE "purchase_order_lines" DROP COLUMN IF EXISTS "carton_height_cm"`,
     `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "carton_weight_kg" numeric(8, 3)`,
     `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "packaging_type" text`,
     `ALTER TABLE "purchase_order_lines" ADD COLUMN IF NOT EXISTS "storage_cartons_per_pallet" integer`,
