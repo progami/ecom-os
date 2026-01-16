@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
+
 const AMAZON_DUPLICATE_ACCOUNTS = [
   'Amazon Sales',
   'Amazon Refunds',
@@ -302,11 +304,10 @@ function BrandsStep({
 // Step 2: QBO Cleanup Verification
 // ─────────────────────────────────────────────────────────────────────────────
 
-type QboAccount = {
-  Id: string;
-  Name: string;
-  Active: boolean;
-  FullyQualifiedName: string;
+type QboAccountSummary = {
+  name: string;
+  active?: boolean;
+  parentName: string | null;
 };
 
 type CleanupStatus = {
@@ -325,6 +326,7 @@ function CleanupStep({
 }) {
   const [loading, setLoading] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<CleanupStatus>({
     duplicatesInactive: AMAZON_DUPLICATE_ACCOUNTS.map((name) => ({ name, status: 'pending' })),
     parentsExist: REQUIRED_PARENT_ACCOUNTS.map((name) => ({ name, status: 'pending' })),
@@ -333,25 +335,33 @@ function CleanupStep({
   const runVerification = async () => {
     setLoading(true);
     setVerified(false);
+    setError(null);
 
     try {
-      const res = await fetch('/api/qbo/accounts');
+      const res = await fetch(`${basePath}/api/qbo/accounts`);
       const data = await res.json();
-      const accounts: QboAccount[] = data.accounts;
+      if (!res.ok) {
+        if (typeof data?.error === 'string') {
+          throw new Error(data.error);
+        }
+        throw new Error(`Failed to fetch accounts (${res.status})`);
+      }
+
+      const accounts: QboAccountSummary[] = data.accounts;
 
       // Check duplicates are inactive
       const duplicatesInactive = AMAZON_DUPLICATE_ACCOUNTS.map((name) => {
         const account = accounts.find(
-          (a) => a.Name.toLowerCase() === name.toLowerCase() && !a.FullyQualifiedName.includes(':')
+          (a) => a.parentName === null && a.name.toLowerCase() === name.toLowerCase()
         );
-        const isInactive = !account || !account.Active;
+        const isInactive = !account || account.active === false;
         return { name, status: (isInactive ? 'pass' : 'fail') as 'pass' | 'fail' };
       });
 
       // Check parents exist
       const parentsExist = REQUIRED_PARENT_ACCOUNTS.map((name) => {
         const account = accounts.find(
-          (a) => a.FullyQualifiedName.toLowerCase() === name.toLowerCase() && a.Active
+          (a) => a.parentName === null && a.name.toLowerCase() === name.toLowerCase() && a.active
         );
         return { name, status: (account ? 'pass' : 'fail') as 'pass' | 'fail' };
       });
@@ -366,8 +376,8 @@ function CleanupStep({
         setVerified(true);
         onVerified();
       }
-    } catch {
-      // Error handling - let it fail
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -380,6 +390,11 @@ function CleanupStep({
   return (
     <div className="space-y-6">
       <div className="space-y-4">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+            {error}
+          </div>
+        )}
         <div className="space-y-2">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Duplicate Accounts (must be inactive)
@@ -474,18 +489,32 @@ function AccountsStep({
 }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ created: number; skipped: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const createAccounts = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch('/api/qbo/accounts/create-plutus-qbo-lmb-plan', {
+      const res = await fetch(`${basePath}/api/qbo/accounts/create-plutus-qbo-lmb-plan`, {
         method: 'POST',
       });
       const data = await res.json();
-      setResult({ created: data.created, skipped: data.skipped });
+
+      if (!res.ok) {
+        if (typeof data?.error === 'string') {
+          throw new Error(data.error);
+        }
+        throw new Error(`Failed to create accounts (${res.status})`);
+      }
+
+      if (!Array.isArray(data?.created) || !Array.isArray(data?.skipped)) {
+        throw new Error('Invalid response from create accounts endpoint');
+      }
+
+      setResult({ created: data.created.length, skipped: data.skipped.length });
       onCreated();
-    } catch {
-      // Error handling - let it fail
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoading(false);
     }
@@ -494,13 +523,18 @@ function AccountsStep({
   return (
     <div className="space-y-6">
       <div className="text-center py-8">
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400 text-left">
+            {error}
+          </div>
+        )}
         {!result && !loading && (
           <div className="space-y-4">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-teal-500/10 dark:bg-brand-cyan/10">
               <CogIcon className="h-8 w-8 text-brand-teal-600 dark:text-brand-cyan" />
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-              Create income, expense, and inventory accounts in QuickBooks
+              Create Plutus inventory + COGS sub-accounts and Inventory Shrinkage in QuickBooks
             </p>
           </div>
         )}
