@@ -148,11 +148,17 @@ export function SellerboardUsSyncControl({
         <span className={SHEET_TOOLBAR_LABEL}>{toolbarLabel}</span>
         <button
           type="button"
+          disabled={isSyncing}
           onClick={() => setOpen(true)}
-          className="inline-flex h-5 items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 text-[10px] font-medium text-slate-500 transition hover:bg-slate-50 active:translate-y-px dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+          className={cn(
+            'inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-semibold shadow-sm transition focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 active:translate-y-px',
+            'border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100',
+            'dark:border-[#00c2b9]/40 dark:bg-[#00c2b9]/10 dark:text-cyan-200 dark:hover:bg-[#00c2b9]/15',
+            isSyncing && 'cursor-not-allowed opacity-70',
+          )}
         >
-          <RefreshCw className="h-2.5 w-2.5" />
-          Sync
+          <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
+          Sync Sellerboard
         </button>
       </div>
 
