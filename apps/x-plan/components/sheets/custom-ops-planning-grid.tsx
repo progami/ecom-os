@@ -1022,8 +1022,8 @@ export function CustomOpsPlanningGrid({
           const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
           finalValue = normalizeNumeric(finalValue, precision);
           const parsed = sanitizeNumeric(finalValue);
-          if (!Number.isFinite(parsed) || parsed <= 0) {
-            toast.error('Weeks must be a positive number');
+          if (!Number.isFinite(parsed) || parsed < 0) {
+            toast.error('Weeks must be a non-negative number');
             cancelEditing();
             return;
           }
@@ -1196,8 +1196,8 @@ export function CustomOpsPlanningGrid({
         }
 
         const weeks = sanitizeNumeric(finalValue);
-        if (!Number.isFinite(weeks) || weeks <= 0) {
-          toast.error('Weeks must be a positive number');
+        if (!Number.isFinite(weeks) || weeks < 0) {
+          toast.error('Weeks must be a non-negative number');
           cancelEditing();
           return;
         }
@@ -1226,8 +1226,8 @@ export function CustomOpsPlanningGrid({
         const days = Math.max(0, Math.round(weeks * 7));
         const endDate = new Date(startDate.getTime() + days * MS_PER_DAY);
 
-        if (endDate.getTime() <= startDate.getTime()) {
-          toast.error('End date must be after the start date');
+        if (endDate.getTime() < startDate.getTime()) {
+          toast.error('End date must be on or after the start date');
           cancelEditing();
           return;
         }

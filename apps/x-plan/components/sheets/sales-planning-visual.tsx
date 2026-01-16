@@ -74,9 +74,6 @@ export function SalesPlanningVisual({
     'individual',
   );
   const [forecastSelectedProductId, setForecastSelectedProductId] = useState<string | 'ALL'>('ALL');
-  const [showActualLine, setShowActualLine] = useState(true);
-  const [showForecastLine, setShowForecastLine] = useState(true);
-  const [showErrorBars, setShowErrorBars] = useState(true);
 
   const weekLabelByWeekNumber = useMemo(() => {
     const map = new Map<number, string>();
@@ -268,10 +265,10 @@ export function SalesPlanningVisual({
   const forecastYAxisBounds = useMemo(() => {
     const allValues: number[] = [];
     activeForecastData.forEach((p) => {
-      if (showActualLine && Number.isFinite(p.actual)) {
+      if (Number.isFinite(p.actual)) {
         allValues.push(p.actual);
       }
-      if (showForecastLine && Number.isFinite(p.forecast)) {
+      if (Number.isFinite(p.forecast)) {
         allValues.push(p.forecast);
       }
     });
@@ -283,7 +280,7 @@ export function SalesPlanningVisual({
     const min = Math.min(dataMin, 0);
     const max = dataMax + padding;
     return { min, max };
-  }, [activeForecastData, showActualLine, showForecastLine]);
+  }, [activeForecastData]);
 
   if (productOptions.length === 0) {
     return (
@@ -651,142 +648,33 @@ export function SalesPlanningVisual({
                   }}
                 />
                 <ReferenceLine yAxisId="error" y={0} stroke="#94a3b8" strokeDasharray="3 3" />
-                {showActualLine && (
-                  <Area
-                    yAxisId="sales"
-                    type="monotone"
-                    dataKey="actual"
-                    stroke="hsl(var(--chart-2))"
-                    fill="url(#actualGradient)"
-                    strokeWidth={2}
-                  />
-                )}
-                {showForecastLine && (
-                  <Area
-                    yAxisId="sales"
-                    type="monotone"
-                    dataKey="forecast"
-                    stroke="hsl(var(--chart-3))"
-                    fill="url(#forecastGradient)"
-                    strokeWidth={2}
-                    strokeDasharray="5 5"
-                  />
-                )}
-                {showErrorBars && (
-                  <Line
-                    yAxisId="error"
-                    type="monotone"
-                    dataKey="error"
-                    stroke="hsl(var(--chart-4))"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                )}
+                <Area
+                  yAxisId="sales"
+                  type="monotone"
+                  dataKey="actual"
+                  stroke="hsl(var(--chart-2))"
+                  fill="url(#actualGradient)"
+                  strokeWidth={2}
+                />
+                <Area
+                  yAxisId="sales"
+                  type="monotone"
+                  dataKey="forecast"
+                  stroke="hsl(var(--chart-3))"
+                  fill="url(#forecastGradient)"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                />
+                <Line
+                  yAxisId="error"
+                  type="monotone"
+                  dataKey="error"
+                  stroke="hsl(var(--chart-4))"
+                  strokeWidth={2}
+                  dot={false}
+                />
               </ComposedChart>
             </ResponsiveContainer>
-          </div>
-
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 border-t border-slate-200/60 pt-4 dark:border-slate-700/50">
-            <button
-              type="button"
-              onClick={() => setShowActualLine(!showActualLine)}
-              className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
-                showActualLine
-                  ? 'bg-slate-100/80 dark:bg-slate-800/50'
-                  : 'opacity-50 hover:opacity-75'
-              }`}
-            >
-              <div className="relative">
-                <div
-                  className={`h-3 w-3 rounded-full transition-transform duration-200 ${
-                    showActualLine ? 'scale-100' : 'scale-75'
-                  }`}
-                  style={{ backgroundColor: 'hsl(var(--chart-2))' }}
-                />
-                {showActualLine && (
-                  <div
-                    className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
-                    style={{ backgroundColor: 'hsl(var(--chart-2))' }}
-                  />
-                )}
-              </div>
-              <span
-                className={`text-xs font-medium transition-colors duration-200 ${
-                  showActualLine
-                    ? 'text-slate-700 dark:text-slate-200'
-                    : 'text-slate-400 dark:text-slate-500'
-                }`}
-              >
-                Actual Sales
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowForecastLine(!showForecastLine)}
-              className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
-                showForecastLine
-                  ? 'bg-slate-100/80 dark:bg-slate-800/50'
-                  : 'opacity-50 hover:opacity-75'
-              }`}
-            >
-              <div className="relative">
-                <div
-                  className={`h-3 w-3 rounded-full border-2 border-dashed transition-transform duration-200 ${
-                    showForecastLine ? 'scale-100' : 'scale-75'
-                  }`}
-                  style={{ borderColor: 'hsl(var(--chart-3))' }}
-                />
-                {showForecastLine && (
-                  <div
-                    className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
-                    style={{ backgroundColor: 'hsl(var(--chart-3))' }}
-                  />
-                )}
-              </div>
-              <span
-                className={`text-xs font-medium transition-colors duration-200 ${
-                  showForecastLine
-                    ? 'text-slate-700 dark:text-slate-200'
-                    : 'text-slate-400 dark:text-slate-500'
-                }`}
-              >
-                Forecast
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowErrorBars(!showErrorBars)}
-              className={`group flex items-center gap-2.5 rounded-lg px-3 py-1.5 transition-all duration-200 ${
-                showErrorBars
-                  ? 'bg-slate-100/80 dark:bg-slate-800/50'
-                  : 'opacity-50 hover:opacity-75'
-              }`}
-            >
-              <div className="relative">
-                <div
-                  className={`h-0.5 w-3 rounded-full transition-transform duration-200 ${
-                    showErrorBars ? 'scale-100' : 'scale-75'
-                  }`}
-                  style={{ backgroundColor: 'hsl(var(--chart-4))' }}
-                />
-                {showErrorBars && (
-                  <div
-                    className="absolute inset-0 animate-pulse rounded-full opacity-40 blur-sm"
-                    style={{ backgroundColor: 'hsl(var(--chart-4))' }}
-                  />
-                )}
-              </div>
-              <span
-                className={`text-xs font-medium transition-colors duration-200 ${
-                  showErrorBars
-                    ? 'text-slate-700 dark:text-slate-200'
-                    : 'text-slate-400 dark:text-slate-500'
-                }`}
-              >
-                % Variance
-              </span>
-            </button>
           </div>
         </CardContent>
       </Card>
