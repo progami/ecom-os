@@ -13,8 +13,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PageContainer, PageContent, PageHeaderSection } from '@/components/layout/page-container'
+import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
+import { Badge } from '@/components/ui/badge'
 import {
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Clock,
   DollarSign,
@@ -328,46 +331,22 @@ function StatusIcon({ status }: { status: AlertStatus }) {
 }
 
 function StatusBadge({ status }: { status: AlertStatus }) {
-  const config = {
-    MATCH: { label: 'Match', className: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20' },
-    MISMATCH: { label: 'Mismatch', className: 'bg-rose-500/10 text-rose-700 border-rose-500/20' },
-    NO_ASIN: { label: 'No ASIN', className: 'bg-amber-500/10 text-amber-700 border-amber-500/20' },
-    MISSING_REFERENCE: { label: 'No Ref', className: 'bg-amber-500/10 text-amber-700 border-amber-500/20' },
-    ERROR: { label: 'Error', className: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
-    UNKNOWN: { label: 'Pending', className: 'bg-slate-100 text-slate-500 border-slate-200' },
-  }[status]
+  const config: Record<AlertStatus, { label: string; variant: 'success' | 'danger' | 'warning' | 'neutral' }> = {
+    MATCH: { label: 'Match', variant: 'success' },
+    MISMATCH: { label: 'Mismatch', variant: 'danger' },
+    NO_ASIN: { label: 'No ASIN', variant: 'warning' },
+    MISSING_REFERENCE: { label: 'No Ref', variant: 'warning' },
+    ERROR: { label: 'Error', variant: 'neutral' },
+    UNKNOWN: { label: 'Pending', variant: 'neutral' },
+  }
+
+  const { label, variant } = config[status]
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${config.className}`}
-    >
+    <Badge variant={variant} className="gap-1.5">
       <StatusIcon status={status} />
-      {config.label}
-    </span>
-  )
-}
-
-function SummaryCard({
-  label,
-  count,
-  variant,
-}: {
-  label: string
-  count: number
-  variant: 'danger' | 'success' | 'warning' | 'neutral'
-}) {
-  const styles = {
-    danger: 'bg-rose-50 border-rose-100 text-rose-900',
-    success: 'bg-emerald-50 border-emerald-100 text-emerald-900',
-    warning: 'bg-amber-50 border-amber-100 text-amber-900',
-    neutral: 'bg-slate-50 border-slate-100 text-slate-900',
-  }[variant]
-
-  return (
-    <div className={`rounded-lg border px-4 py-3 ${styles}`}>
-      <div className="text-2xl font-semibold tabular-nums">{count}</div>
-      <div className="text-xs font-medium opacity-70">{label}</div>
-    </div>
+      {label}
+    </Badge>
   )
 }
 
@@ -511,12 +490,36 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
       />
 
       <PageContent className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <SummaryCard label="Mismatches" count={summary.mismatch} variant="danger" />
-          <SummaryCard label="Matches" count={summary.match} variant="success" />
-          <SummaryCard label="Warnings" count={summary.warning} variant="warning" />
-          <SummaryCard label="Pending" count={summary.pending} variant="neutral" />
-        </div>
+        <StatsCardGrid cols={4} gap="gap-4">
+          <StatsCard
+            title="Mismatches"
+            value={summary.mismatch}
+            icon={XCircle}
+            variant="danger"
+            size="sm"
+          />
+          <StatsCard
+            title="Matches"
+            value={summary.match}
+            icon={CheckCircle2}
+            variant="success"
+            size="sm"
+          />
+          <StatsCard
+            title="Warnings"
+            value={summary.warning}
+            icon={AlertCircle}
+            variant="warning"
+            size="sm"
+          />
+          <StatsCard
+            title="Pending"
+            value={summary.pending}
+            icon={Clock}
+            variant="default"
+            size="sm"
+          />
+        </StatsCardGrid>
 
         {selectedRows.length > 0 ? (
           <div className="rounded-xl border bg-white shadow-soft overflow-hidden">
