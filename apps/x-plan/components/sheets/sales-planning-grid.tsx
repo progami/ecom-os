@@ -222,6 +222,18 @@ interface SalesPlanningGridProps {
 type CellCoords = { row: number; col: number };
 type CellRange = { from: CellCoords; to: CellCoords };
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest('input, textarea, [contenteditable="true"]'));
+}
+
+function clearNativeSelection() {
+  const selection = window.getSelection();
+  if (!selection) return;
+  if (selection.type !== 'Range') return;
+  selection.removeAllRanges();
+}
+
 function normalizeRange(range: CellRange): {
   top: number;
   bottom: number;
@@ -1709,6 +1721,10 @@ export function SalesPlanningGrid({
 
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLTableCellElement>, row: number, col: number) => {
+      if (event.pointerType === 'touch') return;
+      if (event.button !== 0) return;
+      if (isEditableTarget(event.target)) return;
+      clearNativeSelection();
       scrollRef.current?.focus();
 
       const coords = { row, col };
@@ -1729,6 +1745,7 @@ export function SalesPlanningGrid({
 
   const handlePointerMove = useCallback(
     (event: PointerEvent<HTMLTableCellElement>, row: number, col: number) => {
+      if (event.pointerType === 'touch') return;
       if (!event.buttons) return;
       if (!selectionAnchorRef.current) return;
       setSelection({ from: selectionAnchorRef.current, to: { row, col } });
@@ -2248,15 +2265,15 @@ export function SalesPlanningGrid({
           className="fixed left-0 top-0 h-1 w-1 opacity-0 pointer-events-none"
           onPaste={handleClipboardPaste}
         />
-        <div
-          ref={scrollRef}
-          tabIndex={0}
-          className="h-full overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          onPointerDownCapture={() => {
-            if (!editingCell) {
-              scrollRef.current?.focus();
-            }
-          }}
+	        <div
+	          ref={scrollRef}
+	          tabIndex={0}
+	          className="h-full select-none overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+	          onPointerDownCapture={() => {
+	            if (!editingCell) {
+	              scrollRef.current?.focus();
+	            }
+	          }}
           onKeyDown={handleKeyDown}
           onCopy={handleCopy}
           onPaste={handlePaste}
@@ -2384,7 +2401,9 @@ export function SalesPlanningGrid({
                             cancelEditing();
                           }
                         }}
-                        className="h-8 w-full min-w-0 rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onMouseDown={(event) => event.stopPropagation()}
+                        className="h-8 w-full min-w-0 select-text rounded-none border-0 bg-transparent px-0 text-right text-sm font-medium shadow-none focus:bg-background focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     ) : (
                       <div
@@ -2414,14 +2433,14 @@ export function SalesPlanningGrid({
                     );
 
                     const cell = (
-                      <TableCell
-                        key={column.id}
-                        className={cn(
-                          'h-8 whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
-                          meta?.sticky
-                            ? isEvenRow
-                              ? 'bg-muted'
-                              : 'bg-card'
+	                      <TableCell
+	                        key={column.id}
+	                        className={cn(
+	                          'h-8 select-none whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
+	                          meta?.sticky
+	                            ? isEvenRow
+	                              ? 'bg-muted'
+	                              : 'bg-card'
                             : isEvenRow
                               ? 'bg-muted/30'
                               : 'bg-card',
