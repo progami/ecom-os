@@ -856,6 +856,9 @@ export function OpsPlanningWorkspace({
   );
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
   const [newOrderCode, setNewOrderCode] = useState('');
+  const [isImportOrderOpen, setIsImportOrderOpen] = useState(false);
+  const [talosReference, setTalosReference] = useState('');
+  const [talosOrderCode, setTalosOrderCode] = useState('');
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [isRemovingPayment, setIsRemovingPayment] = useState(false);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
@@ -1729,6 +1732,58 @@ export function OpsPlanningWorkspace({
     });
   }, [strategyId, newOrderCode, productOptions, router, setActiveOrderId, startTransition]);
 
+  const handleImportFromTalos = useCallback(() => {
+    const reference = talosReference.trim();
+    if (!reference) {
+      toast.error('Enter a Talos purchase order number');
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        const basePayload: Record<string, unknown> = { strategyId, reference };
+        const trimmedOrderCode = talosOrderCode.trim();
+        const requestPayload = trimmedOrderCode.length
+          ? { ...basePayload, orderCode: trimmedOrderCode }
+          : basePayload;
+
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/import-talos'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestPayload),
+        });
+
+        if (!response.ok) {
+          let message = 'Failed to import purchase order from Talos';
+          try {
+            const errorPayload = await response.json();
+            if (typeof errorPayload?.error === 'string') {
+              message = errorPayload.error;
+            }
+          } catch (error) {
+            // ignore JSON parse errors
+          }
+          toast.error(message);
+          return;
+        }
+
+        const result = await response.json().catch(() => null);
+        const createdId = result?.order?.id as string | undefined;
+        if (createdId) {
+          setActiveOrderId(createdId);
+        }
+        setIsImportOrderOpen(false);
+        setTalosReference('');
+        setTalosOrderCode('');
+        toast.success('Purchase order imported');
+        router.refresh();
+      } catch (error) {
+        console.error(error);
+        toast.error('Unable to import purchase order from Talos');
+      }
+    });
+  }, [router, setActiveOrderId, startTransition, strategyId, talosOrderCode, talosReference]);
+
   return (
     <div className="space-y-8">
       {!isVisualMode && (
@@ -1740,9 +1795,11 @@ export function OpsPlanningWorkspace({
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onRowsChange={handleInputRowsChange}
             onCreateOrder={() => setIsCreateOrderOpen(true)}
+            onImportFromTalos={() => setIsImportOrderOpen(true)}
             onDuplicateOrder={handleDuplicateOrder}
             onDeleteOrder={handleDeleteOrder}
             disableCreate={isPending || productOptions.length === 0}
+            disableImport={isPending}
             disableDuplicate={isPending}
             disableDelete={isPending}
           />
@@ -1789,6 +1846,64 @@ export function OpsPlanningWorkspace({
                     className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold uppercase tracking-wide text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Create
+                  </button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
+          {isImportOrderOpen ? (
+            <section className="space-y-4 rounded-xl border border-dashed bg-muted/50 p-4">
+              <header className="space-y-1">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-primary">
+                  Import from Talos
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Paste a Talos PO number (e.g. PO-1001). X-Plan will create a new purchase order
+                  row and copy line items.
+                </p>
+              </header>
+              <form
+                className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleImportFromTalos();
+                }}
+              >
+                <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Talos PO
+                  <input
+                    type="text"
+                    value={talosReference}
+                    onChange={(event) => setTalosReference(event.target.value)}
+                    placeholder="PO-1001"
+                    className="rounded-lg border bg-background px-3 py-2 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/60 hover:border-primary/50"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                  Order code (optional)
+                  <input
+                    type="text"
+                    value={talosOrderCode}
+                    onChange={(event) => setTalosOrderCode(event.target.value)}
+                    placeholder="Use Talos code if blank"
+                    className="rounded-lg border bg-background px-3 py-2 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/60 hover:border-primary/50"
+                  />
+                </label>
+                <div className="flex items-end justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsImportOrderOpen(false)}
+                    className="rounded-lg border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold uppercase tracking-wide text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Import
                   </button>
                 </div>
               </form>
