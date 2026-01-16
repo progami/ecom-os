@@ -16,6 +16,7 @@ import {
   calculateFbaFulfillmentFee2026NonPeakExcludingApparel,
   calculateSizeTier,
   getReferralFeePercent2026,
+  normalizeReferralCategory2026,
 } from '@/lib/amazon/fees'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
@@ -66,16 +67,6 @@ const AMAZON_REFERRAL_CATEGORIES_2026 = [
 ] as const
 
 type AmazonReferralCategory = (typeof AMAZON_REFERRAL_CATEGORIES_2026)[number]
-
-const AMAZON_CATEGORY_TO_REFERRAL_CATEGORY = new Map<string, AmazonReferralCategory>([
-  ['Home Improvement', 'Tools and Home Improvement'],
-])
-
-function normalizeReferralCategory(value: string): string {
-  const mapped = AMAZON_CATEGORY_TO_REFERRAL_CATEGORY.get(value)
-  if (mapped) return mapped
-  return value
-}
 
 function formatReferralCategoryLabel(category: AmazonReferralCategory): string {
   if (category === 'Tools and Home Improvement') return 'Tools and Home Improvement (Home Improvement)'
@@ -220,8 +211,8 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
   if (sku?.category) {
     category = sku.category
   } else if (sku?.amazonCategory) {
-    const mapped = AMAZON_CATEGORY_TO_REFERRAL_CATEGORY.get(sku.amazonCategory)
-    if (mapped) category = mapped
+    const normalizedAmazonCategory = normalizeReferralCategory2026(sku.amazonCategory)
+    if (normalizedAmazonCategory) category = normalizedAmazonCategory
   }
 
   return {
@@ -345,7 +336,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
   const autoFillReferenceFees = useCallback(
     (mode: 'blankOnly' | 'force') => {
       const categoryTrimmed = formState.category.trim()
-      const normalizedCategory = categoryTrimmed ? normalizeReferralCategory(categoryTrimmed) : ''
+      const normalizedCategory = categoryTrimmed ? normalizeReferralCategory2026(categoryTrimmed) : ''
       if (!normalizedCategory) return
 
       const latestBatch = editingSku?.batches && editingSku.batches.length > 0 ? editingSku.batches[0] : null
@@ -383,9 +374,6 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
         listingPriceResolution.source === 'EXACT'
           ? getReferralFeePercent2026(normalizedCategory, listingPrice)
           : null
-      const fallbackReferralFeePercent = parseFiniteNumber(editingSku?.amazonReferralFeePercent)
-      const resolvedReferralFeePercent =
-        referralFeePercent !== null ? referralFeePercent : fallbackReferralFeePercent
 
       const fbaFee = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
         side1Cm,
@@ -396,7 +384,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
         sizeTier: computedSizeTier,
       })
 
-      if (resolvedReferralFeePercent === null && fbaFee === null) return
+      if (referralFeePercent === null && fbaFee === null) return
 
       setFormState(prev => {
         const next: SkuFormState = { ...prev }
@@ -409,9 +397,9 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
           next.sizeTier = computedSizeTier
         }
 
-        if (resolvedReferralFeePercent !== null) {
+        if (referralFeePercent !== null) {
           if (mode === 'force' || !next.referralFeePercent.trim()) {
-            next.referralFeePercent = String(resolvedReferralFeePercent)
+            next.referralFeePercent = String(referralFeePercent)
           }
         }
 
@@ -635,7 +623,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
 
     // Parse reference fee fields
     const categoryTrimmed = formState.category.trim()
-    const normalizedCategory = categoryTrimmed ? normalizeReferralCategory(categoryTrimmed) : ''
+    const normalizedCategory = categoryTrimmed ? normalizeReferralCategory2026(categoryTrimmed) : ''
     const categoryValue = normalizedCategory ? normalizedCategory : null
     const sizeTierTrimmed = formState.sizeTier.trim()
     const sizeTierValue = sizeTierTrimmed ? sizeTierTrimmed : null

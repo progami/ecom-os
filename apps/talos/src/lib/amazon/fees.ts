@@ -19,6 +19,21 @@ export function getMarketplaceCurrencyCode(tenantCode?: TenantCode): string {
   return 'USD'
 }
 
+const REFERRAL_CATEGORY_ALIASES_2026 = new Map<string, string>([
+  ['Home Improvement', 'Tools and Home Improvement'],
+  ['Tools & Home Improvement', 'Tools and Home Improvement'],
+  ['Home & Kitchen', 'Home and Kitchen'],
+  ['Sports & Outdoors', 'Sports and Outdoors'],
+])
+
+export function normalizeReferralCategory2026(category: string): string {
+  const trimmed = category.trim()
+  if (!trimmed) return ''
+  const mapped = REFERRAL_CATEGORY_ALIASES_2026.get(trimmed)
+  if (mapped) return mapped
+  return trimmed
+}
+
 /**
  * Calculate Amazon FBA size tier from dimensions and weight.
  * Based on Amazon US product size tier definitions (starting Jan 15, 2026).
@@ -120,7 +135,7 @@ function pickFeeByBand(value: { under10: number; tenToFifty: number; over50: num
 export function getReferralFeePercent2026(category: string, listingPrice: number): number | null {
   const price = Number(listingPrice)
   if (!Number.isFinite(price) || price < 0) return null
-  const normalized = category.trim()
+  const normalized = normalizeReferralCategory2026(category)
   if (!normalized) return null
 
   switch (normalized) {

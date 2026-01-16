@@ -37,6 +37,7 @@
     "db:migrate:sku-batch-amazon-item-package-dimensions": "tsx scripts/migrations/add-sku-batch-amazon-item-package-dimensions.ts",
     "db:migrate:sku-amazon-reference-weight": "tsx scripts/migrations/add-sku-amazon-reference-weight.ts",
     "db:migrate:sku-amazon-categories": "tsx scripts/migrations/add-sku-amazon-category-columns.ts",
+    "db:migrate:normalize-amazon-referral-fee-percent-2026": "tsx scripts/migrations/normalize-amazon-referral-fee-percent-2026.ts",
     "db:migrate:supplier-defaults": "tsx scripts/migrations/add-supplier-default-columns.ts",
     "db:migrate:warehouse-sku-storage-configs": "tsx scripts/migrations/add-warehouse-sku-storage-configs.ts",
     "db:migrate:purchase-order-documents": "tsx scripts/migrations/add-purchase-order-document-table.ts",
