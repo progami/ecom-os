@@ -32,6 +32,7 @@ function logSync(message: string, data?: Record<string, unknown>) {
 export async function syncSellerboardActualSales(options: {
   region: StrategyRegion;
   reportUrl: string;
+  strategyId?: string;
 }): Promise<SellerboardActualSalesSyncResult> {
   logSync(`Starting Sellerboard ${options.region} actual sales sync`);
 
@@ -89,7 +90,9 @@ export async function syncSellerboardActualSales(options: {
   const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
-      strategy: { region: options.region },
+      ...(options.strategyId
+        ? { strategyId: options.strategyId }
+        : { strategy: { region: options.region } }),
     },
     select: {
       id: true,
@@ -129,7 +132,9 @@ export async function syncSellerboardActualSales(options: {
     const asinProducts = (await prisma.product.findMany({
       where: {
         asin: { in: unmatchedCodes },
-        strategy: { region: options.region },
+        ...(options.strategyId
+          ? { strategyId: options.strategyId }
+          : { strategy: { region: options.region } }),
       },
       select: {
         id: true,
@@ -191,7 +196,9 @@ export async function syncSellerboardActualSales(options: {
         const mappedProducts = await prisma.product.findMany({
           where: {
             sku: { in: mappedSkuCodes },
-            strategy: { region: options.region },
+            ...(options.strategyId
+              ? { strategyId: options.strategyId }
+              : { strategy: { region: options.region } }),
           },
           select: { id: true, sku: true, strategyId: true },
         });
@@ -319,14 +326,24 @@ export async function syncSellerboardActualSales(options: {
 
 export async function syncSellerboardUsActualSales(options: {
   reportUrl: string;
+  strategyId?: string;
 }): Promise<SellerboardActualSalesSyncResult> {
-  return syncSellerboardActualSales({ region: 'US', reportUrl: options.reportUrl });
+  return syncSellerboardActualSales({
+    region: 'US',
+    reportUrl: options.reportUrl,
+    strategyId: options.strategyId,
+  });
 }
 
 export async function syncSellerboardUkActualSales(options: {
   reportUrl: string;
+  strategyId?: string;
 }): Promise<SellerboardActualSalesSyncResult> {
-  return syncSellerboardActualSales({ region: 'UK', reportUrl: options.reportUrl });
+  return syncSellerboardActualSales({
+    region: 'UK',
+    reportUrl: options.reportUrl,
+    strategyId: options.strategyId,
+  });
 }
 
 /**
@@ -335,6 +352,7 @@ export async function syncSellerboardUkActualSales(options: {
 export async function syncSellerboardDashboard(options: {
   region: StrategyRegion;
   reportUrl: string;
+  strategyId?: string;
 }): Promise<SellerboardDashboardSyncResult> {
   logSync(`Starting Sellerboard ${options.region} Dashboard sync`);
 
@@ -372,10 +390,12 @@ export async function syncSellerboardDashboard(options: {
 
     const weeklyTotals = parsed.weeklyTotals.filter((entry) => entry.weekNumber < currentWeekNumber);
 
-    const strategies = await prisma.strategy.findMany({
-      where: { region: options.region },
-      select: { id: true },
-    });
+    const strategies = options.strategyId
+      ? [{ id: options.strategyId }]
+      : await prisma.strategy.findMany({
+          where: { region: options.region },
+          select: { id: true },
+        });
 
     const upserts: ReturnType<(typeof prisma.profitAndLossWeek)['upsert']>[] = [];
 
@@ -491,7 +511,9 @@ export async function syncSellerboardDashboard(options: {
   const directProducts = await prisma.product.findMany({
     where: {
       sku: { in: productCodes },
-      strategy: { region: options.region },
+      ...(options.strategyId
+        ? { strategyId: options.strategyId }
+        : { strategy: { region: options.region } }),
     },
     select: {
       id: true,
@@ -529,7 +551,9 @@ export async function syncSellerboardDashboard(options: {
     const asinProducts = (await prisma.product.findMany({
       where: {
         asin: { in: unmatchedCodes },
-        strategy: { region: options.region },
+        ...(options.strategyId
+          ? { strategyId: options.strategyId }
+          : { strategy: { region: options.region } }),
       },
       select: {
         id: true,
@@ -582,7 +606,9 @@ export async function syncSellerboardDashboard(options: {
         const mappedProducts = await prisma.product.findMany({
           where: {
             sku: { in: mappedSkuCodes },
-            strategy: { region: options.region },
+            ...(options.strategyId
+              ? { strategyId: options.strategyId }
+              : { strategy: { region: options.region } }),
           },
           select: { id: true, sku: true, strategyId: true },
         });
@@ -700,12 +726,22 @@ export async function syncSellerboardDashboard(options: {
 
 export async function syncSellerboardUsDashboard(options: {
   reportUrl: string;
+  strategyId?: string;
 }): Promise<SellerboardDashboardSyncResult> {
-  return syncSellerboardDashboard({ region: 'US', reportUrl: options.reportUrl });
+  return syncSellerboardDashboard({
+    region: 'US',
+    reportUrl: options.reportUrl,
+    strategyId: options.strategyId,
+  });
 }
 
 export async function syncSellerboardUkDashboard(options: {
   reportUrl: string;
+  strategyId?: string;
 }): Promise<SellerboardDashboardSyncResult> {
-  return syncSellerboardDashboard({ region: 'UK', reportUrl: options.reportUrl });
+  return syncSellerboardDashboard({
+    region: 'UK',
+    reportUrl: options.reportUrl,
+    strategyId: options.strategyId,
+  });
 }

@@ -73,9 +73,11 @@ function formatDuration(durationMs: number): string {
 export function SellerboardUsSyncControl({
   isSuperAdmin,
   strategyRegion,
+  strategyId,
 }: {
   isSuperAdmin: boolean;
   strategyRegion: 'US' | 'UK';
+  strategyId: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -93,9 +95,10 @@ export function SellerboardUsSyncControl({
   }, [error, isSyncing, result]);
 
   const endpoint = `/api/v1/x-plan/sellerboard/${regionSlug}-sync/manual`;
+  const endpointWithStrategy = `${endpoint}?strategyId=${encodeURIComponent(strategyId)}`;
 
   const title = 'Sync Sellerboard';
-  const subtitle = `Updates Actual sales + past-week financials for ${strategyRegion} strategies`;
+  const subtitle = `Updates Actual sales + past-week financials for this strategy`;
 
   const toolbarLabel = 'Sellerboard';
   const syncButtonLabel = 'Sync Sellerboard';
@@ -107,7 +110,9 @@ export function SellerboardUsSyncControl({
     setResult(null);
 
     try {
-      const response = await fetch(withAppBasePath(endpoint), { method: 'POST' });
+      const response = await fetch(withAppBasePath(endpointWithStrategy), {
+        method: 'POST',
+      });
       const json = (await response.json().catch(() => null)) as any;
       if (!response.ok) {
         const message = typeof json?.error === 'string' ? json.error : 'Sync failed';
@@ -328,6 +333,7 @@ export function SellerboardUsSyncControl({
 export function SellerboardSyncControl(props: {
   isSuperAdmin: boolean;
   strategyRegion: 'US' | 'UK';
+  strategyId: string;
 }) {
   return <SellerboardUsSyncControl {...props} />;
 }

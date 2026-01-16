@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
 import { syncSellerboardUkActualSales } from '@/lib/integrations/sellerboard';
+import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
-export const POST = withXPlanAuth(async (_request: Request, session) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const actor = getStrategyActor(session);
   if (!actor.isSuperAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -19,10 +20,28 @@ export const POST = withXPlanAuth(async (_request: Request, session) => {
     );
   }
 
+  const url = new URL(request.url);
+  const rawStrategyId = url.searchParams.get('strategyId');
+  const strategyId = rawStrategyId ? rawStrategyId.trim() : '';
+  if (!strategyId) {
+    return NextResponse.json({ error: 'Missing strategyId' }, { status: 400 });
+  }
+
+  const strategy = await prisma.strategy.findUnique({
+    where: { id: strategyId },
+    select: { region: true },
+  });
+  if (!strategy) {
+    return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
+  }
+  if (strategy.region !== 'UK') {
+    return NextResponse.json({ error: 'Strategy region mismatch' }, { status: 400 });
+  }
+
   const startedAt = Date.now();
 
   try {
-    const result = await syncSellerboardUkActualSales({ reportUrl });
+    const result = await syncSellerboardUkActualSales({ reportUrl, strategyId });
     return NextResponse.json({
       ok: true,
       durationMs: Date.now() - startedAt,
@@ -35,4 +54,3 @@ export const POST = withXPlanAuth(async (_request: Request, session) => {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 });
-

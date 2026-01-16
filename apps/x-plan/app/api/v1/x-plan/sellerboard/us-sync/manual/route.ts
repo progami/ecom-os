@@ -1,14 +1,33 @@
 import { NextResponse } from 'next/server';
 import { withXPlanAuth } from '@/lib/api/auth';
 import { getStrategyActor } from '@/lib/strategy-access';
+import prisma from '@/lib/prisma';
 import { syncSellerboardUsActualSales, syncSellerboardUsDashboard } from '@/lib/integrations/sellerboard';
 
 export const runtime = 'nodejs';
 
-export const POST = withXPlanAuth(async (_request: Request, session) => {
+export const POST = withXPlanAuth(async (request: Request, session) => {
   const actor = getStrategyActor(session);
   if (!actor.isSuperAdmin) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const url = new URL(request.url);
+  const rawStrategyId = url.searchParams.get('strategyId');
+  const strategyId = rawStrategyId ? rawStrategyId.trim() : '';
+  if (!strategyId) {
+    return NextResponse.json({ error: 'Missing strategyId' }, { status: 400 });
+  }
+
+  const strategy = await prisma.strategy.findUnique({
+    where: { id: strategyId },
+    select: { region: true },
+  });
+  if (!strategy) {
+    return NextResponse.json({ error: 'Strategy not found' }, { status: 404 });
+  }
+  if (strategy.region !== 'US') {
+    return NextResponse.json({ error: 'Strategy region mismatch' }, { status: 400 });
   }
 
   const ordersReportUrl = process.env.SELLERBOARD_US_ORDERS_REPORT_URL?.trim();
@@ -31,7 +50,10 @@ export const POST = withXPlanAuth(async (_request: Request, session) => {
 
   try {
     const actualSalesStartedAt = Date.now();
-    const actualSalesResult = await syncSellerboardUsActualSales({ reportUrl: ordersReportUrl });
+    const actualSalesResult = await syncSellerboardUsActualSales({
+      reportUrl: ordersReportUrl,
+      strategyId,
+    });
     const actualSales = {
       ok: true,
       durationMs: Date.now() - actualSalesStartedAt,
@@ -41,7 +63,10 @@ export const POST = withXPlanAuth(async (_request: Request, session) => {
     };
 
     const dashboardStartedAt = Date.now();
-    const dashboardResult = await syncSellerboardUsDashboard({ reportUrl: dashboardReportUrl });
+    const dashboardResult = await syncSellerboardUsDashboard({
+      reportUrl: dashboardReportUrl,
+      strategyId,
+    });
     const dashboard = {
       ok: true,
       durationMs: Date.now() - dashboardStartedAt,
@@ -61,4 +86,3 @@ export const POST = withXPlanAuth(async (_request: Request, session) => {
     return NextResponse.json({ error: message }, { status: 502 });
   }
 });
-
