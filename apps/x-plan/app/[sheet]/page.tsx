@@ -1775,6 +1775,7 @@ function getSalesPlanningView(
       if (derived && derived.arrivals > 0) {
         row[`p${productIdx}_hasInbound`] = 'true';
       }
+      row[`p${productIdx}_arrivals`] = formatNumeric(derived?.arrivals ?? null, 0);
 
       SALES_METRICS.forEach((metric) => {
         const key = columnKey(productIdx, metric);
