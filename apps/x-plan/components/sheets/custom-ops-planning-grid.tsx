@@ -1769,7 +1769,7 @@ export function CustomOpsPlanningGrid({
               const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2;
               const normalizedWeeks = normalizeNumeric(trimmed, precision);
               const parsedWeeks = parseWeeks(normalizedWeeks);
-              if (parsedWeeks == null || parsedWeeks <= 0) continue;
+              if (parsedWeeks == null || parsedWeeks < 0) continue;
 
               const stageIndex = STAGE_CONFIG.findIndex((s) => s.weeksKey === stageField);
               let startDate: Date | null = null;
@@ -1787,7 +1787,7 @@ export function CustomOpsPlanningGrid({
               const days = Math.max(0, Math.round(parsedWeeks * 7));
               const endDate = new Date(startDate.getTime() + days * MS_PER_DAY);
 
-              if (endDate.getTime() <= startDate.getTime()) continue;
+              if (endDate.getTime() < startDate.getTime()) continue;
 
               const iso = toIsoDate(endDate);
               if (!iso) continue;
