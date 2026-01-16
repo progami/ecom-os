@@ -80,12 +80,13 @@ function formatReferralCategoryLabel(category: AmazonReferralCategory): string {
 const AMAZON_SIZE_TIER_OPTIONS = [
   'Small Standard-Size',
   'Large Standard-Size',
-  'Standard-Size',
-  'Small Oversize',
-  'Medium Oversize',
-  'Large Oversize',
-  'Special Oversize',
-  'Oversize',
+  'Small Bulky',
+  'Large Bulky',
+  'Extra-Large 0 to 50 lb',
+  'Extra-Large 50+ to 70 lb',
+  'Extra-Large 70+ to 150 lb',
+  'Extra-Large 150+ lb',
+  'Overmax 0 to 150 lb',
   'Small and Light',
 ] as const
 

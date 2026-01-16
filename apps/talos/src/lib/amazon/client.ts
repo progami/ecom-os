@@ -32,7 +32,19 @@ type AmazonCatalogItemAttributes = {
     width?: AmazonCatalogMeasurement
     height?: AmazonCatalogMeasurement
   }>
+  item_package_dimensions?: Array<{
+    length?: AmazonCatalogMeasurement
+    width?: AmazonCatalogMeasurement
+    height?: AmazonCatalogMeasurement
+  }>
+  package_dimensions?: Array<{
+    length?: AmazonCatalogMeasurement
+    width?: AmazonCatalogMeasurement
+    height?: AmazonCatalogMeasurement
+  }>
   item_weight?: Array<AmazonCatalogMeasurement>
+  item_package_weight?: Array<AmazonCatalogMeasurement>
+  package_weight?: Array<AmazonCatalogMeasurement>
 }
 
 type AmazonCatalogItemSummary = {
