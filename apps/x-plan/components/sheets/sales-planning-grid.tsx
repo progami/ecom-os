@@ -2415,6 +2415,12 @@ export function SalesPlanningGrid({
                         <span className="block min-w-0 truncate tabular-nums">
                           {presentation.display}
                         </span>
+                        {column.id === 'weekLabel' ? (
+                          <RealWeekIndicator
+                            hasActualData={isWeekCellWithActualData}
+                            className="shrink-0"
+                          />
+                        ) : null}
                         {presentation.badge ? (
                           <span className="shrink-0 text-2xs font-medium text-muted-foreground/70">
                             {presentation.badge}
