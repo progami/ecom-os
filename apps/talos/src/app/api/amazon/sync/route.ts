@@ -83,6 +83,30 @@ function parseCatalogUnitWeightKg(attributes: {
   return convertWeightToKg(value, measurement.unit)
 }
 
+function parseCatalogCategories(catalog: { summaries?: unknown }): { category: string | null; subcategory: string | null } {
+  const summaries = catalog.summaries
+  if (!Array.isArray(summaries) || summaries.length === 0) {
+    return { category: null, subcategory: null }
+  }
+
+  const summary = summaries[0]
+  if (!summary || typeof summary !== 'object') {
+    return { category: null, subcategory: null }
+  }
+
+  const summaryRecord = summary as Record<string, unknown>
+  const categoryRaw = summaryRecord.websiteDisplayGroupName
+  const category = typeof categoryRaw === 'string' && categoryRaw.trim() ? categoryRaw.trim() : null
+
+  const browse = summaryRecord.browseClassification
+  const subcategoryRaw =
+    browse && typeof browse === 'object' ? (browse as Record<string, unknown>).displayName : null
+  const subcategory =
+    typeof subcategoryRaw === 'string' && subcategoryRaw.trim() ? subcategoryRaw.trim() : null
+
+  return { category, subcategory }
+}
+
 export const POST = withAuth(async (request, session) => {
   try {
     if (session.user.role !== 'admin') {
@@ -214,6 +238,14 @@ async function syncProducts(session: Session) {
             if (typeof summaryName === 'string' && summaryName.trim()) {
               updates.description = summaryName.trim()
             }
+          }
+
+          const categories = parseCatalogCategories(catalogItem)
+          if (categories.category) {
+            updates.amazonCategory = categories.category
+          }
+          if (categories.subcategory) {
+            updates.amazonSubcategory = categories.subcategory
           }
 
           const unitTriplet = parseCatalogUnitDimensions(attributes)
