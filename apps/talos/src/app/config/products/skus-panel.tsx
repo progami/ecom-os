@@ -1041,6 +1041,70 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                   </select>
                 </div>
 
+                <div className="md:col-span-2 pt-4 border-t">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-1">Item dimensions</h4>
+                  <p className="text-xs text-slate-500 mb-3">Physical product dimensions (optional).</p>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <Label>Dimensions (cm)</Label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          id="itemSide1Cm"
+                          type="number"
+                          step="0.01"
+                          min={0.01}
+                          value={formState.itemSide1Cm}
+                          onChange={event =>
+                            setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
+                          }
+                          placeholder="L"
+                          inputMode="decimal"
+                        />
+                        <Input
+                          id="itemSide2Cm"
+                          type="number"
+                          step="0.01"
+                          min={0.01}
+                          value={formState.itemSide2Cm}
+                          onChange={event =>
+                            setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
+                          }
+                          placeholder="W"
+                          inputMode="decimal"
+                        />
+                        <Input
+                          id="itemSide3Cm"
+                          type="number"
+                          step="0.01"
+                          min={0.01}
+                          value={formState.itemSide3Cm}
+                          onChange={event =>
+                            setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
+                          }
+                          placeholder="H"
+                          inputMode="decimal"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="itemWeightKg">Item weight (kg)</Label>
+                      <Input
+                        id="itemWeightKg"
+                        type="number"
+                        step="0.001"
+                        min={0.001}
+                        value={formState.itemWeightKg}
+                        onChange={event =>
+                          setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
+                        }
+                        placeholder="e.g. 0.29"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Amazon Fees Section */}
                 <div className="md:col-span-2 pt-4 border-t">
                   <Tabs>
@@ -1219,126 +1283,14 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                           </div>
 
                           <div className="border-t border-slate-200 pt-4">
-                            <div className="grid gap-3 md:grid-cols-2">
-                              <div className="space-y-1">
-	                                <Label>Item package dimensions (cm)</Label>
-                                <div className="grid grid-cols-3 gap-2">
-                                  {(() => {
-                                    const latestBatch = editingSku?.batches && editingSku.batches.length > 0 ? editingSku.batches[0] : null
-                                    const side1 = parseFiniteNumber(latestBatch?.amazonItemPackageSide1Cm)
-                                    const side2 = parseFiniteNumber(latestBatch?.amazonItemPackageSide2Cm)
-                                    const side3 = parseFiniteNumber(latestBatch?.amazonItemPackageSide3Cm)
-
-                                    return (
-                                      <>
-                                        <Input
-                                          value={side1 === null ? '' : side1.toFixed(2)}
-                                          disabled
-                                          className="bg-slate-100 text-slate-500"
-                                          placeholder="S1"
-                                        />
-                                        <Input
-                                          value={side2 === null ? '' : side2.toFixed(2)}
-                                          disabled
-                                          className="bg-slate-100 text-slate-500"
-                                          placeholder="S2"
-                                        />
-                                        <Input
-                                          value={side3 === null ? '' : side3.toFixed(2)}
-                                          disabled
-                                          className="bg-slate-100 text-slate-500"
-                                          placeholder="S3"
-                                        />
-                                      </>
-                                    )
-                                  })()}
-                                </div>
-                                <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
-                              </div>
-                              <div className="space-y-1">
-	                                <Label>Item package weight (kg)</Label>
-                                <Input
-                                  value={(() => {
-                                    const latestBatch = editingSku?.batches && editingSku.batches.length > 0 ? editingSku.batches[0] : null
-                                    const weight = parseFiniteNumber(latestBatch?.amazonReferenceWeightKg)
-                                    return weight === null ? '' : weight.toFixed(3)
-                                  })()}
-                                  disabled
-                                  className="bg-slate-100 text-slate-500"
-                                  placeholder="—"
-                                />
-                                <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
-                              </div>
-                            </div>
+                            <p className="text-xs text-slate-500">
+                              Item package dimensions and weight are batch-level. Use “View Batches” to view the latest batch.
+                            </p>
                           </div>
                         </div>
                       )}
                     </div>
                   </Tabs>
-                </div>
-
-                <div className="md:col-span-2 pt-4 border-t">
-                  <h4 className="text-sm font-semibold text-slate-900 mb-1">Item dimensions</h4>
-                  <p className="text-xs text-slate-500 mb-3">Physical product dimensions (optional).</p>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <Label>Dimensions (cm)</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Input
-                          id="itemSide1Cm"
-                          type="number"
-                          step="0.01"
-                          min={0.01}
-                          value={formState.itemSide1Cm}
-                          onChange={event =>
-                            setFormState(prev => ({ ...prev, itemSide1Cm: event.target.value }))
-                          }
-                          placeholder="L"
-                          inputMode="decimal"
-                        />
-                        <Input
-                          id="itemSide2Cm"
-                          type="number"
-                          step="0.01"
-                          min={0.01}
-                          value={formState.itemSide2Cm}
-                          onChange={event =>
-                            setFormState(prev => ({ ...prev, itemSide2Cm: event.target.value }))
-                          }
-                          placeholder="W"
-                          inputMode="decimal"
-                        />
-                        <Input
-                          id="itemSide3Cm"
-                          type="number"
-                          step="0.01"
-                          min={0.01}
-                          value={formState.itemSide3Cm}
-                          onChange={event =>
-                            setFormState(prev => ({ ...prev, itemSide3Cm: event.target.value }))
-                          }
-                          placeholder="H"
-                          inputMode="decimal"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label htmlFor="itemWeightKg">Item weight (kg)</Label>
-                      <Input
-                        id="itemWeightKg"
-                        type="number"
-                        step="0.001"
-                        min={0.001}
-                        value={formState.itemWeightKg}
-                        onChange={event =>
-                          setFormState(prev => ({ ...prev, itemWeightKg: event.target.value }))
-                        }
-                        placeholder="e.g. 0.29"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 {!editingSku ? (
