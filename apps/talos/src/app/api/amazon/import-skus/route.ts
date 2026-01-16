@@ -617,6 +617,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     let amazonReferralFeePercent: number | null = null
     let amazonFbaFulfillmentFee: number | null = null
     let amazonSizeTier: string | null = null
+    let amazonListingPrice: number | null = null
 
     try {
       const catalog = await getCatalogItem(asin, tenantCode)
@@ -647,7 +648,12 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
     try {
       // Fetch actual listing price to get accurate Low-Price FBA rates for products under $10
-      const listingPrice = await getListingPrice(asin, tenantCode) ?? DEFAULT_FEE_ESTIMATE_PRICE
+      const fetchedListingPrice = await getListingPrice(asin, tenantCode)
+      let listingPrice = DEFAULT_FEE_ESTIMATE_PRICE
+      if (fetchedListingPrice !== null) {
+        listingPrice = fetchedListingPrice
+        amazonListingPrice = roundToTwoDecimals(fetchedListingPrice)
+      }
       const fees = await getProductFees(asin, listingPrice, tenantCode)
       const parsedFees = parseAmazonProductFees(fees)
       // Calculate referral fee percent from amount if available
@@ -732,6 +738,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           amazonSizeTier,
           amazonReferralFeePercent,
           amazonFbaFulfillmentFee,
+          amazonListingPrice,
           amazonReferenceWeightKg: unitWeightKg,
           unitDimensionsCm,
           unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
@@ -783,6 +790,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               amazonSizeTier,
               amazonReferralFeePercent,
               amazonFbaFulfillmentFee,
+              amazonListingPrice,
               amazonReferenceWeightKg: unitWeightKg,
               packSize: DEFAULT_PACK_SIZE,
               defaultSupplierId: null,
