@@ -57,19 +57,14 @@ function normalizeTitle(value: string | null): string | null {
   return normalized ? normalized : null
 }
 
-function parseCatalogDimensions(attributes: {
+function parseCatalogItemPackageDimensions(attributes: {
   item_package_dimensions?: Array<{
     length?: { value?: number; unit?: string }
     width?: { value?: number; unit?: string }
     height?: { value?: number; unit?: string }
   }>
-  package_dimensions?: Array<{
-    length?: { value?: number; unit?: string }
-    width?: { value?: number; unit?: string }
-    height?: { value?: number; unit?: string }
-  }>
 }): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
-  const dims = attributes.item_package_dimensions?.[0] ?? attributes.package_dimensions?.[0] ?? null
+  const dims = attributes.item_package_dimensions?.[0]
   if (!dims) return null
   const length = dims?.length?.value
   const width = dims?.width?.value
@@ -135,11 +130,10 @@ function convertMeasurementToCm(value: number, unit: string | undefined): number
   return null
 }
 
-function parseCatalogWeightKg(attributes: {
+function parseCatalogItemPackageWeightKg(attributes: {
   item_package_weight?: Array<{ value?: number; unit?: string }>
-  package_weight?: Array<{ value?: number; unit?: string }>
 }): number | null {
-  const measurement = attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? null
+  const measurement = attributes.item_package_weight?.[0]
   if (!measurement) return null
   const raw = measurement?.value
   if (raw === undefined || raw === null) return null
@@ -630,8 +624,8 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
             description = sanitizedTitle
           }
         }
-        unitWeightKg = parseCatalogWeightKg(attributes)
-        unitTriplet = parseCatalogDimensions(attributes)
+        unitWeightKg = parseCatalogItemPackageWeightKg(attributes)
+        unitTriplet = parseCatalogItemPackageDimensions(attributes)
         itemWeightKg = parseCatalogItemWeightKg(attributes)
         itemTriplet = parseCatalogItemDimensions(attributes)
       }
@@ -833,7 +827,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               packSize: DEFAULT_PACK_SIZE,
               unitsPerCarton: DEFAULT_UNITS_PER_CARTON,
               material: null,
-              // Note: Batch unit dimensions are for packaging, not product dimensions
+              // Note: Batch item package dimensions are for packaging, not product dimensions
               // Amazon catalog gives product dimensions, not packaging - leave null
               unitDimensionsCm: null,
               unitSide1Cm: null,

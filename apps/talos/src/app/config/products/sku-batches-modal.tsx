@@ -908,7 +908,7 @@ function SkuBatchesManager({
                   </div>
 
                   <div className="md:col-span-2 pt-4 border-t">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Unit Dimensions</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Item package dimensions</h3>
                     <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
                       <Tabs>
                         <TabsList className="w-full grid grid-cols-2 mb-4">
