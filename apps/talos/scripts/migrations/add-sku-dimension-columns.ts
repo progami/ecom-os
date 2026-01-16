@@ -236,7 +236,7 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
 
   const backfillStatements = [
     {
-      label: 'unit dimensions',
+      label: 'item package dimensions',
       sql: `
         WITH parsed AS (
           SELECT
