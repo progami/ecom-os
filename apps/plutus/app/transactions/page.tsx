@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TransactionEditModal } from '@/components/transaction-edit-modal';
 import { NotConnectedScreen } from '@/components/not-connected-screen';
+import { getComplianceStatus } from '@/lib/sop/config';
 import { cn } from '@/lib/utils';
 
 interface Purchase {
@@ -39,7 +40,7 @@ interface Pagination {
   totalPages: number;
 }
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/plutus';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/plutus';
 
 function StatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -160,7 +161,7 @@ export default function TransactionsPage() {
       const res = await fetch(`${basePath}/api/qbo/purchases?page=${page}&pageSize=50`);
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to fetch purchases');
+        throw new Error(data.error ?? 'Failed to fetch purchases');
       }
       const data = await res.json();
       setPurchases(data.purchases);
@@ -197,7 +198,7 @@ export default function TransactionsPage() {
               reference: updatedPurchase.reference,
               memo: updatedPurchase.memo,
               syncToken: updatedPurchase.syncToken,
-              complianceStatus: updatedPurchase.reference && updatedPurchase.memo ? 'compliant' : 'partial',
+              complianceStatus: getComplianceStatus(updatedPurchase.reference, updatedPurchase.memo),
             }
           : p
       )
