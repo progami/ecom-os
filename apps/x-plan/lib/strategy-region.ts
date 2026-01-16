@@ -17,5 +17,14 @@ export function weekStartsOnForRegion(region: StrategyRegion | null | undefined)
 }
 
 export function sellerboardReportTimeZoneForRegion(region: StrategyRegion): string {
-  return 'UTC';
+  switch (region) {
+    case 'US':
+      return 'America/Los_Angeles';
+    case 'UK':
+      return 'Europe/London';
+    default: {
+      const exhaustive: never = region;
+      throw new Error(`Unsupported region: ${String(exhaustive)}`);
+    }
+  }
 }
