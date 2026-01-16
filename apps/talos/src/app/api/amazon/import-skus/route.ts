@@ -646,33 +646,34 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       )
     }
 
+    const calculatedSizeTier = calculateSizeTier(
+      unitTriplet?.side1Cm ?? null,
+      unitTriplet?.side2Cm ?? null,
+      unitTriplet?.side3Cm ?? null,
+      unitWeightKg
+    )
+    if (calculatedSizeTier) {
+      amazonSizeTier = calculatedSizeTier
+    }
+
     try {
       // Fetch actual listing price to get accurate Low-Price FBA rates for products under $10
       const fetchedListingPrice = await getListingPrice(asin, tenantCode)
-      let listingPrice = DEFAULT_FEE_ESTIMATE_PRICE
-      if (fetchedListingPrice !== null) {
-        listingPrice = fetchedListingPrice
-        amazonListingPrice = roundToTwoDecimals(fetchedListingPrice)
+      if (fetchedListingPrice === null) {
+        throw new Error('Amazon listing price unavailable for fee estimation')
       }
-      const fees = await getProductFees(asin, listingPrice, tenantCode)
+
+      amazonListingPrice = roundToTwoDecimals(fetchedListingPrice)
+
+      const fees = await getProductFees(asin, fetchedListingPrice, tenantCode)
       const parsedFees = parseAmazonProductFees(fees)
       // Calculate referral fee percent from amount if available
       if (parsedFees.referralFee !== null && Number.isFinite(parsedFees.referralFee)) {
-        amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / listingPrice) * 100)
+        amazonReferralFeePercent = roundToTwoDecimals((parsedFees.referralFee / fetchedListingPrice) * 100)
       }
       amazonFbaFulfillmentFee = roundToTwoDecimals(parsedFees.fbaFees ?? Number.NaN)
-      const calculatedSizeTier = calculateSizeTier(
-        unitTriplet?.side1Cm ?? null,
-        unitTriplet?.side2Cm ?? null,
-        unitTriplet?.side3Cm ?? null,
-        unitWeightKg
-      )
-      if (calculatedSizeTier) {
-        amazonSizeTier = calculatedSizeTier
-      } else if (parsedFees.sizeTier) {
+      if (amazonSizeTier === null && parsedFees.sizeTier) {
         amazonSizeTier = parsedFees.sizeTier
-      } else {
-        amazonSizeTier = null
       }
     } catch (error) {
       errors.push(
@@ -731,20 +732,25 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           }
         }
 
-        const skuUpdateData: Prisma.SkuUpdateInput = {
-          description,
-          amazonCategory,
-          amazonSubcategory,
-          amazonSizeTier,
-          amazonReferralFeePercent,
-          amazonFbaFulfillmentFee,
-          amazonListingPrice,
-          amazonReferenceWeightKg: unitWeightKg,
-          unitDimensionsCm,
-          unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
-          unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
-          unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
-          unitWeightKg,
+        const skuUpdateData: Prisma.SkuUpdateInput = { description }
+
+        if (amazonCategory !== null) skuUpdateData.amazonCategory = amazonCategory
+        if (amazonSubcategory !== null) skuUpdateData.amazonSubcategory = amazonSubcategory
+        if (amazonSizeTier !== null) skuUpdateData.amazonSizeTier = amazonSizeTier
+        if (amazonReferralFeePercent !== null) skuUpdateData.amazonReferralFeePercent = amazonReferralFeePercent
+        if (amazonFbaFulfillmentFee !== null) skuUpdateData.amazonFbaFulfillmentFee = amazonFbaFulfillmentFee
+        if (amazonListingPrice !== null) skuUpdateData.amazonListingPrice = amazonListingPrice
+
+        if (unitTriplet !== null) {
+          skuUpdateData.unitDimensionsCm = unitDimensionsCm
+          skuUpdateData.unitSide1Cm = unitTriplet.side1Cm
+          skuUpdateData.unitSide2Cm = unitTriplet.side2Cm
+          skuUpdateData.unitSide3Cm = unitTriplet.side3Cm
+        }
+
+        if (unitWeightKg !== null) {
+          skuUpdateData.amazonReferenceWeightKg = unitWeightKg
+          skuUpdateData.unitWeightKg = unitWeightKg
         }
 
         if (shouldSetItemDimensions && itemTriplet) {

@@ -38,6 +38,7 @@ export const GET = withRole(['admin', 'staff'], async (request, _session) => {
       asin: true,
       fbaFulfillmentFee: true,
       amazonFbaFulfillmentFee: true,
+      amazonListingPrice: true,
       amazonReferenceWeightKg: true,
       unitDimensionsCm: true,
       unitSide1Cm: true,
