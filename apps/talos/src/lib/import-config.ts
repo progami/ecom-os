@@ -110,14 +110,14 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
         required: false,
       },
       {
-        dbField: 'unitDimensionsCm',
-        excelColumns: ['Unit_Dimensions_cm', 'unit_dimensions_cm', 'Item package dimensions (cm)'],
+        dbField: 'itemDimensionsCm',
+        excelColumns: ['Item_Dimensions_cm', 'item_dimensions_cm', 'Item dimensions (cm)'],
         type: 'string',
         required: false,
       },
       {
-        dbField: 'unitWeightKg',
-        excelColumns: ['Unit_Weight_KG', 'unit_weight_kg', 'Item package weight (kg)'],
+        dbField: 'itemWeightKg',
+        excelColumns: ['Item_Weight_KG', 'item_weight_kg', 'Item weight (kg)'],
         type: 'decimal',
         required: false,
         transform: transformers.parseDecimal,

@@ -484,6 +484,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
   const existingSkus = await prisma.sku.findMany({
     where: { skuCode: { in: candidateSkus } },
     select: {
+      id: true,
       skuCode: true,
       itemDimensionsCm: true,
       itemSide1Cm: true,
@@ -735,18 +736,6 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         if (amazonFbaFulfillmentFee !== null) skuUpdateData.amazonFbaFulfillmentFee = amazonFbaFulfillmentFee
         if (amazonListingPrice !== null) skuUpdateData.amazonListingPrice = amazonListingPrice
 
-        if (unitTriplet !== null) {
-          skuUpdateData.unitDimensionsCm = unitDimensionsCm
-          skuUpdateData.unitSide1Cm = unitTriplet.side1Cm
-          skuUpdateData.unitSide2Cm = unitTriplet.side2Cm
-          skuUpdateData.unitSide3Cm = unitTriplet.side3Cm
-        }
-
-        if (unitWeightKg !== null) {
-          skuUpdateData.amazonReferenceWeightKg = unitWeightKg
-          skuUpdateData.unitWeightKg = unitWeightKg
-        }
-
         if (shouldSetItemDimensions && itemTriplet) {
           skuUpdateData.itemDimensionsCm = itemDimensionsCm
           skuUpdateData.itemSide1Cm = itemTriplet.side1Cm
@@ -763,6 +752,43 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
           where: { skuCode },
           data: skuUpdateData,
         })
+
+        if (!existingSku) {
+          throw new Error(`SKU not found during import: ${skuCode}`)
+        }
+
+        const batchUpdateData: Prisma.SkuBatchUpdateInput = {}
+        if (unitTriplet) {
+          batchUpdateData.amazonItemPackageDimensionsCm = unitDimensionsCm
+          batchUpdateData.amazonItemPackageSide1Cm = unitTriplet.side1Cm
+          batchUpdateData.amazonItemPackageSide2Cm = unitTriplet.side2Cm
+          batchUpdateData.amazonItemPackageSide3Cm = unitTriplet.side3Cm
+        }
+        if (unitWeightKg !== null) {
+          batchUpdateData.amazonReferenceWeightKg = unitWeightKg
+        }
+        if (amazonSizeTier !== null) {
+          batchUpdateData.amazonSizeTier = amazonSizeTier
+        }
+        if (amazonFbaFulfillmentFee !== null) {
+          batchUpdateData.amazonFbaFulfillmentFee = amazonFbaFulfillmentFee
+        }
+
+        if (Object.keys(batchUpdateData).length > 0) {
+          const latestBatch = await prisma.skuBatch.findFirst({
+            where: { skuId: existingSku.id, isActive: true },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true },
+          })
+          if (!latestBatch) {
+            throw new Error(`No active batch found for SKU: ${skuCode}`)
+          }
+
+          await prisma.skuBatch.update({
+            where: { id: latestBatch.id },
+            data: batchUpdateData,
+          })
+        }
 
         imported += 1
         details.push({
@@ -791,16 +817,16 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               amazonReferralFeePercent,
               amazonFbaFulfillmentFee,
               amazonListingPrice,
-              amazonReferenceWeightKg: unitWeightKg,
+              amazonReferenceWeightKg: null,
               packSize: DEFAULT_PACK_SIZE,
               defaultSupplierId: null,
               secondarySupplierId: null,
               material: null,
-              unitDimensionsCm,
-              unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
-              unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
-              unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
-              unitWeightKg,
+              unitDimensionsCm: null,
+              unitSide1Cm: null,
+              unitSide2Cm: null,
+              unitSide3Cm: null,
+              unitWeightKg: null,
               itemDimensionsCm,
               itemSide1Cm: itemTriplet ? itemTriplet.side1Cm : null,
               itemSide2Cm: itemTriplet ? itemTriplet.side2Cm : null,
@@ -840,9 +866,13 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
               cartonSide3Cm: null,
               cartonWeightKg: null,
               packagingType: null,
-              amazonSizeTier: null,
-              amazonFbaFulfillmentFee: null,
-              amazonReferenceWeightKg: null,
+              amazonItemPackageDimensionsCm: unitDimensionsCm,
+              amazonItemPackageSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
+              amazonItemPackageSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
+              amazonItemPackageSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
+              amazonSizeTier,
+              amazonFbaFulfillmentFee,
+              amazonReferenceWeightKg: unitWeightKg,
               storageCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
               shippingCartonsPerPallet: DEFAULT_CARTONS_PER_PALLET,
               isActive: true,
