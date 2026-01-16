@@ -527,21 +527,14 @@ export function SalesPlanningGrid({
     displayedProducts.forEach((product) => {
       const keys = keyByProductField.get(product.id) ?? {};
       const stockStartKey = keys.stockStart;
-      const stockEndKey = keys.stockEnd;
-      if (!stockStartKey || !stockEndKey) return;
+      if (!stockStartKey) return;
+      const inboundKey = stockStartKey.replace(/_stockStart$/, '_hasInbound');
 
       const inboundWeeks = new Set<number>();
-      for (let index = 1; index < data.length; index += 1) {
-        const row = data[index];
-        const prevRow = data[index - 1];
+      for (const row of data) {
         const week = Number(row?.weekNumber);
-        if (!Number.isFinite(week) || !row || !prevRow) continue;
-        const stockStart = parseNumericInput(row[stockStartKey]);
-        const prevStockEnd = parseNumericInput(prevRow[stockEndKey]);
-        if (stockStart == null || prevStockEnd == null) continue;
-        if (stockStart - prevStockEnd > 0) {
-          inboundWeeks.add(week);
-        }
+        if (!Number.isFinite(week) || !row) continue;
+        if (row[inboundKey] === 'true') inboundWeeks.add(week);
       }
 
       map.set(product.id, inboundWeeks);
