@@ -775,9 +775,22 @@ export function SalesPlanningGrid({
         systemForecast[i] = parseNumericInput(row?.[systemForecastSalesKey]);
       }
 
-      const inboundDelta: number[] = new Array(n).fill(0);
+      const arrivalsKey = stockStartKey.replace(/_stockStart$/, '_arrivals');
+      const arrivals: number[] = new Array(n).fill(0);
+      for (let i = 0; i < n; i += 1) {
+        const row = nextData[i];
+        arrivals[i] = parseNumericInput(row?.[arrivalsKey]) ?? 0;
+      }
+
+      const baseStartOverrides = new Map<number, number>();
+      if (n > 0) {
+        baseStartOverrides.set(0, previousStockStart[0] - arrivals[0]);
+      }
       for (let i = 1; i < n; i += 1) {
-        inboundDelta[i] = previousStockStart[i] - previousStockEnd[i - 1];
+        const baseStart = previousStockStart[i] - arrivals[i];
+        if (baseStart !== previousStockEnd[i - 1]) {
+          baseStartOverrides.set(i, baseStart);
+        }
       }
 
       const nextStockStart: number[] = new Array(n);
@@ -803,7 +816,9 @@ export function SalesPlanningGrid({
                 : 'ZERO';
 
         if (i + 1 < n) {
-          nextStockStart[i + 1] = nextStockEnd[i] + inboundDelta[i + 1];
+          const baseStartOverride = baseStartOverrides.get(i + 1);
+          const baseStart = baseStartOverride != null ? baseStartOverride : nextStockEnd[i];
+          nextStockStart[i + 1] = baseStart + arrivals[i + 1];
         }
 
         if (actual[i] != null && forecast[i] != null && forecast[i] !== 0) {
