@@ -1298,7 +1298,16 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string,
     cashOverrides,
     { calendar: planning.calendar },
   );
-  return { operations, derivedOrders, salesOverrides, profitOverrides, salesPlan, profit, cash };
+  return {
+    operations,
+    derivedOrders,
+    salesOverrides,
+    profitOverrides,
+    salesPlan,
+    actualFinancials,
+    profit,
+    cash,
+  };
 }
 
 type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>;
@@ -2022,6 +2031,7 @@ type POProfitabilityDataset = {
 function getPOProfitabilityView(
   financialData: FinancialData,
   planning: PlanningCalendar,
+  asOfDate: Date,
 ): { projected: POProfitabilityDataset; real: POProfitabilityDataset } {
   const productIds = financialData.operations.productInputs.map((product) => product.id);
   const orders = financialData.derivedOrders.map((item) => item.derived);
@@ -2042,12 +2052,15 @@ function getPOProfitabilityView(
       productIds,
       calendar: planning.calendar,
       mode,
+      asOfDate,
     });
     const profit = computeProfitAndLoss(
       salesPlan,
       financialData.operations.productIndex,
       financialData.operations.parameters,
       financialData.profitOverrides,
+      financialData.actualFinancials,
+      { calendar: planning.calendar, asOfDate },
     );
     const ledger = buildAllocationLedger(salesPlan, financialData.operations.productIndex);
     const result = buildPoPnlRows({
@@ -2502,7 +2515,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '6-po-profitability': {
       const activeStrategyId = requireStrategyId();
       const data = await getFinancialData();
-      const view = getPOProfitabilityView(data, planningCalendar);
+      const view = getPOProfitabilityView(data, planningCalendar, reportAsOfDate);
       const productOptions = data.operations.productInputs
         .map((product) => ({ id: product.id, name: productLabel(product) }))
         .sort((a, b) => a.name.localeCompare(b.name));
