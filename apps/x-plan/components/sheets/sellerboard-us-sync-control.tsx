@@ -97,11 +97,10 @@ export function SellerboardUsSyncControl({
   const endpoint = `/api/v1/x-plan/sellerboard/${regionSlug}-sync/manual`;
   const endpointWithStrategy = `${endpoint}?strategyId=${encodeURIComponent(strategyId)}`;
 
-  const title = 'Sync Sellerboard';
+  const title = 'Sellerboard Sync';
   const subtitle = `Updates Actual sales + past-week financials for this strategy`;
 
-  const toolbarLabel = 'Sellerboard';
-  const syncButtonLabel = 'Sync';
+  const syncButtonLabel = 'Sellerboard Sync';
 
   const runSync = async () => {
     if (isSyncing) return;
@@ -145,7 +144,6 @@ export function SellerboardUsSyncControl({
   return (
     <>
       <div className={SHEET_TOOLBAR_GROUP}>
-        <span className={SHEET_TOOLBAR_LABEL}>{toolbarLabel}</span>
         <button
           type="button"
           disabled={isSyncing}
@@ -158,7 +156,7 @@ export function SellerboardUsSyncControl({
           )}
         >
           <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
-          Sync
+          {syncButtonLabel}
         </button>
       </div>
 
