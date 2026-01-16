@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { NotConnectedScreen } from '@/components/not-connected-screen';
 import { cn } from '@/lib/utils';
@@ -33,34 +32,6 @@ async function fetchAccounts(): Promise<{ accounts: Account[]; total: number }> 
     throw new Error(data.error || 'Failed to fetch accounts');
   }
   return res.json();
-}
-
-type CreatePlutusAccountsResult = {
-  created: Array<{
-    id: string;
-    name: string;
-    fullyQualifiedName?: string;
-    accountType: string;
-    accountSubType?: string;
-  }>;
-  skipped: Array<{ name: string; parentName?: string }>;
-};
-
-async function createPlutusAccounts(): Promise<CreatePlutusAccountsResult> {
-  const res = await fetch(`${basePath}/api/qbo/accounts/create-plutus-qbo-lmb-plan`, { method: 'POST' });
-  const data = await res.json();
-
-  if (!res.ok) {
-    if (data && typeof data.error === 'string') {
-      throw new Error(data.error);
-    }
-    if (data && typeof data.details === 'string') {
-      throw new Error(data.details);
-    }
-    throw new Error('Failed to create accounts');
-  }
-
-  return data;
 }
 
 function ArrowLeftIcon({ className }: { className?: string }) {
@@ -187,22 +158,6 @@ export default function ChartOfAccountsPage() {
   const accounts = data?.accounts ?? [];
   const total = data?.total ?? 0;
 
-  const createAccountsMutation = useMutation({
-    mutationFn: createPlutusAccounts,
-    onSuccess: async (result) => {
-      if (result.created.length > 0) {
-        toast.success(`Created ${result.created.length} accounts`);
-      } else {
-        toast.success('All Plutus accounts already exist');
-      }
-      await refetch();
-    },
-    onError: (err) => {
-      const message = err instanceof Error ? err.message : 'Failed to create accounts';
-      toast.error(message);
-    },
-  });
-
   const accountTypes = useMemo(() => {
     const types = new Set(accounts.map((a) => a.type));
     return Array.from(types).sort();
@@ -275,21 +230,10 @@ export default function ChartOfAccountsPage() {
             </Link>
             <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Chart of Accounts</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => createAccountsMutation.mutate()}
-              size="sm"
-              disabled={createAccountsMutation.isPending}
-              className="rounded-xl bg-brand-teal-600 hover:bg-brand-teal-700 dark:bg-brand-cyan dark:hover:bg-brand-cyan/90 text-white shadow-lg shadow-brand-teal-500/25 dark:shadow-brand-cyan/20"
-            >
-              <RefreshIcon className={cn('h-4 w-4 mr-2', createAccountsMutation.isPending && 'animate-spin')} />
-              {createAccountsMutation.isPending ? 'Creating…' : 'Create Plutus Accounts'}
-            </Button>
-            <Button onClick={() => refetch()} variant="outline" size="sm">
-              <RefreshIcon className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
-              Refresh
-            </Button>
-          </div>
+          <Button onClick={() => refetch()} variant="outline" size="sm">
+            <RefreshIcon className={cn('h-4 w-4 mr-2', isLoading && 'animate-spin')} />
+            Refresh
+          </Button>
         </header>
 
         {/* Search and Filter Bar */}

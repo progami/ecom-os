@@ -52,22 +52,23 @@ export async function GET() {
     }
 
     // Transform all accounts for frontend (matching QBO's Chart of Accounts view)
-    const allAccounts = accounts
-      .map((a) => {
-        // Calculate depth from FullyQualifiedName (count colons)
-        const depth = (a.FullyQualifiedName?.split(':').length ?? 1) - 1;
-        // Extract parent name from FullyQualifiedName
-        const pathParts = a.FullyQualifiedName?.split(':') ?? [a.Name];
-        const parentName = pathParts.length > 1 ? pathParts.slice(0, -1).join(':') : null;
+	    const allAccounts = accounts
+	      .map((a) => {
+	        // Calculate depth from FullyQualifiedName (count colons)
+	        const depth = (a.FullyQualifiedName?.split(':').length ?? 1) - 1;
+	        // Extract parent name from FullyQualifiedName
+	        const pathParts = a.FullyQualifiedName?.split(':') ?? [a.Name];
+	        const parentName = pathParts.length > 1 ? pathParts.slice(0, -1).join(':') : null;
 
-        return {
-          id: a.Id,
-          name: a.Name,
-          type: a.AccountType,
-          subType: a.AccountSubType,
-          fullyQualifiedName: a.FullyQualifiedName,
-          acctNum: a.AcctNum,
-          balance: a.CurrentBalance ?? 0,
+	        return {
+	          id: a.Id,
+	          name: a.Name,
+	          active: a.Active,
+	          type: a.AccountType,
+	          subType: a.AccountSubType,
+	          fullyQualifiedName: a.FullyQualifiedName,
+	          acctNum: a.AcctNum,
+	          balance: a.CurrentBalance ?? 0,
           currency: a.CurrencyRef?.value ?? 'USD',
           classification: a.Classification,
           isSubAccount: a.SubAccount ?? false,
