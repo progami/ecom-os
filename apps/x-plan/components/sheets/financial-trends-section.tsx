@@ -56,6 +56,20 @@ const granularityOptions: Array<{ value: TrendGranularity; label: string }> = [
   { value: 'quarterly', label: 'Quarterly' },
 ];
 
+function negativeThresholdForFormat(format: TrendFormat): number {
+  switch (format) {
+    case 'currency':
+    case 'number':
+      return -0.5;
+    case 'percent':
+      return -0.0005;
+    default: {
+      const exhaustive: never = format;
+      throw new Error(`Unsupported format: ${String(exhaustive)}`);
+    }
+  }
+}
+
 export function FinancialTrendsSection({
   title,
   description,
@@ -138,13 +152,24 @@ export function FinancialTrendsSection({
     const allValues = enabledMetrics.flatMap((metric) =>
       metric.series[granularity].values.filter(Number.isFinite),
     );
-    if (allValues.length === 0) return { min: 0, max: 0, zeroOffset: 0.5 };
-    const min = Math.min(...allValues);
+    if (allValues.length === 0) return { min: 0, max: 0, zeroOffset: 0.5, hasNegative: false };
+
+    const hasNegative = enabledMetrics.some((metric) => {
+      const threshold = negativeThresholdForFormat(metric.format);
+      return metric.series[granularity].values.some(
+        (value) => Number.isFinite(value) && value < threshold,
+      );
+    });
+
+    let min = Math.min(...allValues);
     const max = Math.max(...allValues);
+    if (!hasNegative && min < 0) {
+      min = 0;
+    }
     const range = max - min;
     // zeroOffset is where 0 falls as a percentage from top (max) to bottom (min)
     const zeroOffset = range > 0 ? max / range : 0.5;
-    return { min, max, zeroOffset: Math.max(0, Math.min(1, zeroOffset)) };
+    return { min, max, zeroOffset: Math.max(0, Math.min(1, zeroOffset)), hasNegative };
   }, [enabledMetrics, granularity]);
 
   const formatValue = (value: number, format: TrendFormat) => {
@@ -239,7 +264,11 @@ export function FinancialTrendsSection({
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
                 <defs>
                   {enabledMetrics.map((metric) => {
-                    const hasNegative = yAxisBounds.min < 0;
+                    const hasNegative = yAxisBounds.hasNegative;
+                    const threshold = negativeThresholdForFormat(metric.format);
+                    const metricHasNegative = metric.series[granularity].values.some(
+                      (value) => Number.isFinite(value) && value < threshold,
+                    );
                     const zeroPoint = yAxisBounds.zeroOffset;
                     return (
                       <linearGradient
@@ -250,7 +279,7 @@ export function FinancialTrendsSection({
                         x2="0"
                         y2="1"
                       >
-                        {hasNegative ? (
+                        {hasNegative && metricHasNegative ? (
                           <>
                             <stop
                               offset="0%"
@@ -344,7 +373,7 @@ export function FinancialTrendsSection({
                     );
                   }}
                 />
-                {yAxisBounds.min < 0 && (
+                {yAxisBounds.hasNegative && (
                   <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
                 )}
                 {enabledMetrics.map((metric) => (
