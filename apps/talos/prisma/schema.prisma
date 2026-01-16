@@ -100,7 +100,7 @@ model Sku {
   amazonFbaFulfillmentFee Decimal? @map("amazon_fba_fulfillment_fee") @db.Decimal(12, 2)
   amazonListingPrice   Decimal?   @map("amazon_listing_price") @db.Decimal(12, 2)
   amazonReferenceWeightKg Decimal? @map("amazon_reference_weight_kg") @db.Decimal(8, 3)
-  description         String     @db.VarChar(64)
+  description         String     @db.VarChar(42)
   packSize            Int?       @map("pack_size")
   defaultSupplierId   String?    @map("default_supplier_id")
   secondarySupplierId String?    @map("secondary_supplier_id")
