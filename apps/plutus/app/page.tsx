@@ -273,10 +273,10 @@ export default function HomePage() {
             />
 
             <FeatureCard
-              href="/phase-0"
+              href="/setup"
               icon={<TerminalIcon />}
-              title="Phase 0 Verification"
-              description="Verify QBO cleanup is complete before proceeding with Plutus setup."
+              title="Setup Wizard"
+              description="Configure Plutus with QuickBooks and Link My Books integration."
               accentColor="violet"
             />
 
