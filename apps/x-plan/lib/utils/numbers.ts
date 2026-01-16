@@ -37,6 +37,6 @@ export function coercePercent(value: unknown, fallback = 0): number {
 export function roundWeeks(value: unknown, fallback = 1): number {
   const numeric = parseNumber(value);
   const safeFallback = Number.isFinite(fallback) && fallback >= 0 ? fallback : 0;
-  if (numeric == null || !Number.isFinite(numeric) || numeric <= 0) return safeFallback;
+  if (numeric == null || !Number.isFinite(numeric) || numeric < 0) return safeFallback;
   return numeric;
 }

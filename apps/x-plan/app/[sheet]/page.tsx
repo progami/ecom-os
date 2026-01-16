@@ -1712,6 +1712,13 @@ function getSalesPlanningView(
     }
   });
 
+  const weeksWithActualData = new Set<number>();
+  for (const entry of financialData.salesPlan) {
+    if (entry.hasActualData) {
+      weeksWithActualData.add(entry.weekNumber);
+    }
+  }
+
   const segmentForWeek = (weekNumber: number): YearSegment | null => {
     if (!planning.yearSegments.length) return null;
     return (
@@ -1730,21 +1737,11 @@ function getSalesPlanningView(
       segment != null ? String(weekNumber - segment.startWeekNumber + 1) : String(weekNumber);
     const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar);
 
-    // Check if any product has actual data for this week
-    let hasActualData = false;
-    for (const product of productList) {
-      const derived = salesLookup.get(`${product.id}-${weekNumber}`);
-      if (derived?.hasActualData) {
-        hasActualData = true;
-        break;
-      }
-    }
-
     const row: SalesRow = {
       weekNumber: String(weekNumber),
       weekLabel,
       weekDate: calendarDate ? formatDate(calendarDate) : '',
-      hasActualData: hasActualData ? 'true' : undefined,
+      hasActualData: weeksWithActualData.has(weekNumber) ? 'true' : undefined,
     };
 
     const inboundSummary: InboundSummary = new Map();
