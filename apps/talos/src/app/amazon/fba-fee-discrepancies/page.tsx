@@ -57,6 +57,7 @@ type ApiSkuRow = {
   amazonSizeTier: string | null
   amazonReferralFeePercent: number | string | null
   amazonFbaFulfillmentFee: number | string | null
+  amazonListingPrice: number | string | null
   amazonReferenceWeightKg: number | string | null
   unitDimensionsCm: string | null
   unitSide1Cm: number | string | null
@@ -653,6 +654,14 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                     </td>
                   </tr>
                   <tr>
+                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Listing Price</td>
+                    {selectedRows.map(row => (
+                      <td key={row.sku.id} className="px-4 py-2 text-center tabular-nums text-slate-700">
+                        {formatFee(row.sku.amazonListingPrice, currencyCode)}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
                     <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Dimensions</td>
                     {selectedRows.map(row => (
                       <td key={row.sku.id} className="px-4 py-2 text-center tabular-nums text-slate-700">
@@ -900,6 +909,11 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                               {formatFee(comparison.amazon.fee, currencyCode)}
                             </div>
                             <div className="text-xs text-slate-500">{comparison.amazon.sizeTier ?? '—'}</div>
+                            {sku.amazonListingPrice ? (
+                              <div className="text-xs text-slate-500">
+                                Price: {formatFee(sku.amazonListingPrice, currencyCode)}
+                              </div>
+                            ) : null}
                             {comparison.amazon.missingFields.length > 0 ? (
                               <div className="mt-0.5 text-xs text-amber-700">
                                 Missing: {comparison.amazon.missingFields.join(', ')}
