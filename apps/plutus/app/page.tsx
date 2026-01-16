@@ -185,6 +185,14 @@ function LogoIcon({ className }: { className?: string }) {
   );
 }
 
+function TerminalIcon({ className }: { className?: string }) {
+  return (
+    <svg className={cn('h-6 w-6', className)} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+    </svg>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="relative min-h-screen flex flex-col">
@@ -255,13 +263,21 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Full width card */}
+            {/* Full width cards */}
             <FeatureCard
               href="/chart-of-accounts"
               icon={<AccountsIcon />}
               title="Chart of Accounts"
               description="View account hierarchies from QuickBooks, grouped by type like QBO."
               accentColor="amber"
+            />
+
+            <FeatureCard
+              href="/phase-0"
+              icon={<TerminalIcon />}
+              title="Phase 0 Verification"
+              description="Verify QBO cleanup is complete before proceeding with Plutus setup."
+              accentColor="violet"
             />
 
             {/* Coming soon card */}

@@ -101,12 +101,12 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
         value => value !== undefined && value !== null
       )
 
-    if (unitInputProvided && !unitTriplet) {
-      return NextResponse.json(
-        { error: 'Unit dimensions must be a valid LxWxH triple' },
-        { status: 400 }
-      )
-    }
+	    if (unitInputProvided && !unitTriplet) {
+	      return NextResponse.json(
+	        { error: 'Item package dimensions must be a valid LxWxH triple' },
+	        { status: 400 }
+	      )
+	    }
     if (cartonInputProvided && !cartonTriplet) {
       return NextResponse.json(
         { error: 'Carton dimensions must be a valid LxWxH triple' },
