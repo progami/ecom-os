@@ -12,6 +12,11 @@ import { PortalModal } from '@/components/ui/portal-modal'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
+import {
+  calculateFbaFulfillmentFee2026NonPeakExcludingApparel,
+  calculateSizeTier,
+  getReferralFeePercent2026,
+} from '@/lib/amazon/fees'
 import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
 type SkuModalTab = 'reference' | 'amazon'
@@ -122,6 +127,10 @@ interface SkuRow {
   description: string
   asin: string | null
   unitDimensionsCm?: string | null
+  unitSide1Cm?: number | string | null
+  unitSide2Cm?: number | string | null
+  unitSide3Cm?: number | string | null
+  unitWeightKg?: number | string | null
   category?: string | null
   sizeTier?: string | null
   referralFeePercent?: number | string | null
@@ -131,6 +140,7 @@ interface SkuRow {
   amazonSizeTier?: string | null
   amazonReferralFeePercent?: number | string | null
   amazonFbaFulfillmentFee?: number | string | null
+  amazonListingPrice?: number | string | null
   amazonReferenceWeightKg?: number | string | null
   itemDimensionsCm?: string | null
   itemSide1Cm?: number | string | null
@@ -244,6 +254,69 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
   }
 }
 
+function parseFiniteNumber(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number.parseFloat(trimmed)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+type ListingPriceResolution =
+  | { listingPrice: number; source: 'EXACT' }
+  | { listingPrice: number; source: 'BAND' }
+
+function resolveAmazonListingPriceForFeeCalculation(sku: SkuRow | null): ListingPriceResolution | null {
+  if (!sku) return null
+
+  const explicitListingPrice = parseFiniteNumber(sku.amazonListingPrice)
+  if (explicitListingPrice !== null && explicitListingPrice >= 0) {
+    return { listingPrice: explicitListingPrice, source: 'EXACT' }
+  }
+
+  const amazonFee = parseFiniteNumber(sku.amazonFbaFulfillmentFee)
+  const amazonSizeTier = typeof sku.amazonSizeTier === 'string' ? sku.amazonSizeTier.trim() : ''
+  const unitWeightKg = parseFiniteNumber(sku.amazonReferenceWeightKg)
+
+  const side1Cm = parseFiniteNumber(sku.unitSide1Cm)
+  const side2Cm = parseFiniteNumber(sku.unitSide2Cm)
+  const side3Cm = parseFiniteNumber(sku.unitSide3Cm)
+
+  if (amazonFee === null) return null
+  if (!amazonSizeTier) return null
+  if (unitWeightKg === null) return null
+  if (side1Cm === null || side2Cm === null || side3Cm === null) return null
+
+  const normalizedAmazonFee = Number(amazonFee.toFixed(2))
+
+  const candidates = [
+    { listingPrice: 9.99 },
+    { listingPrice: 10 },
+    { listingPrice: 51 },
+  ]
+
+  for (const candidate of candidates) {
+    const computed = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
+      side1Cm,
+      side2Cm,
+      side3Cm,
+      unitWeightKg,
+      listingPrice: candidate.listingPrice,
+      sizeTier: amazonSizeTier,
+    })
+    if (computed === null) continue
+    if (Number(computed.toFixed(2)) === normalizedAmazonFee) {
+      return { listingPrice: candidate.listingPrice, source: 'BAND' }
+    }
+  }
+
+  return null
+}
+
 interface SkusPanelProps {
   externalModalOpen?: boolean
   externalEditSkuId?: string | null
@@ -266,6 +339,84 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
   const [confirmDelete, setConfirmDelete] = useState<SkuRow | null>(null)
   const [modalTab, setModalTab] = useState<SkuModalTab>('reference')
   const [externalEditOpened, setExternalEditOpened] = useState(false)
+
+  const autoFillReferenceFees = useCallback(
+    (mode: 'blankOnly' | 'force') => {
+      const categoryTrimmed = formState.category.trim()
+      const normalizedCategory = categoryTrimmed ? normalizeReferralCategory(categoryTrimmed) : ''
+      if (!normalizedCategory) return
+
+      const side1Cm = parseFiniteNumber(formState.itemSide1Cm)
+      const side2Cm = parseFiniteNumber(formState.itemSide2Cm)
+      const side3Cm = parseFiniteNumber(formState.itemSide3Cm)
+      const unitWeightKg = parseFiniteNumber(formState.itemWeightKg)
+
+      if (side1Cm === null || side2Cm === null || side3Cm === null) return
+      if (unitWeightKg === null) return
+
+      const selectedSizeTier = formState.sizeTier.trim()
+      const computedSizeTier =
+        selectedSizeTier ? selectedSizeTier : calculateSizeTier(side1Cm, side2Cm, side3Cm, unitWeightKg)
+      if (!computedSizeTier) return
+
+      const listingPriceResolution = resolveAmazonListingPriceForFeeCalculation(editingSku)
+      if (listingPriceResolution === null) {
+        if (mode === 'force') {
+          const message =
+            'Amazon listing price not available yet. Run Amazon import/sync so we can auto-calc 2026 fees.'
+          toast.error(message)
+        }
+        return
+      }
+      const listingPrice = listingPriceResolution.listingPrice
+
+      const referralFeePercent =
+        listingPriceResolution.source === 'EXACT'
+          ? getReferralFeePercent2026(normalizedCategory, listingPrice)
+          : null
+      const fallbackReferralFeePercent = parseFiniteNumber(editingSku?.amazonReferralFeePercent)
+      const resolvedReferralFeePercent =
+        referralFeePercent !== null ? referralFeePercent : fallbackReferralFeePercent
+
+      const fbaFee = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
+        side1Cm,
+        side2Cm,
+        side3Cm,
+        unitWeightKg,
+        listingPrice,
+        sizeTier: computedSizeTier,
+      })
+
+      if (resolvedReferralFeePercent === null && fbaFee === null) return
+
+      setFormState(prev => {
+        const next: SkuFormState = { ...prev }
+
+        if (mode === 'force' || !next.category.trim()) {
+          next.category = normalizedCategory
+        }
+
+        if (mode === 'force' || !next.sizeTier.trim()) {
+          next.sizeTier = computedSizeTier
+        }
+
+        if (resolvedReferralFeePercent !== null) {
+          if (mode === 'force' || !next.referralFeePercent.trim()) {
+            next.referralFeePercent = String(resolvedReferralFeePercent)
+          }
+        }
+
+        if (fbaFee !== null) {
+          if (mode === 'force' || !next.fbaFulfillmentFee.trim()) {
+            next.fbaFulfillmentFee = fbaFee.toFixed(2)
+          }
+        }
+
+        return next
+      })
+    },
+    [editingSku, formState.category, formState.itemSide1Cm, formState.itemSide2Cm, formState.itemSide3Cm, formState.itemWeightKg, formState.sizeTier]
+  )
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -363,6 +514,25 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
     setModalTab('reference')
     setIsModalOpen(true)
   }, [])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    if (modalTab !== 'reference') return
+
+    const hasReferenceFee = formState.fbaFulfillmentFee.trim()
+    const hasReferralFee = formState.referralFeePercent.trim()
+    const hasSizeTier = formState.sizeTier.trim()
+    if (hasReferenceFee && hasReferralFee && hasSizeTier) return
+
+    autoFillReferenceFees('blankOnly')
+  }, [
+    autoFillReferenceFees,
+    formState.fbaFulfillmentFee,
+    formState.referralFeePercent,
+    formState.sizeTier,
+    isModalOpen,
+    modalTab,
+  ])
 
   useEffect(() => {
     if (!externalEditSkuId) return
@@ -892,19 +1062,37 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                       >
                         Amazon
                       </TabsTrigger>
-                    </TabsList>
+	                    </TabsList>
 
-                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
-                      <h4 className="text-sm font-semibold text-slate-900 mb-1">Amazon Fees & Unit Dimensions</h4>
-                      <p className="text-xs text-slate-500 mb-3">
-                        {modalTab === 'reference'
-                          ? 'Team reference values (editable).'
-                          : 'Imported from Amazon (read-only).'}
-                      </p>
-                      {modalTab === 'reference' ? (
-                        <div className="space-y-4">
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
+	                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
+	                      <div className="flex items-start justify-between gap-3 mb-3">
+	                        <div>
+	                          <h4 className="text-sm font-semibold text-slate-900 mb-1">
+	                            Amazon Fees & Unit Dimensions
+	                          </h4>
+	                          <p className="text-xs text-slate-500">
+	                            {modalTab === 'reference'
+	                              ? 'Team reference values (editable).'
+	                              : 'Imported from Amazon (read-only).'}
+	                          </p>
+	                        </div>
+	                        {modalTab === 'reference' ? (
+	                          <Button
+	                            type="button"
+	                            variant="outline"
+	                            size="sm"
+	                            onClick={() => autoFillReferenceFees('force')}
+	                            disabled={isSubmitting}
+	                            className="h-8 px-3 text-xs"
+	                          >
+	                            Auto-fill
+	                          </Button>
+	                        ) : null}
+	                      </div>
+	                      {modalTab === 'reference' ? (
+	                        <div className="space-y-4">
+	                          <div className="grid gap-3 md:grid-cols-2">
+	                            <div className="space-y-1">
                               <Label htmlFor="category">Category</Label>
                               <select
                                 id="category"
