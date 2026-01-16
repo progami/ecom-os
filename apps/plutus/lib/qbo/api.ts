@@ -324,6 +324,7 @@ export async function updateAccountActive(
   connection: QboConnection,
   accountId: string,
   syncToken: string,
+  name: string,
   active: boolean
 ): Promise<{ account: QboAccount; updatedConnection?: QboConnection }> {
   const { accessToken, updatedConnection } = await getValidToken(connection);
@@ -334,6 +335,7 @@ export async function updateAccountActive(
     sparse: true,
     Id: accountId,
     SyncToken: syncToken,
+    Name: name,
     Active: active,
   };
 
