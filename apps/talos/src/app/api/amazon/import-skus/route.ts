@@ -68,17 +68,8 @@ function parseCatalogDimensions(attributes: {
     width?: { value?: number; unit?: string }
     height?: { value?: number; unit?: string }
   }>
-  item_dimensions?: Array<{
-    length?: { value?: number; unit?: string }
-    width?: { value?: number; unit?: string }
-    height?: { value?: number; unit?: string }
-  }>
 }): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
-  const dims =
-    attributes.item_package_dimensions?.[0] ??
-    attributes.package_dimensions?.[0] ??
-    attributes.item_dimensions?.[0] ??
-    null
+  const dims = attributes.item_package_dimensions?.[0] ?? attributes.package_dimensions?.[0] ?? null
   if (!dims) return null
   const length = dims?.length?.value
   const width = dims?.width?.value
@@ -147,10 +138,8 @@ function convertMeasurementToCm(value: number, unit: string | undefined): number
 function parseCatalogWeightKg(attributes: {
   item_package_weight?: Array<{ value?: number; unit?: string }>
   package_weight?: Array<{ value?: number; unit?: string }>
-  item_weight?: Array<{ value?: number; unit?: string }>
 }): number | null {
-  const measurement =
-    attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? attributes.item_weight?.[0] ?? null
+  const measurement = attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? null
   if (!measurement) return null
   const raw = measurement?.value
   if (raw === undefined || raw === null) return null

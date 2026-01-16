@@ -21,7 +21,7 @@ export function getMarketplaceCurrencyCode(tenantCode?: TenantCode): string {
 
 /**
  * Calculate Amazon FBA size tier from dimensions and weight.
- * Based on Amazon US FBA size tier thresholds (2024).
+ * Based on Amazon US product size tier definitions (starting Jan 15, 2026).
  * Dimensions in cm, weight in kg.
  */
 export function calculateSizeTier(
@@ -32,44 +32,74 @@ export function calculateSizeTier(
 ): string | null {
   if (side1Cm === null || side2Cm === null || side3Cm === null || weightKg === null) return null
 
-  // Convert to inches for Amazon's thresholds
-  const dims = [side1Cm, side2Cm, side3Cm].map(d => d / 2.54).sort((a, b) => b - a)
-  const longest = dims[0]
-  const median = dims[1]
-  const shortest = dims[2]
-  const weightLb = weightKg * 2.20462
+  const dimsIn = [side1Cm, side2Cm, side3Cm].map(d => d / 2.54).sort((a, b) => b - a)
+  const longestIn = dimsIn[0]
+  const medianIn = dimsIn[1]
+  const shortestIn = dimsIn[2]
+  const unitWeightLb = weightKg * 2.20462
 
-  // Girth = 2 * (median + shortest)
-  const girth = 2 * (median + shortest)
-  const lengthPlusGirth = longest + girth
+  const girthIn = 2 * (medianIn + shortestIn)
+  const lengthPlusGirthIn = longestIn + girthIn
 
-  // Small Standard-Size: max 15" x 12" x 0.75", ≤ 1 lb
-  if (longest <= 15 && median <= 12 && shortest <= 0.75 && weightLb <= 1) {
+  // Small standard-size: unit weight ≤ 16 oz, and ≤ 15" x 12" x 0.75"
+  if (unitWeightLb <= 1 && longestIn <= 15 && medianIn <= 12 && shortestIn <= 0.75) {
     return 'Small Standard-Size'
   }
 
-  // Large Standard-Size: max 18" x 14" x 8", ≤ 20 lb
-  if (longest <= 18 && median <= 14 && shortest <= 8 && weightLb <= 20) {
+  // Large standard-size: not small standard-size, chargeable weight ≤ 20 lb, and ≤ 18" x 14" x 8"
+  const dimensionalWeightStandardLb = (longestIn * medianIn * shortestIn) / 139
+  const chargeableStandardLb = Math.max(unitWeightLb, dimensionalWeightStandardLb)
+  if (chargeableStandardLb <= 20 && longestIn <= 18 && medianIn <= 14 && shortestIn <= 8) {
     return 'Large Standard-Size'
   }
 
-  // Small Oversize: max 60" x 30", length + girth ≤ 130", ≤ 70 lb
-  if (longest <= 60 && median <= 30 && lengthPlusGirth <= 130 && weightLb <= 70) {
-    return 'Small Oversize'
+  // Small/Large Bulky and Extra-Large use chargeable weight (max of unit and dimensional weight).
+  // Dimensional weight assumes minimum width and height of 2" for these tiers.
+  const bulkyMedianIn = Math.max(medianIn, 2)
+  const bulkyShortestIn = Math.max(shortestIn, 2)
+  const dimensionalWeightBulkyLb = (longestIn * bulkyMedianIn * bulkyShortestIn) / 139
+  const chargeableBulkyLb = Math.max(unitWeightLb, dimensionalWeightBulkyLb)
+
+  // Small Bulky: not standard-size, chargeable ≤ 50 lb, ≤ 37" x 28" x 20", and length+girth ≤ 130"
+  if (
+    chargeableBulkyLb <= 50 &&
+    longestIn <= 37 &&
+    medianIn <= 28 &&
+    shortestIn <= 20 &&
+    lengthPlusGirthIn <= 130
+  ) {
+    return 'Small Bulky'
   }
 
-  // Medium Oversize: max 108" longest, length + girth ≤ 130", ≤ 150 lb
-  if (longest <= 108 && lengthPlusGirth <= 130 && weightLb <= 150) {
-    return 'Medium Oversize'
+  // Large Bulky: not standard-size/small bulky, chargeable ≤ 50 lb, ≤ 59" x 33" x 33", and length+girth ≤ 130"
+  if (
+    chargeableBulkyLb <= 50 &&
+    longestIn <= 59 &&
+    medianIn <= 33 &&
+    shortestIn <= 33 &&
+    lengthPlusGirthIn <= 130
+  ) {
+    return 'Large Bulky'
   }
 
-  // Large Oversize: max 108" longest, length + girth ≤ 165", ≤ 150 lb
-  if (longest <= 108 && lengthPlusGirth <= 165 && weightLb <= 150) {
-    return 'Large Oversize'
+  // Extra-Large: everything else, split by chargeable weight.
+  if (chargeableBulkyLb > 150) {
+    return 'Extra-Large 150+ lb'
   }
 
-  // Special Oversize: anything larger
-  return 'Special Oversize'
+  let isOvermax = false
+  if (longestIn > 96) isOvermax = true
+  if (lengthPlusGirthIn > 130) isOvermax = true
+  if (isOvermax) return 'Overmax 0 to 150 lb'
+
+  if (chargeableBulkyLb <= 50) {
+    return 'Extra-Large 0 to 50 lb'
+  }
+  if (chargeableBulkyLb <= 70) {
+    return 'Extra-Large 50+ to 70 lb'
+  }
+
+  return 'Extra-Large 70+ to 150 lb'
 }
 
 function coerceNumber(value: unknown): number | null {
