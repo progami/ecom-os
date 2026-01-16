@@ -613,7 +613,10 @@ fi
 log "Step 6: Building $app_key"
 cd "$REPO_DIR"
 set +e
-eval "$build_cmd"
+(
+  export NODE_ENV=production
+  eval "$build_cmd"
+)
 build_status=$?
 set -e
 
@@ -635,7 +638,10 @@ if [[ "$build_status" -ne 0 ]]; then
     fi
 
     set +e
-    eval "$build_cmd"
+    (
+      export NODE_ENV=production
+      eval "$build_cmd"
+    )
     build_status=$?
     set -e
   fi
