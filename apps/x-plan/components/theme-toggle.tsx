@@ -28,9 +28,9 @@ export function ThemeToggle() {
       className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:bg-slate-50 hover:text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
     >
       {isDark ? (
-        <Sun className="h-6 w-6" aria-hidden />
+        <Sun className="h-7 w-7" aria-hidden />
       ) : (
-        <Moon className="h-6 w-6" aria-hidden />
+        <Moon className="h-7 w-7" aria-hidden />
       )}
     </button>
   );
