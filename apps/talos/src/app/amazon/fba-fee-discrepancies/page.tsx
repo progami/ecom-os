@@ -36,44 +36,31 @@ type AlertStatus =
   | 'MISSING_REFERENCE'
   | 'ERROR'
 
-type ApiAlert = {
-  status: AlertStatus
-  message: string | null
-  checkedAt: string | null
-  currencyCode: string | null
-  listingPrice: number | string | null
-  referenceSizeTier: string | null
-  referenceFbaFulfillmentFee: number | string | null
-  amazonFbaFulfillmentFee: number | string | null
-}
-
 type ApiSkuRow = {
   id: string
   skuCode: string
   description: string
   asin: string | null
-  category: string | null
-  sizeTier: string | null
-  referralFeePercent: number | string | null
   fbaFulfillmentFee: number | string | null
-  amazonCategory: string | null
-  amazonSizeTier: string | null
-  amazonReferralFeePercent: number | string | null
   amazonFbaFulfillmentFee: number | string | null
   amazonListingPrice: number | string | null
-  amazonReferenceWeightKg: number | string | null
-  unitDimensionsCm: string | null
-  unitSide1Cm: number | string | null
-  unitSide2Cm: number | string | null
-  unitSide3Cm: number | string | null
-  unitWeightKg: number | string | null
+  amazonSizeTier: string | null
+  referenceItemPackageDimensionsCm: string | null
+  referenceItemPackageSide1Cm: number | string | null
+  referenceItemPackageSide2Cm: number | string | null
+  referenceItemPackageSide3Cm: number | string | null
+  referenceItemPackageWeightKg: number | string | null
+  amazonItemPackageDimensionsCm: string | null
+  amazonItemPackageSide1Cm: number | string | null
+  amazonItemPackageSide2Cm: number | string | null
+  amazonItemPackageSide3Cm: number | string | null
+  amazonItemPackageWeightKg: number | string | null
   itemDimensionsCm: string | null
   itemSide1Cm: number | string | null
   itemSide2Cm: number | string | null
   itemSide3Cm: number | string | null
   itemWeightKg: number | string | null
   latestBatchCode?: string | null
-  amazonFbaFeeAlert: ApiAlert | null
 }
 
 const ALLOWED_ROLES = ['admin', 'staff'] as const
@@ -233,12 +220,12 @@ function formatWeightLb(weightLb: number | null, decimals: number): string {
 
 function computeComparison(row: ApiSkuRow): Comparison {
   const referenceTriplet = resolveDimensionTripletCm({
-    side1Cm: row.itemSide1Cm,
-    side2Cm: row.itemSide2Cm,
-    side3Cm: row.itemSide3Cm,
-    legacy: row.itemDimensionsCm,
+    side1Cm: row.referenceItemPackageSide1Cm,
+    side2Cm: row.referenceItemPackageSide2Cm,
+    side3Cm: row.referenceItemPackageSide3Cm,
+    legacy: row.referenceItemPackageDimensionsCm,
   })
-  const referenceWeightKg = parseDecimalNumber(row.itemWeightKg)
+  const referenceWeightKg = parseDecimalNumber(row.referenceItemPackageWeightKg)
   const referenceSizeTier =
     referenceTriplet && referenceWeightKg !== null
       ? calculateSizeTier(
@@ -251,12 +238,12 @@ function computeComparison(row: ApiSkuRow): Comparison {
   const referenceShipping = computeShippingWeights(referenceTriplet, referenceWeightKg, referenceSizeTier)
 
   const amazonTriplet = resolveDimensionTripletCm({
-    side1Cm: row.unitSide1Cm,
-    side2Cm: row.unitSide2Cm,
-    side3Cm: row.unitSide3Cm,
-    legacy: row.unitDimensionsCm,
+    side1Cm: row.amazonItemPackageSide1Cm,
+    side2Cm: row.amazonItemPackageSide2Cm,
+    side3Cm: row.amazonItemPackageSide3Cm,
+    legacy: row.amazonItemPackageDimensionsCm,
   })
-  const amazonWeightKg = parseDecimalNumber(row.amazonReferenceWeightKg)
+  const amazonWeightKg = parseDecimalNumber(row.amazonItemPackageWeightKg)
   const amazonSizeTier =
     amazonTriplet && amazonWeightKg !== null
       ? calculateSizeTier(
@@ -278,8 +265,8 @@ function computeComparison(row: ApiSkuRow): Comparison {
   if (referenceWeightKg === null) referenceMissingFields.push('Item package weight (kg)')
 
   const amazonMissingFields: string[] = []
-  if (amazonTriplet === null) amazonMissingFields.push('Amazon item package dimensions')
-  if (amazonWeightKg === null) amazonMissingFields.push('Amazon item package weight')
+  if (amazonTriplet === null) amazonMissingFields.push('Amazon item package dimensions (cm)')
+  if (amazonWeightKg === null) amazonMissingFields.push('Amazon item package weight (kg)')
 
   let status: AlertStatus = 'UNKNOWN'
   if (!row.asin) {

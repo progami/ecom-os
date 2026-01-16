@@ -77,11 +77,11 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
     }
 
     // Update the SKU
-    const unitTriplet = resolveDimensionTripletCm({
-      side1Cm: body.unitSide1Cm,
-      side2Cm: body.unitSide2Cm,
-      side3Cm: body.unitSide3Cm,
-      legacy: body.unitDimensionsCm,
+    const itemTriplet = resolveDimensionTripletCm({
+      side1Cm: body.itemSide1Cm,
+      side2Cm: body.itemSide2Cm,
+      side3Cm: body.itemSide3Cm,
+      legacy: body.itemDimensionsCm,
     })
     const cartonTriplet = resolveDimensionTripletCm({
       side1Cm: body.cartonSide1Cm,
@@ -90,9 +90,9 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
       legacy: body.cartonDimensionsCm,
     })
 
-    const unitInputProvided =
-      Boolean(body.unitDimensionsCm) ||
-      [body.unitSide1Cm, body.unitSide2Cm, body.unitSide3Cm].some(
+    const itemInputProvided =
+      Boolean(body.itemDimensionsCm) ||
+      [body.itemSide1Cm, body.itemSide2Cm, body.itemSide3Cm].some(
         value => value !== undefined && value !== null
       )
     const cartonInputProvided =
@@ -101,9 +101,9 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
         value => value !== undefined && value !== null
       )
 
-	    if (unitInputProvided && !unitTriplet) {
+	    if (itemInputProvided && !itemTriplet) {
 	      return NextResponse.json(
-	        { error: 'Item package dimensions must be a valid LxWxH triple' },
+	        { error: 'Item dimensions must be a valid LxWxH triple' },
 	        { status: 400 }
 	      )
 	    }
@@ -138,11 +138,11 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
         description: body.description,
         packSize: body.packSize,
         material: body.material,
-        unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-        unitSide1Cm: unitTriplet ? unitTriplet.side1Cm : null,
-        unitSide2Cm: unitTriplet ? unitTriplet.side2Cm : null,
-        unitSide3Cm: unitTriplet ? unitTriplet.side3Cm : null,
-        unitWeightKg: body.unitWeightKg,
+        itemDimensionsCm: itemTriplet ? formatDimensionTripletCm(itemTriplet) : null,
+        itemSide1Cm: itemTriplet ? itemTriplet.side1Cm : null,
+        itemSide2Cm: itemTriplet ? itemTriplet.side2Cm : null,
+        itemSide3Cm: itemTriplet ? itemTriplet.side3Cm : null,
+        itemWeightKg: body.itemWeightKg,
         unitsPerCarton: body.unitsPerCarton,
         cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
         cartonSide1Cm: cartonTriplet ? cartonTriplet.side1Cm : null,

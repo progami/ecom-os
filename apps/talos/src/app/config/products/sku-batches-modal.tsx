@@ -37,6 +37,13 @@ interface BatchRow {
   unitsPerCarton: number | null
   material: string | null
   packagingType: string | null
+  amazonItemPackageDimensionsCm: string | null
+  amazonItemPackageSide1Cm: number | string | null
+  amazonItemPackageSide2Cm: number | string | null
+  amazonItemPackageSide3Cm: number | string | null
+  amazonSizeTier: string | null
+  amazonFbaFulfillmentFee: number | string | null
+  amazonReferenceWeightKg: number | string | null
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   unitDimensionsCm: string | null
@@ -318,6 +325,12 @@ function SkuBatchesManager({
       return batchCode.toLowerCase().includes(term) || description.toLowerCase().includes(term)
     })
   }, [batchSearch, batches])
+
+  const amazonReadonlyBatch = useMemo(() => {
+    if (editingBatch) return editingBatch
+    if (batches.length > 0) return batches[0]
+    return null
+  }, [batches, editingBatch])
 
   const fetchBatches = useCallback(async () => {
     try {
@@ -983,36 +996,42 @@ function SkuBatchesManager({
                               <Label>Dimensions (cm)</Label>
                               <div className="grid grid-cols-3 gap-2">
                                 {(() => {
-                                  const dims = (sku.unitDimensionsCm ?? '').split(/[×x]/);
+                                  const side1 = coerceFiniteNumber(amazonReadonlyBatch?.amazonItemPackageSide1Cm)
+                                  const side2 = coerceFiniteNumber(amazonReadonlyBatch?.amazonItemPackageSide2Cm)
+                                  const side3 = coerceFiniteNumber(amazonReadonlyBatch?.amazonItemPackageSide3Cm)
+
                                   return (
                                     <>
                                       <Input
-                                        value={dims[0]?.trim() ?? ''}
+                                        value={side1 === null ? '' : formatNumber(side1, 2)}
                                         disabled
                                         className="bg-slate-100 text-slate-500"
                                         placeholder="S1"
                                       />
                                       <Input
-                                        value={dims[1]?.trim() ?? ''}
+                                        value={side2 === null ? '' : formatNumber(side2, 2)}
                                         disabled
                                         className="bg-slate-100 text-slate-500"
                                         placeholder="S2"
                                       />
                                       <Input
-                                        value={dims[2]?.trim() ?? ''}
+                                        value={side3 === null ? '' : formatNumber(side3, 2)}
                                         disabled
                                         className="bg-slate-100 text-slate-500"
                                         placeholder="S3"
                                       />
                                     </>
-                                  );
+                                  )
                                 })()}
                               </div>
                             </div>
                             <div className="space-y-1">
                               <Label>Weight (kg)</Label>
                               <Input
-                                value={sku.amazonReferenceWeightKg?.toString() ?? ''}
+                                value={(() => {
+                                  const weight = coerceFiniteNumber(amazonReadonlyBatch?.amazonReferenceWeightKg)
+                                  return weight === null ? '' : formatNumber(weight, 3)
+                                })()}
                                 disabled
                                 className="bg-slate-100 text-slate-500"
                                 placeholder="—"
