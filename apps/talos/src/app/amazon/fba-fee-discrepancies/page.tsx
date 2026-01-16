@@ -134,20 +134,47 @@ function formatFee(value: number | string | null | undefined, currency: string) 
   }).format(amount)
 }
 
-function computeDimensionalWeightLb(triplet: DimensionTriplet): number {
-  const side1In = triplet.side1Cm / 2.54
-  const side2In = triplet.side2Cm / 2.54
-  const side3In = triplet.side3Cm / 2.54
-  const volumeIn3 = side1In * side2In * side3In
+function usesMinWidthHeight(sizeTier: string | null): boolean {
+  if (!sizeTier) return false
+  if (sizeTier === 'Small Bulky') return true
+  if (sizeTier === 'Large Bulky') return true
+  if (sizeTier === 'Overmax 0 to 150 lb') return true
+  if (sizeTier.startsWith('Extra-Large')) return true
+  return false
+}
+
+function computeDimensionalWeightLbWithMinWidthHeight(triplet: DimensionTriplet, applyMinWidthHeightIn: boolean): number {
+  const dimsIn = [triplet.side1Cm / 2.54, triplet.side2Cm / 2.54, triplet.side3Cm / 2.54].sort((a, b) => b - a)
+  const longestIn = dimsIn[0]
+  let medianIn = dimsIn[1]
+  let shortestIn = dimsIn[2]
+
+  if (applyMinWidthHeightIn) {
+    medianIn = Math.max(medianIn, 2)
+    shortestIn = Math.max(shortestIn, 2)
+  }
+
+  const volumeIn3 = longestIn * medianIn * shortestIn
   return volumeIn3 / 139
 }
 
-function computeShippingWeights(triplet: DimensionTriplet | null, unitWeightKg: number | null): ShippingWeights {
+function computeShippingWeights(
+  triplet: DimensionTriplet | null,
+  unitWeightKg: number | null,
+  sizeTier: string | null
+): ShippingWeights {
   const unitWeightLb = unitWeightKg === null ? null : unitWeightKg * 2.20462
-  const dimensionalWeightLb = triplet === null ? null : computeDimensionalWeightLb(triplet)
+  const dimensionalWeightLb =
+    triplet === null ? null : computeDimensionalWeightLbWithMinWidthHeight(triplet, usesMinWidthHeight(sizeTier))
 
   let chargeableWeightLb: number | null = null
-  if (unitWeightLb !== null && dimensionalWeightLb !== null) {
+  let usesUnitOnly = false
+  if (sizeTier === 'Small Standard-Size') usesUnitOnly = true
+  if (sizeTier === 'Extra-Large 150+ lb') usesUnitOnly = true
+
+  if (usesUnitOnly) {
+    if (unitWeightLb !== null) chargeableWeightLb = unitWeightLb
+  } else if (unitWeightLb !== null && dimensionalWeightLb !== null) {
     chargeableWeightLb = Math.max(unitWeightLb, dimensionalWeightLb)
   } else if (unitWeightLb !== null) {
     chargeableWeightLb = unitWeightLb
@@ -165,9 +192,20 @@ function computeShippingWeights(triplet: DimensionTriplet | null, unitWeightKg: 
     const roundedOunces = Math.ceil(ounces)
     roundedWeightLb = roundedOunces / 16
   } else {
-    const quarterPounds = 0.25
-    const roundedSteps = Math.ceil(chargeableWeightLb / quarterPounds)
-    roundedWeightLb = roundedSteps * quarterPounds
+    let roundToWholePounds = false
+    if (sizeTier === 'Small Bulky') roundToWholePounds = true
+    if (sizeTier === 'Large Bulky') roundToWholePounds = true
+    if (sizeTier === 'Extra-Large 150+ lb') roundToWholePounds = true
+    if (sizeTier === 'Overmax 0 to 150 lb') roundToWholePounds = true
+    if (sizeTier && sizeTier.startsWith('Extra-Large')) roundToWholePounds = true
+
+    if (roundToWholePounds) {
+      roundedWeightLb = Math.ceil(chargeableWeightLb)
+    } else {
+      const quarterPounds = 0.25
+      const roundedSteps = Math.ceil(chargeableWeightLb / quarterPounds)
+      roundedWeightLb = roundedSteps * quarterPounds
+    }
   }
 
   return { unitWeightLb, dimensionalWeightLb, shippingWeightLb: roundedWeightLb }
@@ -197,18 +235,16 @@ function computeComparison(row: ApiSkuRow): Comparison {
     legacy: row.itemDimensionsCm,
   })
   const referenceWeightKg = parseDecimalNumber(row.itemWeightKg)
-  const referenceShipping = computeShippingWeights(referenceTriplet, referenceWeightKg)
-  const referenceShippingWeightKg =
-    referenceShipping.shippingWeightLb === null ? null : referenceShipping.shippingWeightLb / 2.20462
   const referenceSizeTier =
-    referenceTriplet && referenceShippingWeightKg !== null
+    referenceTriplet && referenceWeightKg !== null
       ? calculateSizeTier(
           referenceTriplet.side1Cm,
           referenceTriplet.side2Cm,
           referenceTriplet.side3Cm,
-          referenceShippingWeightKg
+          referenceWeightKg
         )
       : null
+  const referenceShipping = computeShippingWeights(referenceTriplet, referenceWeightKg, referenceSizeTier)
 
   const amazonTriplet = resolveDimensionTripletCm({
     side1Cm: row.unitSide1Cm,
@@ -217,18 +253,16 @@ function computeComparison(row: ApiSkuRow): Comparison {
     legacy: row.unitDimensionsCm,
   })
   const amazonWeightKg = parseDecimalNumber(row.amazonReferenceWeightKg)
-  const amazonShipping = computeShippingWeights(amazonTriplet, amazonWeightKg)
-  const amazonShippingWeightKg =
-    amazonShipping.shippingWeightLb === null ? null : amazonShipping.shippingWeightLb / 2.20462
   const amazonSizeTier =
-    amazonTriplet && amazonShippingWeightKg !== null
+    amazonTriplet && amazonWeightKg !== null
       ? calculateSizeTier(
           amazonTriplet.side1Cm,
           amazonTriplet.side2Cm,
           amazonTriplet.side3Cm,
-          amazonShippingWeightKg
+          amazonWeightKg
         )
       : null
+  const amazonShipping = computeShippingWeights(amazonTriplet, amazonWeightKg, amazonSizeTier)
 
   const expectedFee = parseDecimalNumber(row.fbaFulfillmentFee)
   const amazonFee = parseDecimalNumber(row.amazonFbaFulfillmentFee)
