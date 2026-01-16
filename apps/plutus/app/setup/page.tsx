@@ -311,8 +311,16 @@ type QboAccountSummary = {
 };
 
 type CleanupStatus = {
-  duplicatesInactive: { name: string; status: 'pass' | 'fail' | 'pending' }[];
-  parentsExist: { name: string; status: 'pass' | 'fail' | 'pending' }[];
+  duplicatesInactive: {
+    name: string;
+    status: 'pass' | 'fail' | 'pending';
+    detail?: 'missing' | 'inactive' | 'active';
+  }[];
+  parentsExist: {
+    name: string;
+    status: 'pass' | 'fail' | 'pending';
+    detail?: 'missing' | 'inactive' | 'found';
+  }[];
 };
 
 function CleanupStep({
@@ -327,6 +335,7 @@ function CleanupStep({
   const [loading, setLoading] = useState(false);
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lmbDetected, setLmbDetected] = useState<boolean | null>(null);
   const [status, setStatus] = useState<CleanupStatus>({
     duplicatesInactive: AMAZON_DUPLICATE_ACCOUNTS.map((name) => ({ name, status: 'pending' })),
     parentsExist: REQUIRED_PARENT_ACCOUNTS.map((name) => ({ name, status: 'pending' })),
@@ -336,6 +345,7 @@ function CleanupStep({
     setLoading(true);
     setVerified(false);
     setError(null);
+    setLmbDetected(null);
 
     try {
       const res = await fetch(`${basePath}/api/qbo/accounts`);
@@ -354,17 +364,38 @@ function CleanupStep({
         const account = accounts.find(
           (a) => a.parentName === null && a.name.toLowerCase() === name.toLowerCase()
         );
-        const isInactive = !account || account.active === false;
-        return { name, status: (isInactive ? 'pass' : 'fail') as 'pass' | 'fail' };
+        if (!account) {
+          return { name, status: 'pass' as const, detail: 'missing' as const };
+        }
+
+        if (account.active === false) {
+          return { name, status: 'pass' as const, detail: 'inactive' as const };
+        }
+
+        return { name, status: 'fail' as const, detail: 'active' as const };
       });
 
       // Check parents exist
       const parentsExist = REQUIRED_PARENT_ACCOUNTS.map((name) => {
         const account = accounts.find(
-          (a) => a.parentName === null && a.name.toLowerCase() === name.toLowerCase() && a.active
+          (a) => a.parentName === null && a.name.toLowerCase() === name.toLowerCase()
         );
-        return { name, status: (account ? 'pass' : 'fail') as 'pass' | 'fail' };
+        if (!account) {
+          return { name, status: 'fail' as const, detail: 'missing' as const };
+        }
+
+        if (!account.active) {
+          return { name, status: 'fail' as const, detail: 'inactive' as const };
+        }
+
+        return { name, status: 'pass' as const, detail: 'found' as const };
       });
+
+      const detected = accounts.some((a) => {
+        if (a.parentName) return a.parentName.startsWith('LMB');
+        return a.name.startsWith('LMB');
+      });
+      setLmbDetected(detected);
 
       setStatus({ duplicatesInactive, parentsExist });
 
@@ -389,10 +420,28 @@ function CleanupStep({
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200/60 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+        <div className="font-medium text-slate-900 dark:text-white">Why these must be inactive</div>
+        <div className="mt-1">
+          Link My Books posts to its own <span className="font-medium">LMB*</span> chart. Any top-level Amazon accounts with
+          these names are duplicates and can steal postings.
+        </div>
+        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+          New setup: complete the LMB Setup Wizard first (LMB → Accounts &amp; Taxes → Setup Wizard, for both US + UK
+          connections), then come back and verify.
+        </div>
+      </div>
+
       <div className="space-y-4">
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
             {error}
+          </div>
+        )}
+        {lmbDetected === false && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+            No LMB accounts detected in QBO yet. Run the LMB setup wizard first, then re-verify so you can confirm these
+            are duplicates.
           </div>
         )}
         <div className="space-y-2">
@@ -413,9 +462,17 @@ function CleanupStep({
                 {item.status === 'pass' && <CheckIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                 {item.status === 'fail' && <XIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                 {item.status === 'pending' && <span className="w-3.5 h-3.5 flex-shrink-0" />}
-                <span className="truncate">{item.name}</span>
+                <span className="truncate flex-1">{item.name}</span>
+                {item.status !== 'pending' && item.detail && (
+                  <span className="text-[10px] uppercase tracking-wider opacity-70">
+                    {item.detail === 'missing' ? 'Not found' : item.detail}
+                  </span>
+                )}
               </div>
             ))}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            ✅ means the account is missing or inactive. ❌ means it exists and is active (make it inactive in QBO).
           </div>
         </div>
 
@@ -437,9 +494,17 @@ function CleanupStep({
                 {item.status === 'pass' && <CheckIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                 {item.status === 'fail' && <XIcon className="h-3.5 w-3.5 flex-shrink-0" />}
                 {item.status === 'pending' && <span className="w-3.5 h-3.5 flex-shrink-0" />}
-                <span className="truncate">{item.name}</span>
+                <span className="truncate flex-1">{item.name}</span>
+                {item.status !== 'pending' && item.detail && (
+                  <span className="text-[10px] uppercase tracking-wider opacity-70">
+                    {item.detail}
+                  </span>
+                )}
               </div>
             ))}
+          </div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">
+            These are required parent accounts Plutus posts under. Create them in QBO if missing.
           </div>
         </div>
       </div>
