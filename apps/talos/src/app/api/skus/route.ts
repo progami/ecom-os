@@ -77,6 +77,18 @@ const skuSchemaBase = z.object({
       const sanitized = sanitizeForDisplay(val)
       return sanitized ? sanitized : null
     }),
+  subcategory: z
+    .string()
+    .trim()
+    .max(255)
+    .optional()
+    .nullable()
+    .transform(val => {
+      if (val === undefined) return undefined
+      if (val === null) return null
+      const sanitized = sanitizeForDisplay(val)
+      return sanitized ? sanitized : null
+    }),
   sizeTier: z
     .string()
     .trim()
@@ -395,6 +407,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         skuCode: validatedData.skuCode,
         asin: validatedData.asin ?? null,
         category: validatedData.category ?? null,
+        subcategory: validatedData.subcategory ?? null,
         sizeTier: validatedData.sizeTier ?? null,
         referralFeePercent: validatedData.referralFeePercent ?? null,
         fbaFulfillmentFee: validatedData.fbaFulfillmentFee ?? null,
