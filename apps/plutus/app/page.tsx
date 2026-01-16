@@ -199,6 +199,14 @@ function ReconcileIcon({ className }: { className?: string }) {
   );
 }
 
+function TerminalIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+    </svg>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -282,6 +290,15 @@ export default function HomePage() {
             description="View account hierarchies from QuickBooks, grouped by type like QBO."
             accentColor="amber"
             delay={100}
+          />
+
+          <FeatureCard
+            href="/phase-0"
+            icon={<TerminalIcon className="h-7 w-7 text-violet-600 dark:text-violet-400" />}
+            title="Phase 0 Verification"
+            description="Verify QBO cleanup is complete before proceeding with Plutus setup."
+            accentColor="violet"
+            delay={150}
           />
 
           <ComingSoonCard
