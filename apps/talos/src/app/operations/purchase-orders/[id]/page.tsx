@@ -907,19 +907,71 @@ export default function PurchaseOrderDetailPage() {
       setUploadingDoc(prev => ({ ...prev, [key]: true }))
 
       try {
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('stage', stage)
-        formData.append('documentType', documentType)
+        const presignResponse = await fetch(
+          `/api/purchase-orders/${orderId}/documents/presigned-url`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+              fileSize: file.size,
+              stage,
+              documentType,
+            }),
+            credentials: 'include',
+          }
+        )
 
-        const response = await fetch(`/api/purchase-orders/${orderId}/documents`, {
+        const presignPayload = await presignResponse.json().catch(() => null)
+        if (!presignResponse.ok) {
+          const errorMessage = typeof presignPayload?.error === 'string' ? presignPayload.error : null
+          const detailsMessage =
+            typeof presignPayload?.details === 'string' ? presignPayload.details : null
+          if (errorMessage && detailsMessage) {
+            toast.error(`${errorMessage}: ${detailsMessage}`)
+          } else if (errorMessage) {
+            toast.error(errorMessage)
+          } else {
+            toast.error(`Failed to prepare upload (HTTP ${presignResponse.status})`)
+          }
+          return
+        }
+
+        const uploadUrl = typeof presignPayload?.uploadUrl === 'string' ? presignPayload.uploadUrl : null
+        const s3Key = typeof presignPayload?.s3Key === 'string' ? presignPayload.s3Key : null
+        if (!uploadUrl || !s3Key) {
+          toast.error('Upload URL invalid')
+          return
+        }
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        })
+
+        if (!uploadResponse.ok) {
+          toast.error(`Failed to upload document (HTTP ${uploadResponse.status})`)
+          return
+        }
+
+        const completeResponse = await fetch(`/api/purchase-orders/${orderId}/documents`, {
           method: 'POST',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage,
+            documentType,
+            s3Key,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+          }),
           credentials: 'include',
         })
 
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null)
+        if (!completeResponse.ok) {
+          const payload = await completeResponse.json().catch(() => null)
           const errorMessage = typeof payload?.error === 'string' ? payload.error : null
           const detailsMessage = typeof payload?.details === 'string' ? payload.details : null
           if (errorMessage && detailsMessage) {
@@ -927,7 +979,7 @@ export default function PurchaseOrderDetailPage() {
           } else if (errorMessage) {
             toast.error(errorMessage)
           } else {
-            toast.error(`Failed to upload document (HTTP ${response.status})`)
+            toast.error(`Failed to save document (HTTP ${completeResponse.status})`)
           }
           return
         }
