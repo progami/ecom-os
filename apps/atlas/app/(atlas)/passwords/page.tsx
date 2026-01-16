@@ -314,6 +314,7 @@ export default function PasswordsPage() {
           loading={loading}
           skeletonRows={6}
           onRowClick={openEditModal}
+          addRow={{ label: 'Add Password', onClick: openCreateModal }}
           emptyState={
             <TableEmptyContent
               icon={<LockClosedIcon className="h-10 w-10" />}
