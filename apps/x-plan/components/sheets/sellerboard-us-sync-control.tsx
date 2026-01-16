@@ -101,7 +101,7 @@ export function SellerboardUsSyncControl({
   const subtitle = `Updates Actual sales + past-week financials for this strategy`;
 
   const toolbarLabel = 'Sellerboard';
-  const syncButtonLabel = 'Sync Sellerboard';
+  const syncButtonLabel = 'Sync';
 
   const runSync = async () => {
     if (isSyncing) return;
@@ -158,7 +158,7 @@ export function SellerboardUsSyncControl({
           )}
         >
           <RefreshCw className={cn('h-4 w-4', isSyncing && 'animate-spin')} />
-          Sync Sellerboard
+          Sync
         </button>
       </div>
 
