@@ -32,8 +32,6 @@ type SellerboardUsSyncResult = {
   newestPurchaseDateUtc: string | null;
 };
 
-type SellerboardSyncKind = 'actual-sales' | 'dashboard';
-
 type SellerboardDashboardSyncResult = {
   ok: true;
   durationMs: number;
@@ -49,7 +47,12 @@ type SellerboardDashboardSyncResult = {
   newestDateUtc: string | null;
 };
 
-type SellerboardSyncResult = SellerboardUsSyncResult | SellerboardDashboardSyncResult;
+type SellerboardSyncResult = {
+  ok: true;
+  durationMs: number;
+  actualSales: SellerboardUsSyncResult;
+  dashboard: SellerboardDashboardSyncResult;
+};
 
 function formatIsoTimestamp(value: string | null): string {
   if (!value) return '—';
@@ -70,11 +73,9 @@ function formatDuration(durationMs: number): string {
 export function SellerboardUsSyncControl({
   isSuperAdmin,
   strategyRegion,
-  kind,
 }: {
   isSuperAdmin: boolean;
   strategyRegion: 'US' | 'UK';
-  kind: SellerboardSyncKind;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -91,20 +92,13 @@ export function SellerboardUsSyncControl({
     return 'idle';
   }, [error, isSyncing, result]);
 
-  const endpoint =
-    kind === 'dashboard'
-      ? `/api/v1/x-plan/sellerboard/${regionSlug}-dashboard/manual`
-      : `/api/v1/x-plan/sellerboard/${regionSlug}-actual-sales/manual`;
+  const endpoint = `/api/v1/x-plan/sellerboard/${regionSlug}-sync/manual`;
 
-  const title =
-    kind === 'dashboard' ? 'Sync Sellerboard financials' : 'Sync Sellerboard actuals';
-  const subtitle =
-    kind === 'dashboard'
-      ? `Updates weekly revenue/fees from Sellerboard for ${strategyRegion} strategies`
-      : `Updates the Actual column for ${strategyRegion} strategies`;
+  const title = 'Sync Sellerboard';
+  const subtitle = `Updates Actual sales + past-week financials for ${strategyRegion} strategies`;
 
-  const toolbarLabel = kind === 'dashboard' ? 'Financials' : 'Actuals';
-  const syncButtonLabel = kind === 'dashboard' ? 'Sync financials' : 'Sync actuals';
+  const toolbarLabel = 'Sellerboard';
+  const syncButtonLabel = 'Sync Sellerboard';
 
   const runSync = async () => {
     if (isSyncing) return;
@@ -121,8 +115,12 @@ export function SellerboardUsSyncControl({
       }
 
       setResult(json as SellerboardSyncResult);
+      const actualUpdates =
+        typeof json?.actualSales?.updates === 'number' ? json.actualSales.updates : 0;
+      const dashboardUpdates =
+        typeof json?.dashboard?.updates === 'number' ? json.dashboard.updates : 0;
       toast.success('Sellerboard sync complete', {
-        description: `Updated ${Number(json?.updates ?? 0).toLocaleString()} records.`,
+        description: `Actuals: ${actualUpdates.toLocaleString()} · Financials: ${dashboardUpdates.toLocaleString()}`,
       });
       router.refresh();
     } catch (syncError) {
@@ -136,10 +134,8 @@ export function SellerboardUsSyncControl({
 
   if (!canRender) return null;
 
-  const newestTimestamp =
-    kind === 'dashboard'
-      ? (result as SellerboardDashboardSyncResult | null)?.newestDateUtc ?? null
-      : (result as SellerboardUsSyncResult | null)?.newestPurchaseDateUtc ?? null;
+  const newestOrdersTimestamp = result?.actualSales.newestPurchaseDateUtc ?? null;
+  const newestDashboardTimestamp = result?.dashboard.newestDateUtc ?? null;
 
   return (
     <>
@@ -213,7 +209,7 @@ export function SellerboardUsSyncControl({
                       <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                          This will overwrite existing Actual values.
+                          This will overwrite existing Actual values and past-week financial totals.
                         </p>
                         <p className="text-sm text-amber-800/90 dark:text-amber-200/80">
                           Data comes from a Sellerboard automation snapshot and may lag the live
@@ -249,10 +245,18 @@ export function SellerboardUsSyncControl({
                     <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-[#1a3a54] dark:bg-[#061828]">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                          Updated
+                          Actuals updated
                         </span>
                         <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {result.updates.toLocaleString()} cells
+                          {result.actualSales.updates.toLocaleString()} cells
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                          Financials updated
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {result.dashboard.updates.toLocaleString()} rows
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -260,15 +264,23 @@ export function SellerboardUsSyncControl({
                           Products matched
                         </span>
                         <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {result.productsMatched.toLocaleString()}
+                          {result.actualSales.productsMatched.toLocaleString()}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-                          Snapshot newest
+                          Orders newest
                         </span>
                         <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {formatIsoTimestamp(newestTimestamp)}
+                          {formatIsoTimestamp(newestOrdersTimestamp)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+                          Dashboard newest
+                        </span>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                          {formatIsoTimestamp(newestDashboardTimestamp)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between gap-3">
@@ -316,7 +328,6 @@ export function SellerboardUsSyncControl({
 export function SellerboardSyncControl(props: {
   isSuperAdmin: boolean;
   strategyRegion: 'US' | 'UK';
-  kind: SellerboardSyncKind;
 }) {
   return <SellerboardUsSyncControl {...props} />;
 }
