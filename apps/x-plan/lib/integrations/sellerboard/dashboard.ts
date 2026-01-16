@@ -317,6 +317,23 @@ export function parseSellerboardDashboardWeeklyTotals(
     options.sponsoredBrandsVideoSpendHeader ?? 'SponsoredBrandsVideo';
   const googleAdsSpendHeader = options.googleAdsSpendHeader ?? 'Google ads';
   const facebookAdsSpendHeader = options.facebookAdsSpendHeader ?? 'Facebook ads';
+  const amazonFeeHeaders = [
+    'GiftWrap',
+    'Shipping',
+    'Refund Commission',
+    'Refund Principal',
+    'Refund RefundCommission',
+    'Value of returned items',
+    'Adjustment_FBAPerUnitFulfillmentFee',
+    'AmazonUpstreamProcessingFee',
+    'AmazonUpstreamStorageTransportationFee',
+    'Commission',
+    'FBAPerUnitFulfillmentFee',
+    'FBAStorageFee',
+    'MicroDeposit',
+    'STARStorageFee',
+    'Subscription',
+  ] as const;
 
   const rows = parseCsv(csv);
   if (rows.length === 0) {
@@ -355,6 +372,7 @@ export function parseSellerboardDashboardWeeklyTotals(
     sponsoredBrandsVideoSpendHeader,
     googleAdsSpendHeader,
     facebookAdsSpendHeader,
+    ...amazonFeeHeaders,
   ];
 
   for (const requiredHeader of required) {
@@ -407,24 +425,34 @@ export function parseSellerboardDashboardWeeklyTotals(
       parseSellerboardNumber(getCell(record, unitsPpcHeader));
     const orders = parseSellerboardNumber(getCell(record, ordersHeader));
     const estimatedPayout = parseSellerboardNumber(getCell(record, estimatedPayoutHeader));
-    const grossProfit = parseSellerboardNumber(getCell(record, grossProfitHeader));
     const netProfit = parseSellerboardNumber(getCell(record, netProfitHeader));
 
-    const cogs =
+    const rawCogs =
       parseSellerboardNumber(getCell(record, productCostSalesHeader)) +
       parseSellerboardNumber(getCell(record, productCostUnsellableRefundsHeader)) +
       parseSellerboardNumber(getCell(record, productCostNonAmazonHeader)) +
       parseSellerboardNumber(getCell(record, productCostMissingFromInboundHeader));
+    const cogs = Math.abs(rawCogs);
 
-    const ppcSpend =
+    const rawPpcSpend =
       parseSellerboardNumber(getCell(record, sponsoredProductsSpendHeader)) +
       parseSellerboardNumber(getCell(record, sponsoredDisplaySpendHeader)) +
       parseSellerboardNumber(getCell(record, sponsoredBrandsSpendHeader)) +
       parseSellerboardNumber(getCell(record, sponsoredBrandsVideoSpendHeader)) +
       parseSellerboardNumber(getCell(record, googleAdsSpendHeader)) +
       parseSellerboardNumber(getCell(record, facebookAdsSpendHeader));
+    const ppcSpend = Math.abs(rawPpcSpend);
 
-    const amazonFees = revenue - cogs - grossProfit;
+    const rawAmazonFees = amazonFeeHeaders.reduce((sum, header) => {
+      return sum + parseSellerboardNumber(getCell(record, header));
+    }, 0);
+    const amazonFees = Math.abs(rawAmazonFees);
+
+    // Align to X-Plan conventions:
+    // - Revenue is positive
+    // - Costs are positive magnitudes
+    // - Gross profit excludes PPC
+    const grossProfit = revenue - cogs - amazonFees;
 
     const existing = weeklyTotalsByWeek.get(weekNumber) ?? {
       revenue: 0,
