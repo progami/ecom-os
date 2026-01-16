@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { getInventory, getCatalogItem } from '@/lib/amazon/client'
+import { calculateSizeTier } from '@/lib/amazon/fees'
 import { formatDimensionTripletCm } from '@/lib/sku-dimensions'
 import type { Session } from 'next-auth'
 export const dynamic = 'force-dynamic'
+
+type CatalogMeasurement = { value?: number; unit?: string }
+type CatalogDimensions = { length?: CatalogMeasurement; width?: CatalogMeasurement; height?: CatalogMeasurement }
 
 function convertMeasurementToCm(value: number, unit: string | undefined): number | null {
   if (!Number.isFinite(value)) return null
@@ -21,6 +25,28 @@ function convertMeasurementToCm(value: number, unit: string | undefined): number
     return Number((value / 10).toFixed(2))
   }
   return null
+}
+
+function parseCatalogUnitDimensions(attributes: {
+  item_package_dimensions?: CatalogDimensions[]
+  package_dimensions?: CatalogDimensions[]
+  item_dimensions?: CatalogDimensions[]
+}): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
+  const dims =
+    attributes.item_package_dimensions?.[0] ?? attributes.package_dimensions?.[0] ?? attributes.item_dimensions?.[0] ?? null
+  if (!dims) return null
+  const length = dims.length?.value
+  const width = dims.width?.value
+  const height = dims.height?.value
+  if (length === undefined || width === undefined || height === undefined) return null
+  if (!Number.isFinite(length) || !Number.isFinite(width) || !Number.isFinite(height)) return null
+
+  const side1Cm = convertMeasurementToCm(length, dims.length?.unit)
+  const side2Cm = convertMeasurementToCm(width, dims.width?.unit)
+  const side3Cm = convertMeasurementToCm(height, dims.height?.unit)
+  if (side1Cm === null || side2Cm === null || side3Cm === null) return null
+
+  return { side1Cm, side2Cm, side3Cm }
 }
 
 function convertWeightToKg(value: number, unit: string | undefined): number | null {
@@ -41,6 +67,20 @@ function convertWeightToKg(value: number, unit: string | undefined): number | nu
     return Number((value * 0.0283495).toFixed(3))
   }
   return null
+}
+
+function parseCatalogUnitWeightKg(attributes: {
+  item_package_weight?: CatalogMeasurement[]
+  package_weight?: CatalogMeasurement[]
+  item_weight?: CatalogMeasurement[]
+}): number | null {
+  const measurement =
+    attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? attributes.item_weight?.[0] ?? null
+  if (!measurement) return null
+  const value = measurement.value
+  if (value === undefined) return null
+  if (!Number.isFinite(value)) return null
+  return convertWeightToKg(value, measurement.unit)
 }
 
 export const POST = withAuth(async (request, session) => {
@@ -176,44 +216,28 @@ async function syncProducts(session: Session) {
             }
           }
 
-          // Update dimensions if available
-          const dims = attributes.item_dimensions?.[0]
-          const length = dims?.length?.value
-          const width = dims?.width?.value
-          const height = dims?.height?.value
-          const lengthUnit = dims?.length?.unit
-          const widthUnit = dims?.width?.unit
-          const heightUnit = dims?.height?.unit
-
-          if (
-            length !== undefined &&
-            width !== undefined &&
-            height !== undefined &&
-            Number.isFinite(length) &&
-            Number.isFinite(width) &&
-            Number.isFinite(height)
-          ) {
-            const side1Cm = convertMeasurementToCm(length, lengthUnit)
-            const side2Cm = convertMeasurementToCm(width, widthUnit)
-            const side3Cm = convertMeasurementToCm(height, heightUnit)
-            if (side1Cm !== null && side2Cm !== null && side3Cm !== null) {
-              updates.cartonDimensionsCm = formatDimensionTripletCm({ side1Cm, side2Cm, side3Cm })
-              updates.cartonSide1Cm = side1Cm
-              updates.cartonSide2Cm = side2Cm
-              updates.cartonSide3Cm = side3Cm
-            }
+          const unitTriplet = parseCatalogUnitDimensions(attributes)
+          if (unitTriplet) {
+            updates.unitDimensionsCm = formatDimensionTripletCm(unitTriplet)
+            updates.unitSide1Cm = unitTriplet.side1Cm
+            updates.unitSide2Cm = unitTriplet.side2Cm
+            updates.unitSide3Cm = unitTriplet.side3Cm
           }
 
-          // Update weight if available
-          const weight = attributes.item_weight?.[0]
-          const weightValue = weight?.value
-          const weightUnit = weight?.unit
+          const unitWeightKg = parseCatalogUnitWeightKg(attributes)
+          if (unitWeightKg !== null) {
+            updates.unitWeightKg = unitWeightKg
+            updates.amazonReferenceWeightKg = unitWeightKg
+          }
 
-          if (weightValue !== undefined && weightValue !== null && Number.isFinite(weightValue)) {
-            const weightKg = convertWeightToKg(weightValue, weightUnit)
-            if (weightKg !== null) {
-              updates.cartonWeightKg = weightKg
-            }
+          const computedTier = calculateSizeTier(
+            unitTriplet?.side1Cm ?? null,
+            unitTriplet?.side2Cm ?? null,
+            unitTriplet?.side3Cm ?? null,
+            unitWeightKg
+          )
+          if (computedTier) {
+            updates.amazonSizeTier = computedTier
           }
 
           if (Object.keys(updates).length > 0) {

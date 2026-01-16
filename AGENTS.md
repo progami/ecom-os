@@ -7,9 +7,8 @@
 
 ## Testing
 
-- All testing should be done via Chrome browser directly to `https://targonos.targonglobal.com/<app>` (e.g., `https://targonos.targonglobal.com/x-plan`)
-- Do not test on localhost
-- **CRITICAL: Always test changes in Chrome BEFORE creating any PR** - Verify your changes work visually before committing
+- Prefer verifying changes on the deployed app at `https://targonos.targonglobal.com/<app>` (e.g., `https://targonos.targonglobal.com/x-plan`) when feasible.
+- Run the repo checks relevant to your changes (e.g., lint/type-check/tests) before opening PRs.
 
 ## Git Workflow
 
@@ -23,7 +22,7 @@ Examples: `x-plan/fix-toolbar-visibility`, `talos/add-amazon-import`, `atlas/imp
 
 Once work is complete:
 
-1. **Test in browser** - Verify changes work in Chrome before proceeding
+1. **Test changes** - Verify behavior via deployed app and/or repo checks
 2. **PR to dev** - Create a pull request targeting the `dev` branch
 3. **Wait for GitHub CI to pass** - Do not proceed until all checks are green
 4. **Merge to dev** - Merge the PR yourself without waiting for approval
