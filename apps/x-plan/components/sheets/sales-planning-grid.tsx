@@ -2442,7 +2442,7 @@ export function SalesPlanningGrid({
 	                      <TableCell
 	                        key={column.id}
 	                        className={cn(
-	                          'relative h-8 select-none whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
+	                          'h-8 select-none whitespace-nowrap border-r px-2 py-0 text-sm overflow-hidden',
 	                          meta?.sticky
 	                            ? isEvenRow
 	                              ? 'bg-muted'
@@ -2465,9 +2465,6 @@ export function SalesPlanningGrid({
                             'bg-warning-100/95 dark:bg-warning-500/25 dark:ring-1 dark:ring-inset dark:ring-warning-300/45',
                           presentation.highlight === 'inbound' &&
                             'bg-success-100/90 dark:bg-success-500/25 dark:ring-1 dark:ring-inset dark:ring-success-300/45',
-                          isSelected &&
-                            !isCurrent &&
-                            "before:pointer-events-none before:absolute before:inset-0 before:bg-cyan-500/10 before:content-['']",
                           isCurrent && 'ring-2 ring-inset ring-cyan-600 dark:ring-cyan-400',
                         )}
                         style={{
