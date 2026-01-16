@@ -60,6 +60,23 @@ const AMAZON_REFERRAL_CATEGORIES_2026 = [
   'Watches',
 ] as const
 
+type AmazonReferralCategory = (typeof AMAZON_REFERRAL_CATEGORIES_2026)[number]
+
+const AMAZON_CATEGORY_TO_REFERRAL_CATEGORY = new Map<string, AmazonReferralCategory>([
+  ['Home Improvement', 'Tools and Home Improvement'],
+])
+
+function normalizeReferralCategory(value: string): string {
+  const mapped = AMAZON_CATEGORY_TO_REFERRAL_CATEGORY.get(value)
+  if (mapped) return mapped
+  return value
+}
+
+function formatReferralCategoryLabel(category: AmazonReferralCategory): string {
+  if (category === 'Tools and Home Improvement') return 'Tools and Home Improvement (Home Improvement)'
+  return category
+}
+
 const AMAZON_SIZE_TIER_OPTIONS = [
   'Small Standard-Size',
   'Large Standard-Size',
@@ -187,12 +204,20 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     }
   }
 
+  let category = ''
+  if (sku?.category) {
+    category = sku.category
+  } else if (sku?.amazonCategory) {
+    const mapped = AMAZON_CATEGORY_TO_REFERRAL_CATEGORY.get(sku.amazonCategory)
+    if (mapped) category = mapped
+  }
+
   return {
     skuCode: sku?.skuCode ?? '',
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
     productDimensionsCm: sku?.unitDimensionsCm ?? '',
-    category: sku?.category ?? '',
+    category,
     sizeTier: sku?.sizeTier ?? '',
     referralFeePercent: sku?.referralFeePercent?.toString?.() ?? '',
     fbaFulfillmentFee: sku?.fbaFulfillmentFee?.toString?.() ?? '',
@@ -430,7 +455,8 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
 
     // Parse reference fee fields
     const categoryTrimmed = formState.category.trim()
-    const categoryValue = categoryTrimmed ? categoryTrimmed : null
+    const normalizedCategory = categoryTrimmed ? normalizeReferralCategory(categoryTrimmed) : ''
+    const categoryValue = normalizedCategory ? normalizedCategory : null
     const sizeTierTrimmed = formState.sizeTier.trim()
     const sizeTierValue = sizeTierTrimmed ? sizeTierTrimmed : null
     let referralFeePercent: number | null = null
@@ -890,7 +916,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                                 <option value="">Select category</option>
                                 {AMAZON_REFERRAL_CATEGORIES_2026.map(category => (
                                   <option key={category} value={category}>
-                                    {category}
+                                    {formatReferralCategoryLabel(category)}
                                   </option>
                                 ))}
                               </select>
