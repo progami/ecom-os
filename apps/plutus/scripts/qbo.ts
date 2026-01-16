@@ -141,7 +141,7 @@ async function deactivateAccountsByName(accountNames: string[]): Promise<void> {
   console.log(JSON.stringify({ totalTargets: accountNames.length, matched: matches.length, missing: missing.length }, null, 2));
 
   for (const account of matches) {
-    const result = await updateAccountActive(connection, account.Id, account.SyncToken, false);
+    const result = await updateAccountActive(connection, account.Id, account.SyncToken, account.Name, false);
     if (result.updatedConnection) {
       connection = result.updatedConnection;
       await saveServerQboConnection(result.updatedConnection);
