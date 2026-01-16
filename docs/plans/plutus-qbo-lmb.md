@@ -20,6 +20,13 @@ Hybrid accounting system for Amazon FBA business using Link My Books (LMB) + Plu
 
 ---
 
+## Current Status (2026-01-16)
+
+- Phase 0 (QBO Cleanup): complete (duplicate Amazon accounts made inactive)
+- Phase 1 (QBO Account Creation): complete (all accounts/sub-accounts created; rerun with `pnpm -C apps/plutus qbo accounts:create-plutus-qbo-lmb-plan`)
+- Phase 2 (LMB Configuration): not started (requires LMB UI for BOTH connections)
+- Phase 3+ (QBO Custom Field, Bill SOP, Plutus build/workflows): not started
+
 ## Architecture
 
 ```
