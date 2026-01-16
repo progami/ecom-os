@@ -46,14 +46,14 @@ const sampleData: Record<string, unknown[]> = {
  'SKU Code': 'SKU001',
  'ASIN': 'B08ABC1234',
  'Description': 'Sample Product - Widget A',
- 'Pack Size': 12,
- 'Material': 'Plastic',
- 'Unit Dimensions (cm)': '10x5x3',
- 'Unit Weight (kg)': 0.15,
- 'Units Per Carton': 144,
- 'Carton Dimensions (cm)': '40x30x20',
- 'Carton Weight (kg)': 22.5,
- 'Packaging Type': 'Box'
+	 'Pack Size': 12,
+	 'Material': 'Plastic',
+	 'Item package dimensions (cm)': '10x5x3',
+	 'Item package weight (kg)': 0.15,
+	 'Units Per Carton': 144,
+	 'Carton Dimensions (cm)': '40x30x20',
+	 'Carton Weight (kg)': 22.5,
+	 'Packaging Type': 'Box'
  }
  ],
  warehouses: [

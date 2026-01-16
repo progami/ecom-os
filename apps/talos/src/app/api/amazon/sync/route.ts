@@ -28,11 +28,10 @@ function convertMeasurementToCm(value: number, unit: string | undefined): number
   return null
 }
 
-function parseCatalogUnitDimensions(attributes: {
+function parseCatalogItemPackageDimensions(attributes: {
   item_package_dimensions?: CatalogDimensions[]
-  package_dimensions?: CatalogDimensions[]
 }): { side1Cm: number; side2Cm: number; side3Cm: number } | null {
-  const dims = attributes.item_package_dimensions?.[0] ?? attributes.package_dimensions?.[0] ?? null
+  const dims = attributes.item_package_dimensions?.[0]
   if (!dims) return null
   const length = dims.length?.value
   const width = dims.width?.value
@@ -68,11 +67,10 @@ function convertWeightToKg(value: number, unit: string | undefined): number | nu
   return null
 }
 
-function parseCatalogUnitWeightKg(attributes: {
+function parseCatalogItemPackageWeightKg(attributes: {
   item_package_weight?: CatalogMeasurement[]
-  package_weight?: CatalogMeasurement[]
 }): number | null {
-  const measurement = attributes.item_package_weight?.[0] ?? attributes.package_weight?.[0] ?? null
+  const measurement = attributes.item_package_weight?.[0]
   if (!measurement) return null
   const value = measurement.value
   if (value === undefined) return null
@@ -245,7 +243,7 @@ async function syncProducts(session: Session) {
             updates.amazonSubcategory = categories.subcategory
           }
 
-          const unitTriplet = parseCatalogUnitDimensions(attributes)
+          const unitTriplet = parseCatalogItemPackageDimensions(attributes)
           if (unitTriplet) {
             updates.unitDimensionsCm = formatDimensionTripletCm(unitTriplet)
             updates.unitSide1Cm = unitTriplet.side1Cm
@@ -253,7 +251,7 @@ async function syncProducts(session: Session) {
             updates.unitSide3Cm = unitTriplet.side3Cm
           }
 
-          const unitWeightKg = parseCatalogUnitWeightKg(attributes)
+          const unitWeightKg = parseCatalogItemPackageWeightKg(attributes)
           if (unitWeightKg !== null) {
             updates.unitWeightKg = unitWeightKg
             updates.amazonReferenceWeightKg = unitWeightKg

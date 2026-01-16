@@ -141,7 +141,7 @@ async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClien
         legacy: unitDimensionsCm,
       })
       if (unitDimensionsCm && !unitTriplet) {
-        errors.push(`SKU ${skuCode}: Unit dimensions must be a valid LxWxH triple`)
+        errors.push(`SKU ${skuCode}: Item package dimensions must be a valid LxWxH triple`)
         skipped++
         continue
       }

@@ -593,7 +593,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
     const hasAnyDimension = side1Raw || side2Raw || side3Raw
     if (hasAnyDimension) {
       if (!side1Raw || !side2Raw || !side3Raw) {
-        toast.error('Unit dimensions require length, width, and height')
+        toast.error('Item package dimensions require length, width, and height')
         return
       }
 
@@ -602,15 +602,15 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
       itemSide3Cm = Number.parseFloat(side3Raw)
 
       if (!Number.isFinite(itemSide1Cm) || itemSide1Cm <= 0) {
-        toast.error('Unit length must be a positive number')
+        toast.error('Item package length must be a positive number')
         return
       }
       if (!Number.isFinite(itemSide2Cm) || itemSide2Cm <= 0) {
-        toast.error('Unit width must be a positive number')
+        toast.error('Item package width must be a positive number')
         return
       }
       if (!Number.isFinite(itemSide3Cm) || itemSide3Cm <= 0) {
-        toast.error('Unit height must be a positive number')
+        toast.error('Item package height must be a positive number')
         return
       }
     }
@@ -619,7 +619,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
     if (itemWeightRaw) {
       itemWeightKg = Number.parseFloat(itemWeightRaw)
       if (!Number.isFinite(itemWeightKg) || itemWeightKg <= 0) {
-        toast.error('Unit weight (kg) must be a positive number')
+        toast.error('Item package weight (kg) must be a positive number')
         return
       }
     }
@@ -673,7 +673,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
 
       const unitWeightKg = Number.parseFloat(formState.initialBatch.unitWeightKg)
       if (!Number.isFinite(unitWeightKg) || unitWeightKg <= 0) {
-        toast.error('Unit weight (kg) must be a positive number')
+        toast.error('Item package weight (kg) must be a positive number')
         return
       }
 
@@ -1067,9 +1067,9 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
 	                    <div className="rounded-lg border-2 border-slate-300 bg-white p-4">
 	                      <div className="flex items-start justify-between gap-3 mb-3">
 	                        <div>
-	                          <h4 className="text-sm font-semibold text-slate-900 mb-1">
-	                            Amazon Fees & Unit Dimensions
-	                          </h4>
+		                          <h4 className="text-sm font-semibold text-slate-900 mb-1">
+		                            Amazon Fees & Item package dimensions
+		                          </h4>
 	                          <p className="text-xs text-slate-500">
 	                            {modalTab === 'reference'
 	                              ? 'Team reference values (editable).'
@@ -1168,7 +1168,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                           <div className="border-t border-slate-200 pt-4">
                             <div className="grid gap-3 md:grid-cols-2">
                               <div className="space-y-1">
-                                <Label>Unit Dimensions (cm)</Label>
+	                                <Label>Item package dimensions (cm)</Label>
                                 <div className="grid grid-cols-3 gap-2">
                                   <Input
                                     id="itemSide1Cm"
@@ -1210,7 +1210,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                                 <p className="text-xs text-slate-500">Required for size-tier discrepancy checks.</p>
                               </div>
                               <div className="space-y-1">
-                                <Label htmlFor="itemWeightKg">Unit Weight (kg)</Label>
+	                                <Label htmlFor="itemWeightKg">Item package weight (kg)</Label>
                                 <Input
                                   id="itemWeightKg"
                                   type="number"
@@ -1271,7 +1271,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                           <div className="border-t border-slate-200 pt-4">
                             <div className="grid gap-3 md:grid-cols-2">
                               <div className="space-y-1">
-                                <Label>Unit Dimensions (cm)</Label>
+	                                <Label>Item package dimensions (cm)</Label>
                                 <Input
                                   value={formState.productDimensionsCm}
                                   disabled
@@ -1281,7 +1281,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                                 <p className="text-xs text-slate-500 invisible">Placeholder for alignment.</p>
                               </div>
                               <div className="space-y-1">
-                                <Label>Unit Weight (kg)</Label>
+	                                <Label>Item package weight (kg)</Label>
                                 <Input
                                   value={formState.amazonReferenceWeightKg}
                                   disabled

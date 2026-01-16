@@ -274,12 +274,12 @@ function computeComparison(row: ApiSkuRow): Comparison {
     expectedFee === null || amazonFee === null ? null : amazonFee - expectedFee
 
   const referenceMissingFields: string[] = []
-  if (referenceTriplet === null) referenceMissingFields.push('Unit Dimensions (cm)')
-  if (referenceWeightKg === null) referenceMissingFields.push('Unit Weight (kg)')
+  if (referenceTriplet === null) referenceMissingFields.push('Item package dimensions (cm)')
+  if (referenceWeightKg === null) referenceMissingFields.push('Item package weight (kg)')
 
   const amazonMissingFields: string[] = []
-  if (amazonTriplet === null) amazonMissingFields.push('Amazon Dimensions')
-  if (amazonWeightKg === null) amazonMissingFields.push('Amazon Weight')
+  if (amazonTriplet === null) amazonMissingFields.push('Amazon item package dimensions')
+  if (amazonWeightKg === null) amazonMissingFields.push('Amazon item package weight')
 
   let status: AlertStatus = 'UNKNOWN'
   if (!row.asin) {
@@ -547,13 +547,13 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                   <AlertTitle>Missing reference data</AlertTitle>
                   <AlertDescription>
                     <p>
-                      Fill <span className="font-medium">Unit Dimensions</span> and{' '}
-                      <span className="font-medium">Unit Weight</span> on the SKU to compute size tier.
+                      Fill <span className="font-medium">Item package dimensions</span> and{' '}
+                      <span className="font-medium">Item package weight</span> on the SKU to compute size tier.
                       Go to{' '}
                       <Link href="/config/products" className="text-cyan-700 hover:underline">
                         Products
                       </Link>{' '}
-                      → Edit SKU → Amazon Fees & Unit Dimensions → Reference.
+                      → Edit SKU → Amazon Fees & Item package dimensions → Reference.
                     </p>
                   </AlertDescription>
                 </Alert>
@@ -600,7 +600,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                     ))}
                   </tr>
                   <tr>
-                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Dimensions</td>
+                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Item package dimensions</td>
                     {selectedRows.map(row => (
                       <td key={row.sku.id} className="px-4 py-2 text-center tabular-nums text-slate-700">
                         {formatDimensionsIn(row.comparison.reference.triplet)}
@@ -608,7 +608,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                     ))}
                   </tr>
                   <tr>
-                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Unit Weight</td>
+                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Item package weight</td>
                     {selectedRows.map(row => (
                       <td key={row.sku.id} className="px-4 py-2 text-center tabular-nums text-slate-700">
                         {formatWeightLb(row.comparison.reference.shipping.unitWeightLb, 3)}
@@ -665,7 +665,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                     ))}
                   </tr>
                   <tr>
-                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Dimensions</td>
+                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Item package dimensions</td>
                     {selectedRows.map(row => (
                       <td key={row.sku.id} className="px-4 py-2 text-center tabular-nums text-slate-700">
                         {formatDimensionsIn(row.comparison.amazon.triplet)}
@@ -673,7 +673,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                     ))}
                   </tr>
                   <tr>
-                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Unit Weight</td>
+                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Item package weight</td>
                     {selectedRows.map(row => (
                       <td key={row.sku.id} className="px-4 py-2 text-center tabular-nums text-slate-700">
                         {formatWeightLb(row.comparison.amazon.shipping.unitWeightLb, 3)}
