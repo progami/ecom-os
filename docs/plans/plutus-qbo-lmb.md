@@ -22,10 +22,28 @@ Hybrid accounting system for Amazon FBA business using Link My Books (LMB) + Plu
 
 ## Current Status (2026-01-16)
 
-- Phase 0 (QBO Cleanup): complete (duplicate Amazon accounts made inactive)
-- Phase 1 (QBO Account Creation): complete (all accounts/sub-accounts created; rerun with `pnpm -C apps/plutus qbo accounts:create-plutus-qbo-lmb-plan`)
-- Phase 2 (LMB Configuration): not started (requires LMB UI for BOTH connections)
-- Phase 3+ (QBO Custom Field, Bill SOP, Plutus build/workflows): not started
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 0 (QBO Cleanup) | ✅ COMPLETE | Duplicate Amazon accounts made inactive |
+| Phase 1 (QBO Accounts) | 🟡 PARTIAL | LMB/Fee accounts done (24). **Missing:** Inventory Asset sub-accounts (8), COGS component sub-accounts (10), Inventory Shrinkage |
+| Phase 2 (LMB Config) | ❌ NOT STARTED | Requires LMB UI for BOTH connections |
+| Phase 3 (Custom Field) | ❌ NOT STARTED | "Plutus PO Number" custom field |
+| Phase 4 (Bill SOP) | ❌ NOT STARTED | Documentation only |
+| Phase 5 (Plutus Dev) | ❌ NOT STARTED | Build the app |
+| Phase 6 (Workflows) | ❌ NOT STARTED | Settlement + Returns + Reconciliation |
+| Phase 7 (Testing) | ❌ NOT STARTED | Unit + Integration + Parallel run |
+| Phase 8 (Go-Live) | ❌ NOT STARTED | Production deployment |
+
+**Next Action:** Complete Phase 1 - Create missing Plutus accounts in QBO:
+- 8 Inventory Asset sub-accounts (Manufacturing/Freight/Duty/MfgAccessories × US/UK)
+- 10 COGS sub-accounts (Manufacturing/Freight/Duty/MfgAccessories/LandFreight/Storage3PL × US/UK)
+- 1 Inventory Shrinkage parent account
+
+Automation options:
+- In Plutus → Chart of Accounts: click **Create Plutus Accounts**
+- CLI: `pnpm -C apps/plutus qbo accounts:create-plutus-qbo-lmb-plan` (connect QBO in Plutus first)
+
+---
 
 ## Architecture
 
@@ -136,7 +154,6 @@ Create these new parent accounts in QBO:
 |--------------|--------------|-------------|
 | Mfg Accessories | Cost of Goods Sold | Supplies & Materials - COGS |
 | Inventory Shrinkage | Cost of Goods Sold | Other Costs of Service - COS |
-| Inventory Variance | Cost of Goods Sold | Other Costs of Service - COS |
 
 ## Step 1.2: Create Income Sub-Accounts
 
@@ -582,7 +599,7 @@ model SkuCostHistory {
   qboBillIds      String[] // QBO bill IDs linked to this cost
   effectiveDate   DateTime // The Date of the Bill in QBO (for as-of lookups)
   createdAt       DateTime @default(now())
-  
+
   @@index([skuCostId, effectiveDate])
 }
 
@@ -613,12 +630,12 @@ model Settlement {
   status           String   @default("PENDING") // PENDING, PROCESSED, ERROR
   processingHash   String?  // For idempotency (prevent double-posting)
   errorMessage     String?
-  
+
   // Relations
   lines            SettlementLine[]
   postings         SettlementPosting[] // One-to-many for split months
   validation       SettlementValidation?
-  
+
   createdAt        DateTime @default(now())
   processedAt      DateTime?
   updatedAt        DateTime @updatedAt
@@ -629,18 +646,18 @@ model SettlementPosting {
   id             String     @id @default(cuid())
   settlementId   String
   settlement     Settlement @relation(fields: [settlementId], references: [id])
-  
+
   qboJournalId   String     // The ID of the COGS Journal Entry we created
   lmbInvoiceId   String?    // The ID of the LMB Invoice we matched against
-  
+
   periodStart    DateTime   // The specific date range this JE covers
   periodEnd      DateTime
   postingDate    DateTime   // The TxnDate used in QBO
-  
+
   totalCogsUSD   Decimal    @db.Decimal(12, 2)
-  
+
   createdAt      DateTime   @default(now())
-  
+
   @@index([settlementId])
 }
 
@@ -692,7 +709,7 @@ model FbaReturn {
   cogsReversed    Boolean    @default(false)
   reversalJeId    String?    // QBO journal entry ID if reversed
   createdAt       DateTime   @default(now())
-  
+
   @@index([sku, returnDate])
   @@index([disposition])
 }
@@ -710,6 +727,19 @@ model SettlementValidation {
   createdAt     DateTime   @default(now())
   resolvedAt    DateTime?
 }
+
+/*
+VALIDATION STATUS POLICY (no variance account to absorb differences):
+
+| Status   | Threshold        | Action                                    |
+|----------|------------------|-------------------------------------------|
+| OK       | variance < 1%    | Post JEs automatically                    |
+| WARNING  | variance 1-5%    | Post JEs, flag for review                 |
+| CRITICAL | variance > 5%    | BLOCK posting, mark NEEDS_ATTENTION       |
+
+CRITICAL status forces investigation before posting. Without a variance account,
+mismatches must be resolved (SKU mapping, missing costs, split-month logic).
+*/
 
 // Monthly inventory reconciliation
 model InventoryReconciliation {
@@ -784,10 +814,10 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
   const bills = await qbo.findBills({
     TxnDate: { $gte: ninetyDaysAgo }
   });
-  
+
   // 2. Filter client-side by custom field
-  return bills.filter(bill => 
-    bill.CustomField?.find(f => 
+  return bills.filter(bill =>
+    bill.CustomField?.find(f =>
       f.Name === 'Plutus PO Number' && f.StringValue === poNumber
     )
   );
@@ -826,14 +856,14 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 └── poster.ts        # Post to QBO
 ```
 
-### Module 5: Variance Engine
+### Module 5: Validation Engine
 
 ```
-/lib/variance/
-├── comparator.ts    # Compare LMB vs Plutus
-├── distributor.ts   # Distribute variance by component
-├── resolver.ts      # Handle variance resolution
-└── reporter.ts      # Generate variance reports
+/lib/validation/
+├── lmbMatcher.ts        # Match LMB invoice(s) to settlement
+├── settlementChecks.ts  # Sanity checks (coverage, SKU mapping, totals)
+├── thresholds.ts        # OK/WARNING/CRITICAL threshold logic
+└── reporter.ts          # UI output, warnings/errors
 ```
 
 ### Module 6: Reconciliation Engine
@@ -842,7 +872,7 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 /lib/reconciliation/
 ├── inventory.ts     # Pull FBA inventory
 ├── book-value.ts    # Get QBO book value
-├── matcher.ts       # Match variances to causes
+├── comparator.ts    # Compare book vs physical
 ├── adjuster.ts      # Generate adjustment entries
 └── reporter.ts      # Generate reconciliation reports
 ```
@@ -1174,16 +1204,17 @@ Memo: "Returns reversal - Jan 2026"
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 6. POST ADJUSTMENT JOURNAL ENTRY (only if > threshold)          │
-│    - Debit: Inventory Shrinkage / Variance                      │
-│    - Credit: Inventory Asset (by component)                     │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 7. CLEAR SETTLEMENT CONTROL                                     │
-│    - Review cumulative variance                                 │
-│    - Move to appropriate accounts                               │
-│    - Zero out control account                                   │
+│                                                                 │
+│    If Book > Physical (inventory overstated → write-down):      │
+│    - Debit: Inventory Shrinkage                                 │
+│    - Credit: Inventory Asset (by component + brand)             │
+│                                                                 │
+│    If Physical > Book (inventory understated → write-up):       │
+│    - Debit: Inventory Asset (by component + brand)              │
+│    - Credit: Inventory Shrinkage (negative expense)             │
+│                                                                 │
+│    Note: No separate variance account. All adjustments flow     │
+│    through Inventory Shrinkage (may be negative in some months) │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1195,7 +1226,8 @@ Memo: "Returns reversal - Jan 2026"
 
 - Test landed cost allocation logic
 - Test COGS calculation logic
-- Test variance distribution logic
+- Test settlement validation thresholds (OK/WARNING/CRITICAL)
+- Test split-month allocation and rounding behavior
 - Test journal entry generation
 
 ## Step 7.2: Integration Testing
@@ -1385,7 +1417,7 @@ Memo: "Returns reversal - Jan 2026"
 
 1. **Buying inventory:** You pay suppliers in USD. All costs in `SkuCost` table are in **USD**.
 
-2. **Selling (US):** 
+2. **Selling (US):**
    - LMB posts revenue in USD
    - Plutus posts COGS in USD
    - Clean match
@@ -1647,3 +1679,5 @@ Add Promotions account mapping to each Product Group in LMB.
 - v2.2: January 16, 2026 - Tags→Custom Fields, InventoryLedger model, dual stream processing (Sales/Returns separate), reconciliation includes 3PL+In-Transit, UNASSIGNED Product Group safety net
 - v2.3: January 16, 2026 - Split-month JE logic (match LMB), historical cost lookup (as-of date), QBO bill query limitation note, currency setup correction
 - v3.0: January 16, 2026 - SettlementPosting table (multi-JE support), memo-based LMB matching, removed Settlement Control, P&L timing note for returns, Tag cleanup
+- v3.1: January 16, 2026 - Removed Inventory Variance account, reconciliation uses Shrinkage only (both directions), /lib/variance/ → /lib/validation/, CRITICAL validation blocks posting
+- v3.2: January 16, 2026 - Added Current Status tracker. Phase 1 partial (LMB accounts done, Plutus accounts missing)
