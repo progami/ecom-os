@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { apiLogger } from '@/lib/logger/server'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
@@ -63,8 +64,16 @@ function parseDocumentType(value: unknown): string | null {
 }
 
 export const POST = withAuthAndParams(async (request, params, session) => {
+  let purchaseOrderId: string | null = null
+  let stage: PurchaseOrderDocumentStage | null = null
+  let documentType: string | null = null
+  let fileName: string | null = null
+  let fileType: string | null = null
+  let fileSize: number | null = null
+
   try {
     const { id } = params as { id: string }
+    purchaseOrderId = id
     if (!id) {
       return NextResponse.json({ error: 'Purchase order ID is required' }, { status: 400 })
     }
@@ -77,15 +86,20 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     const documentTypeRaw = formData.get('documentType')
     const stageRaw = formData.get('stage')
 
-    const stage = parseStage(stageRaw)
-    const documentType = parseDocumentType(documentTypeRaw)
+    const parsedStage = parseStage(stageRaw)
+    const parsedDocumentType = parseDocumentType(documentTypeRaw)
+    stage = parsedStage
+    documentType = parsedDocumentType
 
-    if (!file || !documentType || !stage) {
+    if (!file || !parsedDocumentType || !parsedStage) {
       return NextResponse.json(
         { error: 'File, documentType, and stage are required' },
         { status: 400 }
       )
     }
+    fileName = file.name
+    fileType = file.type
+    fileSize = file.size
 
     const order = await prisma.purchaseOrder.findUnique({
       where: { id },
@@ -108,7 +122,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     }
 
     const currentStage = statusToDocumentStage(order.status as PurchaseOrderStatus)
-    if (currentStage && DOCUMENT_STAGE_ORDER[stage] < DOCUMENT_STAGE_ORDER[currentStage]) {
+    if (currentStage && DOCUMENT_STAGE_ORDER[parsedStage] < DOCUMENT_STAGE_ORDER[currentStage]) {
       return NextResponse.json(
         { error: `Documents for completed stages are locked (current stage: ${order.status})` },
         { status: 409 }
@@ -137,8 +151,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         purchaseOrderId: id,
         tenantCode,
         purchaseOrderNumber,
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
       },
       file.name
     )
@@ -149,8 +163,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         purchaseOrderId: id,
         tenantCode,
         purchaseOrderNumber,
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
         originalName: file.name,
         uploadedBy: session.user.id,
       },
@@ -161,8 +175,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     const compositeKey = {
       purchaseOrderId_stage_documentType: {
         purchaseOrderId: id,
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
       },
     }
 
@@ -193,8 +207,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
       where: compositeKey,
       create: {
         purchaseOrderId: id,
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
         fileName: file.name,
         contentType: file.type,
         size: uploadResult.size,
@@ -264,6 +278,17 @@ export const POST = withAuthAndParams(async (request, params, session) => {
       },
     })
   } catch (_error) {
+    apiLogger.error('Failed to upload purchase order document', {
+      purchaseOrderId,
+      stage,
+      documentType,
+      fileName,
+      fileType,
+      fileSize,
+      userId: session.user.id,
+      error: _error instanceof Error ? _error.message : 'Unknown error',
+    })
+
     return NextResponse.json(
       {
         error: 'Failed to upload purchase order document',

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { apiLogger } from '@/lib/logger/server'
 import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
@@ -28,8 +29,16 @@ function parseDocumentType(value: unknown): string | null {
 }
 
 export const POST = withAuthAndParams(async (request, params, session) => {
+  let fulfillmentOrderId: string | null = null
+  let stage: FulfillmentOrderDocumentStage | null = null
+  let documentType: string | null = null
+  let fileName: string | null = null
+  let fileType: string | null = null
+  let fileSize: number | null = null
+
   try {
     const { id } = params as { id: string }
+    fulfillmentOrderId = id
     if (!id) {
       return NextResponse.json({ error: 'Fulfillment order ID is required' }, { status: 400 })
     }
@@ -42,15 +51,20 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     const documentTypeRaw = formData.get('documentType')
     const stageRaw = formData.get('stage')
 
-    const stage = parseStage(stageRaw)
-    const documentType = parseDocumentType(documentTypeRaw)
+    const parsedStage = parseStage(stageRaw)
+    const parsedDocumentType = parseDocumentType(documentTypeRaw)
+    stage = parsedStage
+    documentType = parsedDocumentType
 
-    if (!file || !documentType || !stage) {
+    if (!file || !parsedDocumentType || !parsedStage) {
       return NextResponse.json(
         { error: 'File, documentType, and stage are required' },
         { status: 400 }
       )
     }
+    fileName = file.name
+    fileType = file.type
+    fileSize = file.size
 
     const order = await prisma.fulfillmentOrder.findUnique({
       where: { id },
@@ -82,8 +96,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         fulfillmentOrderId: id,
         tenantCode,
         fulfillmentOrderNumber: order.foNumber ?? undefined,
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
       },
       file.name
     )
@@ -94,8 +108,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         fulfillmentOrderId: id,
         tenantCode,
         fulfillmentOrderNumber: order.foNumber ?? '',
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
         originalName: file.name,
         uploadedBy: session.user.id,
       },
@@ -106,8 +120,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     const compositeKey = {
       fulfillmentOrderId_stage_documentType: {
         fulfillmentOrderId: id,
-        stage,
-        documentType,
+        stage: parsedStage,
+        documentType: parsedDocumentType,
       },
     }
 
@@ -170,6 +184,17 @@ export const POST = withAuthAndParams(async (request, params, session) => {
       },
     })
   } catch (_error) {
+    apiLogger.error('Failed to upload fulfillment order document', {
+      fulfillmentOrderId,
+      stage,
+      documentType,
+      fileName,
+      fileType,
+      fileSize,
+      userId: session.user.id,
+      error: _error instanceof Error ? _error.message : 'Unknown error',
+    })
+
     return NextResponse.json(
       {
         error: 'Failed to upload fulfillment order document',

@@ -491,7 +491,15 @@ export default function FulfillmentOrderDetailPage() {
 
       const payload = await response.json().catch(() => null)
       if (!response.ok) {
-        toast.error(payload?.error ?? 'Failed to upload document')
+        const errorMessage = typeof payload?.error === 'string' ? payload.error : null
+        const detailsMessage = typeof payload?.details === 'string' ? payload.details : null
+        if (errorMessage && detailsMessage) {
+          toast.error(`${errorMessage}: ${detailsMessage}`)
+        } else if (errorMessage) {
+          toast.error(errorMessage)
+        } else {
+          toast.error(`Failed to upload document (HTTP ${response.status})`)
+        }
         return
       }
 
