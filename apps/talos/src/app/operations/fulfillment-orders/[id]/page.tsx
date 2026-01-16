@@ -466,13 +466,14 @@ export default function FulfillmentOrderDetailPage() {
     setDocuments(Array.isArray(list) ? (list as FulfillmentOrderDocumentSummary[]) : [])
   }
 
-  const handleDocumentUpload = async (
-    event: ChangeEvent<HTMLInputElement>,
-    stage: FulfillmentOrderDocumentStage,
-    documentType: string
-  ) => {
-    const file = event.target.files?.[0]
-    if (!order || !file) return
+	  const handleDocumentUpload = async (
+	    event: ChangeEvent<HTMLInputElement>,
+	    stage: FulfillmentOrderDocumentStage,
+	    documentType: string
+	  ) => {
+	    const input = event.target
+	    const file = input.files?.[0]
+	    if (!order || !file) return
 
     const key = `${stage}::${documentType}`
     setUploadingDoc(prev => ({ ...prev, [key]: true }))
@@ -507,11 +508,11 @@ export default function FulfillmentOrderDetailPage() {
       toast.success('Document uploaded')
     } catch {
       toast.error('Failed to upload document')
-    } finally {
-      setUploadingDoc(prev => ({ ...prev, [key]: false }))
-      event.target.value = ''
-    }
-  }
+	    } finally {
+	      setUploadingDoc(prev => ({ ...prev, [key]: false }))
+	      input.value = ''
+	    }
+	  }
 
   const renderDocumentStage = (stage: FulfillmentOrderDocumentStage, title: string) => {
     const required = DOCUMENT_REQUIREMENTS[stage] ?? []
