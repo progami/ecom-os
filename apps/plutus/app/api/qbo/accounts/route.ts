@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { fetchAccounts, type QboConnection } from '@/lib/qbo/api';
 import { createLogger } from '@targon/logger';
 import { ensureServerQboConnection, saveServerQboConnection } from '@/lib/qbo/connection-store';
+import { randomUUID } from 'crypto';
 
 const logger = createLogger({ name: 'qbo-accounts' });
 
@@ -26,21 +27,30 @@ const ACCOUNT_TYPE_ORDER: Record<string, number> = {
 };
 
 export async function GET() {
+  const requestId = randomUUID();
+
   try {
     const cookieStore = await cookies();
     const connectionCookie = cookieStore.get('qbo_connection')?.value;
 
     if (!connectionCookie) {
-      return NextResponse.json({ error: 'Not connected to QBO' }, { status: 401 });
+      logger.info('Missing qbo_connection cookie', { requestId });
+      return NextResponse.json({ error: 'Not connected to QBO', requestId }, { status: 401 });
     }
 
     const connection: QboConnection = JSON.parse(connectionCookie);
+    logger.info('Fetching QBO accounts', { requestId, realmId: connection.realmId, expiresAt: connection.expiresAt });
     await ensureServerQboConnection(connection);
 
     const { accounts, updatedConnection } = await fetchAccounts(connection);
 
     // Update cookie if token was refreshed
     if (updatedConnection) {
+      logger.info('QBO access token refreshed', {
+        requestId,
+        realmId: updatedConnection.realmId,
+        expiresAt: updatedConnection.expiresAt,
+      });
       cookieStore.set('qbo_connection', JSON.stringify(updatedConnection), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -52,8 +62,8 @@ export async function GET() {
     }
 
     // Transform all accounts for frontend (matching QBO's Chart of Accounts view)
-	    const allAccounts = accounts
-	      .map((a) => {
+    const allAccounts = accounts
+      .map((a) => {
 	        // Calculate depth from FullyQualifiedName (count colons)
 	        const depth = (a.FullyQualifiedName?.split(':').length ?? 1) - 1;
 	        // Extract parent name from FullyQualifiedName
@@ -87,11 +97,16 @@ export async function GET() {
         return (a.fullyQualifiedName ?? a.name).localeCompare(b.fullyQualifiedName ?? b.name);
       });
 
-    return NextResponse.json({ accounts: allAccounts, total: allAccounts.length });
+    logger.info('Fetched QBO accounts', { requestId, total: allAccounts.length });
+    return NextResponse.json({ accounts: allAccounts, total: allAccounts.length, requestId });
   } catch (error) {
-    logger.error('Failed to fetch accounts', error);
+    logger.error('Failed to fetch accounts', { requestId, error });
     return NextResponse.json(
-      { error: 'Failed to fetch accounts', details: error instanceof Error ? error.message : String(error) },
+      {
+        error: 'Failed to fetch accounts',
+        details: error instanceof Error ? error.message : String(error),
+        requestId,
+      },
       { status: 500 }
     );
   }

@@ -297,12 +297,20 @@ function CleanupStep({
     setVerified(false);
     setError(null);
 
-    try {
-      const res = await fetch(`${basePath}/api/qbo/accounts`);
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || `Failed to fetch accounts (${res.status})`);
-      }
+	    try {
+	      const res = await fetch(`${basePath}/api/qbo/accounts`);
+	      const data = await res.json();
+	      if (!res.ok) {
+	        const message = typeof data?.error === 'string' ? data.error : `Failed to fetch accounts (${res.status})`;
+	        const parts = [message];
+	        if (typeof data?.details === 'string') {
+	          parts.push(data.details);
+	        }
+	        if (typeof data?.requestId === 'string') {
+	          parts.push(`Request ID: ${data.requestId}`);
+	        }
+	        throw new Error(parts.join('\n'));
+	      }
 
       const accounts: QboAccountSummary[] = data.accounts;
 
@@ -351,11 +359,11 @@ function CleanupStep({
         </p>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-        </div>
-      )}
+	      {error && (
+	        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+	          <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line">{error}</p>
+	        </div>
+	      )}
 
       {/* Duplicate accounts check */}
       <div>
@@ -590,15 +598,23 @@ function AccountsStep({
   const createAccounts = async () => {
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`${basePath}/api/qbo/accounts/create-plutus-qbo-lmb-plan`, {
-        method: 'POST',
-      });
-      const data = await res.json();
+	    try {
+	      const res = await fetch(`${basePath}/api/qbo/accounts/create-plutus-qbo-lmb-plan`, {
+	        method: 'POST',
+	      });
+	      const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data?.error || `Failed to create accounts (${res.status})`);
-      }
+	      if (!res.ok) {
+	        const message = typeof data?.error === 'string' ? data.error : `Failed to create accounts (${res.status})`;
+	        const parts = [message];
+	        if (typeof data?.details === 'string') {
+	          parts.push(data.details);
+	        }
+	        if (typeof data?.requestId === 'string') {
+	          parts.push(`Request ID: ${data.requestId}`);
+	        }
+	        throw new Error(parts.join('\n'));
+	      }
 
       if (!Array.isArray(data?.created) || !Array.isArray(data?.skipped)) {
         throw new Error('Invalid response from server');
@@ -622,11 +638,11 @@ function AccountsStep({
         </p>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-        </div>
-      )}
+	      {error && (
+	        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+	          <p className="text-sm text-red-700 dark:text-red-300 whitespace-pre-line">{error}</p>
+	        </div>
+	      )}
 
       {!result && !loading && (
         <div className="p-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
