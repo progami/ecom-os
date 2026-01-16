@@ -4,6 +4,7 @@ import { getTenantPrisma } from '@/lib/tenant/server'
 import { getInventory, getCatalogItem } from '@/lib/amazon/client'
 import { calculateSizeTier } from '@/lib/amazon/fees'
 import { formatDimensionTripletCm } from '@/lib/sku-dimensions'
+import { SKU_FIELD_LIMITS } from '@/lib/sku-constants'
 import type { Session } from 'next-auth'
 export const dynamic = 'force-dynamic'
 
@@ -228,11 +229,11 @@ async function syncProducts(session: Session) {
           // Update description if available
           const itemName = attributes.item_name?.[0]?.value
           if (typeof itemName === 'string' && itemName.trim()) {
-            updates.description = itemName.trim()
+            updates.description = itemName.trim().substring(0, SKU_FIELD_LIMITS.DESCRIPTION_MAX)
           } else {
             const summaryName = catalogItem.summaries?.[0]?.itemName
             if (typeof summaryName === 'string' && summaryName.trim()) {
-              updates.description = summaryName.trim()
+              updates.description = summaryName.trim().substring(0, SKU_FIELD_LIMITS.DESCRIPTION_MAX)
             }
           }
 
