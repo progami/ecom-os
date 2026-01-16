@@ -277,8 +277,11 @@ export const PUT = withXPlanAuth(async (request: Request, session) => {
       const incoming = update.values[field];
       if (incoming === null || incoming === undefined || incoming === '') continue;
       const parsedNumber = parseNumber(incoming);
-      if (parsedNumber == null || !Number.isFinite(parsedNumber) || parsedNumber <= 0) {
-        return NextResponse.json({ error: `${field} must be a positive number` }, { status: 400 });
+      if (parsedNumber == null || !Number.isFinite(parsedNumber) || parsedNumber < 0) {
+        return NextResponse.json(
+          { error: `${field} must be a non-negative number` },
+          { status: 400 },
+        );
       }
     }
   }
