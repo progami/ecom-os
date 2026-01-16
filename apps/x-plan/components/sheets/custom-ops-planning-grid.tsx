@@ -67,9 +67,11 @@ interface CustomOpsPlanningGridProps {
   onSelectOrder?: (orderId: string) => void;
   onRowsChange?: (rows: OpsInputRow[]) => void;
   onCreateOrder?: () => void;
+  onImportFromTalos?: () => void;
   onDuplicateOrder?: (orderId: string) => void;
   onDeleteOrder?: (orderId: string) => void;
   disableCreate?: boolean;
+  disableImport?: boolean;
   disableDuplicate?: boolean;
   disableDelete?: boolean;
 }
@@ -803,9 +805,11 @@ export function CustomOpsPlanningGrid({
   onSelectOrder,
   onRowsChange,
   onCreateOrder,
+  onImportFromTalos,
   onDuplicateOrder,
   onDeleteOrder,
   disableCreate,
+  disableImport,
   disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
@@ -2212,7 +2216,7 @@ export function CustomOpsPlanningGrid({
             PO Table
           </h2>
         </div>
-        {(onCreateOrder || onDuplicateOrder || onDeleteOrder) && (
+        {(onCreateOrder || onImportFromTalos || onDuplicateOrder || onDeleteOrder) && (
           <div className="flex flex-wrap gap-2">
             {onCreateOrder ? (
               <button
@@ -2222,6 +2226,16 @@ export function CustomOpsPlanningGrid({
                 className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
               >
                 Add purchase order
+              </button>
+            ) : null}
+            {onImportFromTalos ? (
+              <button
+                type="button"
+                onClick={onImportFromTalos}
+                disabled={Boolean(disableImport)}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+              >
+                Import from Talos
               </button>
             ) : null}
             {onDuplicateOrder ? (
