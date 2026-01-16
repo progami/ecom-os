@@ -1772,6 +1772,9 @@ function getSalesPlanningView(
       if (!row.weekDate && derived?.weekDate) {
         row.weekDate = formatDate(derived.weekDate);
       }
+      if (derived && derived.arrivals > 0) {
+        row[`p${productIdx}_hasInbound`] = 'true';
+      }
 
       SALES_METRICS.forEach((metric) => {
         const key = columnKey(productIdx, metric);
