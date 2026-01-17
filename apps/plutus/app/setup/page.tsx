@@ -154,25 +154,30 @@ function ConnectQboStep({
   const [company, setCompany] = useState(companyName);
 
   useEffect(() => {
+    let cancelled = false;
     const checkConnection = async () => {
       setLoading(true);
       try {
         const res = await fetch(`${basePath}/api/qbo/status`);
         const data = await res.json();
-        if (data.connected) {
+        if (!cancelled && data.connected) {
           setIsConnected(true);
           const name = data.companyName || 'Connected';
           setCompany(name);
-          onConnectionChange(true, name);
         }
       } catch {
         // Not connected
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     checkConnection();
-  }, [onConnectionChange]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const connect = () => {
     window.location.href = `${basePath}/api/qbo/connect`;
@@ -238,7 +243,10 @@ function ConnectQboStep({
       </div>
 
       <Button
-        onClick={onNext}
+        onClick={() => {
+          onConnectionChange(isConnected, company);
+          onNext();
+        }}
         disabled={!isConnected}
         className="w-full bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50"
       >
