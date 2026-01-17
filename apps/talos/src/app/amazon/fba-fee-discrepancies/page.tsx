@@ -244,15 +244,11 @@ function computeComparison(row: ApiSkuRow): Comparison {
     legacy: row.amazonItemPackageDimensionsCm,
   })
   const amazonWeightKg = parseDecimalNumber(row.amazonItemPackageWeightKg)
-  const amazonSizeTier =
-    amazonTriplet && amazonWeightKg !== null
-      ? calculateSizeTier(
-          amazonTriplet.side1Cm,
-          amazonTriplet.side2Cm,
-          amazonTriplet.side3Cm,
-          amazonWeightKg
-        )
-      : null
+  let amazonSizeTier: string | null = null
+  if (typeof row.amazonSizeTier === 'string') {
+    const trimmed = row.amazonSizeTier.trim()
+    if (trimmed) amazonSizeTier = trimmed
+  }
   const amazonShipping = computeShippingWeights(amazonTriplet, amazonWeightKg, amazonSizeTier)
 
   const expectedFee = parseDecimalNumber(row.fbaFulfillmentFee)
@@ -261,10 +257,13 @@ function computeComparison(row: ApiSkuRow): Comparison {
     expectedFee === null || amazonFee === null ? null : amazonFee - expectedFee
 
   const referenceMissingFields: string[] = []
+  if (expectedFee === null) referenceMissingFields.push('Reference FBA fulfillment fee')
   if (referenceTriplet === null) referenceMissingFields.push('Item package dimensions (cm)')
   if (referenceWeightKg === null) referenceMissingFields.push('Item package weight (kg)')
 
   const amazonMissingFields: string[] = []
+  if (amazonFee === null) amazonMissingFields.push('Amazon FBA fulfillment fee')
+  if (amazonSizeTier === null) amazonMissingFields.push('Amazon size tier')
   if (amazonTriplet === null) amazonMissingFields.push('Amazon item package dimensions (cm)')
   if (amazonWeightKg === null) amazonMissingFields.push('Amazon item package weight (kg)')
 
@@ -273,12 +272,16 @@ function computeComparison(row: ApiSkuRow): Comparison {
     status = 'NO_ASIN'
   } else if (referenceMissingFields.length > 0) {
     status = 'MISSING_REFERENCE'
-  } else if (amazonMissingFields.length > 0) {
+  } else if (amazonFee === null) {
     status = 'ERROR'
-  } else if (referenceSizeTier === amazonSizeTier) {
-    status = 'MATCH'
   } else {
-    status = 'MISMATCH'
+    const expectedRounded = expectedFee === null ? null : Number(expectedFee.toFixed(2))
+    const amazonRounded = amazonFee === null ? null : Number(amazonFee.toFixed(2))
+    if (expectedRounded !== null && amazonRounded !== null && expectedRounded === amazonRounded) {
+      status = 'MATCH'
+    } else if (expectedRounded !== null && amazonRounded !== null) {
+      status = 'MISMATCH'
+    }
   }
 
   return {
@@ -466,7 +469,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
     <PageContainer>
       <PageHeaderSection
         title="FBA Fee Discrepancies"
-        description="Compare size tier between reference and Amazon"
+        description="Compare FBA fulfillment fees between reference and Amazon"
         icon={DollarSign}
         actions={
           <Button variant="outline" size="sm" onClick={() => fetchRows()} disabled={loading}>
@@ -514,7 +517,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
               <div>
                 <div className="text-sm font-semibold text-slate-900">Comparison</div>
                 <div className="text-xs text-slate-500">
-                  {selectedRows.length} selected · Status based on size tier match (fees shown for reference only)
+                  {selectedRows.length} selected · Status based on FBA fee match (size tier shown for context)
                 </div>
               </div>
               <Button
@@ -534,13 +537,14 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                   <AlertTitle>Missing reference data</AlertTitle>
                   <AlertDescription>
                     <p>
-                      Fill <span className="font-medium">Item package dimensions</span> and{' '}
-                      <span className="font-medium">Item package weight</span> on the SKU to compute size tier.
+                      Fill the latest batch <span className="font-medium">Item package dimensions</span> +{' '}
+                      <span className="font-medium">Item package weight</span> and the SKU{' '}
+                      <span className="font-medium">Reference FBA fulfillment fee</span>.
                       Go to{' '}
                       <Link href="/config/products" className="text-cyan-700 hover:underline">
                         Products
                       </Link>{' '}
-                      → Edit SKU → Amazon Fees & Item package dimensions → Reference.
+                      → Edit SKU → View Batches (latest).
                     </p>
                   </AlertDescription>
                 </Alert>
@@ -709,7 +713,7 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                     </td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">Size Tier Match?</td>
+                    <td className="px-4 py-2 font-medium text-slate-700 sticky left-0 bg-white">FBA Fee Match?</td>
                     {selectedRows.map(row => {
                       const s = row.comparison.status
                       const cellStyle =
@@ -768,11 +772,11 @@ export default function AmazonFbaFeeDiscrepanciesPage() {
                         s === 'MATCH'
                           ? '✓ Correct'
                           : s === 'MISMATCH'
-                            ? '⚠ Check size tier'
+                            ? '⚠ Fee mismatch'
                             : s === 'MISSING_REFERENCE'
                               ? '⚠ Fill reference fields'
-                              : s === 'NO_ASIN'
-                                ? '⚠ Add ASIN'
+                            : s === 'NO_ASIN'
+                              ? '⚠ Add ASIN'
                                 : s === 'ERROR'
                                   ? '⚠ Review Amazon data'
                                   : 'Pending'
