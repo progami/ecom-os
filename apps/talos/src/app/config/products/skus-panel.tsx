@@ -313,6 +313,69 @@ function resolveAmazonListingPriceForFeeCalculation(sku: SkuRow | null): Listing
   return null
 }
 
+type ReferenceFeesAutofill = {
+  normalizedCategory: string
+  computedSizeTier: string | null
+  referralFeePercent: number | null
+  fbaFulfillmentFee: number | null
+}
+
+function computeReferenceFeesAutofill(
+  sku: SkuRow | null,
+  category: string,
+  sizeTier: string
+): ReferenceFeesAutofill {
+  const categoryTrimmed = category.trim()
+  const normalizedCategory = categoryTrimmed ? normalizeReferralCategory2026(categoryTrimmed) : ''
+
+  const listingPriceResolution = resolveAmazonListingPriceForFeeCalculation(sku)
+
+  const referralFeePercent =
+    listingPriceResolution !== null && listingPriceResolution.source === 'EXACT' && normalizedCategory
+      ? getReferralFeePercent2026(normalizedCategory, listingPriceResolution.listingPrice)
+      : null
+
+  let computedSizeTier: string | null = null
+  const selectedSizeTier = sizeTier.trim()
+  if (selectedSizeTier) {
+    computedSizeTier = selectedSizeTier
+  }
+
+  const latestBatch = sku?.batches && sku.batches.length > 0 ? sku.batches[0] : null
+
+  const side1Cm = parseFiniteNumber(latestBatch?.unitSide1Cm)
+  const side2Cm = parseFiniteNumber(latestBatch?.unitSide2Cm)
+  const side3Cm = parseFiniteNumber(latestBatch?.unitSide3Cm)
+  const unitWeightKg = parseFiniteNumber(latestBatch?.unitWeightKg)
+
+  if (computedSizeTier === null) {
+    if (side1Cm !== null && side2Cm !== null && side3Cm !== null && unitWeightKg !== null) {
+      computedSizeTier = calculateSizeTier(side1Cm, side2Cm, side3Cm, unitWeightKg)
+    }
+  }
+
+  let fbaFulfillmentFee: number | null = null
+  if (listingPriceResolution !== null && computedSizeTier !== null) {
+    if (side1Cm !== null && side2Cm !== null && side3Cm !== null && unitWeightKg !== null) {
+      fbaFulfillmentFee = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
+        side1Cm,
+        side2Cm,
+        side3Cm,
+        unitWeightKg,
+        listingPrice: listingPriceResolution.listingPrice,
+        sizeTier: computedSizeTier,
+      })
+    }
+  }
+
+  return {
+    normalizedCategory,
+    computedSizeTier,
+    referralFeePercent,
+    fbaFulfillmentFee,
+  }
+}
+
 interface SkusPanelProps {
   externalModalOpen?: boolean
   externalEditSkuId?: string | null
@@ -336,86 +399,88 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
   const [modalTab, setModalTab] = useState<SkuModalTab>('reference')
   const [externalEditOpened, setExternalEditOpened] = useState(false)
 
-  const autoFillReferenceFees = useCallback(
-    (mode: 'blankOnly' | 'force') => {
-      const categoryTrimmed = formState.category.trim()
-      const normalizedCategory = categoryTrimmed ? normalizeReferralCategory2026(categoryTrimmed) : ''
-      if (!normalizedCategory) return
+  const autoFillReferenceFees = useCallback(() => {
+    const computed = computeReferenceFeesAutofill(editingSku, formState.category, formState.sizeTier)
 
-      const latestBatch = editingSku?.batches && editingSku.batches.length > 0 ? editingSku.batches[0] : null
-      if (!latestBatch) return
+    setFormState(prev => {
+      const next: SkuFormState = { ...prev }
+      let didUpdate = false
 
-      const side1Cm = parseFiniteNumber(latestBatch.unitSide1Cm)
-      const side2Cm = parseFiniteNumber(latestBatch.unitSide2Cm)
-      const side3Cm = parseFiniteNumber(latestBatch.unitSide3Cm)
-      const unitWeightKg = parseFiniteNumber(latestBatch.unitWeightKg)
-
-      if (side1Cm === null || side2Cm === null || side3Cm === null || unitWeightKg === null) {
-        if (mode === 'force') {
-          toast.error('Fill the latest batch item package dimensions and weight first.')
-        }
-        return
+      if (!next.category.trim() && computed.normalizedCategory) {
+        next.category = computed.normalizedCategory
+        didUpdate = true
       }
 
-      const selectedSizeTier = formState.sizeTier.trim()
-      const computedSizeTier =
-        selectedSizeTier ? selectedSizeTier : calculateSizeTier(side1Cm, side2Cm, side3Cm, unitWeightKg)
-      if (!computedSizeTier) return
-
-      const listingPriceResolution = resolveAmazonListingPriceForFeeCalculation(editingSku)
-      if (listingPriceResolution === null) {
-        if (mode === 'force') {
-          const message =
-            'Amazon listing price not available yet. Run Amazon import/sync so we can auto-calc 2026 fees.'
-          toast.error(message)
-        }
-        return
+      if (!next.sizeTier.trim() && computed.computedSizeTier) {
+        next.sizeTier = computed.computedSizeTier
+        didUpdate = true
       }
-      const listingPrice = listingPriceResolution.listingPrice
 
-      const referralFeePercent =
-        listingPriceResolution.source === 'EXACT'
-          ? getReferralFeePercent2026(normalizedCategory, listingPrice)
-          : null
+      if (!next.referralFeePercent.trim() && computed.referralFeePercent !== null) {
+        next.referralFeePercent = String(computed.referralFeePercent)
+        didUpdate = true
+      }
 
-      const fbaFee = calculateFbaFulfillmentFee2026NonPeakExcludingApparel({
-        side1Cm,
-        side2Cm,
-        side3Cm,
-        unitWeightKg,
-        listingPrice,
-        sizeTier: computedSizeTier,
-      })
+      if (!next.fbaFulfillmentFee.trim() && computed.fbaFulfillmentFee !== null) {
+        next.fbaFulfillmentFee = computed.fbaFulfillmentFee.toFixed(2)
+        didUpdate = true
+      }
 
-      if (referralFeePercent === null && fbaFee === null) return
+      if (!didUpdate) return prev
+      return next
+    })
+  }, [editingSku, formState.category, formState.sizeTier])
 
+  const handleReferenceCategoryChange = useCallback(
+    (nextCategory: string) => {
       setFormState(prev => {
-        const next: SkuFormState = { ...prev }
+        const next: SkuFormState = { ...prev, category: nextCategory }
+        const computed = computeReferenceFeesAutofill(editingSku, next.category, next.sizeTier)
 
-        if (mode === 'force' || !next.category.trim()) {
-          next.category = normalizedCategory
+        if (computed.normalizedCategory && computed.normalizedCategory !== next.category) {
+          next.category = computed.normalizedCategory
         }
 
-        if (mode === 'force' || !next.sizeTier.trim()) {
-          next.sizeTier = computedSizeTier
+        const sizeTierWasBlank = !prev.sizeTier.trim()
+        if (sizeTierWasBlank && computed.computedSizeTier) {
+          next.sizeTier = computed.computedSizeTier
         }
 
-        if (referralFeePercent !== null) {
-          if (mode === 'force' || !next.referralFeePercent.trim()) {
-            next.referralFeePercent = String(referralFeePercent)
-          }
+        if (computed.referralFeePercent !== null) {
+          next.referralFeePercent = String(computed.referralFeePercent)
         }
 
-        if (fbaFee !== null) {
-          if (mode === 'force' || !next.fbaFulfillmentFee.trim()) {
-            next.fbaFulfillmentFee = fbaFee.toFixed(2)
+        if (computed.fbaFulfillmentFee !== null) {
+          const shouldUpdateFbaFee = sizeTierWasBlank || !prev.fbaFulfillmentFee.trim()
+          if (shouldUpdateFbaFee) {
+            next.fbaFulfillmentFee = computed.fbaFulfillmentFee.toFixed(2)
           }
         }
 
         return next
       })
     },
-    [editingSku, formState.category, formState.sizeTier]
+    [editingSku]
+  )
+
+  const handleReferenceSizeTierChange = useCallback(
+    (nextSizeTier: string) => {
+      setFormState(prev => {
+        const next: SkuFormState = { ...prev, sizeTier: nextSizeTier }
+        const computed = computeReferenceFeesAutofill(editingSku, next.category, next.sizeTier)
+
+        if (computed.computedSizeTier && computed.computedSizeTier !== next.sizeTier.trim()) {
+          next.sizeTier = computed.computedSizeTier
+        }
+
+        if (computed.fbaFulfillmentFee !== null) {
+          next.fbaFulfillmentFee = computed.fbaFulfillmentFee.toFixed(2)
+        }
+
+        return next
+      })
+    },
+    [editingSku]
   )
 
   // Handle external modal open trigger
@@ -524,7 +589,7 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
     const hasSizeTier = formState.sizeTier.trim()
     if (hasReferenceFee && hasReferralFee && hasSizeTier) return
 
-    autoFillReferenceFees('blankOnly')
+    autoFillReferenceFees()
   }, [
     autoFillReferenceFees,
     formState.fbaFulfillmentFee,
@@ -1143,33 +1208,19 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
 	                              ? 'Team reference values (editable).'
 	                              : 'Imported from Amazon (read-only).'}
 	                          </p>
-	                        </div>
-	                        {modalTab === 'reference' ? (
-	                          <Button
-	                            type="button"
-	                            variant="outline"
-	                            size="sm"
-	                            onClick={() => autoFillReferenceFees('force')}
-	                            disabled={isSubmitting}
-	                            className="h-8 px-3 text-xs"
-	                          >
-	                            Auto-fill
-	                          </Button>
-	                        ) : null}
-	                      </div>
-	                      {modalTab === 'reference' ? (
-	                        <div className="space-y-4">
-	                          <div className="grid gap-3 md:grid-cols-2">
+		                        </div>
+		                      </div>
+		                      {modalTab === 'reference' ? (
+		                        <div className="space-y-4">
+		                          <div className="grid gap-3 md:grid-cols-2">
 	                            <div className="space-y-1">
                               <Label htmlFor="category">Category</Label>
-                              <select
-                                id="category"
-                                value={formState.category}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, category: event.target.value }))
-                                }
-                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              >
+	                              <select
+	                                id="category"
+	                                value={formState.category}
+	                                onChange={event => handleReferenceCategoryChange(event.target.value)}
+	                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+	                              >
                                 <option value="">Select category</option>
                                 {AMAZON_REFERRAL_CATEGORIES_2026.map(category => (
                                   <option key={category} value={category}>
@@ -1191,14 +1242,12 @@ export default function SkusPanel({ externalModalOpen, externalEditSkuId, onExte
                             </div>
                             <div className="space-y-1">
                               <Label htmlFor="sizeTier">Size Tier</Label>
-                              <select
-                                id="sizeTier"
-                                value={formState.sizeTier}
-                                onChange={event =>
-                                  setFormState(prev => ({ ...prev, sizeTier: event.target.value }))
-                                }
-                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                              >
+	                              <select
+	                                id="sizeTier"
+	                                value={formState.sizeTier}
+	                                onChange={event => handleReferenceSizeTierChange(event.target.value)}
+	                                className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+	                              >
                                 <option value="">Select size tier</option>
                                 {AMAZON_SIZE_TIER_OPTIONS.map(sizeTier => (
                                   <option key={sizeTier} value={sizeTier}>
