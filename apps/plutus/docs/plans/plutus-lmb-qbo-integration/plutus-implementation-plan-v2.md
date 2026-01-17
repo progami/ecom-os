@@ -39,7 +39,7 @@ LMB creates the base accounts (LMB1-LMB10) in QBO. Plutus depends on these accou
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Phase 0 (QBO Cleanup) | ✅ COMPLETE | Duplicate Amazon accounts made inactive |
-| Phase 1 (QBO Accounts) | 🟡 PARTIAL | Revenue/Fee sub-accounts done (16). **Missing:** 2 parents + 20 Plutus sub-accounts (8 Inv Asset + 12 COGS). *Setup Wizard automates this.* |
+| Phase 1 (QBO Accounts) | 🟡 PARTIAL | Revenue/Fee sub-accounts done (16). **Missing:** 2 parents + 21 Plutus sub-accounts (8 Inv Asset + 13 COGS incl Rounding). *Setup Wizard automates this.* |
 | Phase 2 (LMB Config) | ❌ NOT STARTED | Requires LMB UI for BOTH connections. *Setup Wizard Steps 2 (acknowledge) and 6 (guide) cover this.* |
 | Phase 3 (Bill Entry Setup) | ✅ COMPLETE | Using Bill Memo field for PO linking. *Setup Wizard Step 7 explains format.* |
 | Phase 4 (Bill SOP) | ❌ NOT STARTED | Documentation only |
@@ -48,7 +48,7 @@ LMB creates the base accounts (LMB1-LMB10) in QBO. Plutus depends on these accou
 | Phase 7 (Testing) | ❌ NOT STARTED | Unit + Integration + Parallel run |
 | Phase 8 (Go-Live) | ❌ NOT STARTED | Production deployment |
 
-**Next Action:** Complete Phase 1 - Create 2 parent accounts + 20 Plutus sub-accounts in QBO (see MASTER CHECKLIST below), or wait for Plutus Setup Wizard to automate this.
+**Next Action:** Complete Phase 1 - Create 2 parent accounts + 21 Plutus sub-accounts in QBO (see MASTER CHECKLIST below), or wait for Plutus Setup Wizard to automate this.
 
 ---
 
@@ -91,8 +91,13 @@ Settlement Report                    Manual Inventory Count
 | Inventory OUT | LMB Settlement (via Audit Data CSV) | type=SALE, qty=-N |
 | Return to Inventory | LMB Settlement (refund matched to order) | type=RETURN, qty=+N |
 | Shrinkage/Adjustment | Monthly Reconciliation | type=ADJUSTMENT, qty=±N |
+| Opening Position | Amazon Inventory Report + Valuation | type=OPENING_SNAPSHOT, qty=+N |
 
-**Historical Catch-Up:** New users must process all historical bills and settlements to build their inventory ledger. See Setup Wizard Step 8.
+**Historical Catch-Up:** New users starting from a specific date must either:
+1. Process all historical bills and settlements from the beginning, OR
+2. Provide an Opening Snapshot (sourced from Amazon inventory report + accountant valuation)
+
+See Setup Wizard Step 8 and V1 Constraint #9.
 
 ---
 
@@ -120,8 +125,11 @@ When late freight bill arrives for PO:
 1. Split freight across SKUs in PO by original PO units (allocation rule)
 2. For each SKU:
    - Get on-hand quantity from InventoryLedger as-of bill date
-   - Add allocated freight to that SKU's inventory value
-   - Recompute average: new_avg = (current_value + allocated_freight) / on_hand_units
+   - If on_hand > 0:
+     - Add allocated freight to that SKU's inventory value
+     - Recompute average: new_avg = (current_value + allocated_freight) / on_hand_units
+   - If on_hand = 0:
+     - BLOCK (see edge case below)
 ```
 
 **Example:**
@@ -131,6 +139,22 @@ When late freight bill arrives for PO:
 - Allocation: $500 / 1000 PO units = $0.50 per original PO unit
 - But applied to 800 on-hand: $500 / 800 = $0.625 per remaining unit
 - Result: Full $500 absorbed into remaining inventory → flows to future COGS
+
+**⚠️ EDGE CASE: On-Hand = 0 (Inventory Depleted)**
+
+If late cost bill arrives and on-hand units = 0 for any SKU in the PO:
+```
+BLOCK: "Cannot apply [Freight/Duty] to SKU [X] - inventory fully depleted as-of bill date."
+
+User options:
+(a) Backdate the bill to before inventory was depleted
+(b) Create manual COGS JE to expense directly (accountant decision)
+(c) Accept that this cost is "lost" for COGS purposes (not recommended)
+
+v2 will add: Retroactive COGS adjustment for already-sold units
+```
+
+This is a data entry timing issue. Prevention is better than cure.
 
 **User guidance:** Enter all bills for a PO before processing settlements that contain those SKUs.
 
@@ -165,13 +189,27 @@ When processing Audit Data CSV:
 
 #### 6. Idempotency Rule (Prevent Double-Posting)
 Before processing a settlement:
-1. Compute hash of normalized CSV rows (SKU, Quantity, amounts)
-2. Check if hash exists in `Settlement.processingHash`
-3. If exists with same hash: Block posting, show "Already processed"
-4. If exists with different hash: Require explicit "Reprocess" action
+
+**Idempotency Key:** `(marketplace, invoiceId, processingHash)`
+
+```
+1. Extract marketplace from CSV 'market' column
+2. Extract invoiceId from CSV 'Invoice' column
+3. Compute processingHash of normalized CSV rows (SKU, Quantity, amounts)
+4. Query: SELECT * FROM Settlement
+   WHERE marketplace = ? AND invoiceId = ? AND processingHash = ?
+5. If exact match: Block, show "Already processed"
+6. If same marketplace+invoiceId but different hash:
+   Warn "Settlement exists with different data. Reprocess required."
    - User must void prior JE in QBO first
    - Then delete Plutus settlement record
    - Then re-upload CSV
+```
+
+**Stored for debugging:**
+- `normalizedRowCount`: Number of rows in CSV
+- `sourceFilename`: Original filename
+- `uploadedAt`: Timestamp
 
 #### 7. Journal Entry Memo Format
 When posting COGS JEs to QBO, use this memo format for easy identification:
@@ -191,6 +229,116 @@ Plutus does NOT poll QBO to detect LMB postings. The user is responsible for:
 3. Uploading CSV to Plutus
 
 This keeps the architecture simple and avoids issues with LMB posting Journal Entries vs Invoices.
+
+#### 9. Opening Snapshot (for Catch-Up Mode)
+"No arbitrary opening balances" does NOT mean "no opening position." For catch-up mode:
+
+**Allowed:** Opening Inventory Snapshot backed by source documents:
+```
+type = OPENING_SNAPSHOT
+sourceRef = "Amazon Inventory Report 2025-01-01"
+notes = "Starting inventory for catch-up from 2025-01-01"
+```
+
+**Required sources:**
+- Amazon FBA Inventory Report (units by SKU) - mandatory
+- Plus ONE of:
+  - Accountant's valuation (component breakdown), OR
+  - Computed from historical bills if available in QBO
+
+**NOT allowed:** User typing "I think I have 500 units worth $2,500" without documentation.
+
+**Wizard behavior:** If user selects "Catch up from specific date", prompt for:
+1. Amazon inventory report file (upload)
+2. Valuation source (accountant OR "compute from bills")
+
+**⚠️ CRITICAL: QBO Opening Initialization JE**
+
+When creating an Opening Snapshot, Plutus must ALSO create (or instruct user to create) a QBO Journal Entry to initialize the inventory sub-account balances. Without this, QBO sub-accounts start at $0 and will go NEGATIVE on the first COGS posting.
+
+```
+Opening Inventory Initialization JE
+Date: [Catch-up start date, e.g., 2025-01-01]
+
+DEBITS (Inventory Asset sub-accounts):
+  Inventory Asset: Manufacturing - US    $X,XXX.XX
+  Inventory Asset: Freight - US          $XXX.XX
+  Inventory Asset: Duty - US             $XXX.XX
+  Inventory Asset: Mfg Accessories - US  $XX.XX
+  Inventory Asset: Manufacturing - UK    $X,XXX.XX
+  ... (all component sub-accounts)
+
+CREDITS:
+  Opening Balance Equity                 $Total
+  (or accountant-specified equity account)
+
+Memo: "Plutus Opening Snapshot | Source: Amazon Inventory 2025-01-01 + [valuation source]"
+```
+
+**Options:**
+1. Plutus auto-creates this JE via QBO API (recommended)
+2. Plutus generates JE details for user to enter manually
+3. User's accountant creates the JE (Plutus provides the amounts)
+
+This keeps Plutus ledger and QBO balance sheet aligned from day 1.
+
+#### 10. Refund Matching (DB-First)
+When processing refunds, match against Plutus database FIRST, not just the uploaded CSV:
+
+```
+1. Query: SELECT * FROM InventoryLedger
+   WHERE marketplace = ? AND orderId = ? AND sku = ? AND type = 'SALE'
+2. If found → use stored component costs for reversal
+3. If not found in DB → check current CSV file
+4. If still not found → flag for user action:
+   "Original sale not found. Upload CSV covering order date, or skip."
+```
+
+This handles cross-period refunds (January refund for October sale) without requiring massive CSV uploads.
+
+#### 11. Rounding Policy (JE Balancing)
+JEs must balance to the penny. Rounding rules:
+
+```
+1. Compute all amounts at 4-decimal precision
+2. Round each JE line to 2 decimals (cents) using HALF_UP
+3. Sum debits and credits
+4. If debits ≠ credits:
+   - Difference must be ≤ $1.00
+   - Add balancing line to "COGS: Rounding" account
+   - If difference > $1.00, block posting and flag for review
+```
+
+**Example:**
+```
+Calculated COGS lines (before rounding):
+  Mfg:     $123.4567 → $123.46
+  Freight: $23.4512  → $23.45
+  Duty:    $11.2234  → $11.22
+  MfgAcc:  $5.5512   → $5.55
+  Total Debits: $163.68
+
+Inventory credits (before rounding):
+  Mfg:     $123.4567 → $123.46
+  Freight: $23.4512  → $23.45
+  Duty:    $11.2234  → $11.22
+  MfgAcc:  $5.5512   → $5.56  ← rounding difference
+  Total Credits: $163.69
+
+Imbalance: $0.01
+Add: Debit COGS: Rounding $0.01
+Result: Balanced JE
+```
+
+#### 12. Mixed-Brand PO Constraint (v1)
+**One PO may contain only one brand (one marketplace).**
+
+If a shipment contains SKUs for both US and UK brands:
+- User must create separate POs (PO-2026-001-US, PO-2026-001-UK)
+- Freight/duty bills must be split into separate lines per brand
+- This ensures QBO inventory accounts stay correct at bill entry
+
+v2 may add a "Freight Clearing" account pattern for mixed shipments.
 
 ---
 
@@ -273,17 +421,23 @@ The account names below are **suggestions** - users can customize names during s
 **What the Setup Wizard does:**
 - Step 2: User acknowledges LMB Accounts & Taxes Wizard is complete (creates parent accounts)
 - Step 3: Lets user define brand names
-- Step 4: Creates ALL sub-accounts (36 per 2 brands: 8 Inv Asset + 12 COGS + 16 Revenue/Fee)
+- Step 4: Creates ALL sub-accounts (37 total: 8 Inv Asset + 12 COGS + 1 Rounding + 16 Revenue/Fee)
 
 ## MASTER CHECKLIST - ALL ACCOUNTS
 
 This is the complete list of accounts needed. The Plutus Setup Wizard creates sub-accounts automatically.
 
+**⚠️ QBO Account Naming Convention:**
+- **Name** = The leaf account name you create (e.g., `Manufacturing - US-Dust Sheets`)
+- **FullyQualifiedName** = Display path with colons (e.g., `Inventory Asset:Manufacturing - US-Dust Sheets`)
+- Do NOT include colons in the `Name` field when creating accounts - QBO adds them automatically for sub-accounts
+- In this document, tables show FullyQualifiedName for clarity, but create accounts using just the leaf Name
+
 **Account Summary (for 2 brands):**
 - 2 Plutus parent accounts to create (Mfg Accessories, Inventory Shrinkage)
 - 5 Plutus parent accounts (should exist: Inventory Asset, Manufacturing, Freight & Duty, Land Freight, Storage 3PL)
 - 8 LMB parent accounts (created by LMB wizard - listed for reference)
-- 36 sub-accounts (Setup Wizard creates these: 8 Inv Asset + 12 COGS + 16 Revenue/Fee)
+- 37 sub-accounts (Setup Wizard creates these: 8 Inv Asset + 12 COGS + 1 Rounding + 16 Revenue/Fee)
 
 ### PARENT ACCOUNTS TO CREATE (2 accounts)
 
@@ -372,6 +526,9 @@ These accounts are created when you complete the LMB wizard. **Account names sho
 | 10 | Storage 3PL - UK-Dust Sheets | Storage 3PL | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
 | 11 | Mfg Accessories - US-Dust Sheets | Mfg Accessories | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
 | 12 | Mfg Accessories - UK-Dust Sheets | Mfg Accessories | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
+| 13 | Rounding | (none - top level) | Cost of Goods Sold | Other Costs of Services - COS | ❌ MISSING |
+
+**Note:** Rounding is a single account (not per-brand) used only for JE balancing adjustments ≤ $1.00.
 
 ### SUMMARY
 
@@ -382,9 +539,10 @@ These accounts are created when you complete the LMB wizard. **Account names sho
 | Fee sub-accounts | 10 | 10 | 0 | Setup Wizard (or manual) |
 | Inventory Asset sub-accounts | 8 | 0 | 8 | Setup Wizard |
 | COGS component sub-accounts | 12 | 0 | 12 | Setup Wizard |
-| **SUB-ACCOUNTS TOTAL** | **36** | **16** | **20** | |
+| COGS Rounding account | 1 | 0 | 1 | Setup Wizard |
+| **SUB-ACCOUNTS TOTAL** | **37** | **16** | **21** | |
 
-**Note:** For this specific QBO (Targon), Revenue/Fee sub-accounts were created manually. For new users, Setup Wizard creates all 36 sub-accounts.
+**Note:** For this specific QBO (Targon), Revenue/Fee sub-accounts were created manually. For new users, Setup Wizard creates all 37 sub-accounts.
 
 ---
 
@@ -724,6 +882,19 @@ PO: PO-2026-001
 | Description | SKU + quantity (e.g., "CS-007 x 500 units") |
 | Amount | Cost for that line item |
 
+**⚠️ Bill Parsing Validation:**
+Plutus parses the Description field to extract SKU and quantity. Supported formats:
+- `CS-007 x 500 units` ✓
+- `CS-007 x 500` ✓
+- `CS-007 500 units` ✓
+- `CS007 500` ✗ (SKU format mismatch)
+- `500 units CS-007` ✗ (wrong order)
+
+The Plutus Bill Review UI will show:
+- ✅ Lines successfully parsed (SKU + qty recognized)
+- ⚠️ Lines that couldn't be parsed (needs manual fix)
+- If any lines fail, the PO is marked "INCOMPLETE" until corrected
+
 ## Step 4.3: When Freight Bill Arrives
 
 **Example - exactly as it appears in QBO:**
@@ -824,7 +995,7 @@ PO: PO-2026-001
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** 
+**Note:**
 - 3PL storage goes directly to **COGS** (not Inventory Asset) - it's a period cost
 - Split by brand based on estimated inventory % at 3PL
 - NO PO Number needed - this is a recurring monthly cost, not tied to a specific shipment
@@ -960,7 +1131,7 @@ model SkuCostHistory {
   qboBillIds      String[] // QBO bill IDs linked to this cost
   effectiveDate   DateTime // The Date of the Bill in QBO (for as-of lookups)
   createdAt       DateTime @default(now())
-  
+
   @@index([skuCostId, effectiveDate])
   @@index([marketplace])
 }
@@ -979,28 +1150,38 @@ model QboAccount {
 }
 
 // Settlement tracking
+// Settlement = one Invoice group from CSV (the posting unit)
+// Note: One CSV file may contain multiple Invoice values = multiple Settlements
+// Idempotency key: (marketplace, invoiceId, processingHash)
 model Settlement {
   id               String   @id @default(cuid())
-  settlementId     String   @unique
-  reportDocumentId String?
-  marketplace      String   // "amazon.com", "amazon.co.uk"
+  invoiceId        String   // LMB Invoice ID from CSV 'Invoice' column (e.g., "18128696")
+  marketplace      String   // "amazon.com", "amazon.co.uk" - from CSV 'market' column
   startDate        DateTime
   endDate          DateTime
   depositDate      DateTime?
   totalAmount      Decimal  @db.Decimal(12, 2) // In settlement currency (informational only)
   currency         String   // USD or GBP (informational - Plutus ignores for COGS)
   status           String   @default("PENDING") // PENDING, PROCESSED, ERROR
-  processingHash   String?  // For idempotency (prevent double-posting)
+
+  // Idempotency fields
+  processingHash   String   // Hash of normalized CSV rows for this invoice
+  sourceFilename   String?  // Original CSV filename
+  normalizedRowCount Int?   // Number of rows in this invoice group
+
   errorMessage     String?
-  
+
   // Relations
   lines            SettlementLine[]
   postings         SettlementPosting[] // One-to-many for split months
   validation       SettlementValidation?
-  
+
   createdAt        DateTime @default(now())
   processedAt      DateTime?
   updatedAt        DateTime @updatedAt
+
+  @@unique([marketplace, invoiceId])  // Idempotency check (hash checked separately)
+  @@index([marketplace, invoiceId, processingHash])
 }
 
 // Tracks actual JEs posted to QBO (handles split months)
@@ -1008,18 +1189,18 @@ model SettlementPosting {
   id             String     @id @default(cuid())
   settlementId   String
   settlement     Settlement @relation(fields: [settlementId], references: [id])
-  
+
   qboJournalId   String     // The ID of the COGS Journal Entry we created
   lmbInvoiceId   String?    // The ID of the LMB Invoice we matched against
-  
+
   periodStart    DateTime   // The specific date range this JE covers
   periodEnd      DateTime
   postingDate    DateTime   // The TxnDate used in QBO
-  
+
   totalCogsUSD   Decimal    @db.Decimal(12, 2)
-  
+
   createdAt      DateTime   @default(now())
-  
+
   @@index([settlementId])
 }
 
@@ -1029,18 +1210,40 @@ model InventoryLedger {
   sku            String
   marketplace    String   // "amazon.com", "amazon.co.uk" - from CSV market column
   date           DateTime
-  type           String   // PURCHASE, SALE, RETURN, ADJUSTMENT
+  type           String   // PURCHASE, SALE, RETURN, ADJUSTMENT, OPENING_SNAPSHOT
   quantityChange Int      // Positive = in, Negative = out
-  unitCostUSD    Decimal  @db.Decimal(10, 4) // Cost at time of event
-  totalValueUSD  Decimal  @db.Decimal(12, 2)
-  runningQty     Int?     // Running total after this event
-  runningValue   Decimal? @db.Decimal(12, 2) // Running value after this event
-  sourceRef      String?  // Settlement ID, Bill ID, or Adjustment ID
+
+  // Component-level costs (enables reconciliation by sub-account)
+  unitMfgUSD        Decimal  @db.Decimal(10, 4) @default(0)
+  unitFreightUSD    Decimal  @db.Decimal(10, 4) @default(0)
+  unitDutyUSD       Decimal  @db.Decimal(10, 4) @default(0)
+  unitMfgAccUSD     Decimal  @db.Decimal(10, 4) @default(0)
+  unitTotalUSD      Decimal  @db.Decimal(10, 4) // Sum of above (computed)
+
+  // Component-level values (qty × unit cost)
+  valueMfgUSD       Decimal  @db.Decimal(12, 2) @default(0)
+  valueFreightUSD   Decimal  @db.Decimal(12, 2) @default(0)
+  valueDutyUSD      Decimal  @db.Decimal(12, 2) @default(0)
+  valueMfgAccUSD    Decimal  @db.Decimal(12, 2) @default(0)
+  valueTotalUSD     Decimal  @db.Decimal(12, 2) // Sum of above (computed)
+
+  // Running totals (after this event)
+  runningQty        Int?
+  runningMfgUSD     Decimal? @db.Decimal(12, 2)
+  runningFreightUSD Decimal? @db.Decimal(12, 2)
+  runningDutyUSD    Decimal? @db.Decimal(12, 2)
+  runningMfgAccUSD  Decimal? @db.Decimal(12, 2)
+  runningTotalUSD   Decimal? @db.Decimal(12, 2)
+
+  // Source references
+  sourceRef      String?  // Settlement ID, Bill ID, Adjustment ID, or Snapshot report
+  orderId        String?  // Amazon Order ID (for SALE/RETURN - enables refund matching)
   notes          String?
   createdAt      DateTime @default(now())
 
   @@index([sku, marketplace, date])
   @@index([type])
+  @@index([marketplace, orderId, sku])  // For refund matching
 }
 
 // Settlement line items
@@ -1072,7 +1275,7 @@ model FbaReturn {
   cogsReversed    Boolean    @default(false)
   reversalJeId    String?    // QBO journal entry ID if reversed
   createdAt       DateTime   @default(now())
-  
+
   @@index([sku, returnDate])
   @@index([disposition])
 }
@@ -1165,6 +1368,13 @@ model AuditLog {
 
 Plutus uses the Bill's `PrivateNote` (Memo) field to link bills by PO number.
 
+**QBO Query Constraints (v1 spec):**
+- Lookback window: **90 days maximum** (bills older than this require date range expansion)
+- Pagination: `maxresults=100`, use `startposition` for next page
+- Cache TTL: 5 minutes (avoid repeated API calls)
+- OR operator: NOT supported by QBO - use multiple queries
+- Special characters: Escape quotes in PrivateNote queries
+
 **Query Strategy:**
 1. Try exact match: `SELECT * FROM Bill WHERE PrivateNote = 'PO: PO-2026-001'`
 2. If that fails or returns empty, fall back to date range + client-side filter
@@ -1174,7 +1384,7 @@ Plutus uses the Bill's `PrivateNote` (Memo) field to link bills by PO number.
 // Example: Finding bills for a specific PO
 async function getBillsByPO(poNumber: string): Promise<Bill[]> {
   const memoValue = `PO: ${poNumber}`;
-  
+
   // 1. Try server-side query (may work for PrivateNote)
   try {
     const bills = await qbo.findBills({
@@ -1184,15 +1394,26 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
   } catch (e) {
     // Server-side filter not supported, fall back
   }
-  
-  // 2. Fallback: Fetch by date range, filter client-side
-  const bills = await qbo.findBills({
-    TxnDate: { $gte: ninetyDaysAgo }
-  });
-  
+
+  // 2. Fallback: Fetch by date range with pagination
+  const allBills: Bill[] = [];
+  let startPosition = 1;
+  const maxResults = 100;
+
+  while (true) {
+    const page = await qbo.findBills({
+      TxnDate: { $gte: ninetyDaysAgo },
+      startposition: startPosition,
+      maxresults: maxResults
+    });
+    allBills.push(...page);
+    if (page.length < maxResults) break;
+    startPosition += maxResults;
+  }
+
   // 3. Filter client-side by memo (exact match or regex)
   const poRegex = new RegExp(`\\bPO:\\s*${poNumber}\\b`);
-  return bills.filter(bill => 
+  return allBills.filter(bill =>
     bill.PrivateNote && poRegex.test(bill.PrivateNote)
   );
 }
@@ -1394,7 +1615,9 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 ┌─────────────────────────────────────────────────────────────────┐
 │ 6. UPDATE INVENTORY LEDGER                                      │
 │    - Insert record: type=SALE, quantityChange=-N                │
-│    - Track running quantity and value                           │
+│    - Store orderId (for future refund matching)                 │
+│    - Store component costs: unitMfgUSD, unitFreightUSD, etc.    │
+│    - Track running quantity and component values                │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1437,7 +1660,7 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 
 ## Step 6.2: Returns Processing Flow (FROM AUDIT DATA CSV)
 
-**Simplification:** We process refunds from the same Audit Data CSV. For refund qty, we match the Order ID back to the original sale in the CSV.
+**DB-First Matching:** We process refunds from Audit Data CSV but match against Plutus database FIRST to handle cross-period refunds.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -1445,27 +1668,50 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 │    - Filter for LMB Line Description = 'Amazon Refunds -        │
 │      Refunded Principal'                                        │
 │    - Get Order ID and SKU for each refund                       │
+│    - IMPORTANT: Only reverse COGS for 'Principal' refunds       │
+│      (fee-only refunds do NOT affect inventory/COGS)            │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 2. MATCH REFUND TO ORIGINAL SALE (OrderId + SKU)                │
-│    - Primary key: (Order ID + SKU) from refund row              │
-│    - Find original sale in CSV with same Order ID AND SKU       │
-│    - Fallback: Order ID alone if order has single SKU           │
-│    - Get quantity from original sale (refunds show Qty=0)       │
+│ 2. MATCH REFUND TO ORIGINAL SALE (DB-First, then CSV)           │
 │                                                                 │
-│    IF NO MATCH FOUND:                                           │
-│    - Original sale may be in an earlier settlement period       │
-│    - UI shows: "Refund for Order XXX not found in this file.    │
-│      Upload a CSV covering the original order date."            │
-│    - User can: (a) upload wider date range, or (b) skip refund  │
-│    - Skipped refunds logged for manual review                   │
+│    A. QUERY PLUTUS DATABASE FIRST:                              │
+│       SELECT * FROM InventoryLedger                             │
+│       WHERE marketplace = ? AND orderId = ? AND sku = ?         │
+│             AND type = 'SALE'                                   │
+│                                                                 │
+│    B. IF FOUND IN DB:                                           │
+│       - Use stored component costs (Mfg, Freight, Duty, MfgAcc) │
+│       - Get quantity from original ledger entry                 │
+│       - Proceed to COGS reversal                                │
+│                                                                 │
+│    C. IF NOT IN DB, CHECK CURRENT CSV:                          │
+│       - Find original sale row with same Order ID + SKU         │
+│       - Fallback: Order ID alone if single-SKU order            │
+│                                                                 │
+│    D. IF STILL NOT FOUND:                                       │
+│       - UI shows: "Refund for Order XXX not found."             │
+│       - Options: (a) upload wider date range, (b) skip refund   │
+│       - Skipped refunds logged for manual review                │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 3. CALCULATE COGS REVERSAL                                      │
+│ 3. DETERMINE REFUND QUANTITY                                    │
+│                                                                 │
+│    Priority order:                                              │
+│    1. If refund row has non-zero Quantity → use it              │
+│    2. Else use matched sale quantity                            │
+│    3. For partial refunds: compare refund amount to sale amount │
+│       and prorate quantity if needed                            │
+│                                                                 │
+│    Guard: If quantity cannot be determined → flag for review    │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. CALCULATE COGS REVERSAL                                      │
 │    - Per SKU: refunded units × landed cost                      │
 │    - Credit COGS / Debit Inventory Asset                        │
 │    - Note: Assumes refund = physical return to sellable inv.    │
@@ -1746,27 +1992,23 @@ Memo: "Returns reversal - Jan 2026"
 │  LMB AUDIT DATA IMPORT                                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Step 1: Plutus queries QBO for LMB Invoices (unprocessed)      │
-│          ↓                                                      │
+│  Step 1: Upload Audit Data CSV from LMB                         │
+│          [Choose File] audit-data-2026-01.csv                   │
+│          [Upload & Validate]                                    │
+│                                                                 │
+│  Previously processed:                                          │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ LMB Invoices awaiting COGS posting:                     │   │
-│  │                                                         │   │
-│  │  ⚠️  #18128696  Jan 2-16, 2026   $4,209.92   MISSING    │   │
 │  │  ✅  #17971233  Dec 19-30, 2025  $748.69     PROCESSED  │   │
 │  │  ✅  #17910736  Dec 5-19, 2025   $2,967.96   PROCESSED  │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│  Step 2: Upload Audit Data CSV                                  │
-│          [Choose File] audit-data-2026-01.csv                   │
-│          [Upload & Validate]                                    │
-│                                                                 │
-│  Step 3: Validation Results                                     │
+│  Step 2: Validation Results                                     │
 │  ┌─────────────────────────────────────────────────────────┐   │
 │  │ CSV contains Invoice #18128696                          │   │
 │  │   - 403 sales transactions (CS-007: 226, CS-010: 36,    │   │
 │  │     CS-12LD-7M: 87, CS-1SD-32M: 54)                      │   │
 │  │   - 2 refunds (matched to original orders ✅)           │   │
-│  │   - Sales total: $4,209.92 ✅ matches QBO               │   │
+│  │   - All SKUs mapped ✅                                  │   │
 │  │                                                         │   │
 │  │ [Preview COGS]  [Process & Post COGS]                   │   │
 │  └─────────────────────────────────────────────────────────┘   │
@@ -1804,31 +2046,32 @@ Legend: ✅ Complete  ⚠️ Pending  ❌ Error  - No data
 
 ## B.4: Database Model
 
+**Relationship:**
+- `CsvUpload` = one uploaded CSV file (may contain multiple Invoice groups)
+- `Settlement` = one Invoice group (the canonical posting unit) - see main schema
+
 ```typescript
-model AuditDataImport {
+// File upload log (optional - for tracking uploads)
+model CsvUpload {
   id                String   @id @default(cuid())
-  lmbInvoiceId      String   @unique  // 18128696
   filename          String   // audit-data-2026-01.csv
-  marketplace       String   // Amazon.com
-  periodStart       DateTime
-  periodEnd         DateTime
+  marketplace       String   // Amazon.com (from CSV)
   uploadedAt        DateTime @default(now())
-  
-  // Validation stats
-  salesCount        Int      // 403
-  refundsCount      Int      // 2
-  totalSalesQty     Int      // 403
-  totalSalesAmount  Decimal  // 4209.92
-  totalRefundQty    Int      // 2
-  totalRefundAmount Decimal  // -23.98
-  
-  // Processing status
-  status            String   // UPLOADED | VALIDATED | PROCESSED | ERROR
-  validationErrors  Json?    // Any validation errors
-  processedAt       DateTime?
-  cogsJournalId     String?  // QBO JE ID after posting
+  uploadedBy        String?  // User ID if multi-user
+
+  // Stats from parsing
+  invoiceCount      Int      // How many unique Invoice values
+  totalRows         Int      // Total CSV rows
+
+  // Settlement IDs created from this upload
+  settlementIds     String[] // References to Settlement records
+
+  status            String   // PARSED | PROCESSING | COMPLETE | ERROR
+  errorMessage      String?
 }
 ```
+
+**Note:** The canonical data model is `Settlement` (one per Invoice group). CsvUpload is optional audit logging.
 
 ## B.5: CSV Download Instructions (for User)
 
@@ -1910,7 +2153,7 @@ model AuditDataImport {
 
 1. **Buying inventory:** You pay suppliers in USD. All costs in `SkuCost` table are in **USD**.
 
-2. **Selling (US):** 
+2. **Selling (US):**
    - LMB posts revenue in USD
    - Plutus posts COGS in USD
    - Clean match
@@ -1951,17 +2194,21 @@ model AuditDataImport {
 
 **Future Enhancement:** Add FBA Returns Report integration to track actual return dispositions (SELLABLE vs DAMAGED) for more accurate real-time inventory.
 
-**P&L Timing Note:**
-When a refund occurs, LMB posts the revenue reversal immediately. Plutus reverses COGS in the same period. However, if the physical return happens in a later month, there's a timing mismatch:
-- Month A: Refund posted (Revenue ↓, COGS ↓)
-- Month B: Item physically received (no additional entry needed with simplified approach)
+**P&L Timing Note (v1 Simplification):**
+When a refund occurs, LMB posts the revenue reversal immediately. Plutus reverses COGS in the **same period as the refund** (not when item physically returns). This is a simplification:
+- Refund processed → COGS reversed → Inventory increased (assumes item returns sellable)
+- Physical return timing is ignored in v1
 
-This is acceptable because net P&L over time is correct.
+This may cause temporary inventory overstatement if:
+- Customer got refund but hasn't shipped item back yet
+- Item returns as damaged (not sellable)
 
-**Journal Entry for Sellable Return:**
+Monthly reconciliation catches these discrepancies.
+
+**Journal Entry for Refund (COGS Reversal):**
 ```
-Return: 2 units of CS-007 @ $2.50 total landed cost
-Disposition: SELLABLE
+Refund: 2 units of CS-007 @ $2.50 total landed cost
+(Assumes sellable return)
 
 DEBITS (Inventory Asset - cost goes BACK to balance sheet):
   Inventory Asset: Manufacturing - US   $4.00
@@ -1976,18 +2223,7 @@ CREDITS (COGS - reduces expense):
   Mfg Accessories - US-Dust Sheets      $0.10
 ```
 
-**Damaged/Defective Returns:** No COGS reversal. Monthly reconciliation catches these and posts to Inventory Shrinkage.
-
-**Important P&L Timing Note:**
-
-Because we separate Sales (Settlement) from Returns (Physical Receipt), a timing difference will exist on your P&L:
-
-| Month | Event | P&L Impact |
-|-------|-------|------------|
-| Month A | Customer refunds item. LMB posts Refund expense. | Lower Profit |
-| Month B | Item arrives at FBA, marked Sellable. Plutus posts COGS Reversal. | Higher Profit |
-
-**Net Result:** Over time, it balances perfectly. Do not panic if a heavy return month looks less profitable - the inventory credit will arrive when the goods physically return to FBA.
+**Damaged/Defective Returns:** No way to know in v1 (no FBA Returns Report integration). Monthly reconciliation catches these and posts to Inventory Shrinkage.
 
 ## E.3: Reimbursements Handling
 
@@ -2192,6 +2428,8 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.5: January 16, 2026 - MAJOR: Replaced SP-API with LMB Audit Data CSV import. Added Appendix B (Import UI design). Simplified returns handling (refunds from CSV, matched via Order ID). Removed Amazon OAuth, FBA Reports API references. Manual inventory reconciliation via Seller Central export.
 - v3.6: January 16, 2026 - Added Prerequisites section (LMB Accounts & Taxes Wizard must be completed first). Referenced Setup Wizard document. Clarified account names are customizable via Setup Wizard.
 - v3.7: January 16, 2026 - Added Inventory Audit Trail Principle. No opening balances allowed - all inventory movements must link to source documents (Bills or Settlements). Historical catch-up required for new users. Updated Setup Wizard to reflect these constraints.
-- v3.8: January 16, 2026 - Clarified Setup Wizard creates ALL 36 sub-accounts (including revenue/fee accounts for LMB). Added "Existing Plutus Parent Accounts" section. Updated status tracker and summary table. Clarified SKU costs come from bills only (not entered during setup).
+- v3.8: January 16, 2026 - Clarified Setup Wizard creates ALL 37 sub-accounts (including revenue/fee accounts for LMB). Added "Existing Plutus Parent Accounts" section. Updated status tracker and summary table. Clarified SKU costs come from bills only (not entered during setup).
 - v3.9: January 16, 2026 - MAJOR: Schema fix for marketplace (SkuCost, SkuCostHistory, InventoryLedger now have marketplace field). Changed PO linking from Custom Field to Bill Memo (PrivateNote). Added V1 Constraints section (USD-only bills, late freight policy, refund matching rule, allocation by units, CSV grouping by Invoice, idempotency via hash). Removed QBO polling for LMB settlements (CSV-only mode). Updated workflow to start with CSV upload.
 - v3.10: January 16, 2026 - Fixed late freight algorithm: allocate across SKUs by PO units, but apply to on-hand units at bill date (prevents inventory drift). Added JE memo format spec for rollback. Added refund UX for cross-period matching. Final doc cleanup for Custom Field → Memo references.
+- v3.11: January 16, 2026 - MAJOR: (1) InventoryLedger now tracks component costs (unitMfgUSD, unitFreightUSD, etc.) for sub-account reconciliation. (2) Added orderId field for cross-period refund matching (DB-first lookup). (3) Added Opening Snapshot support for catch-up mode with sourced documentation. (4) Added Rounding account and JE balancing policy. (5) Added Mixed-Brand PO constraint. Total V1 constraints now 12.
+- v3.12: January 17, 2026 - (1) Added late freight edge case: block when on-hand = 0. (2) Added QBO Opening Initialization JE requirement for catch-up mode. (3) Added QBO query pagination limits (90-day lookback, 100 per page). (4) Clarified Name vs FullyQualifiedName for account creation. (5) Added returns quantity priority logic. (6) Updated idempotency key to include marketplace. (7) Clarified Settlement vs CsvUpload model hierarchy. (8) Fixed account summary to show "8 + 12 + 1 Rounding + 16".
