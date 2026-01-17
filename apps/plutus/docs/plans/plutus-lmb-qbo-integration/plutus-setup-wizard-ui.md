@@ -21,7 +21,7 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 │  ○ Step 4: Plutus Account Setup                                 │
 │  ○ Step 5: SKU Setup                                            │
 │  ○ Step 6: LMB Product Groups          (external)               │
-│  ○ Step 7: QBO Custom Field            (external)               │
+│  ○ Step 7: Bill Entry Guidelines                                │
 │  ○ Step 8: Historical Catch-Up                                  │
 │  ○ Step 9: Review & Complete                                    │
 │                                                                 │
@@ -47,7 +47,7 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 │                                                                 │
 │  Plutus needs access to your QuickBooks Online account to:      │
 │  • Read your Chart of Accounts                                  │
-│  • Read LMB invoices                                            │
+│  • Read supplier bills (for landed cost calculation)            │
 │  • Post COGS journal entries                                    │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
@@ -520,66 +520,75 @@ CS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456
 
 ---
 
-## Step 7: QBO Custom Field (External)
+## Step 7: Bill Entry Guidelines
 
-**Purpose:** Guide user to create PO Number custom field in QBO.
+**Purpose:** Explain how to enter Bills so Plutus can link them to POs.
 
 **UI Elements:**
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  STEP 7: QBO CUSTOM FIELD SETUP                                 │
+│  STEP 7: BILL ENTRY GUIDELINES                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ⚠️  This step is completed in QuickBooks, not in Plutus.       │
-│                                                                 │
-│  Plutus uses a "PO Number" custom field on Bills to link        │
-│  related costs (manufacturing, freight, duty) together.         │
+│  Plutus links supplier bills together using the PO Number.      │
+│  You'll enter the PO in the bill's "Memo" field (PrivateNote).  │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
 │                                                                 │
-│  □ Create Custom Field in QBO:                                  │
+│  REQUIRED FORMAT FOR BILL MEMO:                                 │
 │                                                                 │
-│    1. Go to QBO → Settings (gear icon) → Custom Fields          │
-│    2. Click "Add custom field"                                  │
-│    3. Configure:                                                │
-│       • Name: PO Number                                         │
-│       • Data type: Text and number                              │
-│       • Category: Transaction                                   │
-│       • Select forms: ☑ Bill                                    │
-│    4. Click Save                                                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │  PO: PO-2026-001                                        │   │
+│  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│  [Open QuickBooks Settings ↗]                                   │
+│  • Start with "PO: " (including the space)                      │
+│  • Follow with your PO number (e.g., PO-2026-001)               │
+│  • Keep the memo EXACTLY this format - no extra text            │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
 │                                                                 │
-│  VERIFICATION                                                   │
-│  [Check for PO Number Field]                                    │
+│  EXAMPLE: Entering a Manufacturing Bill                         │
 │                                                                 │
-│  Status: ❌ PO Number field not found                           │
+│  1. Go to QBO → Expenses → Bills → Create Bill                  │
+│  2. Enter vendor, date, amount                                  │
+│  3. In the Memo field, enter: PO: PO-2026-001                   │
+│  4. Select account: Inventory Asset: Mfg - [Brand]              │
+│  5. Save                                                        │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
-│  [Back]                                        [Next →] (disabled)
+│                                                                 │
+│  WHY THIS MATTERS:                                              │
+│                                                                 │
+│  Plutus reads all bills with the same PO number and combines    │
+│  them to calculate your landed cost per unit:                   │
+│                                                                 │
+│    Manufacturing Bill (PO: PO-2026-001) → $5,000 / 1000 units   │
+│    + Freight Bill (PO: PO-2026-001)     → $500 / 1000 units     │
+│    + Duty Bill (PO: PO-2026-001)        → $200 / 1000 units     │
+│    ─────────────────────────────────────────────────────────    │
+│    = Total Landed Cost                  → $5.70 per unit        │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  ☑ I understand how to enter bills with the PO memo format      │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│  [Back]                                    [Next →] (disabled)  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**After Verification:**
-
-```
-│  Status: ✅ PO Number field found                               │
-│                                                                 │
-│  [Back]                                        [Next →]         │
-```
-
 **Validation:**
-- Query QBO API for custom fields
-- Verify "PO Number" exists on Bill transaction type
+- Checkbox must be checked (honor system - no API verification needed)
 
 **Data Captured:**
-- `qboCustomFieldId` for PO Number
-- Verification timestamp
+- `billGuidelinesAcknowledged: true`
+- `billGuidelinesAcknowledgedAt: timestamp`
+
+**Technical Note (for developers):**
+Plutus queries bills using `PrivateNote` field:
+1. Try exact match: `SELECT * FROM Bill WHERE PrivateNote = 'PO: PO-2026-001'`
+2. Fallback: Pull bills by date range, filter client-side by memo prefix
 
 ---
 
@@ -626,7 +635,7 @@ CS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456
 │  1. ENSURE BILLS ARE IN QBO                                     │
 │     • All supplier bills (manufacturing, freight, duty, etc.)   │
 │       should already be entered in QuickBooks                   │
-│     • Each bill needs the "PO Number" custom field filled in    │
+│     • Each bill needs the PO number in the Memo field            │
 │     • Plutus reads these bills to calculate unit costs          │
 │                                                                 │
 │  2. UPLOAD AUDIT DATA CSVs                                      │
@@ -663,13 +672,16 @@ CS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456
 | Mode | Dashboard Behavior |
 |------|-------------------|
 | `none` (just starting) | Ready for first settlement. No catch-up needed. |
-| `from_date` | Shows "Catch-Up Mode" banner. Lists LMB invoices since start date. User uploads Audit Data for each. Banner disappears when caught up. |
-| `full` | Same as above, but lists ALL historical LMB invoices. |
+| `from_date` | Shows "Catch-Up Mode" banner with start date. User uploads Audit Data CSVs. Banner disappears when user marks catch-up complete. |
+| `full` | Same as above, but banner shows "Full historical catch-up in progress." |
 
-**How Plutus identifies LMB invoices:**
-- Queries QBO for Invoices where Customer = "Amazon" (or configured customer name)
-- Filters by memo containing "LMB" or invoice number pattern
-- User can manually mark invoices as LMB settlements if auto-detection fails
+**CSV-Only Mode (no QBO polling):**
+Plutus does NOT poll QBO to detect LMB settlements. The user is responsible for:
+1. Checking LMB for settlements that are "Ready to Post" or already posted
+2. Downloading Audit Data CSV from LMB for each settlement
+3. Uploading CSVs to Plutus
+
+This keeps the architecture simple and avoids issues with LMB posting Journal Entries vs Invoices.
 
 ---
 
@@ -702,7 +714,7 @@ CS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456
 │  ACCOUNTS                                                       │
 │  ✅ 15 parent accounts verified                                 │
 │  ✅ 36 sub-accounts created                                     │
-│  ✅ PO Number custom field configured                           │
+│  ✅ Bill memo format guidelines acknowledged                    │
 │                                                                 │
 │  SKUS                                                           │
 │  ✅ 12 SKUs configured                                          │
@@ -721,9 +733,10 @@ CS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456
 │  After completing setup, you'll enter "Catch-Up Mode":          │
 │                                                                 │
 │  1. Ensure all bills since 2025-01-01 are in QBO                │
-│  2. Plutus will show all LMB invoices since 2025-01-01          │
-│  3. Upload Audit Data CSV for each historical settlement        │
-│  4. Once caught up, process new settlements as they come        │
+│  2. Go to LMB and check for settlements since 2025-01-01        │
+│  3. Download Audit Data CSV for each settlement from LMB        │
+│  4. Upload CSVs to Plutus to process COGS                       │
+│  5. Once caught up, process new settlements as they come        │
 │                                                                 │
 │  [View Bill Entry Guide]   [View COGS Processing Guide]         │
 │                                                                 │
@@ -784,9 +797,9 @@ model SetupState {
   lmbProductGroupsConfigured Boolean @default(false)
   lmbProductGroupsConfiguredAt DateTime?
   
-  // Step 7: Custom Field
-  customFieldVerified   Boolean  @default(false)
-  customFieldId         String?
+  // Step 7: Bill Entry Guidelines
+  billGuidelinesAcknowledged Boolean @default(false)
+  billGuidelinesAcknowledgedAt DateTime?
   
   // Step 8: Historical Catch-Up
   catchUpMode           String?  // 'none' | 'from_date' | 'full'
@@ -816,7 +829,7 @@ model SetupState {
 | Step 4 | Yes | Only if all parent + sub-accounts exist |
 | Step 5 | Yes | Only if at least 1 SKU added |
 | Step 6 | Yes | Only if all checkboxes checked |
-| Step 7 | Yes | Only if PO Number field verified |
+| Step 7 | Yes | Only if checkbox checked |
 | Step 8 | Yes | Only if catch-up option selected (any of the three) |
 | Step 9 | Yes | Complete button enabled |
 
@@ -883,18 +896,4 @@ Options:
 SKU "CS-007" already exists. Please use a unique SKU.
 
 [OK]
-```
-
-**Custom Field Not Found:**
-```
-❌ PO Number Field Not Found
-
-The "PO Number" custom field was not found on Bill transactions.
-
-Please create it in QBO:
-1. Settings → Custom Fields
-2. Add field named "PO Number"
-3. Enable for Bills
-
-[Open QBO Settings]  [Re-check]
 ```
