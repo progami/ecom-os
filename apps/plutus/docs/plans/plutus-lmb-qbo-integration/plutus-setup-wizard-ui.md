@@ -340,7 +340,7 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 │  │ (same structure as above)                               │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│  SUMMARY: 36 sub-accounts to create                             │
+│  SUMMARY: 37 sub-accounts to create                             │
 │  • 8 Inventory Asset sub-accounts (4 per brand)                 │
 │  • 12 COGS sub-accounts (6 per brand)                           │
 │  • 16 Revenue/Fee sub-accounts (8 per brand)                    │
@@ -355,7 +355,7 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 **After Creation:**
 
 ```
-│  ✅ 36 sub-accounts created successfully                        │
+│  ✅ 37 sub-accounts created successfully                        │
 │                                                                 │
 │  [Back]                                        [Next →]         │
 ```
@@ -594,7 +594,7 @@ Plutus queries bills using `PrivateNote` field:
 
 ## Step 8: Historical Catch-Up
 
-**Purpose:** Choose how to sync Plutus with historical data. No arbitrary opening balances allowed.
+**Purpose:** Choose how to sync Plutus with historical data. Opening position requires source documentation.
 
 **UI Elements:**
 
@@ -608,8 +608,7 @@ Plutus queries bills using `PrivateNote` field:
 │                                                                 │
 │  • INVENTORY IN  → Bills in QBO (Plutus reads these)            │
 │  • INVENTORY OUT → LMB Settlements (via Audit Data CSV)         │
-│                                                                 │
-│  No arbitrary "opening balance" entries are allowed.            │
+│  • OPENING POS.  → Amazon Inventory Report + Valuation          │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
 │                                                                 │
@@ -619,53 +618,82 @@ Plutus queries bills using `PrivateNote` field:
 │    You're a new seller or just started using LMB.               │
 │    Plutus will process settlements as they come.                │
 │                                                                 │
-│  ○ Catch up from a specific date                                │
+│  ○ Catch up from a specific date (with opening snapshot)        │
 │    Start from: [2025-01-01        📅]                           │
-│    Process bills and settlements after this date.               │
-│    Earlier history won't be tracked in Plutus.                  │
+│    Requires: Opening inventory snapshot (see below)             │
 │                                                                 │
 │  ○ Catch up from the beginning                                  │
 │    Process ALL historical bills and settlements.                │
 │    Most accurate, but more work upfront.                        │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│  HOW CATCH-UP WORKS:                                            │
-│                                                                 │
-│  1. ENSURE BILLS ARE IN QBO                                     │
-│     • All supplier bills (manufacturing, freight, duty, etc.)   │
-│       should already be entered in QuickBooks                   │
-│     • Each bill needs the PO number in the Memo field            │
-│     • Plutus reads these bills to calculate unit costs          │
-│                                                                 │
-│  2. UPLOAD AUDIT DATA CSVs                                      │
-│     • Download Audit Data from LMB for each past settlement     │
-│     • Upload to Plutus (Dashboard → Upload Audit Data)          │
-│     • Plutus processes in chronological order                   │
-│                                                                 │
-│  3. VERIFY INVENTORY BALANCE                                    │
-│     • Plutus calculates: (Bills × Units) - (Settlements × Units)│
-│     • Compare to physical count in Amazon Seller Central        │
-│     • Variance = missing bills or data errors                   │
-│                                                                 │
-│  ─────────────────────────────────────────────────────────────  │
-│                                                                 │
-│  ⚠️  If you start from a specific date, there may be a          │
-│     temporary variance between Plutus and QBO Inventory Asset   │
-│     balance. Monthly reconciliation will track this.            │
-│                                                                 │
-│  ─────────────────────────────────────────────────────────────  │
 │  [Back]                                        [Next →]         │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**If "Catch up from specific date" selected - Additional Panel:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  OPENING INVENTORY SNAPSHOT                                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  To start from 2025-01-01, we need to know your inventory       │
+│  position on that date. This requires source documents.         │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  STEP 1: UPLOAD AMAZON INVENTORY REPORT                         │
+│                                                                 │
+│  Download from: Seller Central → Reports → Inventory →          │
+│                 Inventory Ledger (as-of 2025-01-01)             │
+│                                                                 │
+│  [Choose File] fba-inventory-2025-01-01.csv                     │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  STEP 2: PROVIDE INVENTORY VALUATION                            │
+│                                                                 │
+│  ○ Compute from historical bills in QBO                         │
+│    Plutus will read all bills before 2025-01-01 to              │
+│    calculate weighted average cost per SKU.                     │
+│    ⚠️ Bills must have PO in Memo field                          │
+│                                                                 │
+│  ○ Use accountant's valuation                                   │
+│    Upload component breakdown from your accountant:             │
+│    [Choose File] inventory-valuation-2025-01-01.xlsx            │
+│                                                                 │
+│    Required columns: SKU, Qty, Mfg, Freight, Duty, MfgAcc       │
+│    [Download Template]                                          │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  PREVIEW:                                                       │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ SKU       │ Units │ Mfg/unit │ Frt/unit │ Total Value  │   │
+│  │ CS-007    │ 500   │ $2.50    │ $0.30    │ $1,500.00    │   │
+│  │ CS-010    │ 300   │ $2.50    │ $0.30    │ $900.00      │   │
+│  │ ...       │ ...   │ ...      │ ...      │ ...          │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
+│  [Back]                           [Create Opening Snapshot →]   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 **Validation:**
-- User selects one of the three options
-- If "specific date" selected, date must be in the past
+- If "specific date" selected:
+  - Date must be in the past
+  - Amazon inventory report must be uploaded
+  - Valuation source must be selected (bills or accountant file)
+  - If accountant file, must have required columns
 
 **Data Captured:**
 - `catchUpMode: 'none' | 'from_date' | 'full'`
 - `catchUpStartDate: Date | null`
+- `openingSnapshotFile: File | null` (Amazon inventory report)
+- `valuationSource: 'bills' | 'accountant' | null`
+- `valuationFile: File | null` (accountant spreadsheet)
 
 **What happens after wizard completes:**
 
@@ -713,7 +741,7 @@ This keeps the architecture simple and avoids issues with LMB posting Journal En
 │                                                                 │
 │  ACCOUNTS                                                       │
 │  ✅ 15 parent accounts verified                                 │
-│  ✅ 36 sub-accounts created                                     │
+│  ✅ 37 sub-accounts created                                     │
 │  ✅ Bill memo format guidelines acknowledged                    │
 │                                                                 │
 │  SKUS                                                           │
@@ -806,6 +834,12 @@ model SetupState {
   catchUpStartDate      DateTime?
   catchUpComplete       Boolean  @default(false)
   
+  // Opening Snapshot (required if catchUpMode = 'from_date')
+  openingSnapshotFileId String?  // Reference to uploaded Amazon inventory report
+  valuationSource       String?  // 'bills' | 'accountant'
+  valuationFileId       String?  // Reference to accountant valuation file (if applicable)
+  openingSnapshotCreated Boolean @default(false)
+  
   // Step 9: Complete
   setupComplete         Boolean  @default(false)
   setupCompletedAt      DateTime?
@@ -830,7 +864,7 @@ model SetupState {
 | Step 5 | Yes | Only if at least 1 SKU added |
 | Step 6 | Yes | Only if all checkboxes checked |
 | Step 7 | Yes | Only if checkbox checked |
-| Step 8 | Yes | Only if catch-up option selected (any of the three) |
+| Step 8 | Yes | Only if catch-up option valid (none/full = immediate, from_date = requires snapshot) |
 | Step 9 | Yes | Complete button enabled |
 
 ---
