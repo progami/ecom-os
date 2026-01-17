@@ -798,52 +798,52 @@ This keeps the architecture simple and avoids issues with LMB posting Journal En
 ```typescript
 model SetupState {
   id                    String   @id @default(cuid())
-  
+
   // Step 1: QBO Connection
   qboConnected          Boolean  @default(false)
   qboRealmId            String?
   qboCompanyName        String?
-  
+
   // Step 2: LMB Setup Acknowledgment
   lmbSetupAcknowledged  Boolean  @default(false)
   lmbSetupAcknowledgedAt DateTime?
-  
+
   // Step 3: Brands
   brandsConfigured      Boolean  @default(false)
   brandCount            Int      @default(0)
-  
+
   // Step 4: Plutus Accounts
   parentAccountsVerified Boolean @default(false)
   subAccountsCreated    Boolean  @default(false)
   subAccountsCreatedAt  DateTime?
-  
+
   // Step 5: SKUs
   skusConfigured        Boolean  @default(false)
   skuCount              Int      @default(0)
-  
+
   // Step 6: LMB Product Groups (external)
   lmbProductGroupsConfigured Boolean @default(false)
   lmbProductGroupsConfiguredAt DateTime?
-  
+
   // Step 7: Bill Entry Guidelines
   billGuidelinesAcknowledged Boolean @default(false)
   billGuidelinesAcknowledgedAt DateTime?
-  
+
   // Step 8: Historical Catch-Up
   catchUpMode           String?  // 'none' | 'from_date' | 'full'
   catchUpStartDate      DateTime?
   catchUpComplete       Boolean  @default(false)
-  
+
   // Opening Snapshot (required if catchUpMode = 'from_date')
   openingSnapshotFileId String?  // Reference to uploaded Amazon inventory report
   valuationSource       String?  // 'bills' | 'accountant'
   valuationFileId       String?  // Reference to accountant valuation file (if applicable)
   openingSnapshotCreated Boolean @default(false)
-  
+
   // Step 9: Complete
   setupComplete         Boolean  @default(false)
   setupCompletedAt      DateTime?
-  
+
   // Metadata
   currentStep           Int      @default(1)
   createdAt             DateTime @default(now())
@@ -931,3 +931,4 @@ SKU "CS-007" already exists. Please use a unique SKU.
 
 [OK]
 ```
+
