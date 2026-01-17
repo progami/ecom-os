@@ -196,7 +196,7 @@ export default function HomePage() {
 
       {/* Sticky Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-white/5">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 dark:from-brand-cyan dark:to-brand-teal-500">
@@ -213,9 +213,9 @@ export default function HomePage() {
       </header>
 
       {/* Content wrapper - flex-1 to fill available space */}
-      <div className="relative flex-1 flex flex-col w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div className="relative flex-1 flex flex-col w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Hero */}
-        <div className="mb-8 sm:mb-10 text-center">
+        <div className="mb-8 sm:mb-10">
           <p className="text-base sm:text-lg lg:text-xl text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed px-2">
             <span className="font-medium text-slate-800 dark:text-slate-200">Custom financials</span> from QuickBooks Online.
             <br className="hidden sm:block" />
@@ -225,9 +225,8 @@ export default function HomePage() {
         </div>
 
         {/* Feature Cards */}
-        <div className="flex-1 space-y-3 sm:space-y-4">
-          {/* Grid for first two cards */}
-          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+        <div className="flex-1">
+          <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <FeatureCard
               href="/transactions"
               icon={<TransactionsIcon />}
@@ -243,31 +242,29 @@ export default function HomePage() {
               description="Bulk apply SOPs to transactions. Enter memos and references at scale."
               accentColor="teal"
             />
+
+            <FeatureCard
+              href="/chart-of-accounts"
+              icon={<AccountsIcon />}
+              title="Chart of Accounts"
+              description="View account hierarchies from QuickBooks, grouped by type like QBO."
+              accentColor="amber"
+            />
+
+            <FeatureCard
+              href="/setup"
+              icon={<TerminalIcon />}
+              title="Setup Wizard"
+              description="Configure Plutus with QuickBooks and Link My Books integration."
+              accentColor="violet"
+            />
+
+            <ComingSoonCard
+              icon={<ReportsIcon />}
+              title="Custom Reports"
+              description="Generate P&L, balance sheets, and cash flow reports with custom structure."
+            />
           </div>
-
-          {/* Full width cards */}
-          <FeatureCard
-            href="/chart-of-accounts"
-            icon={<AccountsIcon />}
-            title="Chart of Accounts"
-            description="View account hierarchies from QuickBooks, grouped by type like QBO."
-            accentColor="amber"
-          />
-
-          <FeatureCard
-            href="/setup"
-            icon={<TerminalIcon />}
-            title="Setup Wizard"
-            description="Configure Plutus with QuickBooks and Link My Books integration."
-            accentColor="violet"
-          />
-
-          {/* Coming soon card */}
-          <ComingSoonCard
-            icon={<ReportsIcon />}
-            title="Custom Reports"
-            description="Generate P&L, balance sheets, and cash flow reports with custom structure."
-          />
         </div>
 
         {/* Footer - will stay at bottom due to flex layout */}
