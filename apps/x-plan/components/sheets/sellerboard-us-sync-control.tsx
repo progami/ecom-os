@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { RefreshCw, ShieldAlert, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { withAppBasePath } from '@/lib/base-path';
@@ -80,6 +80,7 @@ export function SellerboardUsSyncControl({
   strategyId: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [result, setResult] = useState<SellerboardSyncResult | null>(null);
@@ -127,6 +128,8 @@ export function SellerboardUsSyncControl({
         description: `Actuals: ${actualUpdates.toLocaleString()} · Financials: ${dashboardUpdates.toLocaleString()}`,
       });
       router.refresh();
+      const query = searchParams.toString();
+      void router.prefetch(query.length ? `/5-fin-planning-pl?${query}` : '/5-fin-planning-pl');
     } catch (syncError) {
       const message = syncError instanceof Error ? syncError.message : String(syncError);
       setError(message);

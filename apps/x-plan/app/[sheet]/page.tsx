@@ -2395,14 +2395,14 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       controls.push(
         <SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />,
       );
-	      controls.push(
-	        <SellerboardSyncControl
-	          key="sellerboard-sync"
-	          isSuperAdmin={viewer.isSuperAdmin}
-	          strategyRegion={strategyRegion}
-	          strategyId={activeStrategyId}
-	        />,
-	      );
+      controls.push(
+        <SellerboardSyncControl
+          key="sellerboard-sync"
+          isSuperAdmin={viewer.isSuperAdmin}
+          strategyRegion={strategyRegion}
+          strategyId={activeStrategyId}
+        />,
+      );
       wrapLayout = (node) => (
         <SalesPlanningFocusProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}
@@ -2449,14 +2449,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const data = await getFinancialData();
       const view = getProfitAndLossView(data, activeSegment, activeYear);
       controls.push(<ProfitAndLossHeaderControls key="pnl-controls" />);
-	      controls.push(
-	        <SellerboardSyncControl
-	          key="sellerboard-sync"
-	          isSuperAdmin={viewer.isSuperAdmin}
-	          strategyRegion={strategyRegion}
-	          strategyId={activeStrategyId}
-	        />,
-	      );
       wrapLayout = (node) => (
         <ProfitAndLossFiltersProvider key={activeStrategyId} strategyId={activeStrategyId}>
           {node}

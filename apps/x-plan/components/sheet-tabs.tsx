@@ -6,7 +6,7 @@ import { clsx } from 'clsx';
 import { ChevronRight } from 'lucide-react';
 import type { SheetConfig, SheetSlug } from '@/lib/sheets';
 
-type SheetTab = SheetConfig & { href?: string };
+type SheetTab = SheetConfig & { href?: string; prefetch?: boolean };
 
 interface SheetTabsProps {
   sheets: SheetTab[];
@@ -46,6 +46,7 @@ export function SheetTabs({
               <Link
                 key={sheet.slug}
                 href={href}
+                prefetch={sheet.prefetch}
                 onClick={onSheetSelect ? (event) => handleClick(sheet.slug, event) : undefined}
                 className={clsx(
                   'relative min-w-[160px] overflow-hidden rounded-2xl border px-4 py-3.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C2B9] touch-manipulation',
@@ -81,6 +82,7 @@ export function SheetTabs({
               <li key={sheet.slug} className="flex items-center">
                 <Link
                   href={href}
+                  prefetch={sheet.prefetch}
                   onClick={onSheetSelect ? (event) => handleClick(sheet.slug, event) : undefined}
                   title={sheet.label}
                   className={clsx(

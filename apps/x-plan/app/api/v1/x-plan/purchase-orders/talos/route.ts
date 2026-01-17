@@ -53,6 +53,7 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
   const orders = await talos.purchaseOrder.findMany({
     where: {
       type: 'PURCHASE',
+      status: { notIn: ['CANCELLED', 'REJECTED'] },
       ...(query
         ? {
             OR: [
@@ -114,4 +115,3 @@ export const GET = withXPlanAuth(async (request: Request, session) => {
     })),
   });
 });
-

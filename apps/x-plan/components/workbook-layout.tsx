@@ -354,6 +354,7 @@ export function WorkbookLayout({
         icon: config?.icon ?? FileText,
         shortLabel: config?.shortLabel ?? sheet.label,
         href: buildSheetHref(sheet.slug),
+        prefetch: sheet.slug === '5-fin-planning-pl' ? false : undefined,
       };
     });
   }, [buildSheetHref, sheets]);
