@@ -20,28 +20,35 @@ Hybrid accounting system for Amazon FBA business using Link My Books (LMB) + Plu
 
 ---
 
+## Prerequisites
+
+**⚠️ CRITICAL: Complete LMB Accounts & Taxes Wizard BEFORE starting Plutus setup.**
+
+LMB creates the base accounts (LMB1-LMB10) in QBO. Plutus depends on these accounts existing.
+
+1. Go to LMB → Accounts & Taxes → Setup Wizard
+2. Complete all 3 steps (Map transactions, Bank accounts, Tax rates)
+3. Do this for EACH LMB connection (US and UK)
+
+**Related Document:** See `plutus-setup-wizard-ui.md` for the Plutus Setup Wizard UI design, which automates much of the account creation and configuration.
+
+---
+
 ## Current Status (2026-01-16)
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | Phase 0 (QBO Cleanup) | ✅ COMPLETE | Duplicate Amazon accounts made inactive |
-| Phase 1 (QBO Accounts) | 🟡 PARTIAL | LMB/Fee accounts done (24). **Missing:** Inventory Asset sub-accounts (8), COGS component sub-accounts (10), Inventory Shrinkage |
-| Phase 2 (LMB Config) | ❌ NOT STARTED | Requires LMB UI for BOTH connections |
-| Phase 3 (Custom Field) | ❌ NOT STARTED | "Plutus PO Number" custom field |
+| Phase 1 (QBO Accounts) | 🟡 PARTIAL | Revenue/Fee sub-accounts done (16). **Missing:** 2 parents + 20 Plutus sub-accounts (8 Inv Asset + 12 COGS). *Setup Wizard automates this.* |
+| Phase 2 (LMB Config) | ❌ NOT STARTED | Requires LMB UI for BOTH connections. *Setup Wizard Steps 2 (acknowledge) and 6 (guide) cover this.* |
+| Phase 3 (Custom Field) | ✅ COMPLETE | "PO Number" custom field created. *Setup Wizard Step 7 verifies this.* |
 | Phase 4 (Bill SOP) | ❌ NOT STARTED | Documentation only |
-| Phase 5 (Plutus Dev) | ❌ NOT STARTED | Build the app |
+| Phase 5 (Plutus Dev) | ❌ NOT STARTED | Build the app (includes Setup Wizard) |
 | Phase 6 (Workflows) | ❌ NOT STARTED | Settlement + Returns + Reconciliation |
 | Phase 7 (Testing) | ❌ NOT STARTED | Unit + Integration + Parallel run |
 | Phase 8 (Go-Live) | ❌ NOT STARTED | Production deployment |
 
-**Next Action:** Complete Phase 1 - Create missing Plutus accounts in QBO:
-- 8 Inventory Asset sub-accounts (Manufacturing/Freight/Duty/MfgAccessories × US/UK)
-- 10 COGS sub-accounts (Manufacturing/Freight/Duty/MfgAccessories/LandFreight/Storage3PL × US/UK)
-- 1 Inventory Shrinkage parent account
-
-Automation options:
-- In Plutus → Chart of Accounts: click **Create Plutus Accounts**
-- CLI: `pnpm -C apps/plutus qbo accounts:create-plutus-qbo-lmb-plan` (connect QBO in Plutus first)
+**Next Action:** Complete Phase 1 - Create 2 parent accounts + 20 Plutus sub-accounts in QBO (see MASTER CHECKLIST below), or wait for Plutus Setup Wizard to automate this.
 
 ---
 
@@ -53,8 +60,8 @@ Amazon FBA Warehouse (Physical Reality)
         ├──────────────────────────────────────┐
         │                                      │
         ▼                                      ▼
-Settlement Report                    FBA Inventory Report
-(what Amazon paid you)               (what's physically there)
+Settlement Report                    Manual Inventory Count
+(what Amazon paid you)               (Amazon Seller Central)
         │                                      │
         ▼                                      │
        LMB ─────────► QBO ◄─────── Plutus ◄────┘
@@ -70,9 +77,22 @@ Settlement Report                    FBA Inventory Report
 | System | Data Source | Posts to QBO |
 |--------|-------------|--------------|
 | LMB | Settlement Report | Revenue, Refunds, Fees (by brand via Product Groups) |
-| Plutus | Settlement Report (SP-API) | COGS (by brand, by component) |
-| Plutus | FBA Inventory Report | Reconciliation adjustments |
+| Plutus | LMB Audit Data CSV (manual upload) | COGS (by brand, by component) |
+| Plutus | Amazon Seller Central (manual count) | Reconciliation adjustments |
 | Plutus | QBO Bills | Landed cost extraction |
+
+### Inventory Audit Trail Principle
+
+**Every inventory movement must be linked to a source document. No arbitrary opening balances allowed.**
+
+| Movement | Source Document | Ledger Entry |
+|----------|-----------------|--------------|
+| Inventory IN | QBO Bill (with PO Number) | type=PURCHASE, qty=+N |
+| Inventory OUT | LMB Settlement (via Audit Data CSV) | type=SALE, qty=-N |
+| Return to Inventory | LMB Settlement (refund matched to order) | type=RETURN, qty=+N |
+| Shrinkage/Adjustment | Monthly Reconciliation | type=ADJUSTMENT, qty=±N |
+
+**Historical Catch-Up:** New users must process all historical bills and settlements to build their inventory ledger. See Setup Wizard Step 8.
 
 ---
 
@@ -145,6 +165,130 @@ These accounts are duplicates of LMB-created accounts. Delete them:
 ---
 
 # PHASE 1: QBO ACCOUNT CREATION
+
+**Note:** The Plutus Setup Wizard automates Phase 1. It creates ALL brand sub-accounts:
+- **Inventory Asset + COGS** (Plutus posts to these)
+- **Revenue + Fee sub-accounts** (LMB posts to these via Product Groups)
+
+The account names below are **suggestions** - users can customize names during setup. See `plutus-setup-wizard-ui.md` for the UI flow.
+
+**What the Setup Wizard does:**
+- Step 2: User acknowledges LMB Accounts & Taxes Wizard is complete (creates parent accounts)
+- Step 3: Lets user define brand names
+- Step 4: Creates ALL sub-accounts (36 per 2 brands: 8 Inv Asset + 12 COGS + 16 Revenue/Fee)
+
+## MASTER CHECKLIST - ALL ACCOUNTS
+
+This is the complete list of accounts needed. The Plutus Setup Wizard creates sub-accounts automatically.
+
+**Account Summary (for 2 brands):**
+- 2 Plutus parent accounts to create (Mfg Accessories, Inventory Shrinkage)
+- 5 Plutus parent accounts (should exist: Inventory Asset, Manufacturing, Freight & Duty, Land Freight, Storage 3PL)
+- 8 LMB parent accounts (created by LMB wizard - listed for reference)
+- 36 sub-accounts (Setup Wizard creates these: 8 Inv Asset + 12 COGS + 16 Revenue/Fee)
+
+### PARENT ACCOUNTS TO CREATE (2 accounts)
+
+| # | Account Name | Account Type | Detail Type | Status |
+|---|--------------|--------------|-------------|--------|
+| 1 | Mfg Accessories | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
+| 2 | Inventory Shrinkage | Cost of Goods Sold | Other Costs of Service - COS | ❌ MISSING |
+
+### EXISTING PLUTUS PARENT ACCOUNTS (5 accounts - verify these exist)
+
+| # | Account Name | Account Type | Detail Type | Purpose |
+|---|--------------|--------------|-------------|---------|
+| 1 | Inventory Asset | Other Current Assets | Inventory | Parent for inventory component sub-accounts |
+| 2 | Manufacturing | Cost of Goods Sold | Supplies & Materials - COGS | Parent for manufacturing COGS sub-accounts |
+| 3 | Freight & Custom Duty | Cost of Goods Sold | Shipping, Freight & Delivery - COS | Parent for freight + duty COGS sub-accounts |
+| 4 | Land Freight | Cost of Goods Sold | Shipping, Freight & Delivery - COS | Parent for land freight COGS sub-accounts |
+| 5 | Storage 3PL | Cost of Goods Sold | Shipping, Freight & Delivery - COS | Parent for 3PL storage COGS sub-accounts |
+
+### LMB PARENT ACCOUNTS (created by LMB Accounts & Taxes Wizard)
+
+These accounts are created when you complete the LMB wizard. **Account names shown are LMB defaults - users can name them anything.** Plutus doesn't need to know these account names.
+
+| # | Account Name | Account Type | Detail Type | Status |
+|---|--------------|--------------|-------------|--------|
+| 1 | Amazon Sales | Income | Sales of Product Income | ✅ EXISTS |
+| 2 | Amazon Refunds | Income | Discounts/Refunds Given | ✅ EXISTS |
+| 3 | Amazon FBA Inventory Reimbursement | Other Income | Other Miscellaneous Income | ✅ EXISTS |
+| 4 | Amazon Seller Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ EXISTS |
+| 5 | Amazon FBA Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ EXISTS |
+| 6 | Amazon Storage Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ EXISTS |
+| 7 | Amazon Advertising Costs | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ EXISTS |
+| 8 | Amazon Promotions | Cost of Goods Sold | Other Costs of Service - COS | ✅ EXISTS |
+
+### INCOME SUB-ACCOUNTS (6 accounts) - Created by Plutus, LMB posts here
+
+| # | Account Name | Parent Account | Account Type | Detail Type | Status |
+|---|--------------|----------------|--------------|-------------|--------|
+| 1 | Amazon Sales - US-Dust Sheets | Amazon Sales | Income | Sales of Product Income | ✅ DONE |
+| 2 | Amazon Sales - UK-Dust Sheets | Amazon Sales | Income | Sales of Product Income | ✅ DONE |
+| 3 | Amazon Refunds - US-Dust Sheets | Amazon Refunds | Income | Discounts/Refunds Given | ✅ DONE |
+| 4 | Amazon Refunds - UK-Dust Sheets | Amazon Refunds | Income | Discounts/Refunds Given | ✅ DONE |
+| 5 | Amazon FBA Inventory Reimbursement - US-Dust Sheets | Amazon FBA Inventory Reimbursement | Other Income | Other Miscellaneous Income | ✅ DONE |
+| 6 | Amazon FBA Inventory Reimbursement - UK-Dust Sheets | Amazon FBA Inventory Reimbursement | Other Income | Other Miscellaneous Income | ✅ DONE |
+
+### FEE SUB-ACCOUNTS (10 accounts) - Created by Plutus, LMB posts here
+
+| # | Account Name | Parent Account | Account Type | Detail Type | Status |
+|---|--------------|----------------|--------------|-------------|--------|
+| 1 | Amazon Seller Fees - US-Dust Sheets | Amazon Seller Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 2 | Amazon Seller Fees - UK-Dust Sheets | Amazon Seller Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 3 | Amazon FBA Fees - US-Dust Sheets | Amazon FBA Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 4 | Amazon FBA Fees - UK-Dust Sheets | Amazon FBA Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 5 | Amazon Storage Fees - US-Dust Sheets | Amazon Storage Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 6 | Amazon Storage Fees - UK-Dust Sheets | Amazon Storage Fees | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 7 | Amazon Advertising Costs - US-Dust Sheets | Amazon Advertising Costs | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 8 | Amazon Advertising Costs - UK-Dust Sheets | Amazon Advertising Costs | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ✅ DONE |
+| 9 | Amazon Promotions - US-Dust Sheets | Amazon Promotions | Cost of Goods Sold | Other Costs of Service - COS | ✅ DONE |
+| 10 | Amazon Promotions - UK-Dust Sheets | Amazon Promotions | Cost of Goods Sold | Other Costs of Service - COS | ✅ DONE |
+
+### INVENTORY ASSET SUB-ACCOUNTS (8 accounts) - Plutus posts here
+
+| # | Account Name | Parent Account | Account Type | Detail Type | Status |
+|---|--------------|----------------|--------------|-------------|--------|
+| 1 | Inventory Asset: Manufacturing - US-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 2 | Inventory Asset: Manufacturing - UK-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 3 | Inventory Asset: Freight - US-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 4 | Inventory Asset: Freight - UK-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 5 | Inventory Asset: Duty - US-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 6 | Inventory Asset: Duty - UK-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 7 | Inventory Asset: Mfg Accessories - US-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+| 8 | Inventory Asset: Mfg Accessories - UK-Dust Sheets | Inventory Asset | Other Current Assets | Inventory | ❌ MISSING |
+
+### COGS COMPONENT SUB-ACCOUNTS (12 accounts) - Plutus posts here
+
+| # | Account Name | Parent Account | Account Type | Detail Type | Status |
+|---|--------------|----------------|--------------|-------------|--------|
+| 1 | Manufacturing - US-Dust Sheets | Manufacturing | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
+| 2 | Manufacturing - UK-Dust Sheets | Manufacturing | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
+| 3 | Freight - US-Dust Sheets | Freight & Custom Duty | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 4 | Freight - UK-Dust Sheets | Freight & Custom Duty | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 5 | Duty - US-Dust Sheets | Freight & Custom Duty | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 6 | Duty - UK-Dust Sheets | Freight & Custom Duty | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 7 | Land Freight - US-Dust Sheets | Land Freight | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 8 | Land Freight - UK-Dust Sheets | Land Freight | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 9 | Storage 3PL - US-Dust Sheets | Storage 3PL | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 10 | Storage 3PL - UK-Dust Sheets | Storage 3PL | Cost of Goods Sold | Shipping, Freight & Delivery - COS | ❌ MISSING |
+| 11 | Mfg Accessories - US-Dust Sheets | Mfg Accessories | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
+| 12 | Mfg Accessories - UK-Dust Sheets | Mfg Accessories | Cost of Goods Sold | Supplies & Materials - COGS | ❌ MISSING |
+
+### SUMMARY
+
+| Category | Total | Done | Missing | Created By |
+|----------|-------|------|---------|------------|
+| Plutus parent accounts (new) | 2 | 0 | 2 | Setup Wizard |
+| Income sub-accounts | 6 | 6 | 0 | Setup Wizard (or manual) |
+| Fee sub-accounts | 10 | 10 | 0 | Setup Wizard (or manual) |
+| Inventory Asset sub-accounts | 8 | 0 | 8 | Setup Wizard |
+| COGS component sub-accounts | 12 | 0 | 12 | Setup Wizard |
+| **SUB-ACCOUNTS TOTAL** | **36** | **16** | **20** | |
+
+**Note:** For this specific QBO (Targon), Revenue/Fee sub-accounts were created manually. For new users, Setup Wizard creates all 36 sub-accounts.
+
+---
 
 ## Step 1.1: Create New Parent Accounts
 
@@ -257,22 +401,30 @@ Create sub-accounts under existing LMB parent accounts:
 | Mfg Accessories - US-Dust Sheets | Cost of Goods Sold | Supplies & Materials - COGS |
 | Mfg Accessories - UK-Dust Sheets | Cost of Goods Sold | Supplies & Materials - COGS |
 
-## Step 1.6: Account Summary
+## Step 1.6: Verification
 
-| Category | Count |
-|----------|-------|
-| New parent accounts | 5 (includes Amazon Promotions if not exists) |
-| Income sub-accounts | 6 |
-| Fee sub-accounts (COGS) | 10 (includes Promotions) |
-| Inventory Asset sub-accounts | 8 |
-| COGS component sub-accounts | 12 |
-| **Total new accounts** | **~41** |
+After creating all accounts, verify against the MASTER CHECKLIST at the top of Phase 1.
 
-**Note:** Exact count depends on which parent accounts already exist in QBO.
+**To verify in QBO:**
+1. Go to Settings → Chart of Accounts
+2. Filter by "Inventory Asset" - should see 8 sub-accounts
+3. Filter by "Manufacturing" - should see 2 sub-accounts (US + UK)
+4. Filter by "Freight" - should see 2 sub-accounts under "Freight & Custom Duty"
+5. Filter by "Duty" - should see 2 sub-accounts under "Freight & Custom Duty"
+6. Filter by "Land Freight" - should see 2 sub-accounts
+7. Filter by "Storage 3PL" - should see 2 sub-accounts
+8. Filter by "Mfg Accessories" - should see parent + 2 sub-accounts
+9. Search for "Inventory Shrinkage" - should exist as parent account
 
 ---
 
 # PHASE 2: LMB CONFIGURATION
+
+**Note:** This phase corresponds to Plutus Setup Wizard Steps 2 and 6:
+- Step 2: User acknowledges LMB Accounts & Taxes Wizard was completed
+- Step 6: Guides user through Product Group setup (external checklist)
+
+**Plutus does NOT need to know LMB account names.** LMB handles revenue/fees independently. Plutus only manages its own Inventory Asset and COGS accounts.
 
 **Important:** You have TWO LMB connections - do Phase 2 for EACH:
 - Targon - AMAZON NORTH AMERICA (US)
@@ -405,10 +557,12 @@ Go to LMB → Inventory → Product Groups
 
 # PHASE 3: QBO CUSTOM FIELD SETUP (for Bill Entry)
 
+**Note:** This phase corresponds to Plutus Setup Wizard Step 7, which guides users through creating the custom field and verifies it exists via the QBO API.
+
 ## Step 3.1: Create Custom Field
 
 1. Go to QBO → Settings → Custom Fields
-2. Create a new field named: **"Plutus PO Number"**
+2. Create a new field named: **"PO Number"**
 3. Check the box for: **Bill** (and Purchase Order if available)
 4. Select "Text" as the type
 5. Save
@@ -416,7 +570,7 @@ Go to LMB → Inventory → Product Groups
 **Why Custom Fields instead of Tags:**
 - Tags are fragile and being deprecated by Intuit
 - Custom Fields are stable and queryable via API
-- Plutus will query bills by "Plutus PO Number" to link costs
+- Plutus will query bills by "PO Number" to link costs
 
 ---
 
@@ -426,89 +580,187 @@ Go to LMB → Inventory → Product Groups
 
 1. Note the PO number: PO-YYYY-NNN
 2. Record PO details (SKUs, quantities, expected costs)
-3. You'll enter this PO number in the "Plutus PO Number" custom field on all related bills
+3. You'll enter this PO number in the "PO Number" custom field on all related bills
 
 ## Step 4.2: When Manufacturing Bill Arrives
 
-| Field | Value |
-|-------|-------|
+**Example - exactly as it appears in QBO:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ BILL                                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Vendor:        Shenzhen Manufacturing Co                        │
+│ Bill Date:     2025-01-15                                       │
+│ Due Date:      2025-02-15                                       │
+│ Bill No:       INV-2025-0042  (vendor's invoice number)         │
+│ PO Number:     PO-2025-001    ← YOUR CUSTOM FIELD               │
+├─────────────────────────────────────────────────────────────────┤
+│ CATEGORY DETAILS (line items)                                   │
+├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+│ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
+├───┼────────────────────────────────────────┼────────────────────┼───────────┤
+│ 1 │ Inventory Asset: Manufacturing - US-Du │ CS-007 x 500 units │ $1,250.00 │
+│ 2 │ Inventory Asset: Manufacturing - US-Du │ CS-010 x 500 units │ $1,250.00 │
+├───┴────────────────────────────────────────┴────────────────────┴───────────┤
+│ TOTAL                                                            $2,500.00 │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Field-by-field:**
+| QBO Field | What to Enter |
+|-----------|---------------|
 | Vendor | Actual supplier name |
-| Plutus PO Number | PO-YYYY-NNN (Custom Field) |
+| Bill Date | Date on vendor's invoice |
+| Due Date | Payment due date |
+| Bill No | Vendor's invoice number (for your reference) |
+| PO Number | PO-YYYY-NNN (Custom Field - links related bills) |
 | Account | Inventory Asset: Manufacturing - [Brand] |
-| Line Items | One per SKU with quantity and amount |
-
-**Example:**
-```
-Vendor: Shenzhen Manufacturing Co
-Plutus PO Number: PO-2025-001  ← Custom Field, NOT Tag
-Account: Inventory Asset: Manufacturing - US-Dust Sheets
-
-Line 1: CS-007, Qty 500, $1,250.00
-Line 2: CS-010, Qty 500, $1,250.00
-Total: $2,500.00
-```
+| Description | SKU + quantity (e.g., "CS-007 x 500 units") |
+| Amount | Cost for that line item |
 
 ## Step 4.3: When Freight Bill Arrives
 
-| Field | Value |
-|-------|-------|
-| Vendor | Logistics company |
-| Plutus PO Number | PO-YYYY-NNN (same as manufacturing bill) |
-| Account | Inventory Asset: Freight - [Brand] |
-| Line Items | Total freight amount |
-
-**Example:**
+**Example - exactly as it appears in QBO:**
 ```
-Vendor: FastFreight Logistics
-Plutus PO Number: PO-2025-001
-Account: Inventory Asset: Freight - US-Dust Sheets
-
-Line 1: Ocean freight, $400.00
-Total: $400.00
+┌─────────────────────────────────────────────────────────────────┐
+│ BILL                                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Vendor:        FastFreight Logistics                            │
+│ Bill Date:     2025-01-20                                       │
+│ Due Date:      2025-02-20                                       │
+│ Bill No:       FF-78234                                         │
+│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+├─────────────────────────────────────────────────────────────────┤
+│ CATEGORY DETAILS                                                │
+├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+│ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
+├───┼────────────────────────────────────────┼────────────────────┼───────────┤
+│ 1 │ Inventory Asset: Freight - US-Dust She │ Ocean freight CHN→US│ $400.00  │
+├───┴────────────────────────────────────────┴────────────────────┴───────────┤
+│ TOTAL                                                              $400.00 │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Key:** Same PO Number as manufacturing bill - this links them together for landed cost calculation.
 
 ## Step 4.4: When Duty Bill Arrives
 
-| Field | Value |
-|-------|-------|
-| Vendor | Customs broker |
-| Plutus PO Number | PO-YYYY-NNN (same as manufacturing bill) |
-| Account | Inventory Asset: Duty - [Brand] |
-| Line Items | Total duty amount |
+**Example - exactly as it appears in QBO:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ BILL                                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Vendor:        ABC Customs Broker                               │
+│ Bill Date:     2025-01-22                                       │
+│ Due Date:      2025-02-22                                       │
+│ Bill No:       CBR-2025-1234                                    │
+│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+├─────────────────────────────────────────────────────────────────┤
+│ CATEGORY DETAILS                                                │
+├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+│ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
+├───┼────────────────────────────────────────┼────────────────────┼───────────┤
+│ 1 │ Inventory Asset: Duty - US-Dust Sheets │ Import duty 7.5%   │ $187.50   │
+├───┴────────────────────────────────────────┴────────────────────┴───────────┤
+│ TOTAL                                                             $187.50  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Step 4.5: When Land Freight Bill Arrives
 
-| Field | Value |
-|-------|-------|
-| Vendor | Local logistics |
-| Plutus PO Number | PO-YYYY-NNN (same as manufacturing bill) |
-| Account | Land Freight - [Brand] ← COGS directly, NOT Inventory Asset |
-| Line Items | Total amount |
+**Example - exactly as it appears in QBO:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ BILL                                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Vendor:        Local Trucking Inc                               │
+│ Bill Date:     2025-01-25                                       │
+│ Due Date:      2025-02-25                                       │
+│ Bill No:       LT-9876                                          │
+│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+├─────────────────────────────────────────────────────────────────┤
+│ CATEGORY DETAILS                                                │
+├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+│ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
+├───┼────────────────────────────────────────┼────────────────────┼───────────┤
+│ 1 │ Land Freight - US-Dust Sheets          │ 3PL → FBA transfer │ $150.00   │
+├───┴────────────────────────────────────────┴────────────────────┴───────────┤
+│ TOTAL                                                             $150.00  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-**Note:** Land Freight goes directly to COGS (not Inventory Asset) because:
+**Note:** Land Freight goes directly to **COGS** (not Inventory Asset) because:
 - It's incurred AFTER goods arrive at 3PL
 - It's a fulfillment cost, not a product cost
 - Simplifies landed cost calculation
 
 ## Step 4.6: When 3PL Storage Bill Arrives
 
-| Field | Value |
-|-------|-------|
-| Vendor | 3PL warehouse |
-| Memo | Month identifier (e.g., 3PL-2025-01) |
-| Account | Storage 3PL - [Brand] ← COGS directly |
-| Line Items | Split by brand based on estimated inventory % |
-
-**Example:**
+**Example - exactly as it appears in QBO:**
 ```
-3PL Storage Bill: $500/month
-Estimated split: 60% US, 40% UK
-
-Line 1: Storage 3PL - US-Dust Sheets, $300
-Line 2: Storage 3PL - UK-Dust Sheets, $200
+┌─────────────────────────────────────────────────────────────────┐
+│ BILL                                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Vendor:        ShipBob / Prep Center                            │
+│ Bill Date:     2025-01-31                                       │
+│ Due Date:      2025-02-28                                       │
+│ Bill No:       3PL-JAN-2025                                     │
+│ Memo:          3PL storage January 2025                         │
+├─────────────────────────────────────────────────────────────────┤
+│ CATEGORY DETAILS                                                │
+├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+│ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
+├───┼────────────────────────────────────────┼────────────────────┼───────────┤
+│ 1 │ Storage 3PL - US-Dust Sheets           │ 60% of storage     │ $300.00   │
+│ 2 │ Storage 3PL - UK-Dust Sheets           │ 40% of storage     │ $200.00   │
+├───┴────────────────────────────────────────┴────────────────────┴───────────┤
+│ TOTAL                                                             $500.00  │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Note:** 3PL storage goes directly to COGS (not Inventory Asset) because it's a period cost that's difficult to allocate to specific units. Plutus does NOT process this - it's entered manually in QBO.
+**Note:** 
+- 3PL storage goes directly to **COGS** (not Inventory Asset) - it's a period cost
+- Split by brand based on estimated inventory % at 3PL
+- NO PO Number needed - this is a recurring monthly cost, not tied to a specific shipment
+- Plutus does NOT process this - entered manually in QBO
+
+## Step 4.7: When Mfg Accessories Bill Arrives (Packaging, Labels, Inserts)
+
+**Example - exactly as it appears in QBO:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ BILL                                                            │
+├─────────────────────────────────────────────────────────────────┤
+│ Vendor:        PackRight Supplies                               │
+│ Bill Date:     2025-01-18                                       │
+│ Due Date:      2025-02-18                                       │
+│ Bill No:       PR-2025-456                                      │
+│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+├─────────────────────────────────────────────────────────────────┤
+│ CATEGORY DETAILS                                                │
+├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+│ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
+├───┼────────────────────────────────────────┼────────────────────┼───────────┤
+│ 1 │ Inventory Asset: Mfg Accessories - US  │ Poly bags x 1000   │ $50.00    │
+│ 2 │ Inventory Asset: Mfg Accessories - US  │ Labels x 1000      │ $30.00    │
+│ 3 │ Inventory Asset: Mfg Accessories - US  │ Insert cards x 1000│ $20.00    │
+├───┴────────────────────────────────────────┴────────────────────┴───────────┤
+│ TOTAL                                                             $100.00  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Note:** Mfg Accessories = packaging materials, labels, inserts, poly bags, etc. that go INTO the product. These are capitalized to Inventory Asset (not expensed) because they're part of the product cost.
+
+## Step 4.8: Bill Summary by Cost Type
+
+| Bill Type | Account | Goes to Inventory Asset? | PO Number Required? |
+|-----------|---------|-------------------------|---------------------|
+| Manufacturing | Inventory Asset: Manufacturing - [Brand] | ✅ Yes | ✅ Yes |
+| Freight | Inventory Asset: Freight - [Brand] | ✅ Yes | ✅ Yes |
+| Duty | Inventory Asset: Duty - [Brand] | ✅ Yes | ✅ Yes |
+| Mfg Accessories | Inventory Asset: Mfg Accessories - [Brand] | ✅ Yes | ✅ Yes |
+| Land Freight | Land Freight - [Brand] (COGS) | ❌ No - direct COGS | ✅ Yes |
+| 3PL Storage | Storage 3PL - [Brand] (COGS) | ❌ No - direct COGS | ❌ No |
 
 ---
 
@@ -599,7 +851,7 @@ model SkuCostHistory {
   qboBillIds      String[] // QBO bill IDs linked to this cost
   effectiveDate   DateTime // The Date of the Bill in QBO (for as-of lookups)
   createdAt       DateTime @default(now())
-
+  
   @@index([skuCostId, effectiveDate])
 }
 
@@ -630,12 +882,12 @@ model Settlement {
   status           String   @default("PENDING") // PENDING, PROCESSED, ERROR
   processingHash   String?  // For idempotency (prevent double-posting)
   errorMessage     String?
-
+  
   // Relations
   lines            SettlementLine[]
   postings         SettlementPosting[] // One-to-many for split months
   validation       SettlementValidation?
-
+  
   createdAt        DateTime @default(now())
   processedAt      DateTime?
   updatedAt        DateTime @updatedAt
@@ -646,18 +898,18 @@ model SettlementPosting {
   id             String     @id @default(cuid())
   settlementId   String
   settlement     Settlement @relation(fields: [settlementId], references: [id])
-
+  
   qboJournalId   String     // The ID of the COGS Journal Entry we created
   lmbInvoiceId   String?    // The ID of the LMB Invoice we matched against
-
+  
   periodStart    DateTime   // The specific date range this JE covers
   periodEnd      DateTime
   postingDate    DateTime   // The TxnDate used in QBO
-
+  
   totalCogsUSD   Decimal    @db.Decimal(12, 2)
-
+  
   createdAt      DateTime   @default(now())
-
+  
   @@index([settlementId])
 }
 
@@ -709,7 +961,7 @@ model FbaReturn {
   cogsReversed    Boolean    @default(false)
   reversalJeId    String?    // QBO journal entry ID if reversed
   createdAt       DateTime   @default(now())
-
+  
   @@index([sku, returnDate])
   @@index([disposition])
 }
@@ -804,7 +1056,7 @@ The QBO API does NOT support server-side filtering by Custom Fields (e.g., you c
 
 **Correct Implementation:**
 1. Fetch Bills by `TxnDate` range (e.g., last 90 days) or by `Vendor`
-2. Filter the results client-side in Node.js to find matching `Plutus PO Number`
+2. Filter the results client-side in Node.js to find matching `PO Number`
 3. Cache results to avoid hitting API rate limits
 
 ```typescript
@@ -814,27 +1066,38 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
   const bills = await qbo.findBills({
     TxnDate: { $gte: ninetyDaysAgo }
   });
-
+  
   // 2. Filter client-side by custom field
-  return bills.filter(bill =>
-    bill.CustomField?.find(f =>
-      f.Name === 'Plutus PO Number' && f.StringValue === poNumber
+  return bills.filter(bill => 
+    bill.CustomField?.find(f => 
+      f.Name === 'PO Number' && f.StringValue === poNumber
     )
   );
 }
 ```
 
-### Module 2: Amazon SP-API Integration
+### Module 2: LMB Audit Data Import
 
 ```
-/lib/amazon/
-├── auth.ts          # LWA authentication
-├── client.ts        # API client wrapper
-├── settlements.ts   # Settlement report fetching/parsing
-├── inventory.ts     # FBA inventory reports
-├── adjustments.ts   # Adjustment/removal reports
-└── types.ts         # TypeScript types
+/lib/lmb/
+├── parser.ts        # Parse Audit Data CSV
+├── validator.ts     # Validate CSV structure, SKUs, amounts
+├── matcher.ts       # Match refunds to original orders
+├── importer.ts      # Import and store audit data
+└── types.ts         # TypeScript types for CSV rows
 ```
+
+**CSV Columns Used:**
+| Column | Purpose |
+|--------|---------|
+| market | Marketplace (Amazon.com, Amazon.co.uk) |
+| date | Transaction date |
+| Order Id | For matching refunds to original sales |
+| Sku | Product SKU |
+| Quantity | Units sold (0 for refunds - match via Order Id) |
+| LMB Line Description | Transaction type (Amazon Sales - Principal, Amazon Refunds - Refunded Principal) |
+| Net | Amount (for validation) |
+| Invoice | LMB Invoice ID (for matching to QBO) |
 
 ### Module 3: Landed Cost Engine
 
@@ -882,8 +1145,11 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 ```
 /app/api/
 ├── auth/
-│   ├── qbo/callback/route.ts    # QBO OAuth callback
-│   └── amazon/callback/route.ts # Amazon OAuth callback
+│   └── qbo/callback/route.ts    # QBO OAuth callback
+├── audit-data/
+│   ├── route.ts                 # POST upload CSV, GET list imports
+│   ├── validate/route.ts        # POST validate CSV before import
+│   └── [id]/route.ts            # GET single import, DELETE
 ├── settlements/
 │   ├── route.ts                 # GET list, POST process
 │   └── [id]/route.ts            # GET single, POST reprocess
@@ -936,7 +1202,7 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 
 ## Step 6.1: Settlement Processing Flow (SALES ONLY)
 
-**Important:** Settlement processing handles SALES only. Returns are processed separately via FBA Returns Report (see Step 6.2).
+**Important:** Settlement processing handles SALES and REFUNDS together. Refund quantities are matched to original sales via Order ID in the same Audit Data CSV (see Step 6.2).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -956,25 +1222,27 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 │       - (happens when LMB splits across months)                 │
 │                                                                 │
 │    D. Check Status:                                             │
-│       - Query Plutus DB for this Settlement ID                  │
+│       - Query Plutus DB for this LMB Invoice ID                 │
 │       - If PROCESSED → Ignore (idempotency)                     │
 │       - If PENDING → Start processing                           │
-│       - If not found → Create new Settlement record             │
+│       - If not found → Show as "Awaiting Audit Data"            │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 2. FETCH SETTLEMENT FROM SP-API                                 │
-│    - GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2                 │
-│    - Parse into SettlementLine records                          │
+│ 2. IMPORT LMB AUDIT DATA CSV                                    │
+│    - User downloads Audit Data from LMB (manual)                │
+│    - User uploads CSV to Plutus                                 │
+│    - Plutus parses CSV, groups by Invoice column                │
+│    - Validates: SKUs exist, amounts match QBO invoice           │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 3. EXTRACT UNITS SOLD PER SKU (SALES ONLY)                      │
-│    - Filter for TransactionType = 'ORDER' only                  │
-│    - Ignore REFUND transactions (handled by Returns flow)       │
-│    - Group by SKU                                               │
+│    - Filter CSV for LMB Line Description = 'Amazon Sales -      │
+│      Principal'                                                 │
+│    - Group by SKU, sum Quantity                                 │
 │    - VALIDATE: All SKUs must be mapped (see Appendix E.4)       │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -1041,30 +1309,32 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Step 6.2: Returns Processing Flow (SEPARATE FROM SETTLEMENT)
+## Step 6.2: Returns Processing Flow (FROM AUDIT DATA CSV)
 
-**Why separate:** Settlement REFUND ≠ Physical return. Customer may get refund but keep item (returnless refund). We only reverse COGS when item physically returns to inventory.
+**Simplification:** We process refunds from the same Audit Data CSV. For refund qty, we match the Order ID back to the original sale in the CSV.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 1. FETCH FBA RETURNS REPORT (Weekly/Monthly)                    │
-│    - GET_FBA_FULFILLMENT_CUSTOMER_RETURNS_DATA                  │
-│    - Shows items physically returned to FBA                     │
+│ 1. EXTRACT REFUNDS FROM AUDIT DATA CSV                          │
+│    - Filter for LMB Line Description = 'Amazon Refunds -        │
+│      Refunded Principal'                                        │
+│    - Get Order ID and SKU for each refund                       │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 2. FILTER FOR SELLABLE RETURNS                                  │
-│    - Only reverse COGS if item returned to sellable inventory   │
-│    - Disposition: "SELLABLE" → reverse COGS                     │
-│    - Disposition: "DAMAGED/DEFECTIVE" → no reversal (shrinkage) │
+│ 2. MATCH REFUND TO ORIGINAL SALE                                │
+│    - Find original sale in CSV with same Order ID               │
+│    - Get quantity from original sale (refunds show Qty=0)       │
+│    - If no match found, flag for manual review                  │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 3. CALCULATE COGS REVERSAL                                      │
-│    - Per SKU: returned units × landed cost                      │
+│    - Per SKU: refunded units × landed cost                      │
 │    - Credit COGS / Debit Inventory Asset                        │
+│    - Note: Assumes refund = physical return to sellable inv.    │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1075,18 +1345,13 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5. POST REVERSAL JOURNAL ENTRY TO QBO                           │
-│    - Debit: Inventory Asset (cost back on balance sheet)        │
-│    - Credit: COGS (reduces expense)                             │
-│    - Memo: "Returns reversal - [date range]"                    │
+│ 5. INCLUDE IN SETTLEMENT JOURNAL ENTRY                          │
+│    - Refund reversals included in same JE as sales COGS         │
+│    - Net effect: COGS = (Sales COGS) - (Refund Reversals)       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Benefits of separate returns processing:**
-- Returnless refunds: No COGS reversal (correct - item is gone)
-- Physical returns: COGS reversal only for sellable items
-- Damaged returns: No reversal (goes to shrinkage in reconciliation)
-- Cleaner audit trail
+**Simplification Note:** This assumes all refunds result in physical returns to sellable inventory. In reality, some refunds are "returnless" (customer keeps item) or items return as damaged. This simplification may slightly overstate inventory. For higher accuracy, you could later add FBA Returns Report integration to track actual return dispositions.
 
 ## Step 6.2: COGS Journal Entry Structure
 
@@ -1122,7 +1387,7 @@ CREDITS (Inventory Asset):
 Memo: "Plutus COGS - Settlement 12345678 (Dec 19 - Jan 2, 2026)"
 ```
 
-**Example: Returns Reversal (from Step 6.2 - FBA Returns Report)**
+**Example: Returns Reversal (from Audit Data CSV refund)**
 ```
 Sellable Return: 2 units of CS-007 @ $2.50 total landed cost
 
@@ -1141,20 +1406,21 @@ CREDITS (COGS - reduces expense):
 Memo: "Returns reversal - Jan 2026"
 ```
 
-**Note:** This entry is posted from the FBA Returns Report (Step 6.2), NOT from Settlement processing. Only sellable returns trigger COGS reversal.
+**Note:** Refund reversals are included in the same JE as sales COGS. Refund qty is determined by matching Order ID to original sale in the Audit Data CSV.
 
 **Note:** Storage 3PL and Land Freight are NOT included here - they're posted directly to COGS when billed (see Step 4.5 and 4.6).
 
 ## Step 6.3: Monthly Reconciliation Flow
 
-**Developer Note:** The plan references `GET_FBA_MYI_UNSUPPRESSED_INVENTORY_DATA` flat file report. Amazon also offers the FBA Inventory API (`/fba/inventory/v1/summaries`) which provides real-time data and is cleaner to parse. Check the latest SP-API documentation to determine which is best for your use case - the API is actively maintained and may be more reliable than flat file reports.
+**Developer Note:** For reconciliation, physical inventory counts are pulled manually from Amazon Seller Central (Inventory > Manage FBA Inventory). In a future version, you could integrate Amazon's FBA Inventory API for automated pulls, but manual reconciliation is sufficient for v1 given the monthly cadence.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. GATHER PHYSICAL INVENTORY FROM ALL LOCATIONS                 │
 │                                                                 │
 │    A. Amazon FBA:                                               │
-│       - GET_FBA_MYI_UNSUPPRESSED_INVENTORY_DATA                 │
+│       - Manual: Download from Amazon Seller Central             │
+│       - (Inventory > Manage FBA Inventory > Export)             │
 │       - Units per SKU currently at Amazon                       │
 │                                                                 │
 │    B. 3PL Warehouse:                                            │
@@ -1194,11 +1460,11 @@ Memo: "Returns reversal - Jan 2026"
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5. FIND CAUSES (for material variances)                         │
-│    - Pull adjustment reports from SP-API                        │
-│    - Pull removal reports                                       │
-│    - Pull return disposition reports (DAMAGED/DEFECTIVE)        │
-│    - Match to SKU variances                                     │
+│ 5. IDENTIFY VARIANCE CAUSES (manual investigation)              │
+│    - Check Amazon Seller Central for adjustments                │
+│    - Check for damaged/lost inventory in FBA reports            │
+│    - Check removal orders                                       │
+│    - Note: Detailed cause tracking is manual for v1             │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1233,7 +1499,8 @@ Memo: "Returns reversal - Jan 2026"
 ## Step 7.2: Integration Testing
 
 - Test QBO API integration (sandbox)
-- Test SP-API integration (sandbox)
+- Test LMB Audit Data CSV parsing (various formats, edge cases)
+- Test refund-to-sale matching via Order ID
 - Test end-to-end settlement processing
 
 ## Step 7.3: Parallel Run
@@ -1286,7 +1553,7 @@ Memo: "Returns reversal - Jan 2026"
 
 1. **Define PO:** Assign a number (e.g., `PO-2026-001`)
 2. **Bill Entry:** When entering bills in QBO (Manufacturing, Freight, Duty):
-   - Enter `PO-2026-001` in the **"Plutus PO Number" Custom Field**
+   - Enter `PO-2026-001` in the **"PO Number" Custom Field**
    - Select the correct Inventory Asset account
 3. **Verification:** Check Plutus Landed Cost UI to ensure PO is detected and costs are allocated
 
@@ -1336,17 +1603,109 @@ Memo: "Returns reversal - Jan 2026"
 
 ---
 
-# APPENDIX B: AMAZON SP-API REPORTS
+# APPENDIX B: LMB AUDIT DATA IMPORT UI
 
-| Report Type | Purpose |
-|-------------|---------|
-| GET_V2_SETTLEMENT_REPORT_DATA_FLAT_FILE_V2 | Settlement transactions |
-| GET_FBA_MYI_UNSUPPRESSED_INVENTORY_DATA | Current FBA inventory |
-| GET_FBA_FULFILLMENT_INVENTORY_ADJUSTMENTS_DATA | Damaged, lost, found |
-| GET_FBA_FULFILLMENT_CUSTOMER_RETURNS_DATA | Return dispositions |
-| GET_FBA_FULFILLMENT_REMOVAL_ORDER_DETAIL_DATA | Removal orders |
-| GET_REIMBURSEMENTS_DATA | Amazon reimbursements |
-| GET_FBA_FULFILLMENT_INVENTORY_RECEIPTS_DATA | Shipment receipts |
+## B.1: Import Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  LMB AUDIT DATA IMPORT                                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Step 1: Plutus queries QBO for LMB Invoices (unprocessed)      │
+│          ↓                                                      │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ LMB Invoices awaiting COGS posting:                     │   │
+│  │                                                         │   │
+│  │  ⚠️  #18128696  Jan 2-16, 2026   $4,209.92   MISSING    │   │
+│  │  ✅  #17971233  Dec 19-30, 2025  $748.69     PROCESSED  │   │
+│  │  ✅  #17910736  Dec 5-19, 2025   $2,967.96   PROCESSED  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  Step 2: Upload Audit Data CSV                                  │
+│          [Choose File] audit-data-2026-01.csv                   │
+│          [Upload & Validate]                                    │
+│                                                                 │
+│  Step 3: Validation Results                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ CSV contains Invoice #18128696                          │   │
+│  │   - 403 sales transactions (CS-007: 226, CS-010: 36,    │   │
+│  │     CS-12LD-7M: 87, CS-1SD-32M: 54)                      │   │
+│  │   - 2 refunds (matched to original orders ✅)           │   │
+│  │   - Sales total: $4,209.92 ✅ matches QBO               │   │
+│  │                                                         │   │
+│  │ [Preview COGS]  [Process & Post COGS]                   │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## B.2: Monthly Calendar View
+
+```
+2026
+┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+│ Jan │ Feb │ Mar │ Apr │ May │ Jun │ Jul │ Aug │ Sep │ Oct │ Nov │ Dec │
+│ ⚠️  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │
+└─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+
+2025
+┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+│ Jan │ Feb │ Mar │ Apr │ May │ Jun │ Jul │ Aug │ Sep │ Oct │ Nov │ Dec │
+│  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │  -  │ ✅  │
+└─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+
+Legend: ✅ Complete  ⚠️ Pending  ❌ Error  - No data
+```
+
+## B.3: Validation Safeguards
+
+| Check | How |
+|-------|-----|
+| No missing invoices | Query QBO for LMB invoices, show which need audit data |
+| No duplicates | Track processed Invoice IDs in Plutus DB, reject re-uploads |
+| Data integrity | Sum CSV sales amounts, compare to LMB Invoice total in QBO |
+| Refund matching | Validate all refund Order IDs have matching original sale |
+| SKU validation | All SKUs in CSV exist in Plutus SKU master |
+
+## B.4: Database Model
+
+```typescript
+model AuditDataImport {
+  id                String   @id @default(cuid())
+  lmbInvoiceId      String   @unique  // 18128696
+  filename          String   // audit-data-2026-01.csv
+  marketplace       String   // Amazon.com
+  periodStart       DateTime
+  periodEnd         DateTime
+  uploadedAt        DateTime @default(now())
+  
+  // Validation stats
+  salesCount        Int      // 403
+  refundsCount      Int      // 2
+  totalSalesQty     Int      // 403
+  totalSalesAmount  Decimal  // 4209.92
+  totalRefundQty    Int      // 2
+  totalRefundAmount Decimal  // -23.98
+  
+  // Processing status
+  status            String   // UPLOADED | VALIDATED | PROCESSED | ERROR
+  validationErrors  Json?    // Any validation errors
+  processedAt       DateTime?
+  cogsJournalId     String?  // QBO JE ID after posting
+}
+```
+
+## B.5: CSV Download Instructions (for User)
+
+1. Go to LMB → Settlements Dashboard
+2. Click the download icon (top right)
+3. Select "Download Audit Data"
+4. Set date range to cover the settlement period
+5. Click "Download to CSV"
+6. Upload CSV to Plutus
+
+**Recommended:** Download monthly (covers all settlements in that month).
 
 ---
 
@@ -1417,7 +1776,7 @@ Memo: "Returns reversal - Jan 2026"
 
 1. **Buying inventory:** You pay suppliers in USD. All costs in `SkuCost` table are in **USD**.
 
-2. **Selling (US):**
+2. **Selling (US):** 
    - LMB posts revenue in USD
    - Plutus posts COGS in USD
    - Clean match
@@ -1434,24 +1793,36 @@ Memo: "Returns reversal - Jan 2026"
 - LMB handles GBP revenue via transaction-level currency
 - QBO handles FX translation for reporting
 
-## E.2: Returns Handling (FBA Returns Report)
+## E.2: Returns Handling (from Audit Data CSV)
 
-**Key Insight:** Settlement REFUND ≠ Physical Return
+**Simplified Approach (v1):** Process refunds from Audit Data CSV, assuming all refunds result in physical returns to sellable inventory.
 
-| Scenario | Settlement Report | FBA Returns Report | COGS Action |
-|----------|------------------|-------------------|-------------|
-| Customer returns item | Shows REFUND | Shows RETURN | Reverse COGS ✓ |
-| Returnless refund | Shows REFUND | NO entry | No reversal ✓ |
-| Item returned damaged | Shows REFUND | Shows RETURN (DAMAGED) | No reversal → Shrinkage |
+| Scenario | Audit Data Shows | Plutus Action | Accuracy |
+|----------|------------------|---------------|----------|
+| Customer returns item | REFUND | Reverse COGS | ✅ Correct |
+| Returnless refund | REFUND | Reverse COGS | ⚠️ Overstates inventory |
+| Item returned damaged | REFUND | Reverse COGS | ⚠️ Overstates inventory |
 
-**Why use FBA Returns Report instead of Settlement:**
-- Settlement refunds include "returnless refunds" (customer keeps item)
-- We should only reverse COGS when item is actually back in sellable inventory
-- FBA Returns Report shows what physically returned and its disposition
+**How refund matching works:**
+1. Refund row shows: SKU, Order ID, Quantity=0, negative amount
+2. Find original sale with same Order ID in CSV
+3. Get quantity from original sale
+4. Reverse COGS for that quantity
 
-**Plutus handling: Use FBA Returns Report (separate from Settlement processing)**
+**Why this simplification is acceptable:**
+- Returnless refunds are relatively rare (~5-10% of refunds)
+- Damaged returns are caught in monthly reconciliation
+- Monthly reconciliation adjusts inventory to physical count
+- Net effect: Small temporary overstatement, corrected at reconciliation
 
-See Step 6.2 for the Returns Processing Flow.
+**Future Enhancement:** Add FBA Returns Report integration to track actual return dispositions (SELLABLE vs DAMAGED) for more accurate real-time inventory.
+
+**P&L Timing Note:**
+When a refund occurs, LMB posts the revenue reversal immediately. Plutus reverses COGS in the same period. However, if the physical return happens in a later month, there's a timing mismatch:
+- Month A: Refund posted (Revenue ↓, COGS ↓)
+- Month B: Item physically received (no additional entry needed with simplified approach)
+
+This is acceptable because net P&L over time is correct.
 
 **Journal Entry for Sellable Return:**
 ```
@@ -1495,14 +1866,15 @@ Because we separate Sales (Settlement) from Returns (Physical Receipt), a timing
 
 **Plutus handling:**
 - During monthly reconciliation:
-  1. Pull GET_REIMBURSEMENTS_DATA report
-  2. Match reimbursed SKUs to inventory variance
-  3. Post adjustment:
+  1. Compare QBO book value to physical inventory count
+  2. Identify variance by SKU
+  3. Check Amazon Seller Central for reimbursement history (manual)
+  4. Post adjustment:
      ```
-     Debit: Inventory Shrinkage (or specific loss account)
+     Debit: Inventory Shrinkage
      Credit: Inventory Asset: [Component] - [Brand]
      ```
-- The reimbursement income (LMB) offsets the shrinkage expense (Plutus)
+- The reimbursement income (posted by LMB) offsets the shrinkage expense (posted by Plutus)
 
 ## E.4: Unknown SKU in Settlement
 
@@ -1536,7 +1908,7 @@ Because we separate Sales (Settlement) from Returns (Physical Receipt), a timing
 **Scenario:** Manufacturing bill arrives, but freight bill hasn't arrived yet.
 
 **Handling:**
-1. Enter manufacturing bill with "Plutus PO Number" Custom Field (e.g., PO-2026-001)
+1. Enter manufacturing bill with "PO Number" Custom Field (e.g., PO-2026-001)
 2. Plutus sees incomplete PO (missing freight/duty)
 3. Plutus flags PO as "INCOMPLETE" in UI
 4. When freight bill arrives, enter with same PO number in Custom Field
@@ -1681,3 +2053,10 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.0: January 16, 2026 - SettlementPosting table (multi-JE support), memo-based LMB matching, removed Settlement Control, P&L timing note for returns, Tag cleanup
 - v3.1: January 16, 2026 - Removed Inventory Variance account, reconciliation uses Shrinkage only (both directions), /lib/variance/ → /lib/validation/, CRITICAL validation blocks posting
 - v3.2: January 16, 2026 - Added Current Status tracker. Phase 1 partial (LMB accounts done, Plutus accounts missing)
+- v3.3: January 16, 2026 - Added MASTER CHECKLIST with all 38 accounts explicitly listed. Removed Amazon Reserved Balances from brand sub-accounts (balance sheet accounts don't need brand breakdown)
+- v3.4: January 16, 2026 - Renamed "Plutus PO Number" → "PO Number" (simpler custom field name)
+- v3.5: January 16, 2026 - MAJOR: Replaced SP-API with LMB Audit Data CSV import. Added Appendix B (Import UI design). Simplified returns handling (refunds from CSV, matched via Order ID). Removed Amazon OAuth, FBA Reports API references. Manual inventory reconciliation via Seller Central export.
+- v3.6: January 16, 2026 - Added Prerequisites section (LMB Accounts & Taxes Wizard must be completed first). Referenced Setup Wizard document. Clarified account names are customizable via Setup Wizard.
+- v3.7: January 16, 2026 - Added Inventory Audit Trail Principle. No opening balances allowed - all inventory movements must link to source documents (Bills or Settlements). Historical catch-up required for new users. Updated Setup Wizard to reflect these constraints.
+- v3.8: January 16, 2026 - Clarified Setup Wizard creates ALL 36 sub-accounts (including revenue/fee accounts for LMB). Added "Existing Plutus Parent Accounts" section. Updated status tracker and summary table. Clarified SKU costs come from bills only (not entered during setup).
+- v3.5: January 16, 2026 - Updated Phase 4 Bill Entry SOP with exact QBO bill format (ASCII mockups showing all fields)
