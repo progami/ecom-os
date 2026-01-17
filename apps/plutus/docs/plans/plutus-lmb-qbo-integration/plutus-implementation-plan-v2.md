@@ -1294,8 +1294,25 @@ model InventoryLedger {
   sku            String
   marketplace    String   // "amazon.com", "amazon.co.uk" - from CSV market column
   date           DateTime
-  type           String   // PURCHASE, SALE, RETURN, ADJUSTMENT, OPENING_SNAPSHOT
-  quantityChange Int      // Positive = in, Negative = out
+  type           String   // PURCHASE, SALE, RETURN, ADJUSTMENT, OPENING_SNAPSHOT, COST_ADJUSTMENT
+  quantityChange Int      // Positive = in, Negative = out (0 for COST_ADJUSTMENT)
+
+  /*
+  TYPE DEFINITIONS:
+  - PURCHASE: Units received from manufacturing bill (qty > 0)
+  - SALE: Units sold per settlement CSV (qty < 0)
+  - RETURN: Units returned per refund (qty > 0)
+  - ADJUSTMENT: Reconciliation adjustment (qty +/-)
+  - OPENING_SNAPSHOT: Initial inventory for catch-up mode (qty > 0)
+  - COST_ADJUSTMENT: Late freight/duty - VALUE ONLY, NO QUANTITY CHANGE
+
+  COST_ADJUSTMENT (value-only events):
+  When late freight/duty bill arrives AFTER manufacturing bill:
+  - quantityChange = 0 (no units added/removed)
+  - Only component values change (e.g., valueFreightUSD increases)
+  - This models: "full bill amount absorbed by remaining inventory"
+  - Average cost at any date = runningComponentValue / runningQty
+  */
 
   // Component-level costs (enables reconciliation by sub-account)
   unitMfgUSD        Decimal  @db.Decimal(10, 4) @default(0)
@@ -2546,3 +2563,4 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.13: January 17, 2026 - (1) Added Inventory Shrinkage brand sub-accounts (2 accounts) so brand P&Ls sum to 100%. (2) Total sub-accounts now 39 (was 37). (3) Clarified COGS posting responsibility (Plutus vs Manual for Land Freight/Storage 3PL). (4) Fixed bill parsing validation to apply to manufacturing lines only. (5) Added detailed PO completeness rules.
 - v3.14: January 17, 2026 - MAJOR: (1) Fixed QBO Account.Name uniqueness issue - Inventory Asset accounts now prefixed with "Inv" (e.g., "Inv Manufacturing - US-Dust Sheets") to avoid collision with COGS accounts. (2) Removed Rounding account - JEs now balance by construction (round component totals, not individual SKUs). Total sub-accounts now 38 (was 39). (3) Updated bill parsing to support UK SKUs with spaces (e.g., "CS 007", "CS 1SD-32M"). (4) Fixed Step 6.x numbering (6.2→6.3→6.4). (5) Standardized Detail Type spelling to "Other Costs of Services - COS".
 - v3.15: January 17, 2026 - (1) CRITICAL: Settlement processing now stores sales at ORDER-LINE granularity (one InventoryLedger entry per orderId+sku), not aggregated. Required for DB-first refund matching to work across periods. (2) Added explicit Bill Effective Date Rule: "bill date" = QBO TxnDate, not entry time. (3) Clarified "Brand P&L sums to 100%" applies to Amazon operations only, not company overhead.
+- v3.16: January 17, 2026 - (1) Added COST_ADJUSTMENT ledger type for late freight/duty bills (value-only events with quantityChange=0). (2) Synced Setup Wizard to use correct "Inv" prefix for all Inventory Asset account names. (3) Added Inventory Shrinkage to wizard COGS list. (4) Separated "Plutus posts" vs "Manual" COGS sections in wizard.
