@@ -402,8 +402,8 @@ export function WorkbookLayout({
               className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-3 py-2.5 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-4 lg:px-5"
               role="banner"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex min-w-0 flex-1 items-center">
+              <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+                <div className="min-w-0 overflow-hidden">
                   <SheetTabs
                     sheets={sheetTabs}
                     activeSlug={activeSlug}
@@ -411,7 +411,7 @@ export function WorkbookLayout({
                     onSheetSelect={goToSheet}
                   />
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex items-center gap-3">
                   {/* Active strategy indicator */}
                   {ribbon}
 
