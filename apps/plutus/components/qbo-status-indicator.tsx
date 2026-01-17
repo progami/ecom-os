@@ -139,15 +139,18 @@ export function QboStatusIndicator() {
   }
 
   return (
-    <Button
+    <button
       onClick={handleConnect}
-      size="sm"
-      className="rounded-full bg-brand-teal-600 hover:bg-brand-teal-700 dark:bg-brand-cyan dark:hover:bg-brand-cyan/90 text-white px-4"
+      className={cn(
+        'flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors',
+        'bg-red-50 dark:bg-red-900/30',
+        'hover:bg-red-100 dark:hover:bg-red-900/50'
+      )}
     >
-      <span className="mr-2">Connect QBO</span>
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-      </svg>
-    </Button>
+      <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+      <span className="text-sm font-medium text-red-700 dark:text-red-400">
+        QBO
+      </span>
+    </button>
   );
 }
