@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
@@ -10,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronRight,
   FileText,
@@ -343,14 +341,8 @@ export default function NewFulfillmentOrderPage() {
         title="New Fulfillment Order"
         description="Operations"
         icon={FileText}
-        actions={
-          <Button asChild variant="outline" className="gap-2">
-            <Link href="/operations/fulfillment-orders">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Link>
-          </Button>
-        }
+        backHref="/operations/fulfillment-orders"
+        backLabel="Back"
       />
       <PageContent>
         <div className="flex flex-col gap-6">

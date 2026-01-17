@@ -21,10 +21,11 @@ export function Breadcrumb() {
  const breadcrumbs = segments.map((segment, index) => {
  const href = '/' + segments.slice(0, index + 1).join('/')
  const previousSegment = index > 0 ? segments[index - 1] : null
+ const nextSegment = index < segments.length - 1 ? segments[index + 1] : null
 
  // Skip warehouse IDs in breadcrumbs (they don't have their own page)
  // Warehouse IDs appear after 'warehouses' and before 'rates' or 'edit'
- const isWarehouseId = previousSegment === 'warehouses' && segment.match(/^[a-f0-9-]{36}$/i)
+ const isWarehouseId = previousSegment === 'warehouses' && nextSegment !== null && ['edit', 'rates'].includes(nextSegment)
  const isOperationsRoot = segment === 'operations'
 
  // Handle special cases for better labels

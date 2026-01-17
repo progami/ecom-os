@@ -1,15 +1,13 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { useSession } from '@/hooks/usePortalSession'
 import { redirectToPortal } from '@/lib/portal'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, Boxes, Loader2 } from '@/lib/lucide-icons'
+import { Boxes, Loader2 } from '@/lib/lucide-icons'
 import { SkuBatchesPanel } from '../sku-batches-modal'
 
 const ALLOWED_ROLES = ['admin', 'staff']
@@ -145,14 +143,8 @@ function ProductBatchesPageInner() {
           title="Batches"
           description="Configuration"
           icon={Boxes}
-          actions={
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/config/products">
-                <ArrowLeft className="h-4 w-4" />
-                Back to SKUs
-              </Link>
-            </Button>
-          }
+          backHref="/config/products"
+          backLabel="Back"
         />
         <PageContent>
           {!skuId ? (

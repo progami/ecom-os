@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, FileEdit, Loader2, Plus, Trash2, AlertTriangle, Package, FileText } from '@/lib/lucide-icons'
+import { FileEdit, Loader2, Plus, Trash2, AlertTriangle, Package, FileText } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
@@ -431,14 +431,8 @@ export default function NewPurchaseOrderPage() {
         title="New Purchase Order"
         description="Operations"
         icon={FileEdit}
-        actions={
-          <Button variant="outline" asChild className="gap-2">
-            <Link href="/operations/purchase-orders">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Link>
-          </Button>
-        }
+        backHref="/operations/purchase-orders"
+        backLabel="Back"
       />
       <PageContent>
         <form onSubmit={handleSubmit} className="space-y-6">
