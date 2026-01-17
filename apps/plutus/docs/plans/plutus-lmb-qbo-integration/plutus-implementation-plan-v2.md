@@ -144,7 +144,30 @@ When late freight bill arrives for PO:
 
 If late cost bill arrives and on-hand units = 0 for any SKU in the PO:
 ```
-BLOCK: "Cannot apply [Freight/Duty] to SKU [X] - inventory fully depleted as-of bill date."
+BLOCK MESSAGE (with actionable details):
+─────────────────────────────────────────────────────────────────
+❌ Cannot Apply Late Cost
+
+PO Number:        PO-2026-001
+Bill Type:        Freight
+Bill TxnDate:     2026-02-15
+SKU:              CS-007
+
+Problem: On-hand = 0 as-of 2026-02-15
+         Inventory was depleted by settlements before this bill date.
+
+Depleting settlements:
+  • Invoice 12345678 (processed 2026-02-10) - sold 500 units
+  • Invoice 12345679 (processed 2026-02-12) - sold 300 units
+
+Options:
+  (a) Backdate bill TxnDate to before 2026-02-10 (earliest depletion)
+  (b) Create manual COGS JE to expense this cost directly
+  (c) Accept cost is unallocated (not recommended)
+
+[Edit Bill in QBO]  [Create Manual JE]  [Skip This Bill]
+─────────────────────────────────────────────────────────────────
+```
 
 User options:
 (a) Backdate the bill to before inventory was depleted
@@ -152,7 +175,6 @@ User options:
 (c) Accept that this cost is "lost" for COGS purposes (not recommended)
 
 v2 will add: Retroactive COGS adjustment for already-sold units
-```
 
 This is a data entry timing issue. Prevention is better than cure.
 
@@ -378,6 +400,72 @@ If sales are aggregated, refund matching breaks for cross-period refunds.
 ```
 
 JE creation can still aggregate totals by (brand, component) for readability.
+
+#### 14. Immutable Cost Snapshots (No Retro-Costing)
+**Once a settlement is PROCESSED, its ledger entries are append-only and never re-costed.**
+
+```
+Rule: InventoryLedger entries from processed settlements are IMMUTABLE.
+
+Implications:
+- A late freight bill CANNOT retroactively change COGS already posted
+- Backdated bill TxnDate affects future COGS, not past
+- Reprocessing = explicit workflow (void JE → delete settlement → re-upload)
+
+Why: Auditability, refund reversal correctness, reconciliation explainability.
+```
+
+#### 15. Date Normalization (Midnight UTC)
+**All dates stored as date-only (not datetime) or normalized to midnight UTC.**
+
+```
+- Bill TxnDate → store as DATE (no time component)
+- Settlement period dates → DATE only
+- InventoryLedger.date → DATE only
+
+Why: Prevents cross-timezone issues creating phantom "as-of" errors.
+Example: A bill dated "2026-01-15" should be "2026-01-15" everywhere,
+not "2026-01-14T23:00:00Z" in some time zones.
+```
+
+#### 16. QBO Duplicate JE Safety Check (Two-Tier Idempotency)
+**Before creating a JE, verify it doesn't already exist in QBO.**
+
+```
+Tier 1: DB idempotency (existing)
+- Check Settlement table for (marketplace, invoiceId, processingHash)
+
+Tier 2: QBO duplicate safety (additional guard)
+- Before creating JE, search QBO for existing JE:
+  - Date range: postingDate ± 7 days
+  - Memo contains: "Plutus COGS | Invoice: <invoiceId>"
+- If found → BLOCK with message:
+  "JE already exists in QBO for this invoice. Import may have been
+   partially completed earlier. Verify and delete QBO JE if needed."
+
+Why: Prevents double-posting if:
+- Deploy/DB reset occurs
+- QBO write succeeded but DB commit failed
+- Someone manually deleted Settlement record but not the JE
+```
+
+#### 17. Same-Day Event Ordering (Deterministic Ledger)
+**When multiple InventoryLedger events share the same date, order deterministically.**
+
+```
+Sort order for same-day events: (date, typePriority, createdAt, id)
+
+Type priority (process in this order):
+1. OPENING_SNAPSHOT (first - establishes baseline)
+2. PURCHASE (adds units)
+3. COST_ADJUSTMENT (modifies values, not quantities)
+4. SALE (removes units)
+5. RETURN (adds units back)
+6. ADJUSTMENT (reconciliation corrections)
+
+Why: Prevents "same-day weirdness" where event order affects computed
+averages or on-hand counts. Makes ledger replay deterministic.
+```
 
 ---
 
@@ -663,17 +751,19 @@ Create sub-accounts under existing LMB parent accounts:
 
 ## Step 1.4: Create Inventory Asset Sub-Accounts
 
+**⚠️ IMPORTANT: Use "Inv" prefix to avoid name collision with COGS accounts**
+
 **Under Inventory Asset**
 | Sub-Account Name | Account Type | Detail Type |
 |------------------|--------------|-------------|
-| Manufacturing - US-Dust Sheets | Other Current Assets | Inventory |
-| Manufacturing - UK-Dust Sheets | Other Current Assets | Inventory |
-| Freight - US-Dust Sheets | Other Current Assets | Inventory |
-| Freight - UK-Dust Sheets | Other Current Assets | Inventory |
-| Duty - US-Dust Sheets | Other Current Assets | Inventory |
-| Duty - UK-Dust Sheets | Other Current Assets | Inventory |
-| Mfg Accessories - US-Dust Sheets | Other Current Assets | Inventory |
-| Mfg Accessories - UK-Dust Sheets | Other Current Assets | Inventory |
+| Inv Manufacturing - US-Dust Sheets | Other Current Assets | Inventory |
+| Inv Manufacturing - UK-Dust Sheets | Other Current Assets | Inventory |
+| Inv Freight - US-Dust Sheets | Other Current Assets | Inventory |
+| Inv Freight - UK-Dust Sheets | Other Current Assets | Inventory |
+| Inv Duty - US-Dust Sheets | Other Current Assets | Inventory |
+| Inv Duty - UK-Dust Sheets | Other Current Assets | Inventory |
+| Inv Mfg Accessories - US-Dust Sheets | Other Current Assets | Inventory |
+| Inv Mfg Accessories - UK-Dust Sheets | Other Current Assets | Inventory |
 
 ## Step 1.5: Create COGS Component Sub-Accounts
 
@@ -1164,17 +1254,31 @@ model Brand {
 // SKU to Brand mapping (per marketplace)
 model SkuMapping {
   id          String   @id @default(cuid())
-  sku         String
+  sku         String   // Canonical SKU (e.g., "CS-007")
   brandId     String
   brand       Brand    @relation(fields: [brandId], references: [id])
   asin        String?
   productName String?
+  aliases     String[] // Alternative text forms: ["CS007", "CS 007", "CS-007"] for bill parsing
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([sku, brandId])
 }
+
+/*
+SKU ALIAS STRATEGY (for bill line parsing):
+Real supplier docs have formatting drift: CS007 vs CS-007 vs CS 007
+
+Parser logic:
+1. Build alias lookup map from all SkuMappings
+2. For each bill line, match against aliases (longest match first)
+3. If multiple SKUs match same line → BLOCK (ambiguous)
+4. If no match → flag line for manual review
+
+This keeps "mfg lines must parse" principle but avoids death-by-formatting.
+*/
 
 // Landed costs per SKU - ALL COSTS STORED IN USD (base currency)
 model SkuCost {
@@ -1329,6 +1433,9 @@ model InventoryLedger {
   valueTotalUSD     Decimal  @db.Decimal(12, 2) // Sum of above (computed)
 
   // Running totals (after this event)
+  // NOTE: These are DERIVED/CACHED values, not source of truth.
+  // Can be recomputed from event rows at any time.
+  // If backdated events are inserted, recompute for affected SKU.
   runningQty        Int?
   runningMfgUSD     Decimal? @db.Decimal(12, 2)
   runningFreightUSD Decimal? @db.Decimal(12, 2)
@@ -1470,11 +1577,12 @@ model AuditLog {
 Plutus uses the Bill's `PrivateNote` (Memo) field to link bills by PO number.
 
 **QBO Query Constraints (v1 spec):**
-- Lookback window: **90 days maximum** (bills older than this require date range expansion)
-- Pagination: `maxresults=100`, use `startposition` for next page
+- Lookback window: **90 days default** (bills older than this require date range expansion)
+- Pagination: `maxresults` up to **1000** (QBO default is 100), use `startposition` for next page
+- Recommended page size: **500-1000** for accounts/bills to reduce round trips
 - Cache TTL: 5 minutes (avoid repeated API calls)
-- OR operator: NOT supported by QBO - use multiple queries
-- Special characters: Escape quotes in PrivateNote queries
+- OR operator: NOT supported by QBO - use multiple queries or fetch-and-filter
+- Special characters: Escape quotes in PrivateNote queries (backslash escaping)
 
 **Query Strategy:**
 1. Try exact match: `SELECT * FROM Bill WHERE PrivateNote = 'PO: PO-2026-001'`
@@ -2564,3 +2672,5 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.14: January 17, 2026 - MAJOR: (1) Fixed QBO Account.Name uniqueness issue - Inventory Asset accounts now prefixed with "Inv" (e.g., "Inv Manufacturing - US-Dust Sheets") to avoid collision with COGS accounts. (2) Removed Rounding account - JEs now balance by construction (round component totals, not individual SKUs). Total sub-accounts now 38 (was 39). (3) Updated bill parsing to support UK SKUs with spaces (e.g., "CS 007", "CS 1SD-32M"). (4) Fixed Step 6.x numbering (6.2→6.3→6.4). (5) Standardized Detail Type spelling to "Other Costs of Services - COS".
 - v3.15: January 17, 2026 - (1) CRITICAL: Settlement processing now stores sales at ORDER-LINE granularity (one InventoryLedger entry per orderId+sku), not aggregated. Required for DB-first refund matching to work across periods. (2) Added explicit Bill Effective Date Rule: "bill date" = QBO TxnDate, not entry time. (3) Clarified "Brand P&L sums to 100%" applies to Amazon operations only, not company overhead.
 - v3.16: January 17, 2026 - (1) Added COST_ADJUSTMENT ledger type for late freight/duty bills (value-only events with quantityChange=0). (2) Synced Setup Wizard to use correct "Inv" prefix for all Inventory Asset account names. (3) Added Inventory Shrinkage to wizard COGS list. (4) Separated "Plutus posts" vs "Manual" COGS sections in wizard.
+- v3.17: January 17, 2026 - (1) Fixed Step 1.4 to use "Inv" prefix for Inventory Asset accounts (was inconsistent with MASTER CHECKLIST). (2) Updated QBO pagination: maxresults up to 1000, recommended 500-1000 for efficiency. (3) Added V1 Constraint #14: Immutable Cost Snapshots (no retro-costing). (4) Added V1 Constraint #15: Date Normalization (midnight UTC). (5) Added SkuMapping.aliases field for SKU text variant matching in bill parsing.
+- v3.18: January 17, 2026 - (1) Added V1 Constraint #16: QBO Duplicate JE Safety Check (two-tier idempotency - DB + QBO search). (2) Added V1 Constraint #17: Same-Day Event Ordering (deterministic ledger replay). (3) Added note that InventoryLedger running totals are derived/recomputable. (4) Improved late freight BLOCK message with actionable diagnostics (shows PO, SKU, depleting settlements, options).
