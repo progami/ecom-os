@@ -201,6 +201,17 @@ From the matched sale row, Plutus retrieves:
 - Original sale date (for historical cost lookup)
 - Quantity (for COGS reversal)
 
+**⚠️ Partial Refund Guardrail:**
+```
+If refund amount is significantly less than expected for full unit reversal:
+- Flag as "Possible partial refund / promo adjustment"
+- Require user review before creating RETURN ledger entry
+- Options: (a) Confirm full unit return, (b) Skip COGS reversal, (c) Manual qty entry
+
+Why: Partial refunds (e.g., $5 refund on $25 item) may not represent physical returns.
+Automatically reversing COGS overstates inventory.
+```
+
 #### 4. Cost Allocation Rule
 Freight and Duty bills are allocated **across SKUs by units in the PO**:
 ```
@@ -465,6 +476,32 @@ Type priority (process in this order):
 
 Why: Prevents "same-day weirdness" where event order affects computed
 averages or on-hand counts. Makes ledger replay deterministic.
+```
+
+#### 18. Marketplace Normalization (Canonical Values)
+**Normalize marketplace values at ingestion. Store only canonical forms.**
+
+```
+CSV 'market' column may contain: "Amazon.com", "amazon.com", "US", "Amazon.co.uk", etc.
+
+Canonical values (store only these):
+- amazon.com
+- amazon.co.uk
+
+Normalization function (apply everywhere):
+- Trim whitespace
+- Lowercase
+- Map known variants:
+  - "US", "Amazon.com", "amazon.com" → "amazon.com"
+  - "UK", "Amazon.co.uk", "amazon.co.uk" → "amazon.co.uk"
+
+Why: Every key that includes marketplace depends on consistent values:
+- Idempotency: (marketplace, invoiceId, processingHash)
+- Refund matching: (marketplace, orderId, sku)
+- SKU costs: (sku, marketplace)
+- Brand mapping: marketplace → brand
+
+Without normalization, lookups fail silently or return wrong data.
 ```
 
 ---
@@ -1272,10 +1309,20 @@ SKU ALIAS STRATEGY (for bill line parsing):
 Real supplier docs have formatting drift: CS007 vs CS-007 vs CS 007
 
 Parser logic:
-1. Build alias lookup map from all SkuMappings
-2. For each bill line, match against aliases (longest match first)
-3. If multiple SKUs match same line → BLOCK (ambiguous)
-4. If no match → flag line for manual review
+1. Determine BRAND CONTEXT from bill line's Account (e.g., "Inv Manufacturing - US-Dust Sheets" → US-Dust Sheets brand)
+2. Build alias lookup map SCOPED TO THAT BRAND only
+3. For each bill line, match against brand-scoped aliases (longest match first)
+4. If multiple SKUs match same line → BLOCK (ambiguous)
+5. If no match → flag line for manual review
+
+BRAND-AWARE MATCHING (Critical):
+Without brand scoping, aliases can collide across brands:
+  - US SKU: CS-007 (aliases: ["CS007", "CS-007"])
+  - UK SKU: CS 007 (aliases: ["CS007", "CS 007"])
+  - Text "CS007" would match BOTH → ambiguous
+
+By scoping to brand (from Account), we eliminate cross-brand collisions.
+The Account on each bill line determines which brand's SKUs to search.
 
 This keeps "mfg lines must parse" principle but avoids death-by-formatting.
 */
@@ -1409,6 +1456,12 @@ model InventoryLedger {
   - ADJUSTMENT: Reconciliation adjustment (qty +/-)
   - OPENING_SNAPSHOT: Initial inventory for catch-up mode (qty > 0)
   - COST_ADJUSTMENT: Late freight/duty - VALUE ONLY, NO QUANTITY CHANGE
+
+  PURCHASE DATE SEMANTICS (Accounting Policy):
+  Inventory is recognized on the QBO Bill TxnDate, NOT physical receipt date.
+  - This means inventory may appear "in transit" before FBA actually receives it
+  - Monthly reconciliation must account for in-transit and 3PL counts
+  - This is a deliberate accounting policy choice for simplicity in v1
 
   COST_ADJUSTMENT (value-only events):
   When late freight/duty bill arrives AFTER manufacturing bill:
@@ -2088,10 +2141,16 @@ Memo: "Returns reversal - Jan 2026"
 │                                                                 │
 │    Example (US brand, 10 units short @ $3.00 total landed):     │
 │    - Debit: Inventory Shrinkage - US-Dust Sheets    $30.00      │
-│    - Credit: Inv Asset: Manufacturing - US          $25.00      │
-│    - Credit: Inv Asset: Freight - US                $3.00       │
-│    - Credit: Inv Asset: Duty - US                   $1.50       │
-│    - Credit: Inv Asset: Mfg Accessories - US        $0.50       │
+│    - Credit: Inv Manufacturing - US-Dust Sheets     $25.00      │
+│    - Credit: Inv Freight - US-Dust Sheets           $3.00       │
+│    - Credit: Inv Duty - US-Dust Sheets              $1.50       │
+│    - Credit: Inv Mfg Accessories - US-Dust Sheets   $0.50       │
+│                                                                 │
+│    COMPONENT SPLIT RULE:                                        │
+│    Use current per-unit component averages as-of reconciliation │
+│    date to split the adjustment across Inv Asset sub-accounts.  │
+│    This keeps reconciliation JE consistent with sub-account     │
+│    structure and makes variances explainable.                   │
 │                                                                 │
 │    Note: Brand-specific Shrinkage ensures brand P&Ls sum to 100%│
 └─────────────────────────────────────────────────────────────────┘
@@ -2674,3 +2733,4 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.16: January 17, 2026 - (1) Added COST_ADJUSTMENT ledger type for late freight/duty bills (value-only events with quantityChange=0). (2) Synced Setup Wizard to use correct "Inv" prefix for all Inventory Asset account names. (3) Added Inventory Shrinkage to wizard COGS list. (4) Separated "Plutus posts" vs "Manual" COGS sections in wizard.
 - v3.17: January 17, 2026 - (1) Fixed Step 1.4 to use "Inv" prefix for Inventory Asset accounts (was inconsistent with MASTER CHECKLIST). (2) Updated QBO pagination: maxresults up to 1000, recommended 500-1000 for efficiency. (3) Added V1 Constraint #14: Immutable Cost Snapshots (no retro-costing). (4) Added V1 Constraint #15: Date Normalization (midnight UTC). (5) Added SkuMapping.aliases field for SKU text variant matching in bill parsing.
 - v3.18: January 17, 2026 - (1) Added V1 Constraint #16: QBO Duplicate JE Safety Check (two-tier idempotency - DB + QBO search). (2) Added V1 Constraint #17: Same-Day Event Ordering (deterministic ledger replay). (3) Added note that InventoryLedger running totals are derived/recomputable. (4) Improved late freight BLOCK message with actionable diagnostics (shows PO, SKU, depleting settlements, options).
+- v3.19: January 17, 2026 - (1) Added V1 Constraint #18: Marketplace Normalization (canonical values). (2) Added partial refund guardrail to Refund Matching Rule. (3) Added PURCHASE date semantics as explicit accounting policy. (4) Added reconciliation component split rule. (5) Made SKU alias matching BRAND-AWARE (scope to brand from bill line Account to prevent cross-brand alias collisions).
