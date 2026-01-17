@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { ArrowLeft } from '@/lib/lucide-icons'
 import { Button } from '@/components/ui/button'
+import { HistoryBackButton } from '@/components/ui/history-back-button'
 
 interface PageContainerProps {
  children: React.ReactNode
@@ -61,7 +62,9 @@ export function PageHeaderSection({
  {backLabel}
  </Link>
  </Button>
- ) : null}
+ ) : (
+ <HistoryBackButton label="Back" />
+ )}
  {Icon && (
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md ">
  <Icon className="h-5 w-5 text-white " />
