@@ -894,7 +894,6 @@ export default function NewPurchaseOrderPage() {
                           const cbmPerCarton = cartonTriplet
                             ? (cartonTriplet.side1Cm * cartonTriplet.side2Cm * cartonTriplet.side3Cm) / 1_000_000
                             : null
-                          const hasData = cartonTriplet || batch?.cartonWeightKg
 
                           return (
                             <tr key={item.id} className="border-t">
