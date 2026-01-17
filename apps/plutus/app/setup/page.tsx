@@ -14,11 +14,11 @@ const LMB_SETUP_WIZARD_URL = 'https://app.linkmybooks.com/setup-wizard';
 const QBO_CHART_OF_ACCOUNTS_URL = 'https://app.qbo.intuit.com/app/chartofaccounts';
 
 const REQUIRED_PARENT_ACCOUNTS = [
-  'Inventory Asset',
-  'Manufacturing',
-  'Freight & Custom Duty',
-  'Land Freight',
-  'Storage 3PL',
+  { name: 'Inventory Asset', type: 'Other Current Assets' },
+  { name: 'Manufacturing', type: 'Cost of Goods Sold' },
+  { name: 'Freight & Custom Duty', type: 'Cost of Goods Sold' },
+  { name: 'Land Freight', type: 'Cost of Goods Sold' },
+  { name: 'Storage 3PL', type: 'Cost of Goods Sold' },
 ] as const;
 
 const DEFAULT_BRANDS = ['UK-Dust Sheets', 'US-Dust Sheets'];
@@ -491,8 +491,8 @@ function AccountSetupStep({
   const [phase, setPhase] = useState<'verify' | 'create' | 'done'>('verify');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [parentStatus, setParentStatus] = useState<{ name: string; status: 'pass' | 'fail' | 'pending' }[]>(
-    REQUIRED_PARENT_ACCOUNTS.map((name) => ({ name, status: 'pending' }))
+  const [parentStatus, setParentStatus] = useState<{ name: string; type: string; status: 'pass' | 'fail' | 'pending' }[]>(
+    REQUIRED_PARENT_ACCOUNTS.map((item) => ({ name: item.name, type: item.type, status: 'pending' }))
   );
   const [createResult, setCreateResult] = useState<{ created: number; skipped: number } | null>(null);
 
@@ -507,12 +507,12 @@ function AccountSetupStep({
       }
 
       const accounts: Array<{ name: string; parentName: string | null; active?: boolean }> = data.accounts || [];
-      const results = REQUIRED_PARENT_ACCOUNTS.map((name) => {
+      const results = REQUIRED_PARENT_ACCOUNTS.map((item) => {
         const account = accounts.find(
-          (a) => a.parentName === null && a.name.toLowerCase() === name.toLowerCase()
+          (a) => a.parentName === null && a.name.toLowerCase() === item.name.toLowerCase()
         );
         const exists = account && account.active !== false;
-        return { name, status: (exists ? 'pass' : 'fail') as 'pass' | 'fail' };
+        return { name: item.name, type: item.type, status: (exists ? 'pass' : 'fail') as 'pass' | 'fail' };
       });
 
       setParentStatus(results);
@@ -590,7 +590,8 @@ function AccountSetupStep({
                 >
                   {item.status === 'pass' && '✓ '}
                   {item.status === 'fail' && '✗ '}
-                  {item.name}
+                  {item.name}{' '}
+                  <span className="font-normal opacity-75">({item.type})</span>
                 </div>
               ))}
             </div>
