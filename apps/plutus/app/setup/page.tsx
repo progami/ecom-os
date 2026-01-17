@@ -10,6 +10,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH;
 
 // External URLs
 const LMB_APP_URL = 'https://app.linkmybooks.com';
+const LMB_SETUP_WIZARD_URL = 'https://app.linkmybooks.com/setup-wizard';
 const QBO_CHART_OF_ACCOUNTS_URL = 'https://app.qbo.intuit.com/app/chartofaccounts';
 
 const REQUIRED_PARENT_ACCOUNTS = [
@@ -23,30 +24,16 @@ const REQUIRED_PARENT_ACCOUNTS = [
 const DEFAULT_BRANDS = ['UK-Dust Sheets', 'US-Dust Sheets'];
 const STORAGE_KEY = 'plutus-setup-wizard';
 
-type QboAccount = {
-  id: string;
-  name: string;
-  fullyQualifiedName: string;
-  accountType: string;
-  active: boolean;
-};
-
-type BrandSalesMapping = {
-  brand: string;
-  salesAccountId: string | null;
-  salesAccountName: string | null;
-};
-
 type WizardState = {
   step: number;
   brands: string[];
-  salesMappings: BrandSalesMapping[];
+  lmbSetupChecks: string[];
   lmbChecks: string[];
   parentsVerified: boolean;
   accountsCreated: boolean;
 };
 
-const STEPS = ['Brands', 'LMB Sales', 'QBO Setup', 'LMB Config', 'Done'];
+const STEPS = ['Brands', 'LMB Setup', 'QBO Setup', 'LMB Config', 'Done'];
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
@@ -170,146 +157,91 @@ function BrandsStep({
   );
 }
 
-// Step 2: LMB Sales Account Mapping
-function SalesMappingStep({
-  brands,
-  mappings,
-  onMappingsChange,
+// Step 2: LMB Setup (do this before creating accounts)
+function LmbSetupStep({
+  checks,
+  onChecksChange,
   onNext,
   onBack,
 }: {
-  brands: string[];
-  mappings: BrandSalesMapping[];
-  onMappingsChange: (mappings: BrandSalesMapping[]) => void;
+  checks: string[];
+  onChecksChange: (checks: string[]) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<QboAccount[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const items = [
+    { id: 'wizard-us', label: 'Run LMB Setup Wizard (US connection)' },
+    { id: 'wizard-uk', label: 'Run LMB Setup Wizard (UK connection)' },
+    { id: 'custom-chart', label: 'Select “Custom Chart Accounts” in LMB' },
+  ];
 
-  // Fetch income accounts from QBO
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${basePath}/api/qbo/accounts`);
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data?.error || `Failed to fetch accounts (${res.status})`);
-        }
-        // Filter for Income accounts only
-        const incomeAccounts = (data.accounts || []).filter(
-          (a: QboAccount) => a.accountType === 'Income' && a.active !== false
-        );
-        setAccounts(incomeAccounts);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAccounts();
-  }, []);
-
-  // Initialize mappings for any new brands
-  useEffect(() => {
-    const safeMappings = mappings || [];
-    const currentBrandNames = safeMappings.map((m) => m.brand);
-    const newMappings = brands
-      .filter((b) => !currentBrandNames.includes(b))
-      .map((brand) => ({ brand, salesAccountId: null, salesAccountName: null }));
-
-    if (newMappings.length > 0 || safeMappings.length !== brands.length) {
-      // Also remove mappings for brands that no longer exist
-      const validMappings = safeMappings.filter((m) => brands.includes(m.brand));
-      onMappingsChange([...validMappings, ...newMappings]);
+  const toggleCheck = (id: string) => {
+    if (checks.includes(id)) {
+      onChecksChange(checks.filter((c) => c !== id));
+      return;
     }
-  }, [brands, mappings, onMappingsChange]);
-
-  const updateMapping = (brand: string, accountId: string | null, accountName: string | null) => {
-    const safeMappings = mappings || [];
-    const updated = safeMappings.map((m) =>
-      m.brand === brand ? { ...m, salesAccountId: accountId, salesAccountName: accountName } : m
-    );
-    onMappingsChange(updated);
+    onChecksChange([...checks, id]);
   };
 
-  const allMapped = brands.every((brand) => {
-    const mapping = (mappings || []).find((m) => m.brand === brand);
-    return mapping?.salesAccountId != null;
-  });
+  const allChecked = items.every((item) => checks.includes(item.id));
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">LMB Sales Accounts</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Link My Books Setup</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          For each brand, select which QBO account LMB posts Sales to.
+          Before creating Plutus accounts, complete the LMB setup wizard for each connection so the base Amazon/LMB
+          accounts exist in QBO.
         </p>
       </div>
 
-      {error && (
-        <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-        </div>
-      )}
-
-      {loading && (
-        <div className="p-8 text-center text-slate-500 dark:text-slate-400">
-          Loading QBO accounts...
-        </div>
-      )}
-
-      {!loading && !error && (
-        <div className="space-y-4">
-          {brands.map((brand) => {
-            const mapping = (mappings || []).find((m) => m.brand === brand);
-            return (
-              <div key={brand} className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                  {brand}
-                </label>
-                <select
-                  value={mapping?.salesAccountId || ''}
-                  onChange={(e) => {
-                    const accountId = e.target.value || null;
-                    const account = accounts.find((a) => a.id === accountId);
-                    updateMapping(brand, accountId, account?.fullyQualifiedName || null);
-                  }}
-                  className="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/30"
-                >
-                  <option value="">Select Sales Account...</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.fullyQualifiedName || account.name}
-                    </option>
-                  ))}
-                </select>
-                {mapping?.salesAccountName && (
-                  <p className="mt-2 text-xs text-teal-600 dark:text-teal-400">
-                    ✓ {mapping.salesAccountName}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-          Not sure? Check your LMB Product Groups to see which accounts are mapped.
+      <div className="p-4 rounded-lg bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800">
+        <p className="text-sm text-teal-800 dark:text-teal-200 mb-3">
+          In LMB: Accounts &amp; Taxes → Setup Wizard. Choose “Custom Chart Accounts”.
         </p>
         <a
-          href={LMB_APP_URL}
+          href={LMB_SETUP_WIZARD_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500 text-white text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium transition-colors"
         >
-          Open Link My Books →
+          Open LMB Setup Wizard →
         </a>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item) => {
+          const isChecked = checks.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              onClick={() => toggleCheck(item.id)}
+              className={cn(
+                'flex items-center gap-3 w-full p-4 rounded-lg border transition-all text-left',
+                isChecked
+                  ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+              )}
+            >
+              <div
+                className={cn(
+                  'flex h-5 w-5 items-center justify-center rounded border-2 text-xs',
+                  isChecked ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 dark:border-slate-600'
+                )}
+              >
+                {isChecked && '✓'}
+              </div>
+              <span
+                className={cn(
+                  'font-medium',
+                  isChecked ? 'text-green-700 dark:text-green-400' : 'text-slate-700 dark:text-slate-300'
+                )}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
@@ -318,7 +250,7 @@ function SalesMappingStep({
         </Button>
         <Button
           onClick={onNext}
-          disabled={!allMapped}
+          disabled={!allChecked}
           className="flex-1 bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50"
         >
           Continue
@@ -352,13 +284,23 @@ function QboSetupStep({
     setLoading(true);
     setError(null);
     try {
+      if (!basePath) {
+        throw new Error('Missing NEXT_PUBLIC_BASE_PATH');
+      }
       const res = await fetch(`${basePath}/api/qbo/accounts`);
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || `Failed to fetch accounts (${res.status})`);
+        const message = typeof data?.error === 'string' ? data.error : `Failed to fetch accounts (${res.status})`;
+        const parts = [message];
+        if (typeof data?.details === 'string') parts.push(data.details);
+        if (typeof data?.requestId === 'string') parts.push(`Request ID: ${data.requestId}`);
+        throw new Error(parts.join('\n'));
       }
 
-      const accounts = data.accounts || [];
+      if (!Array.isArray(data?.accounts)) {
+        throw new Error('Invalid response from server');
+      }
+      const accounts: Array<{ name: string; parentName: string | null; active?: boolean }> = data.accounts;
       const results = REQUIRED_PARENT_ACCOUNTS.map((name) => {
         const account = accounts.find(
           (a: { name: string; parentName: string | null; active?: boolean }) =>
@@ -385,19 +327,28 @@ function QboSetupStep({
     setLoading(true);
     setError(null);
     try {
+      if (!basePath) {
+        throw new Error('Missing NEXT_PUBLIC_BASE_PATH');
+      }
       const res = await fetch(`${basePath}/api/qbo/accounts/create-plutus-qbo-lmb-plan`, {
         method: 'POST',
       });
       const data = await res.json();
       if (!res.ok) {
-        const message = data?.error || `Failed to create accounts (${res.status})`;
+        const message = typeof data?.error === 'string' ? data.error : `Failed to create accounts (${res.status})`;
         const parts = [message];
-        if (data?.details) parts.push(data.details);
-        if (data?.requestId) parts.push(`Request ID: ${data.requestId}`);
+        if (typeof data?.details === 'string') parts.push(data.details);
+        if (typeof data?.requestId === 'string') parts.push(`Request ID: ${data.requestId}`);
         throw new Error(parts.join('\n'));
       }
 
-      setCreateResult({ created: data.created?.length || 0, skipped: data.skipped?.length || 0 });
+      if (!Array.isArray(data?.created)) {
+        throw new Error('Invalid response from server');
+      }
+      if (!Array.isArray(data?.skipped)) {
+        throw new Error('Invalid response from server');
+      }
+      setCreateResult({ created: data.created.length, skipped: data.skipped.length });
       onAccountsCreated();
       setPhase('done');
     } catch (err) {
@@ -472,7 +423,7 @@ function QboSetupStep({
       {phase === 'create' && !createResult && (
         <div className="p-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-center">
           <p className="text-slate-600 dark:text-slate-400 mb-4">
-            Creates ~45 sub-accounts for inventory tracking and cost allocation.
+            Creates Inventory Shrinkage, Mfg Accessories, and Plutus Inventory/COGS sub-accounts (skips existing).
           </p>
           <Button onClick={createAccounts} disabled={loading} className="bg-teal-500 hover:bg-teal-600 text-white">
             {loading ? 'Creating...' : 'Create Accounts'}
@@ -644,7 +595,7 @@ export default function SetupPage() {
   const [state, setState] = useState<WizardState>({
     step: 1,
     brands: DEFAULT_BRANDS,
-    salesMappings: [],
+    lmbSetupChecks: [],
     lmbChecks: [],
     parentsVerified: false,
     accountsCreated: false,
@@ -652,23 +603,81 @@ export default function SetupPage() {
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Migrate old state format (had chartType instead of salesMappings)
-        if (parsed.chartType !== undefined && parsed.salesMappings === undefined) {
-          // Old format - reset to step 1
-          localStorage.removeItem(STORAGE_KEY);
-          return;
-        }
-        // Ensure salesMappings is always an array
-        setState({
-          ...parsed,
-          salesMappings: parsed.salesMappings || [],
-        });
-      } catch {
-        // Ignore
+    if (!saved) return;
+
+    try {
+      const parsed: unknown = JSON.parse(saved);
+      if (typeof parsed !== 'object') {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
       }
+      if (parsed === null) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+
+      const record = parsed as Record<string, unknown>;
+
+      const step = record.step;
+      const brands = record.brands;
+      const lmbChecks = record.lmbChecks;
+      const parentsVerified = record.parentsVerified;
+      const accountsCreated = record.accountsCreated;
+
+      if (typeof step !== 'number') {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (!Array.isArray(brands)) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (!brands.every((b) => typeof b === 'string')) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (!Array.isArray(lmbChecks)) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (!lmbChecks.every((c) => typeof c === 'string')) {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (typeof parentsVerified !== 'boolean') {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (typeof accountsCreated !== 'boolean') {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+
+      const lmbSetupChecksRaw = record.lmbSetupChecks;
+      let isOldWizardState = false;
+      if ('salesMappings' in record) isOldWizardState = true;
+      if ('chartType' in record) isOldWizardState = true;
+
+      let lmbSetupChecks: string[];
+      if (Array.isArray(lmbSetupChecksRaw) && lmbSetupChecksRaw.every((c) => typeof c === 'string')) {
+        lmbSetupChecks = lmbSetupChecksRaw as string[];
+      } else if (isOldWizardState) {
+        lmbSetupChecks = [];
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+
+      setState({
+        step,
+        brands: brands as string[],
+        lmbSetupChecks,
+        lmbChecks: lmbChecks as string[],
+        parentsVerified,
+        accountsCreated,
+      });
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
@@ -679,7 +688,7 @@ export default function SetupPage() {
 
   const setStep = (step: number) => saveState({ ...state, step });
   const setBrands = (brands: string[]) => saveState({ ...state, brands });
-  const setSalesMappings = (salesMappings: BrandSalesMapping[]) => saveState({ ...state, salesMappings });
+  const setLmbSetupChecks = (lmbSetupChecks: string[]) => saveState({ ...state, lmbSetupChecks });
   const setLmbChecks = (lmbChecks: string[]) => saveState({ ...state, lmbChecks });
   const setParentsVerified = () => saveState({ ...state, parentsVerified: true });
   const setAccountsCreated = () => saveState({ ...state, accountsCreated: true });
@@ -689,7 +698,7 @@ export default function SetupPage() {
     setState({
       step: 1,
       brands: DEFAULT_BRANDS,
-      salesMappings: [],
+      lmbSetupChecks: [],
       lmbChecks: [],
       parentsVerified: false,
       accountsCreated: false,
@@ -719,10 +728,9 @@ export default function SetupPage() {
               <BrandsStep brands={state.brands} onBrandsChange={setBrands} onNext={() => setStep(2)} />
             )}
             {state.step === 2 && (
-              <SalesMappingStep
-                brands={state.brands}
-                mappings={state.salesMappings}
-                onMappingsChange={setSalesMappings}
+              <LmbSetupStep
+                checks={state.lmbSetupChecks}
+                onChecksChange={setLmbSetupChecks}
                 onNext={() => setStep(3)}
                 onBack={() => setStep(1)}
               />
