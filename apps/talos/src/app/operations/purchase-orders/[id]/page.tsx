@@ -944,14 +944,22 @@ export default function PurchaseOrderDetailPage() {
           return
         }
 
+        const uploadBody = await file.arrayBuffer()
         const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
           headers: { 'Content-Type': file.type },
-          body: file,
+          body: uploadBody,
         })
 
         if (!uploadResponse.ok) {
-          toast.error(`Failed to upload document (HTTP ${uploadResponse.status})`)
+          const errorText = await uploadResponse.text().catch(() => '')
+          const code = errorText.match(/<Code>([^<]+)<\/Code>/)?.[1]?.trim()
+          const message = errorText.match(/<Message>([^<]+)<\/Message>/)?.[1]?.trim()
+          if (code && message) {
+            toast.error(`${code}: ${message}`)
+          } else {
+            toast.error(`Failed to upload document (HTTP ${uploadResponse.status})`)
+          }
           return
         }
 
