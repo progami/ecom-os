@@ -1,18 +1,31 @@
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft } from '@/lib/lucide-icons'
+import { Button } from '@/components/ui/button'
 
 interface PageContainerProps {
  children: React.ReactNode
  className?: string
 }
 
-interface PageHeaderProps {
+type PageHeaderBack =
+ | {
+    backHref: string
+    backLabel: string
+   }
+ | {
+    backHref?: undefined
+    backLabel?: undefined
+   }
+
+type PageHeaderProps = {
  title: string
  description?: string
  icon?: LucideIcon
  actions?: React.ReactNode
  metadata?: React.ReactNode
-}
+} & PageHeaderBack
 
 interface PageContentProps {
  children: React.ReactNode
@@ -27,12 +40,28 @@ export function PageContainer({ children, className }: PageContainerProps) {
  )
 }
 
-export function PageHeaderSection({ title, description, icon: Icon, actions, metadata }: PageHeaderProps) {
+export function PageHeaderSection({
+ title,
+ description,
+ icon: Icon,
+ backHref,
+ backLabel,
+ actions,
+ metadata,
+}: PageHeaderProps) {
  return (
  <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6 lg:px-8">
  <div className="flex flex-col gap-4">
  <div className="flex items-center justify-between gap-4">
  <div className="flex items-center gap-3">
+ {backHref ? (
+ <Button asChild variant="outline" size="sm" className="gap-2">
+ <Link href={backHref}>
+ <ArrowLeft className="h-4 w-4" />
+ {backLabel}
+ </Link>
+ </Button>
+ ) : null}
  {Icon && (
  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md ">
  <Icon className="h-5 w-5 text-white " />

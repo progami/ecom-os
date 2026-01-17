@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { Button } from '@/components/ui/button'
 import {
   Package2,
   Truck,
-  ArrowLeft,
   Loader2,
   FileText,
   DollarSign,
@@ -156,23 +157,37 @@ export default function TransactionDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Transaction Details"
+          description="Operations"
+          icon={FileText}
+          backHref={INVENTORY_LEDGER_PATH}
+          backLabel="Back"
+        />
+        <PageContent className="flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </PageContent>
+      </PageContainer>
     )
   }
 
   if (!transaction) {
     return (
-      <div className="text-center py-12">
-        <p className="text-slate-500">Transaction not found</p>
-        <button
-          onClick={() => router.push(INVENTORY_LEDGER_PATH)}
-          className="mt-4 text-primary hover:underline"
-        >
-          Return to Inventory
-        </button>
-      </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Transaction Details"
+          description="Operations"
+          icon={FileText}
+          backHref={INVENTORY_LEDGER_PATH}
+          backLabel="Back"
+        />
+        <PageContent>
+          <div className="rounded-xl border bg-white shadow-soft p-6 text-sm text-muted-foreground">
+            Transaction not found.
+          </div>
+        </PageContent>
+      </PageContainer>
     )
   }
 
@@ -205,23 +220,25 @@ export default function TransactionDetailPage() {
   ]
 
   return (
-    <div className="space-y-2">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button
+    <PageContainer>
+      <PageHeaderSection
+        title="Transaction Details"
+        description="Operations"
+        icon={isReceive ? Package2 : Truck}
+        backHref={INVENTORY_LEDGER_PATH}
+        backLabel="Back"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
             onClick={() => router.push(INVENTORY_LEDGER_PATH)}
-            className="p-2 hover:bg-slate-100 rounded-lg"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            {isReceive ? (
-              <Package2 className="h-6 w-6 text-slate-600" />
-            ) : (
-              <Truck className="h-6 w-6 text-slate-600" />
-            )}
-            <h1 className="text-2xl font-semibold text-slate-900">Transaction Details</h1>
+            Close
+          </Button>
+        }
+        metadata={
+          <div className="flex flex-wrap items-center gap-2">
             <span
               className={`px-2 py-1 text-xs font-medium rounded-full ${
                 isReceive ? 'bg-green-100 text-green-800' : 'bg-cyan-100 text-cyan-800'
@@ -233,20 +250,10 @@ export default function TransactionDetailPage() {
               {transaction.id}
             </span>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => router.push(INVENTORY_LEDGER_PATH)}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-
-      {/* Tabbed Container */}
-      <TabbedContainer tabs={tabConfig} defaultTab={activeTab} onChange={setActiveTab}>
+        }
+      />
+      <PageContent>
+        <TabbedContainer tabs={tabConfig} defaultTab={activeTab} onChange={setActiveTab}>
         {/* Transaction Details Tab */}
         <TabPanel>
           <div className="space-y-2">
@@ -647,7 +654,8 @@ export default function TransactionDetailPage() {
             )}
           </div>
         </TabPanel>
-      </TabbedContainer>
-    </div>
+        </TabbedContainer>
+      </PageContent>
+    </PageContainer>
   )
 }

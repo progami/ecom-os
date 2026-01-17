@@ -1,10 +1,9 @@
 'use client'
 
 import { use, useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { ArrowLeft, DollarSign, Loader2, Upload, Download, Trash2 } from '@/lib/lucide-icons'
+import { DollarSign, Loader2, Upload, Download, Trash2 } from '@/lib/lucide-icons'
 import { Button } from '@/components/ui/button'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
@@ -143,12 +142,20 @@ export default function WarehouseRatesPage({
   if (!warehouse) {
     return (
       <DashboardLayout>
-        <div className="p-6 text-center">
-          <p className="text-slate-500">Warehouse not found</p>
-          <Button asChild className="mt-4">
-            <Link href="/config/warehouses">Back to Warehouses</Link>
-          </Button>
-        </div>
+        <PageContainer>
+          <PageHeaderSection
+            title="Warehouse not found"
+            description="Configuration"
+            icon={DollarSign}
+            backHref="/config/warehouses"
+            backLabel="Back"
+          />
+          <PageContent>
+            <div className="rounded-xl border bg-white shadow-soft p-6 text-sm text-muted-foreground">
+              Warehouse not found.
+            </div>
+          </PageContent>
+        </PageContainer>
       </DashboardLayout>
     )
   }
@@ -160,6 +167,8 @@ export default function WarehouseRatesPage({
           title={warehouse.name}
           description={`Rate Sheet • ${warehouse.code}`}
           icon={DollarSign}
+          backHref="/config/warehouses"
+          backLabel="Back"
           actions={
             <div className="flex items-center gap-3">
               {/* Rate List Attachment Actions */}
@@ -208,13 +217,6 @@ export default function WarehouseRatesPage({
                   onChange={handleFileChange}
                 />
               </div>
-
-              <Button asChild variant="outline" size="sm">
-                <Link href="/config/warehouses" className="gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Link>
-              </Button>
             </div>
           }
         />
