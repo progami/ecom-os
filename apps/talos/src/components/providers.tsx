@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { useState } from 'react'
+import { CSRFProvider } from '@/components/providers/csrf-provider'
 // import { ErrorBoundary } from './error-boundary'
 // import { logErrorToService } from '@/lib/logger/client'
 
@@ -10,10 +11,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
- defaultOptions: {
- queries: {
- staleTime: 60 * 1000, // 1 minute
- refetchOnWindowFocus: false,
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000, // 1 minute
+            refetchOnWindowFocus: false,
           },
         },
       })
@@ -27,7 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <CSRFProvider>{children}</CSRFProvider>
       </ThemeProvider>
     </QueryClientProvider>
   )
