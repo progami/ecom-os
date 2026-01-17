@@ -303,34 +303,39 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 │  │ US-DUST SHEETS                                          │   │
 │  │ ─────────────────────────────────────────────────────── │   │
 │  │                                                         │   │
-│  │ INVENTORY ASSET SUB-ACCOUNTS (Plutus)                   │   │
+│  │ INVENTORY ASSET SUB-ACCOUNTS (Plutus posts)             │   │
 │  │ ┌─────────────────────────────────────────────────────┐ │   │
-│  │ │ Manufacturing  [Inv Asset: Mfg - US-Dust Sheets  ] │ │   │
-│  │ │ Freight        [Inv Asset: Freight - US-Dust She ] │ │   │
-│  │ │ Duty           [Inv Asset: Duty - US-Dust Sheets ] │ │   │
-│  │ │ Mfg Accessories[Inv Asset: MfgAcc - US-Dust Sheet] │ │   │
+│  │ │ Manufacturing  [Inv Manufacturing - US-Dust Sheets] │ │   │
+│  │ │ Freight        [Inv Freight - US-Dust Sheets      ] │ │   │
+│  │ │ Duty           [Inv Duty - US-Dust Sheets         ] │ │   │
+│  │ │ Mfg Accessories[Inv Mfg Accessories - US-Dust She ] │ │   │
 │  │ └─────────────────────────────────────────────────────┘ │   │
 │  │                                                         │   │
-│  │ COGS SUB-ACCOUNTS (Plutus)                              │   │
+│  │ COGS SUB-ACCOUNTS (Plutus posts)                        │   │
 │  │ ┌─────────────────────────────────────────────────────┐ │   │
-│  │ │ Manufacturing  [Manufacturing - US-Dust Sheets   ] │ │   │
-│  │ │ Freight        [Freight - US-Dust Sheets         ] │ │   │
-│  │ │ Duty           [Duty - US-Dust Sheets            ] │ │   │
-│  │ │ Land Freight   [Land Freight - US-Dust Sheets    ] │ │   │
-│  │ │ Storage 3PL    [Storage 3PL - US-Dust Sheets     ] │ │   │
-│  │ │ Mfg Accessories[Mfg Accessories - US-Dust Sheets ] │ │   │
+│  │ │ Manufacturing  [Manufacturing - US-Dust Sheets    ] │ │   │
+│  │ │ Freight        [Freight - US-Dust Sheets          ] │ │   │
+│  │ │ Duty           [Duty - US-Dust Sheets             ] │ │   │
+│  │ │ Mfg Accessories[Mfg Accessories - US-Dust Sheets  ] │ │   │
+│  │ │ Shrinkage      [Inventory Shrinkage - US-Dust Shee] │ │   │
+│  │ └─────────────────────────────────────────────────────┘ │   │
+│  │                                                         │   │
+│  │ COGS SUB-ACCOUNTS (Manual - user enters bills)          │   │
+│  │ ┌─────────────────────────────────────────────────────┐ │   │
+│  │ │ Land Freight   [Land Freight - US-Dust Sheets     ] │ │   │
+│  │ │ Storage 3PL    [Storage 3PL - US-Dust Sheets      ] │ │   │
 │  │ └─────────────────────────────────────────────────────┘ │   │
 │  │                                                         │   │
 │  │ REVENUE/FEE SUB-ACCOUNTS (for LMB Product Groups)       │   │
 │  │ ┌─────────────────────────────────────────────────────┐ │   │
-│  │ │ Sales          [Amazon Sales - US-Dust Sheets    ] │ │   │
-│  │ │ Refunds        [Amazon Refunds - US-Dust Sheets  ] │ │   │
-│  │ │ FBA Fees       [Amazon FBA Fees - US-Dust Sheets ] │ │   │
-│  │ │ Seller Fees    [Amazon Seller Fees - US-Dust She ] │ │   │
-│  │ │ Storage Fees   [Amazon Storage Fees - US-Dust Sh ] │ │   │
-│  │ │ Advertising    [Amazon Advertising - US-Dust She ] │ │   │
-│  │ │ Promotions     [Amazon Promotions - US-Dust Shee ] │ │   │
-│  │ │ Reimbursement  [Amazon FBA Inv Reimb - US-Dust S ] │ │   │
+│  │ │ Sales          [Amazon Sales - US-Dust Sheets     ] │ │   │
+│  │ │ Refunds        [Amazon Refunds - US-Dust Sheets   ] │ │   │
+│  │ │ FBA Fees       [Amazon FBA Fees - US-Dust Sheets  ] │ │   │
+│  │ │ Seller Fees    [Amazon Seller Fees - US-Dust Sheet] │ │   │
+│  │ │ Storage Fees   [Amazon Storage Fees - US-Dust She ] │ │   │
+│  │ │ Advertising    [Amazon Advertising - US-Dust Sheet] │ │   │
+│  │ │ Promotions     [Amazon Promotions - US-Dust Sheets] │ │   │
+│  │ │ Reimbursement  [Amazon FBA Inv Reimb - US-Dust She] │ │   │
 │  │ └─────────────────────────────────────────────────────┘ │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
@@ -695,13 +700,13 @@ Plutus queries bills using `PrivateNote` field:
 │  │ Date: 2025-01-01                                        │   │
 │  │                                                         │   │
 │  │ DEBITS:                                                 │   │
-│  │   Inv Asset: Manufacturing - US     $1,250.00           │   │
-│  │   Inv Asset: Freight - US           $150.00             │   │
-│  │   Inv Asset: Manufacturing - UK     $800.00             │   │
+│  │   Inv Manufacturing - US-Dust Sheets  $1,250.00         │   │
+│  │   Inv Freight - US-Dust Sheets        $150.00           │   │
+│  │   Inv Manufacturing - UK-Dust Sheets  $800.00           │   │
 │  │   ...                                                   │   │
 │  │                                                         │   │
 │  │ CREDITS:                                                │   │
-│  │   Opening Balance Equity            $2,400.00           │   │
+│  │   Opening Balance Equity              $2,400.00         │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
