@@ -110,10 +110,27 @@ If a bill arrives in non-USD, user must convert and enter the USD equivalent.
 
 #### 2. Late Freight/Duty Policy (v1 Behavior)
 If units are sold before all cost components (freight, duty) are entered:
-- v1 behavior: Late freight/duty increases inventory value and flows to future COGS only
-- This may cause timing differences between periods
-- Monthly reconciliation will surface any variances
-- v2 enhancement: Catch-up JE to adjust COGS for already-sold units
+- Late freight/duty increases inventory value for **remaining on-hand units only**
+- Full bill amount is absorbed by remaining inventory, then flows to future COGS
+- No catch-up JE for already-sold units in v1
+
+**Algorithm (prevents inventory drift):**
+```
+When late freight bill arrives for PO:
+1. Split freight across SKUs in PO by original PO units (allocation rule)
+2. For each SKU:
+   - Get on-hand quantity from InventoryLedger as-of bill date
+   - Add allocated freight to that SKU's inventory value
+   - Recompute average: new_avg = (current_value + allocated_freight) / on_hand_units
+```
+
+**Example:**
+- PO-2026-001: 1000 units, $5,000 manufacturing = $5.00/unit
+- 200 units sold before freight arrives
+- Freight bill: $500
+- Allocation: $500 / 1000 PO units = $0.50 per original PO unit
+- But applied to 800 on-hand: $500 / 800 = $0.625 per remaining unit
+- Result: Full $500 absorbed into remaining inventory → flows to future COGS
 
 **User guidance:** Enter all bills for a PO before processing settlements that contain those SKUs.
 
@@ -127,11 +144,15 @@ From the matched sale row, Plutus retrieves:
 - Quantity (for COGS reversal)
 
 #### 4. Cost Allocation Rule
-All cost components (Freight, Duty) are allocated **by units**:
+Freight and Duty bills are allocated **across SKUs by units in the PO**:
 ```
-Per-unit freight = Total freight bill / Total units in PO
-Per-unit duty = Total duty bill / Total units in PO
+SKU's share of freight = (SKU units in PO / Total PO units) × Total freight bill
 ```
+
+**Two-step process:**
+1. **Allocation (across SKUs):** Split freight/duty by PO units per SKU
+2. **Application (to inventory):** Apply SKU's share to on-hand units at bill date (see Late Freight rule #2)
+
 Value-based allocation (proportional to manufacturing cost) is not used in v1 because products are similar-sized drop cloths.
 
 **"Units" defined:** The quantity from bill line descriptions (e.g., "CS-007 x 500 units" = 500 units).
@@ -152,7 +173,18 @@ Before processing a settlement:
    - Then delete Plutus settlement record
    - Then re-upload CSV
 
-#### 7. No QBO Polling for LMB Settlements
+#### 7. Journal Entry Memo Format
+When posting COGS JEs to QBO, use this memo format for easy identification:
+```
+Plutus COGS | Invoice: 18129565 | Hash: abc123def
+```
+This allows users to reliably find and void the correct JE during manual rollback.
+
+Fields:
+- `Invoice`: LMB Invoice ID from CSV
+- `Hash`: First 10 chars of processingHash
+
+#### 8. No QBO Polling for LMB Settlements
 Plutus does NOT poll QBO to detect LMB postings. The user is responsible for:
 1. Checking LMB for settlements ready to post
 2. Downloading Audit Data CSV from LMB
@@ -1129,28 +1161,39 @@ model AuditLog {
 └── types.ts         # TypeScript types
 ```
 
-**Developer Note - Bill Querying Limitation:**
+**Developer Note - Bill Querying:**
 
-The QBO API does NOT support server-side filtering by Custom Fields (e.g., you cannot query `WHERE CustomField = 'PO-123'`).
+Plutus uses the Bill's `PrivateNote` (Memo) field to link bills by PO number.
 
-**Correct Implementation:**
-1. Fetch Bills by `TxnDate` range (e.g., last 90 days) or by `Vendor`
-2. Filter the results client-side in Node.js to find matching `PO Number`
+**Query Strategy:**
+1. Try exact match: `SELECT * FROM Bill WHERE PrivateNote = 'PO: PO-2026-001'`
+2. If that fails or returns empty, fall back to date range + client-side filter
 3. Cache results to avoid hitting API rate limits
 
 ```typescript
 // Example: Finding bills for a specific PO
 async function getBillsByPO(poNumber: string): Promise<Bill[]> {
-  // 1. Fetch all bills from last 90 days
+  const memoValue = `PO: ${poNumber}`;
+  
+  // 1. Try server-side query (may work for PrivateNote)
+  try {
+    const bills = await qbo.findBills({
+      PrivateNote: memoValue
+    });
+    if (bills.length > 0) return bills;
+  } catch (e) {
+    // Server-side filter not supported, fall back
+  }
+  
+  // 2. Fallback: Fetch by date range, filter client-side
   const bills = await qbo.findBills({
     TxnDate: { $gte: ninetyDaysAgo }
   });
   
-  // 2. Filter client-side by custom field
+  // 3. Filter client-side by memo (exact match or regex)
+  const poRegex = new RegExp(`\\bPO:\\s*${poNumber}\\b`);
   return bills.filter(bill => 
-    bill.CustomField?.find(f => 
-      f.Name === 'PO Number' && f.StringValue === poNumber
-    )
+    bill.PrivateNote && poRegex.test(bill.PrivateNote)
   );
 }
 ```
@@ -1411,7 +1454,13 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 │    - Find original sale in CSV with same Order ID AND SKU       │
 │    - Fallback: Order ID alone if order has single SKU           │
 │    - Get quantity from original sale (refunds show Qty=0)       │
-│    - If no match found, flag for manual review                  │
+│                                                                 │
+│    IF NO MATCH FOUND:                                           │
+│    - Original sale may be in an earlier settlement period       │
+│    - UI shows: "Refund for Order XXX not found in this file.    │
+│      Upload a CSV covering the original order date."            │
+│    - User can: (a) upload wider date range, or (b) skip refund  │
+│    - Skipped refunds logged for manual review                   │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1638,11 +1687,11 @@ Memo: "Returns reversal - Jan 2026"
 
 1. **Define PO:** Assign a number (e.g., `PO-2026-001`)
 2. **Bill Entry:** When entering bills in QBO (Manufacturing, Freight, Duty):
-   - Enter `PO-2026-001` in the **"PO Number" Custom Field**
+   - Enter `PO: PO-2026-001` in the **Memo field** (exact format required)
    - Select the correct Inventory Asset account
 3. **Verification:** Check Plutus Landed Cost UI to ensure PO is detected and costs are allocated
 
-**Do NOT use QBO Tags for PO tracking - use the Custom Field.**
+**Do NOT use QBO Tags for PO tracking - use the Memo field with strict format.**
 
 ---
 
@@ -1993,10 +2042,10 @@ Because we separate Sales (Settlement) from Returns (Physical Receipt), a timing
 **Scenario:** Manufacturing bill arrives, but freight bill hasn't arrived yet.
 
 **Handling:**
-1. Enter manufacturing bill with "PO Number" Custom Field (e.g., PO-2026-001)
+1. Enter manufacturing bill with Memo: `PO: PO-2026-001`
 2. Plutus sees incomplete PO (missing freight/duty)
 3. Plutus flags PO as "INCOMPLETE" in UI
-4. When freight bill arrives, enter with same PO number in Custom Field
+4. When freight bill arrives, enter with same PO in Memo: `PO: PO-2026-001`
 5. Plutus recalculates landed cost when all bills present
 
 **Validation rules:**
@@ -2145,3 +2194,4 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.7: January 16, 2026 - Added Inventory Audit Trail Principle. No opening balances allowed - all inventory movements must link to source documents (Bills or Settlements). Historical catch-up required for new users. Updated Setup Wizard to reflect these constraints.
 - v3.8: January 16, 2026 - Clarified Setup Wizard creates ALL 36 sub-accounts (including revenue/fee accounts for LMB). Added "Existing Plutus Parent Accounts" section. Updated status tracker and summary table. Clarified SKU costs come from bills only (not entered during setup).
 - v3.9: January 16, 2026 - MAJOR: Schema fix for marketplace (SkuCost, SkuCostHistory, InventoryLedger now have marketplace field). Changed PO linking from Custom Field to Bill Memo (PrivateNote). Added V1 Constraints section (USD-only bills, late freight policy, refund matching rule, allocation by units, CSV grouping by Invoice, idempotency via hash). Removed QBO polling for LMB settlements (CSV-only mode). Updated workflow to start with CSV upload.
+- v3.10: January 16, 2026 - Fixed late freight algorithm: allocate across SKUs by PO units, but apply to on-hand units at bill date (prevents inventory drift). Added JE memo format spec for rollback. Added refund UX for cross-period matching. Final doc cleanup for Custom Field → Memo references.
