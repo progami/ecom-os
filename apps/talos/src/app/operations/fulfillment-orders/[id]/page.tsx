@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
@@ -15,7 +14,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronRight,
@@ -647,14 +645,8 @@ export default function FulfillmentOrderDetailPage() {
           title="Fulfillment Order"
           description="Operations"
           icon={FileText}
-          actions={
-            <Button asChild variant="outline" className="gap-2">
-              <Link href="/operations/fulfillment-orders">
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </Link>
-            </Button>
-          }
+          backHref="/operations/fulfillment-orders"
+          backLabel="Back"
         />
         <PageContent>
           <div className="rounded-xl border bg-white shadow-soft p-6 text-sm text-muted-foreground">
@@ -672,26 +664,20 @@ export default function FulfillmentOrderDetailPage() {
           title={order.foNumber}
           description="Fulfillment Order"
           icon={Truck}
+          backHref="/operations/fulfillment-orders"
+          backLabel="Back"
           actions={
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" className="gap-2">
-                <Link href="/operations/fulfillment-orders">
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </Link>
+            order.status === 'DRAFT' ? (
+              <Button
+                variant="destructive"
+                className="gap-2"
+                onClick={() => setShowCancelConfirm(true)}
+                disabled={submitting}
+              >
+                <XCircle className="h-4 w-4" />
+                Cancel
               </Button>
-              {order.status === 'DRAFT' && (
-                <Button
-                  variant="destructive"
-                  className="gap-2"
-                  onClick={() => setShowCancelConfirm(true)}
-                  disabled={submitting}
-                >
-                  <XCircle className="h-4 w-4" />
-                  Cancel
-                </Button>
-              )}
-            </div>
+            ) : null
           }
         />
         <PageContent>

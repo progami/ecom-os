@@ -20,7 +20,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronRight,
@@ -1788,12 +1787,10 @@ export default function PurchaseOrderDetailPage() {
         title={order.poNumber || order.orderNumber}
         description="Operations"
         icon={Package2}
+        backHref="/operations/purchase-orders"
+        backLabel="Back"
         actions={
           <>
-            <Button variant="outline" size="sm" onClick={() => router.back()} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
             {canDownloadPdf && (
               <Button
                 variant="outline"
