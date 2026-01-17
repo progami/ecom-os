@@ -79,6 +79,8 @@ const XPLAN_STATUS_VALUES = new Set<string>([
   'CANCELLED',
 ]);
 
+const TALOS_IMPORT_DISALLOWED_STATUS_VALUES = new Set<string>(['CANCELLED', 'REJECTED']);
+
 function mapTalosStatus(value: string): XPlanPurchaseOrderStatus {
   const normalized = value.trim().toUpperCase().replace(/[^A-Z_]/g, '');
   if (XPLAN_STATUS_VALUES.has(normalized)) {
@@ -143,6 +145,17 @@ export const POST = withXPlanAuth(async (request: Request, session) => {
 
   if (!purchaseOrder) {
     return NextResponse.json({ error: 'Talos purchase order not found' }, { status: 404 });
+  }
+
+  const talosStatusNormalized = String(purchaseOrder.status)
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z_]/g, '');
+  if (TALOS_IMPORT_DISALLOWED_STATUS_VALUES.has(talosStatusNormalized)) {
+    return NextResponse.json(
+      { error: `Talos purchase order is ${talosStatusNormalized} and cannot be imported` },
+      { status: 400 },
+    );
   }
 
   if (!Array.isArray(purchaseOrder.lines) || purchaseOrder.lines.length === 0) {
