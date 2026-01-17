@@ -4,6 +4,7 @@ import './globals.css';
 import { clsx } from 'clsx';
 
 import { Providers } from '@/components/providers';
+import { AppHeader } from '@/components/app-header';
 
 const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '';
 
@@ -49,7 +50,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           instrumentSerif.variable,
         )}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <AppHeader />
+          {children}
+        </Providers>
         <a
           href={versionHref}
           target="_blank"

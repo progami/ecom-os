@@ -1,10 +1,8 @@
 'use client';
 
-import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { QboStatusIndicator } from '@/components/qbo-status-indicator';
 import { cn } from '@/lib/utils';
 
 interface FeatureCardProps {
@@ -159,28 +157,11 @@ function ReportsIcon({ className }: { className?: string }) {
   );
 }
 
-function LogoIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
-
 function TerminalIcon({ className }: { className?: string }) {
   return (
     <svg className={cn('h-6 w-6', className)} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
     </svg>
-  );
-}
-
-function QboStatusFallback() {
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/10">
-      <div className="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse" />
-      <span className="text-sm text-slate-400 dark:text-slate-500">QBO</span>
-    </div>
   );
 }
 
@@ -193,24 +174,6 @@ export default function HomePage() {
       {/* Decorative gradient orbs - hidden on mobile for cleaner look */}
       <div className="fixed top-[-20%] right-[-10%] w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] rounded-full bg-gradient-to-br from-brand-teal-500/8 to-transparent blur-3xl dark:from-brand-cyan/5 pointer-events-none" />
       <div className="fixed bottom-[-20%] left-[-10%] w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full bg-gradient-to-tr from-violet-500/8 to-transparent blur-3xl dark:from-violet-500/5 pointer-events-none" />
-
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-white/5">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 dark:from-brand-cyan dark:to-brand-teal-500">
-              <LogoIcon className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-slate-900 dark:text-white">Plutus</span>
-          </Link>
-
-          {/* QBO Status */}
-          <Suspense fallback={<QboStatusFallback />}>
-            <QboStatusIndicator />
-          </Suspense>
-        </div>
-      </header>
 
       {/* Content wrapper - flex-1 to fill available space */}
       <div className="relative flex-1 flex flex-col w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
