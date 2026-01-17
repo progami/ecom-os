@@ -41,7 +41,7 @@ LMB creates the base accounts (LMB1-LMB10) in QBO. Plutus depends on these accou
 | Phase 0 (QBO Cleanup) | ✅ COMPLETE | Duplicate Amazon accounts made inactive |
 | Phase 1 (QBO Accounts) | 🟡 PARTIAL | Revenue/Fee sub-accounts done (16). **Missing:** 2 parents + 20 Plutus sub-accounts (8 Inv Asset + 12 COGS). *Setup Wizard automates this.* |
 | Phase 2 (LMB Config) | ❌ NOT STARTED | Requires LMB UI for BOTH connections. *Setup Wizard Steps 2 (acknowledge) and 6 (guide) cover this.* |
-| Phase 3 (Custom Field) | ✅ COMPLETE | "PO Number" custom field created. *Setup Wizard Step 7 verifies this.* |
+| Phase 3 (Bill Entry Setup) | ✅ COMPLETE | Using Bill Memo field for PO linking. *Setup Wizard Step 7 explains format.* |
 | Phase 4 (Bill SOP) | ❌ NOT STARTED | Documentation only |
 | Phase 5 (Plutus Dev) | ❌ NOT STARTED | Build the app (includes Setup Wizard) |
 | Phase 6 (Workflows) | ❌ NOT STARTED | Settlement + Returns + Reconciliation |
@@ -87,12 +87,78 @@ Settlement Report                    Manual Inventory Count
 
 | Movement | Source Document | Ledger Entry |
 |----------|-----------------|--------------|
-| Inventory IN | QBO Bill (with PO Number) | type=PURCHASE, qty=+N |
+| Inventory IN | QBO Bill (with PO in Memo) | type=PURCHASE, qty=+N |
 | Inventory OUT | LMB Settlement (via Audit Data CSV) | type=SALE, qty=-N |
 | Return to Inventory | LMB Settlement (refund matched to order) | type=RETURN, qty=+N |
 | Shrinkage/Adjustment | Monthly Reconciliation | type=ADJUSTMENT, qty=±N |
 
 **Historical Catch-Up:** New users must process all historical bills and settlements to build their inventory ledger. See Setup Wizard Step 8.
+
+---
+
+### V1 Constraints and Processing Rules
+
+**These are explicit v1 design decisions to keep the initial implementation simple and reliable.**
+
+#### 1. USD-Only Bills (v1 Constraint)
+All supplier bills must be in USD. Multi-currency bill support is deferred to v2.
+- Manufacturing invoices from China: typically invoiced in USD ✓
+- Freight invoices: typically invoiced in USD ✓
+- Duty bills: typically in USD (or convert before entry) ✓
+
+If a bill arrives in non-USD, user must convert and enter the USD equivalent.
+
+#### 2. Late Freight/Duty Policy (v1 Behavior)
+If units are sold before all cost components (freight, duty) are entered:
+- v1 behavior: Late freight/duty increases inventory value and flows to future COGS only
+- This may cause timing differences between periods
+- Monthly reconciliation will surface any variances
+- v2 enhancement: Catch-up JE to adjust COGS for already-sold units
+
+**User guidance:** Enter all bills for a PO before processing settlements that contain those SKUs.
+
+#### 3. Refund Matching Rule
+Refund rows in Audit Data CSV contain both Order ID and SKU. Matching uses:
+- Primary key: **(Order ID + SKU)** to locate the original sale row
+- Fallback: Order ID alone only if order contains a single SKU
+
+From the matched sale row, Plutus retrieves:
+- Original sale date (for historical cost lookup)
+- Quantity (for COGS reversal)
+
+#### 4. Cost Allocation Rule
+All cost components (Freight, Duty) are allocated **by units**:
+```
+Per-unit freight = Total freight bill / Total units in PO
+Per-unit duty = Total duty bill / Total units in PO
+```
+Value-based allocation (proportional to manufacturing cost) is not used in v1 because products are similar-sized drop cloths.
+
+**"Units" defined:** The quantity from bill line descriptions (e.g., "CS-007 x 500 units" = 500 units).
+
+#### 5. CSV Grouping Rule
+When processing Audit Data CSV:
+- Canonical grouping key: **`Invoice` column** (LMB invoice number)
+- All rows with same Invoice value belong to one settlement posting
+- Multiple Invoice values in one CSV = multiple settlements to process
+
+#### 6. Idempotency Rule (Prevent Double-Posting)
+Before processing a settlement:
+1. Compute hash of normalized CSV rows (SKU, Quantity, amounts)
+2. Check if hash exists in `Settlement.processingHash`
+3. If exists with same hash: Block posting, show "Already processed"
+4. If exists with different hash: Require explicit "Reprocess" action
+   - User must void prior JE in QBO first
+   - Then delete Plutus settlement record
+   - Then re-upload CSV
+
+#### 7. No QBO Polling for LMB Settlements
+Plutus does NOT poll QBO to detect LMB postings. The user is responsible for:
+1. Checking LMB for settlements ready to post
+2. Downloading Audit Data CSV from LMB
+3. Uploading CSV to Plutus
+
+This keeps the architecture simple and avoids issues with LMB posting Journal Entries vs Invoices.
 
 ---
 
@@ -555,22 +621,30 @@ Go to LMB → Inventory → Product Groups
 
 ---
 
-# PHASE 3: QBO CUSTOM FIELD SETUP (for Bill Entry)
+# PHASE 3: BILL ENTRY SETUP (PO Linking via Memo)
 
-**Note:** This phase corresponds to Plutus Setup Wizard Step 7, which guides users through creating the custom field and verifies it exists via the QBO API.
+**Note:** This phase corresponds to Plutus Setup Wizard Step 7, which explains the bill memo format for PO linking.
 
-## Step 3.1: Create Custom Field
+## Step 3.1: PO Linking Strategy
 
-1. Go to QBO → Settings → Custom Fields
-2. Create a new field named: **"PO Number"**
-3. Check the box for: **Bill** (and Purchase Order if available)
-4. Select "Text" as the type
-5. Save
+Plutus links related bills (manufacturing, freight, duty) using the Bill's **Memo field** (PrivateNote in QBO API).
 
-**Why Custom Fields instead of Tags:**
-- Tags are fragile and being deprecated by Intuit
-- Custom Fields are stable and queryable via API
-- Plutus will query bills by "PO Number" to link costs
+**Required Format:**
+```
+PO: PO-2026-001
+```
+
+**Why Memo instead of Custom Fields:**
+- Custom Fields have API limitations (may require enhanced access, not queryable in sandbox)
+- Memo (PrivateNote) is a standard Bill field, reliably readable via QBO API
+- Server-side query: `SELECT * FROM Bill WHERE PrivateNote = 'PO: PO-2026-001'`
+- Fallback: Pull bills by date range, filter client-side by memo prefix
+
+**Strict Format Rules:**
+- Start with `PO: ` (including the space after colon)
+- Follow with PO number (e.g., `PO-2026-001`)
+- No extra text in memo - keep it exactly this format
+- Same format across all bills for the same PO
 
 ---
 
@@ -580,7 +654,7 @@ Go to LMB → Inventory → Product Groups
 
 1. Note the PO number: PO-YYYY-NNN
 2. Record PO details (SKUs, quantities, expected costs)
-3. You'll enter this PO number in the "PO Number" custom field on all related bills
+3. You'll enter this PO number in the **Memo field** on all related bills
 
 ## Step 4.2: When Manufacturing Bill Arrives
 
@@ -593,10 +667,10 @@ Go to LMB → Inventory → Product Groups
 │ Bill Date:     2025-01-15                                       │
 │ Due Date:      2025-02-15                                       │
 │ Bill No:       INV-2025-0042  (vendor's invoice number)         │
-│ PO Number:     PO-2025-001    ← YOUR CUSTOM FIELD               │
+│ Memo:          PO: PO-2025-001    ← LINKS THIS BILL TO PO       │
 ├─────────────────────────────────────────────────────────────────┤
 │ CATEGORY DETAILS (line items)                                   │
-├───┬────────────────────────────────────────┬────────────────────┬───────────┤
+├───┬────────────────────────────────────────────────────────────────┬───────────┤
 │ # │ ACCOUNT                                │ DESCRIPTION        │ AMOUNT    │
 ├───┼────────────────────────────────────────┼────────────────────┼───────────┤
 │ 1 │ Inventory Asset: Manufacturing - US-Du │ CS-007 x 500 units │ $1,250.00 │
@@ -613,7 +687,7 @@ Go to LMB → Inventory → Product Groups
 | Bill Date | Date on vendor's invoice |
 | Due Date | Payment due date |
 | Bill No | Vendor's invoice number (for your reference) |
-| PO Number | PO-YYYY-NNN (Custom Field - links related bills) |
+| Memo | `PO: PO-YYYY-NNN` (links related bills) |
 | Account | Inventory Asset: Manufacturing - [Brand] |
 | Description | SKU + quantity (e.g., "CS-007 x 500 units") |
 | Amount | Cost for that line item |
@@ -629,7 +703,7 @@ Go to LMB → Inventory → Product Groups
 │ Bill Date:     2025-01-20                                       │
 │ Due Date:      2025-02-20                                       │
 │ Bill No:       FF-78234                                         │
-│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+│ Memo:          PO: PO-2025-001    ← SAME AS MANUFACTURING BILL  │
 ├─────────────────────────────────────────────────────────────────┤
 │ CATEGORY DETAILS                                                │
 ├───┬────────────────────────────────────────┬────────────────────┬───────────┤
@@ -654,7 +728,7 @@ Go to LMB → Inventory → Product Groups
 │ Bill Date:     2025-01-22                                       │
 │ Due Date:      2025-02-22                                       │
 │ Bill No:       CBR-2025-1234                                    │
-│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+│ Memo:          PO: PO-2025-001    ← SAME AS MANUFACTURING BILL  │
 ├─────────────────────────────────────────────────────────────────┤
 │ CATEGORY DETAILS                                                │
 ├───┬────────────────────────────────────────┬────────────────────┬───────────┤
@@ -677,7 +751,7 @@ Go to LMB → Inventory → Product Groups
 │ Bill Date:     2025-01-25                                       │
 │ Due Date:      2025-02-25                                       │
 │ Bill No:       LT-9876                                          │
-│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+│ Memo:          PO: PO-2025-001    ← SAME AS MANUFACTURING BILL  │
 ├─────────────────────────────────────────────────────────────────┤
 │ CATEGORY DETAILS                                                │
 ├───┬────────────────────────────────────────┬────────────────────┬───────────┤
@@ -735,7 +809,7 @@ Go to LMB → Inventory → Product Groups
 │ Bill Date:     2025-01-18                                       │
 │ Due Date:      2025-02-18                                       │
 │ Bill No:       PR-2025-456                                      │
-│ PO Number:     PO-2025-001    ← SAME AS MANUFACTURING BILL      │
+│ Memo:          PO: PO-2025-001    ← SAME AS MANUFACTURING BILL  │
 ├─────────────────────────────────────────────────────────────────┤
 │ CATEGORY DETAILS                                                │
 ├───┬────────────────────────────────────────┬────────────────────┬───────────┤
@@ -818,7 +892,8 @@ model SkuMapping {
 // Landed costs per SKU - ALL COSTS STORED IN USD (base currency)
 model SkuCost {
   id              String   @id @default(cuid())
-  sku             String   @unique
+  sku             String
+  marketplace     String   // "amazon.com", "amazon.co.uk", etc.
   // All costs below are in USD (home currency)
   // These are CURRENT weighted averages (cached from SkuCostHistory)
   avgManufacturing  Decimal @db.Decimal(10, 4) @default(0)
@@ -832,6 +907,7 @@ model SkuCost {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  @@unique([sku, marketplace])  // Same SKU can exist in multiple marketplaces
   @@index([sku])
 }
 
@@ -841,6 +917,7 @@ model SkuCostHistory {
   skuCostId       String
   skuCost         SkuCost  @relation(fields: [skuCostId], references: [id])
   poNumber        String
+  marketplace     String   // "amazon.com", "amazon.co.uk" - matches parent SkuCost
   manufacturing   Decimal  @db.Decimal(10, 4)
   freight         Decimal  @db.Decimal(10, 4)
   duty            Decimal  @db.Decimal(10, 4)
@@ -853,6 +930,7 @@ model SkuCostHistory {
   createdAt       DateTime @default(now())
   
   @@index([skuCostId, effectiveDate])
+  @@index([marketplace])
 }
 
 // QBO Account references
@@ -917,6 +995,7 @@ model SettlementPosting {
 model InventoryLedger {
   id             String   @id @default(cuid())
   sku            String
+  marketplace    String   // "amazon.com", "amazon.co.uk" - from CSV market column
   date           DateTime
   type           String   // PURCHASE, SALE, RETURN, ADJUSTMENT
   quantityChange Int      // Positive = in, Negative = out
@@ -928,7 +1007,7 @@ model InventoryLedger {
   notes          String?
   createdAt      DateTime @default(now())
 
-  @@index([sku, date])
+  @@index([sku, marketplace, date])
   @@index([type])
 }
 
@@ -1123,7 +1202,7 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 
 ```
 /lib/validation/
-├── lmbMatcher.ts        # Match LMB invoice(s) to settlement
+├── csvValidator.ts      # Validate Audit Data CSV format and content
 ├── settlementChecks.ts  # Sanity checks (coverage, SKU mapping, totals)
 ├── thresholds.ts        # OK/WARNING/CRITICAL threshold logic
 └── reporter.ts          # UI output, warnings/errors
@@ -1202,39 +1281,41 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
 
 ## Step 6.1: Settlement Processing Flow (SALES ONLY)
 
-**Important:** Settlement processing handles SALES and REFUNDS together. Refund quantities are matched to original sales via Order ID in the same Audit Data CSV (see Step 6.2).
+**Important:** Settlement processing handles SALES and REFUNDS together. Refund quantities are matched to original sales via Order ID + SKU in the same Audit Data CSV (see Step 6.2).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ 1. DETECT NEW SETTLEMENT (Memo-Based Matching)                  │
+│ 1. USER UPLOADS AUDIT DATA CSV                                  │
 │                                                                 │
-│    A. Poll QBO:                                                 │
-│       - Fetch new Invoices from Vendor = "Link My Books"        │
-│       - Or manual trigger from UI                               │
+│    A. User downloads Audit Data CSV from LMB:                   │
+│       - LMB → Settlements → Select settlement → Download        │
+│       - CSV contains all line items for settlement period       │
 │                                                                 │
-│    B. Extract Settlement ID:                                    │
-│       - LMB writes Settlement ID in Memo/PrivateNote field      │
-│       - Example: "Settlement 14839201"                          │
-│       - Parse this to get the Settlement ID                     │
+│    B. User uploads CSV to Plutus:                               │
+│       - Dashboard → Upload Audit Data                           │
+│       - Select file                                             │
 │                                                                 │
-│    C. Group by Settlement ID:                                   │
-│       - Multiple LMB invoices may share same Settlement ID      │
-│       - (happens when LMB splits across months)                 │
-│                                                                 │
-│    D. Check Status:                                             │
-│       - Query Plutus DB for this LMB Invoice ID                 │
-│       - If PROCESSED → Ignore (idempotency)                     │
-│       - If PENDING → Start processing                           │
-│       - If not found → Show as "Awaiting Audit Data"            │
+│    C. Plutus validates CSV:                                     │
+│       - Check file format (required columns present)            │
+│       - Extract marketplace from 'market' column                │
+│       - Group rows by Invoice column (canonical grouping key)   │
+│       - Validate all SKUs exist in Plutus SKU master            │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 2. IMPORT LMB AUDIT DATA CSV                                    │
-│    - User downloads Audit Data from LMB (manual)                │
-│    - User uploads CSV to Plutus                                 │
-│    - Plutus parses CSV, groups by Invoice column                │
-│    - Validates: SKUs exist, amounts match QBO invoice           │
+│ 2. IDEMPOTENCY CHECK                                            │
+│                                                                 │
+│    A. Compute hash of normalized CSV rows:                      │
+│       - Hash includes: SKU, Quantity, Net amounts               │
+│       - Ignore whitespace, normalize values                     │
+│                                                                 │
+│    B. Check for duplicate:                                      │
+│       - Query Settlement table by Invoice ID + hash             │
+│       - If same hash exists → Block: "Already processed"        │
+│       - If different hash exists → Warn: "Reprocess required"   │
+│         (User must void old JE first, then delete record)       │
+│       - If not found → Proceed                                  │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1275,28 +1356,30 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 7. VALIDATE AGAINST LMB                                         │
-│    - Get LMB invoice from QBO                                   │
-│    - Compare revenue by brand                                   │
-│    - Calculate variance                                         │
+│ 7. VALIDATE DATA INTEGRITY                                      │
+│    - Verify all SKUs mapped to brands                           │
+│    - Check for missing cost data                                │
+│    - Summarize: total units, total COGS by brand                │
+│    - Flag any warnings (unmapped SKUs, zero costs)              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 8. POST JOURNAL ENTRY TO QBO (SPLIT MONTH LOGIC)                │
 │                                                                 │
-│    A. Get LMB Invoices (from Step 1):                           │
-│       - Use the grouped LMB invoices for this settlement        │
+│    A. Group by Invoice column from CSV:                         │
+│       - Each unique Invoice value = one JE posting              │
+│       - (LMB may split settlements across months)               │
 │                                                                 │
-│    B. For EACH LMB Invoice:                                     │
-│       - Determine date range (from TxnDate + settlement bounds) │
-│       - Filter SettlementLines by postedDate in that range      │
-│       - Calculate COGS for this subset of sales                 │
-│       - Post Journal Entry dated to LMB Invoice's TxnDate       │
-│       - Create SettlementPosting record linking JE to LMB       │
+│    B. For EACH Invoice group:                                   │
+│       - Determine date from CSV rows in this group              │
+│       - Filter sales/refunds by Invoice value                   │
+│       - Calculate COGS for this subset                          │
+│       - Post Journal Entry dated to match invoice period        │
+│       - Create SettlementPosting record                         │
 │                                                                 │
 │    C. Example: Settlement Dec 27 - Jan 10                       │
-│       - LMB creates 2 invoices (Dec 31 + Jan 10)                │
+│       - CSV has 2 Invoice values (18129565, 18129566)           │
 │       - Plutus creates:                                         │
 │         → JE #1: Dated Dec 31 (sales Dec 27-31) → Posting #1    │
 │         → JE #2: Dated Jan 10 (sales Jan 1-10) → Posting #2     │
@@ -1323,8 +1406,10 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 2. MATCH REFUND TO ORIGINAL SALE                                │
-│    - Find original sale in CSV with same Order ID               │
+│ 2. MATCH REFUND TO ORIGINAL SALE (OrderId + SKU)                │
+│    - Primary key: (Order ID + SKU) from refund row              │
+│    - Find original sale in CSV with same Order ID AND SKU       │
+│    - Fallback: Order ID alone if order has single SKU           │
 │    - Get quantity from original sale (refunds show Qty=0)       │
 │    - If no match found, flag for manual review                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -1662,11 +1747,11 @@ Legend: ✅ Complete  ⚠️ Pending  ❌ Error  - No data
 
 | Check | How |
 |-------|-----|
-| No missing invoices | Query QBO for LMB invoices, show which need audit data |
-| No duplicates | Track processed Invoice IDs in Plutus DB, reject re-uploads |
-| Data integrity | Sum CSV sales amounts, compare to LMB Invoice total in QBO |
-| Refund matching | Validate all refund Order IDs have matching original sale |
+| No duplicates | Hash CSV rows, compare to processed Settlement.processingHash |
+| Data integrity | Sum CSV sales amounts, validate totals match expected patterns |
+| Refund matching | Validate all refund Order IDs have matching original sale (OrderId + SKU) |
 | SKU validation | All SKUs in CSV exist in Plutus SKU master |
+| Marketplace match | CSV market column matches expected brand/marketplace |
 
 ## B.4: Database Model
 
@@ -2059,4 +2144,4 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.6: January 16, 2026 - Added Prerequisites section (LMB Accounts & Taxes Wizard must be completed first). Referenced Setup Wizard document. Clarified account names are customizable via Setup Wizard.
 - v3.7: January 16, 2026 - Added Inventory Audit Trail Principle. No opening balances allowed - all inventory movements must link to source documents (Bills or Settlements). Historical catch-up required for new users. Updated Setup Wizard to reflect these constraints.
 - v3.8: January 16, 2026 - Clarified Setup Wizard creates ALL 36 sub-accounts (including revenue/fee accounts for LMB). Added "Existing Plutus Parent Accounts" section. Updated status tracker and summary table. Clarified SKU costs come from bills only (not entered during setup).
-- v3.5: January 16, 2026 - Updated Phase 4 Bill Entry SOP with exact QBO bill format (ASCII mockups showing all fields)
+- v3.9: January 16, 2026 - MAJOR: Schema fix for marketplace (SkuCost, SkuCostHistory, InventoryLedger now have marketplace field). Changed PO linking from Custom Field to Bill Memo (PrivateNote). Added V1 Constraints section (USD-only bills, late freight policy, refund matching rule, allocation by units, CSV grouping by Invoice, idempotency via hash). Removed QBO polling for LMB settlements (CSV-only mode). Updated workflow to start with CSV upload.
