@@ -69,7 +69,6 @@ const AMAZON_REFERRAL_CATEGORIES_2026 = [
 type AmazonReferralCategory = (typeof AMAZON_REFERRAL_CATEGORIES_2026)[number]
 
 function formatReferralCategoryLabel(category: AmazonReferralCategory): string {
-  if (category === 'Tools and Home Improvement') return 'Tools and Home Improvement (Home Improvement)'
   return category
 }
 
