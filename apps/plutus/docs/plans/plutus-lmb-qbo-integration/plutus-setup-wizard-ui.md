@@ -340,10 +340,9 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 │  │ (same structure as above)                               │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│  SUMMARY: 39 sub-accounts to create                             │
+│  SUMMARY: 38 sub-accounts to create                             │
 │  • 8 Inventory Asset sub-accounts (4 per brand)                 │
 │  • 14 COGS sub-accounts (7 per brand)                           │
-│  • 1 COGS Rounding account (shared)                             │
 │  • 16 Revenue/Fee sub-accounts (8 per brand)                    │
 │                                                                 │
 │  [Create All Sub-Accounts in QBO]                               │
@@ -356,7 +355,7 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 **After Creation:**
 
 ```
-│  ✅ 39 sub-accounts created successfully                        │
+│  ✅ 38 sub-accounts created successfully                        │
 │                                                                 │
 │  [Back]                                        [Next →]         │
 ```
@@ -554,7 +553,7 @@ CS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456
 │  1. Go to QBO → Expenses → Bills → Create Bill                  │
 │  2. Enter vendor, date, amount                                  │
 │  3. In the Memo field, enter: PO: PO-2026-001                   │
-│  4. Select account: Inventory Asset: Mfg - [Brand]              │
+│  4. Select account: Inv Manufacturing - [Brand]                 │
 │  5. Save                                                        │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
@@ -773,7 +772,7 @@ This keeps the architecture simple and avoids issues with LMB posting Journal En
 │                                                                 │
 │  ACCOUNTS                                                       │
 │  ✅ 15 parent accounts verified                                 │
-│  ✅ 39 sub-accounts created                                     │
+│  ✅ 38 sub-accounts created                                     │
 │  ✅ Bill memo format guidelines acknowledged                    │
 │                                                                 │
 │  SKUS                                                           │
