@@ -3,27 +3,9 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { QboConnectionCard } from '@/components/qbo-connection-card';
+import { QboStatusIndicator } from '@/components/qbo-status-indicator';
 import { cn } from '@/lib/utils';
-
-function QboCardFallback() {
-  return (
-    <Card className="border-slate-200/60 bg-white/80 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-center gap-3 sm:gap-4">
-          <Skeleton className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl sm:rounded-2xl flex-shrink-0" />
-          <div className="flex-1 min-w-0 space-y-2">
-            <Skeleton className="h-5 w-32 sm:w-48" />
-            <Skeleton className="h-4 w-24 sm:w-32" />
-          </div>
-          <Skeleton className="h-9 sm:h-10 w-20 sm:w-28 rounded-lg sm:rounded-xl flex-shrink-0" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 interface FeatureCardProps {
   href: string;
@@ -193,6 +175,15 @@ function TerminalIcon({ className }: { className?: string }) {
   );
 }
 
+function QboStatusFallback() {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-white/10">
+      <div className="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600 animate-pulse" />
+      <span className="text-sm text-slate-400 dark:text-slate-500">QBO</span>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="relative min-h-screen flex flex-col">
@@ -203,90 +194,80 @@ export default function HomePage() {
       <div className="fixed top-[-20%] right-[-10%] w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] rounded-full bg-gradient-to-br from-brand-teal-500/8 to-transparent blur-3xl dark:from-brand-cyan/5 pointer-events-none" />
       <div className="fixed bottom-[-20%] left-[-10%] w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] rounded-full bg-gradient-to-tr from-violet-500/8 to-transparent blur-3xl dark:from-violet-500/5 pointer-events-none" />
 
-      {/* Content wrapper - flex-1 to fill available space */}
-      <div className="relative flex-1 flex flex-col w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:py-16">
-        {/* Header */}
-        <header className="mb-8 sm:mb-12 text-center">
-          <div className="inline-flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-6">
-            {/* Logo mark */}
-            <div className="relative">
-              <div className="absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 dark:from-brand-cyan dark:to-brand-teal-500 blur-lg opacity-40" />
-              <div className="relative flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 dark:from-brand-cyan dark:to-brand-teal-500 shadow-lg">
-                <LogoIcon className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
-              </div>
+      {/* Sticky Header */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-slate-200/50 dark:border-white/5">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-teal-500 to-brand-teal-600 dark:from-brand-cyan dark:to-brand-teal-500">
+              <LogoIcon className="h-4 w-4 text-white" />
             </div>
-            <div className="text-left">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-                Plutus
-              </h1>
-              <span className="text-[10px] sm:text-xs font-medium uppercase tracking-widest text-brand-teal-600 dark:text-brand-cyan">
-                Beta
-              </span>
-            </div>
-          </div>
+            <span className="text-lg font-semibold text-slate-900 dark:text-white">Plutus</span>
+          </Link>
 
+          {/* QBO Status */}
+          <Suspense fallback={<QboStatusFallback />}>
+            <QboStatusIndicator />
+          </Suspense>
+        </div>
+      </header>
+
+      {/* Content wrapper - flex-1 to fill available space */}
+      <div className="relative flex-1 flex flex-col w-full max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        {/* Hero */}
+        <div className="mb-8 sm:mb-10 text-center">
           <p className="text-base sm:text-lg lg:text-xl text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed px-2">
             <span className="font-medium text-slate-800 dark:text-slate-200">Custom financials</span> from QuickBooks Online.
             <br className="hidden sm:block" />
             <span className="sm:hidden"> </span>
             SOP compliance & reports QBO can&apos;t generate.
           </p>
-        </header>
+        </div>
 
-        {/* Main content area - flex-1 to push footer down */}
-        <div className="flex-1 space-y-4 sm:space-y-6">
-          {/* Connection Card */}
-          <section>
-            <Suspense fallback={<QboCardFallback />}>
-              <QboConnectionCard />
-            </Suspense>
-          </section>
-
-          {/* Feature Cards */}
-          <section className="space-y-3 sm:space-y-4">
-            {/* Grid for first two cards */}
-            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
-              <FeatureCard
-                href="/transactions"
-                icon={<TransactionsIcon />}
-                title="Transactions"
-                description="View purchases, check SOP compliance, and update Reference/Memo fields."
-                accentColor="teal"
-              />
-
-              <FeatureCard
-                href="/reconcile"
-                icon={<ReconcileIcon />}
-                title="Reconciliation"
-                description="Bulk apply SOPs to transactions. Enter memos and references at scale."
-                accentColor="teal"
-              />
-            </div>
-
-            {/* Full width cards */}
+        {/* Feature Cards */}
+        <div className="flex-1 space-y-3 sm:space-y-4">
+          {/* Grid for first two cards */}
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <FeatureCard
-              href="/chart-of-accounts"
-              icon={<AccountsIcon />}
-              title="Chart of Accounts"
-              description="View account hierarchies from QuickBooks, grouped by type like QBO."
-              accentColor="amber"
+              href="/transactions"
+              icon={<TransactionsIcon />}
+              title="Transactions"
+              description="View purchases, check SOP compliance, and update Reference/Memo fields."
+              accentColor="teal"
             />
 
             <FeatureCard
-              href="/setup"
-              icon={<TerminalIcon />}
-              title="Setup Wizard"
-              description="Configure Plutus with QuickBooks and Link My Books integration."
-              accentColor="violet"
+              href="/reconcile"
+              icon={<ReconcileIcon />}
+              title="Reconciliation"
+              description="Bulk apply SOPs to transactions. Enter memos and references at scale."
+              accentColor="teal"
             />
+          </div>
 
-            {/* Coming soon card */}
-            <ComingSoonCard
-              icon={<ReportsIcon />}
-              title="Custom Reports"
-              description="Generate P&L, balance sheets, and cash flow reports with custom structure."
-            />
-          </section>
+          {/* Full width cards */}
+          <FeatureCard
+            href="/chart-of-accounts"
+            icon={<AccountsIcon />}
+            title="Chart of Accounts"
+            description="View account hierarchies from QuickBooks, grouped by type like QBO."
+            accentColor="amber"
+          />
+
+          <FeatureCard
+            href="/setup"
+            icon={<TerminalIcon />}
+            title="Setup Wizard"
+            description="Configure Plutus with QuickBooks and Link My Books integration."
+            accentColor="violet"
+          />
+
+          {/* Coming soon card */}
+          <ComingSoonCard
+            icon={<ReportsIcon />}
+            title="Custom Reports"
+            description="Generate P&L, balance sheets, and cash flow reports with custom structure."
+          />
         </div>
 
         {/* Footer - will stay at bottom due to flex layout */}
