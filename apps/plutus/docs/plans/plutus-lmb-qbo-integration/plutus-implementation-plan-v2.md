@@ -158,6 +158,18 @@ This is a data entry timing issue. Prevention is better than cure.
 
 **User guidance:** Enter all bills for a PO before processing settlements that contain those SKUs.
 
+**⚠️ Bill Effective Date Rule (v1):**
+"Bill date" always means the QBO `TxnDate` field (the accounting date on the bill), NOT when the bill was entered into QBO.
+
+```
+Example:
+- User enters freight bill on March 15
+- Bill TxnDate is set to January 20
+- Plutus computes on-hand units as-of January 20 (not March 15)
+```
+
+This means users CAN backdate bills to apply costs to an earlier period. However, if the bill's TxnDate is before the most recent processed settlement for those SKUs, the costs will NOT retroactively adjust already-posted COGS.
+
 #### 3. Refund Matching Rule
 Refund rows in Audit Data CSV contain both Order ID and SKU. Matching uses:
 - Primary key: **(Order ID + SKU)** to locate the original sale row
@@ -352,6 +364,20 @@ If a shipment contains SKUs for both US and UK brands:
 - This ensures QBO inventory accounts stay correct at bill entry
 
 v2 may add a "Freight Clearing" account pattern for mixed shipments.
+
+#### 13. Order-Line Ledger Granularity (Critical for Refunds)
+**Sales must be stored in InventoryLedger at order-line level, not aggregated.**
+
+```
+For each sale row in CSV:
+- Create ONE InventoryLedger entry with (orderId, sku, date, qty, component costs)
+- Do NOT aggregate multiple orders into one ledger entry
+
+Why: Refund matching queries by (marketplace, orderId, sku) to find original costs.
+If sales are aggregated, refund matching breaks for cross-period refunds.
+```
+
+JE creation can still aggregate totals by (brand, component) for readability.
 
 ---
 
@@ -552,7 +578,7 @@ These accounts are created when you complete the LMB wizard. **Account names sho
 | 14 | Inventory Shrinkage - UK-Dust Sheets | Inventory Shrinkage | Cost of Goods Sold | Other Costs of Services - COS | Plutus |
 
 **Notes:**
-- All COGS accounts are brand-specific → brand P&Ls sum to exactly 100% of total
+- All COGS accounts are brand-specific → brand P&Ls (for Amazon ops) sum to exactly 100%
 - No shared Rounding account needed (see Rounding Policy below)
 - Land Freight and Storage 3PL bills are entered directly to COGS (not capitalized) - see Step 4.5 and 4.6
 
@@ -1642,11 +1668,22 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 3. EXTRACT UNITS SOLD PER SKU (SALES ONLY)                      │
+│ 3. PARSE SALES ROWS (ORDER-LINE GRANULARITY)                    │
+│                                                                 │
+│    ⚠️ CRITICAL: Store sales at ORDER-LINE level, not aggregated │
+│    (Required for refund matching - see Step 6.2)                │
+│                                                                 │
 │    - Filter CSV for LMB Line Description = 'Amazon Sales -      │
 │      Principal'                                                 │
-│    - Group by SKU, sum Quantity                                 │
+│    - For EACH sale row, extract:                                │
+│      • orderId (Order Id column)                                │
+│      • sku (Sku column)                                         │
+│      • quantity (Quantity column)                               │
+│      • date (date column)                                       │
 │    - VALIDATE: All SKUs must be mapped (see Appendix E.4)       │
+│                                                                 │
+│    Why not aggregate? Refund matching needs (orderId, sku) to   │
+│    find the original sale's component costs.                    │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1663,19 +1700,26 @@ async function getBillsByPO(poNumber: string): Promise<Bill[]> {
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5. CALCULATE COGS (SALES)                                       │
-│    - Per SKU: units sold × landed cost components               │
+│ 5. CALCULATE COGS (AGGREGATE FOR JE)                            │
+│    - For each sale row: units × landed cost components          │
+│    - Aggregate totals by (brand, component) for JE creation     │
 │    - Debit COGS / Credit Inventory Asset                        │
-│    - Aggregate by brand and component                           │
+│                                                                 │
+│    Storage: Order-line level (for refunds)                      │
+│    JE lines: Aggregated by brand+component (for readability)    │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 6. UPDATE INVENTORY LEDGER                                      │
+│ 6. UPDATE INVENTORY LEDGER (PER ORDER-LINE)                     │
+│                                                                 │
+│    For EACH sale row (not aggregated):                          │
 │    - Insert record: type=SALE, quantityChange=-N                │
-│    - Store orderId (for future refund matching)                 │
+│    - Store orderId + sku (enables refund matching)              │
 │    - Store component costs: unitMfgUSD, unitFreightUSD, etc.    │
 │    - Track running quantity and component values                │
+│                                                                 │
+│    This granularity is REQUIRED for DB-first refund matching.   │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -1960,8 +2004,10 @@ Memo: "Returns reversal - Jan 2026"
 |-------|-----------------|
 | LMB posts to brand accounts | Revenue split by brand |
 | Plutus posts COGS journal | COGS split by brand + component |
-| P&L by brand | Adds up to 100% of total |
+| P&L by brand (Amazon ops) | Adds up to 100% of Amazon ops P&L* |
 | Inventory Asset balance | Matches expected on-hand value |
+
+*Note: "Brand P&L sums to 100%" applies to **Amazon operations only** (revenue, Amazon fees, inventory COGS). Company overhead (software, accounting, office, etc.) is NOT brand-split unless you create additional brand sub-accounts for those. For full-company brand P&L, either brand-split all overhead accounts OR treat "Shared/Overhead" as a third reporting bucket.
 
 ---
 
@@ -2499,3 +2545,4 @@ Add Promotions account mapping to each Product Group in LMB.
 - v3.12: January 17, 2026 - (1) Added late freight edge case: block when on-hand = 0. (2) Added QBO Opening Initialization JE requirement for catch-up mode. (3) Added QBO query pagination limits (90-day lookback, 100 per page). (4) Clarified Name vs FullyQualifiedName for account creation. (5) Added returns quantity priority logic. (6) Updated idempotency key to include marketplace. (7) Clarified Settlement vs CsvUpload model hierarchy. (8) Fixed account summary to show "8 + 12 + 1 Rounding + 16".
 - v3.13: January 17, 2026 - (1) Added Inventory Shrinkage brand sub-accounts (2 accounts) so brand P&Ls sum to 100%. (2) Total sub-accounts now 39 (was 37). (3) Clarified COGS posting responsibility (Plutus vs Manual for Land Freight/Storage 3PL). (4) Fixed bill parsing validation to apply to manufacturing lines only. (5) Added detailed PO completeness rules.
 - v3.14: January 17, 2026 - MAJOR: (1) Fixed QBO Account.Name uniqueness issue - Inventory Asset accounts now prefixed with "Inv" (e.g., "Inv Manufacturing - US-Dust Sheets") to avoid collision with COGS accounts. (2) Removed Rounding account - JEs now balance by construction (round component totals, not individual SKUs). Total sub-accounts now 38 (was 39). (3) Updated bill parsing to support UK SKUs with spaces (e.g., "CS 007", "CS 1SD-32M"). (4) Fixed Step 6.x numbering (6.2→6.3→6.4). (5) Standardized Detail Type spelling to "Other Costs of Services - COS".
+- v3.15: January 17, 2026 - (1) CRITICAL: Settlement processing now stores sales at ORDER-LINE granularity (one InventoryLedger entry per orderId+sku), not aggregated. Required for DB-first refund matching to work across periods. (2) Added explicit Bill Effective Date Rule: "bill date" = QBO TxnDate, not entry time. (3) Clarified "Brand P&L sums to 100%" applies to Amazon operations only, not company overhead.
