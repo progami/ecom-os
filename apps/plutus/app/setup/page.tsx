@@ -13,12 +13,27 @@ const LMB_APP_URL = 'https://app.linkmybooks.com';
 const LMB_SETUP_WIZARD_URL = 'https://app.linkmybooks.com/setup-wizard';
 const QBO_CHART_OF_ACCOUNTS_URL = 'https://app.qbo.intuit.com/app/chartofaccounts';
 
-const REQUIRED_PARENT_ACCOUNTS = [
+// Plutus parent accounts (Inventory + COGS)
+const PLUTUS_PARENT_ACCOUNTS = [
   { name: 'Inventory Asset', type: 'Other Current Assets' },
   { name: 'Manufacturing', type: 'Cost of Goods Sold' },
   { name: 'Freight & Custom Duty', type: 'Cost of Goods Sold' },
   { name: 'Land Freight', type: 'Cost of Goods Sold' },
   { name: 'Storage 3PL', type: 'Cost of Goods Sold' },
+  { name: 'Mfg Accessories', type: 'Cost of Goods Sold' },
+  { name: 'Inventory Shrinkage', type: 'Cost of Goods Sold' },
+] as const;
+
+// LMB parent accounts (Revenue + Fees) - LMB posts here
+const LMB_PARENT_ACCOUNTS = [
+  { name: 'Amazon Sales', type: 'Income' },
+  { name: 'Amazon Refunds', type: 'Income' },
+  { name: 'Amazon FBA Fees', type: 'Expense' },
+  { name: 'Amazon Seller Fees', type: 'Expense' },
+  { name: 'Amazon Storage Fees', type: 'Expense' },
+  { name: 'Amazon Advertising Costs', type: 'Expense' },
+  { name: 'Amazon Promotions', type: 'Expense' },
+  { name: 'Amazon FBA Inventory Reimbursement', type: 'Other Income' },
 ] as const;
 
 const DEFAULT_BRANDS = ['UK-Dust Sheets', 'US-Dust Sheets'];
@@ -152,6 +167,8 @@ function ConnectQboStep({
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(connected);
   const [company, setCompany] = useState(companyName);
+  const [homeCurrency, setHomeCurrency] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,6 +181,8 @@ function ConnectQboStep({
           setIsConnected(true);
           const name = data.companyName || 'Connected';
           setCompany(name);
+          setHomeCurrency(data.homeCurrency || null);
+          setSubscription(data.subscription || null);
         }
       } catch {
         // Not connected
@@ -189,6 +208,8 @@ function ConnectQboStep({
       await fetch(`${basePath}/api/qbo/disconnect`, { method: 'POST' });
       setIsConnected(false);
       setCompany(null);
+      setHomeCurrency(null);
+      setSubscription(null);
       onConnectionChange(false, null);
     } catch (err) {
       setError('Failed to disconnect');
@@ -222,7 +243,15 @@ function ConnectQboStep({
               <span className="w-2 h-2 rounded-full bg-green-500"></span>
               Connected
             </div>
-            <p className="text-slate-900 dark:text-white font-medium">{company}</p>
+            <div className="space-y-1">
+              <p className="text-slate-900 dark:text-white font-medium">{company}</p>
+              {homeCurrency && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Home Currency: {homeCurrency}</p>
+              )}
+              {subscription && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Subscription: {subscription}</p>
+              )}
+            </div>
             <Button onClick={disconnect} variant="outline" size="sm">
               Disconnect
             </Button>
@@ -491,9 +520,12 @@ function AccountSetupStep({
   const [phase, setPhase] = useState<'verify' | 'create' | 'done'>('verify');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [parentStatus, setParentStatus] = useState<{ name: string; type: string; status: 'pass' | 'fail' | 'pending' }[]>(
-    REQUIRED_PARENT_ACCOUNTS.map((item) => ({ name: item.name, type: item.type, status: 'pending' }))
-  );
+  const [plutusParentStatus, setPlutusParentStatus] = useState<
+    { name: string; type: string; status: 'pass' | 'fail' | 'pending' }[]
+  >(PLUTUS_PARENT_ACCOUNTS.map((item) => ({ name: item.name, type: item.type, status: 'pending' })));
+  const [lmbParentStatus, setLmbParentStatus] = useState<
+    { name: string; type: string; status: 'pass' | 'fail' | 'pending' }[]
+  >(LMB_PARENT_ACCOUNTS.map((item) => ({ name: item.name, type: item.type, status: 'pending' })));
   const [createResult, setCreateResult] = useState<{ created: number; skipped: number } | null>(null);
 
   const verifyParents = async () => {
@@ -507,17 +539,29 @@ function AccountSetupStep({
       }
 
       const accounts: Array<{ name: string; parentName: string | null; active?: boolean }> = data.accounts || [];
-      const results = REQUIRED_PARENT_ACCOUNTS.map((item) => {
+
+      // Check Plutus parent accounts
+      const plutusResults = PLUTUS_PARENT_ACCOUNTS.map((item) => {
         const account = accounts.find(
           (a) => a.parentName === null && a.name.toLowerCase() === item.name.toLowerCase()
         );
         const exists = account && account.active !== false;
         return { name: item.name, type: item.type, status: (exists ? 'pass' : 'fail') as 'pass' | 'fail' };
       });
+      setPlutusParentStatus(plutusResults);
 
-      setParentStatus(results);
+      // Check LMB parent accounts
+      const lmbResults = LMB_PARENT_ACCOUNTS.map((item) => {
+        const account = accounts.find(
+          (a) => a.parentName === null && a.name.toLowerCase() === item.name.toLowerCase()
+        );
+        const exists = account && account.active !== false;
+        return { name: item.name, type: item.type, status: (exists ? 'pass' : 'fail') as 'pass' | 'fail' };
+      });
+      setLmbParentStatus(lmbResults);
 
-      if (results.every((r) => r.status === 'pass')) {
+      const allPassed = plutusResults.every((r) => r.status === 'pass') && lmbResults.every((r) => r.status === 'pass');
+      if (allPassed) {
         onVerified();
         setPhase('create');
       }
@@ -552,16 +596,43 @@ function AccountSetupStep({
     }
   };
 
-  const hasFailed = parentStatus.some((p) => p.status === 'fail');
+  const plutusHasFailed = plutusParentStatus.some((p) => p.status === 'fail');
+  const lmbHasFailed = lmbParentStatus.some((p) => p.status === 'fail');
+  const hasFailed = plutusHasFailed || lmbHasFailed;
   const brandCount = brands.length;
-  const expectedSubAccounts = brandCount * 18; // 4 Inv Asset + 6 COGS + 8 Revenue/Fee per brand
+  // 4 Inv Asset + 7 COGS + 8 Revenue/Fee per brand = 19 per brand
+  const expectedSubAccounts = brandCount * 19;
+
+  // Sub-account names for preview
+  const inventorySubAccounts = ['Mfg', 'Freight', 'Duty', 'MfgAcc'];
+  const cogsSubAccounts = ['Manufacturing', 'Freight & Custom Duty', 'Land Freight', 'Storage 3PL', 'Mfg Accessories', 'Inventory Shrinkage'];
+  const lmbSubAccounts = ['Sales', 'Refunds', 'FBA Fees', 'Seller Fees', 'Storage Fees', 'Advertising', 'Promotions', 'FBA Inv Reimb'];
+
+  const renderParentAccountRow = (item: { name: string; type: string; status: 'pass' | 'fail' | 'pending' }) => (
+    <div
+      key={item.name}
+      className={cn(
+        'px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-between',
+        item.status === 'pending' && 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+        item.status === 'pass' && 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
+        item.status === 'fail' && 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+      )}
+    >
+      <span>
+        {item.status === 'pass' && '✓ '}
+        {item.status === 'fail' && '✗ '}
+        {item.name}
+      </span>
+      <span className="font-normal opacity-75 text-xs">({item.type})</span>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Plutus Account Setup</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          {phase === 'verify' && 'First, verify parent accounts exist in QBO.'}
+          {phase === 'verify' && 'Verify parent accounts exist in QBO. Plutus will create sub-accounts under them.'}
           {phase === 'create' && `Create sub-accounts for ${brandCount} brand(s).`}
           {phase === 'done' && 'QBO accounts are ready.'}
         </p>
@@ -575,31 +646,25 @@ function AccountSetupStep({
 
       {phase === 'verify' && (
         <>
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Required Parent Accounts</h3>
-            <div className="space-y-2">
-              {parentStatus.map((item) => (
-                <div
-                  key={item.name}
-                  className={cn(
-                    'px-4 py-3 rounded-lg font-medium text-sm',
-                    item.status === 'pending' && 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
-                    item.status === 'pass' && 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
-                    item.status === 'fail' && 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                  )}
-                >
-                  {item.status === 'pass' && '✓ '}
-                  {item.status === 'fail' && '✗ '}
-                  {item.name}{' '}
-                  <span className="font-normal opacity-75">({item.type})</span>
-                </div>
-              ))}
-            </div>
+          {/* Plutus Accounts Section */}
+          <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+              PLUTUS ACCOUNTS (Inventory + COGS)
+            </h3>
+            <div className="space-y-2">{plutusParentStatus.map(renderParentAccountRow)}</div>
+          </div>
+
+          {/* LMB Accounts Section */}
+          <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
+              LMB ACCOUNTS (Revenue + Fees) - LMB posts here
+            </h3>
+            <div className="space-y-2">{lmbParentStatus.map(renderParentAccountRow)}</div>
           </div>
 
           {hasFailed && (
-            <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+            <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
                 Create the missing parent accounts in QuickBooks, then re-verify.
               </p>
               <a
@@ -616,16 +681,76 @@ function AccountSetupStep({
       )}
 
       {phase === 'create' && !createResult && (
-        <div className="p-6 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-          <p className="text-slate-600 dark:text-slate-400 mb-4 text-sm">
-            This will create up to {expectedSubAccounts} sub-accounts:
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Sub-accounts will be created for each brand. Preview:
           </p>
-          <ul className="text-sm text-slate-500 dark:text-slate-400 space-y-1 mb-4">
-            <li>• {brandCount * 4} Inventory Asset sub-accounts</li>
-            <li>• {brandCount * 6} COGS sub-accounts</li>
-            <li>• {brandCount * 8} Revenue/Fee sub-accounts (for LMB)</li>
-          </ul>
-          <Button onClick={createAccounts} disabled={loading} className="bg-teal-500 hover:bg-teal-600 text-white">
+
+          {brands.map((brand) => (
+            <div
+              key={brand.name}
+              className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+            >
+              <h4 className="font-semibold text-slate-900 dark:text-white mb-3">{brand.name}</h4>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">Inventory Asset Sub-Accounts:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {inventorySubAccounts.map((sub) => (
+                      <span
+                        key={sub}
+                        className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                      >
+                        Inv Asset: {sub} - {brand.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">COGS Sub-Accounts:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {cogsSubAccounts.map((sub) => (
+                      <span
+                        key={sub}
+                        className="px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
+                      >
+                        {sub} - {brand.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-medium text-slate-600 dark:text-slate-400 mb-1">Revenue/Fee Sub-Accounts (for LMB):</p>
+                  <div className="flex flex-wrap gap-1">
+                    {lmbSubAccounts.map((sub) => (
+                      <span
+                        key={sub}
+                        className="px-2 py-1 rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400"
+                      >
+                        Amazon {sub} - {brand.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div className="p-4 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Summary: {expectedSubAccounts} sub-accounts to create
+            </p>
+            <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-1">
+              <li>• {brandCount * 4} Inventory Asset sub-accounts ({inventorySubAccounts.length} per brand)</li>
+              <li>• {brandCount * cogsSubAccounts.length} COGS sub-accounts ({cogsSubAccounts.length} per brand)</li>
+              <li>• {brandCount * lmbSubAccounts.length} Revenue/Fee sub-accounts ({lmbSubAccounts.length} per brand)</li>
+            </ul>
+          </div>
+
+          <Button onClick={createAccounts} disabled={loading} className="w-full bg-teal-500 hover:bg-teal-600 text-white">
             {loading ? 'Creating...' : 'Create All Sub-Accounts in QBO'}
           </Button>
         </div>
@@ -685,6 +810,7 @@ function SkuSetupStep({
   const [newBrand, setNewBrand] = useState(brands[0]?.name || '');
   const [newAsin, setNewAsin] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [csvError, setCsvError] = useState<string | null>(null);
 
   const addSku = () => {
     const trimmedSku = newSku.trim();
@@ -710,6 +836,88 @@ function SkuSetupStep({
     onSkusChange(skus.filter((_, i) => i !== index));
   };
 
+  const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setCsvError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n').filter((line) => line.trim());
+
+      if (lines.length < 2) {
+        setCsvError('CSV must have a header row and at least one data row');
+        return;
+      }
+
+      // Parse header
+      const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+      const skuIdx = header.indexOf('sku');
+      const productIdx = header.indexOf('product_name');
+      const brandIdx = header.indexOf('brand');
+      const asinIdx = header.indexOf('asin');
+
+      if (skuIdx === -1 || brandIdx === -1) {
+        setCsvError('CSV must have "sku" and "brand" columns');
+        return;
+      }
+
+      const brandNames = brands.map((b) => b.name.toLowerCase());
+      const newSkus: Sku[] = [];
+      const errors: string[] = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map((c) => c.trim());
+        const sku = cols[skuIdx];
+        const brand = cols[brandIdx];
+        const productName = productIdx !== -1 ? cols[productIdx] : '';
+        const asin = asinIdx !== -1 ? cols[asinIdx] : '';
+
+        if (!sku || !brand) {
+          errors.push(`Row ${i + 1}: Missing SKU or brand`);
+          continue;
+        }
+
+        if (!brandNames.includes(brand.toLowerCase())) {
+          errors.push(`Row ${i + 1}: Brand "${brand}" not found`);
+          continue;
+        }
+
+        const matchedBrand = brands.find((b) => b.name.toLowerCase() === brand.toLowerCase());
+        if (matchedBrand && !skus.some((s) => s.sku === sku) && !newSkus.some((s) => s.sku === sku)) {
+          newSkus.push({
+            sku,
+            productName,
+            brand: matchedBrand.name,
+            asin: asin || undefined,
+          });
+        }
+      }
+
+      if (newSkus.length > 0) {
+        onSkusChange([...skus, ...newSkus]);
+      }
+
+      if (errors.length > 0) {
+        setCsvError(`Imported ${newSkus.length} SKUs. Errors:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? `\n...and ${errors.length - 5} more` : ''}`);
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset file input
+  };
+
+  const downloadTemplate = () => {
+    const template = 'sku,product_name,brand,asin\nCS-007,6 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ123\nCS-010,3 Pack Drop Cloth 12x9ft,US-Dust Sheets,B08XYZ456';
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sku-import-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -720,11 +928,27 @@ function SkuSetupStep({
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button onClick={() => setShowModal(true)} className="bg-teal-500 hover:bg-teal-600 text-white">
           + Add SKU
         </Button>
+        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+          <input type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+          Bulk Import CSV
+        </label>
+        <button
+          onClick={downloadTemplate}
+          className="text-sm text-teal-600 dark:text-teal-400 hover:underline"
+        >
+          Download Template
+        </button>
       </div>
+
+      {csvError && (
+        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-line">{csvError}</p>
+        </div>
+      )}
 
       {skus.length > 0 ? (
         <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
@@ -1075,6 +1299,10 @@ function CatchUpStep({
   onNext: () => void;
   onBack: () => void;
 }) {
+  const [valuationSource, setValuationSource] = useState<'bills' | 'accountant' | null>(null);
+  const [inventoryFile, setInventoryFile] = useState<File | null>(null);
+  const [valuationFile, setValuationFile] = useState<File | null>(null);
+
   const options = [
     {
       id: 'none' as const,
@@ -1083,8 +1311,8 @@ function CatchUpStep({
     },
     {
       id: 'from_date' as const,
-      title: 'Catch up from a specific date',
-      description: "Process bills and settlements after this date. Earlier history won't be tracked in Plutus.",
+      title: 'Catch up from a specific date (with opening snapshot)',
+      description: 'Requires: Opening inventory snapshot (Amazon report + valuation).',
     },
     {
       id: 'full' as const,
@@ -1093,15 +1321,30 @@ function CatchUpStep({
     },
   ];
 
-  const canProceed = mode === 'none' || mode === 'full' || (mode === 'from_date' && startDate);
+  // For from_date mode, we need: date + inventory file + valuation source (+ valuation file if accountant)
+  const fromDateValid =
+    mode === 'from_date' &&
+    startDate &&
+    inventoryFile &&
+    valuationSource &&
+    (valuationSource === 'bills' || (valuationSource === 'accountant' && valuationFile));
+
+  const canProceed = mode === 'none' || mode === 'full' || fromDateValid;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Historical Catch-Up</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Plutus maintains a strict audit trail. Every inventory movement must be linked to a source document (Bills or
-          Settlements). No arbitrary &quot;opening balance&quot; entries are allowed.
+          Plutus maintains a strict audit trail. Every inventory movement must be linked to a source document.
+        </p>
+      </div>
+
+      <div className="p-4 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+        <p className="text-xs text-slate-600 dark:text-slate-400">
+          <span className="font-semibold">INVENTORY IN</span> → Bills in QBO (Plutus reads these)<br />
+          <span className="font-semibold">INVENTORY OUT</span> → LMB Settlements (via Audit Data CSV)<br />
+          <span className="font-semibold">OPENING POS.</span> → Amazon Inventory Report + Valuation
         </p>
       </div>
 
@@ -1126,7 +1369,7 @@ function CatchUpStep({
               >
                 {mode === option.id && <div className="w-2 h-2 rounded-full bg-white"></div>}
               </div>
-              <div>
+              <div className="flex-1">
                 <p
                   className={cn(
                     'font-medium',
@@ -1140,20 +1383,132 @@ function CatchUpStep({
             </div>
 
             {option.id === 'from_date' && mode === 'from_date' && (
-              <div className="mt-4 ml-8">
-                <input
-                  type="date"
-                  value={startDate || ''}
-                  onChange={(e) => onStartDateChange(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/30"
-                />
+              <div className="mt-4 ml-8 space-y-4" onClick={(e) => e.stopPropagation()}>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Start from:
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate || ''}
+                    onChange={(e) => onStartDateChange(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                  />
+                </div>
               </div>
             )}
           </button>
         ))}
       </div>
+
+      {/* Opening Inventory Snapshot Panel - only shown when from_date is selected */}
+      {mode === 'from_date' && startDate && (
+        <div className="p-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 space-y-4">
+          <h3 className="font-semibold text-amber-800 dark:text-amber-200">Opening Inventory Snapshot</h3>
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            To start from {startDate}, we need to know your inventory position on that date.
+          </p>
+
+          {/* Step 1: Amazon Inventory Report */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Step 1: Upload Amazon Inventory Report
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Download from: Seller Central → Reports → Inventory → Inventory Ledger (as-of {startDate})
+            </p>
+            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+              <input
+                type="file"
+                accept=".csv,.xlsx"
+                onChange={(e) => setInventoryFile(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+              {inventoryFile ? inventoryFile.name : 'Choose File'}
+            </label>
+            {inventoryFile && (
+              <span className="text-xs text-green-600 dark:text-green-400 ml-2">✓ File selected</span>
+            )}
+          </div>
+
+          {/* Step 2: Valuation Source */}
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Step 2: Provide Inventory Valuation
+            </p>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => setValuationSource('bills')}
+                className={cn(
+                  'w-full p-3 rounded-lg border text-left text-sm',
+                  valuationSource === 'bills'
+                    ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-300 dark:border-teal-700'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      'w-4 h-4 rounded-full border-2',
+                      valuationSource === 'bills' ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
+                    )}
+                  >
+                    {valuationSource === 'bills' && <div className="w-2 h-2 rounded-full bg-white m-0.5" />}
+                  </div>
+                  <span className="font-medium">Compute from historical bills in QBO</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 ml-6 mt-1">
+                  Plutus will read all bills before {startDate} to calculate weighted average cost per SKU.
+                </p>
+              </button>
+
+              <button
+                onClick={() => setValuationSource('accountant')}
+                className={cn(
+                  'w-full p-3 rounded-lg border text-left text-sm',
+                  valuationSource === 'accountant'
+                    ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-300 dark:border-teal-700'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      'w-4 h-4 rounded-full border-2',
+                      valuationSource === 'accountant' ? 'border-teal-500 bg-teal-500' : 'border-slate-300'
+                    )}
+                  >
+                    {valuationSource === 'accountant' && <div className="w-2 h-2 rounded-full bg-white m-0.5" />}
+                  </div>
+                  <span className="font-medium">Use accountant&apos;s valuation</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 ml-6 mt-1">
+                  Upload component breakdown from your accountant (SKU, Qty, Mfg, Freight, Duty, MfgAcc).
+                </p>
+              </button>
+
+              {valuationSource === 'accountant' && (
+                <div className="ml-6 mt-2">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    <input
+                      type="file"
+                      accept=".csv,.xlsx"
+                      onChange={(e) => setValuationFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    {valuationFile ? valuationFile.name : 'Upload Valuation File'}
+                  </label>
+                  {valuationFile && (
+                    <span className="text-xs text-green-600 dark:text-green-400 ml-2">✓ File selected</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">How Catch-Up Works:</p>
