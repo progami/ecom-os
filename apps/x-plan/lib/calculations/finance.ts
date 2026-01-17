@@ -372,11 +372,48 @@ export function computeCashFlow(
 
   const inventorySpendByWeek = new Map<number, number>();
   for (const order of purchaseOrders) {
+    if (order.payments.length > 0) {
+      for (const payment of order.payments) {
+        const hasPaidAmount =
+          typeof payment.amountPaid === 'number' &&
+          Number.isFinite(payment.amountPaid) &&
+          payment.amountPaid !== 0;
+        const dueDateSource = payment.dueDateSource ?? 'SYSTEM';
+        const weekFromDueDate = payment.dueDate ? weekNumberForDate(payment.dueDate, calendar) : null;
+        const weekFromDefaultDate = payment.dueDateDefault
+          ? weekNumberForDate(payment.dueDateDefault, calendar)
+          : null;
+        const weekNumber =
+          dueDateSource === 'USER'
+            ? (payment.dueWeekNumber ??
+              weekFromDueDate ??
+              payment.dueWeekNumberDefault ??
+              weekFromDefaultDate)
+            : (payment.dueWeekNumberDefault ??
+              weekFromDefaultDate ??
+              payment.dueWeekNumber ??
+              weekFromDueDate);
+        if (weekNumber == null) continue;
+        const amount = hasPaidAmount
+          ? coerceNumber(payment.amountPaid)
+          : coerceNumber(payment.amountExpected);
+        inventorySpendByWeek.set(weekNumber, (inventorySpendByWeek.get(weekNumber) ?? 0) + amount);
+      }
+      continue;
+    }
+
     for (const payment of order.plannedPayments) {
-      const weekNumber =
-        payment.actualWeekNumber ?? payment.plannedWeekNumber ?? payment.plannedDefaultWeekNumber;
+      const hasPaidAmount =
+        typeof payment.actualAmount === 'number' &&
+        Number.isFinite(payment.actualAmount) &&
+        payment.actualAmount !== 0;
+      const weekNumber = hasPaidAmount
+        ? (payment.actualWeekNumber ?? payment.plannedWeekNumber ?? payment.plannedDefaultWeekNumber)
+        : (payment.plannedWeekNumber ?? payment.plannedDefaultWeekNumber ?? payment.actualWeekNumber);
       if (weekNumber == null) continue;
-      const amount = coerceNumber(payment.actualAmount ?? payment.plannedAmount);
+      const amount = hasPaidAmount
+        ? coerceNumber(payment.actualAmount)
+        : coerceNumber(payment.plannedAmount);
       inventorySpendByWeek.set(weekNumber, (inventorySpendByWeek.get(weekNumber) ?? 0) + amount);
     }
   }
