@@ -340,9 +340,10 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 │  │ (same structure as above)                               │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
-│  SUMMARY: 37 sub-accounts to create                             │
+│  SUMMARY: 39 sub-accounts to create                             │
 │  • 8 Inventory Asset sub-accounts (4 per brand)                 │
-│  • 12 COGS sub-accounts (6 per brand)                           │
+│  • 14 COGS sub-accounts (7 per brand)                           │
+│  • 1 COGS Rounding account (shared)                             │
 │  • 16 Revenue/Fee sub-accounts (8 per brand)                    │
 │                                                                 │
 │  [Create All Sub-Accounts in QBO]                               │
@@ -355,7 +356,7 @@ The Setup Wizard guides users through all prerequisites before Plutus can proces
 **After Creation:**
 
 ```
-│  ✅ 37 sub-accounts created successfully                        │
+│  ✅ 39 sub-accounts created successfully                        │
 │                                                                 │
 │  [Back]                                        [Next →]         │
 ```
@@ -677,6 +678,34 @@ Plutus queries bills using `PrivateNote` field:
 │  └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 │  ─────────────────────────────────────────────────────────────  │
+│                                                                 │
+│  STEP 3: QBO INITIALIZATION JOURNAL ENTRY                       │
+│                                                                 │
+│  ⚠️ IMPORTANT: Your QBO inventory sub-accounts are currently   │
+│  at $0. Without an initialization JE, they will go NEGATIVE    │
+│  when you post your first COGS.                                │
+│                                                                 │
+│  ○ Let Plutus create the initialization JE automatically       │
+│    (Recommended)                                                │
+│                                                                 │
+│  ○ I'll create it manually / have my accountant do it          │
+│    [Download JE Details]                                        │
+│                                                                 │
+│  Preview of Initialization JE:                                  │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ Date: 2025-01-01                                        │   │
+│  │                                                         │   │
+│  │ DEBITS:                                                 │   │
+│  │   Inv Asset: Manufacturing - US     $1,250.00           │   │
+│  │   Inv Asset: Freight - US           $150.00             │   │
+│  │   Inv Asset: Manufacturing - UK     $800.00             │   │
+│  │   ...                                                   │   │
+│  │                                                         │   │
+│  │ CREDITS:                                                │   │
+│  │   Opening Balance Equity            $2,400.00           │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                                                                 │
+│  ─────────────────────────────────────────────────────────────  │
 │  [Back]                           [Create Opening Snapshot →]   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -687,6 +716,7 @@ Plutus queries bills using `PrivateNote` field:
   - Amazon inventory report must be uploaded
   - Valuation source must be selected (bills or accountant file)
   - If accountant file, must have required columns
+  - QBO initialization method must be selected
 
 **Data Captured:**
 - `catchUpMode: 'none' | 'from_date' | 'full'`
@@ -694,6 +724,8 @@ Plutus queries bills using `PrivateNote` field:
 - `openingSnapshotFile: File | null` (Amazon inventory report)
 - `valuationSource: 'bills' | 'accountant' | null`
 - `valuationFile: File | null` (accountant spreadsheet)
+- `qboInitMethod: 'auto' | 'manual' | null`
+- `qboInitJeId: String | null` (if auto-created)
 
 **What happens after wizard completes:**
 
@@ -741,7 +773,7 @@ This keeps the architecture simple and avoids issues with LMB posting Journal En
 │                                                                 │
 │  ACCOUNTS                                                       │
 │  ✅ 15 parent accounts verified                                 │
-│  ✅ 37 sub-accounts created                                     │
+│  ✅ 39 sub-accounts created                                     │
 │  ✅ Bill memo format guidelines acknowledged                    │
 │                                                                 │
 │  SKUS                                                           │
@@ -931,4 +963,3 @@ SKU "CS-007" already exists. Please use a unique SKU.
 
 [OK]
 ```
-
